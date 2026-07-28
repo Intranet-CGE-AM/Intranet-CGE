@@ -1,0 +1,277 @@
+import { expect, test, type Page } from "@playwright/test";
+
+const admin = {
+  email: "admin-e2e@local.invalid",
+  password: "Admin-E2E-Password-123",
+};
+const supervisor = {
+  email: "supervisor-e2e@local.invalid",
+  temporaryPassword: "Supervisor-Temp-Password-123",
+  password: "Supervisor-Final-Password-123",
+};
+const worker = {
+  email: "worker-e2e@local.invalid",
+  temporaryPassword: "Worker-Temp-Password-123",
+  password: "Worker-Final-Password-123",
+};
+
+test("complete HR journey from import through final vacation approval", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await expect(
+    page.getByRole("heading", { name: "Bem-vindo de volta" }),
+  ).toBeVisible();
+
+  await login(page, "invalid@local.invalid", "invalid-password");
+  await expect(
+    page.getByRole("status").getByText("E-mail ou senha inválidos."),
+  ).toBeVisible();
+
+  await page.getByLabel("E-mail institucional").fill(admin.email);
+  await page.getByLabel("Senha").fill(admin.password);
+  await page.getByRole("button", { name: "Entrar na intranet" }).click();
+  await expect(
+    page.getByRole("heading", { name: /Olá, Administrador/ }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Colaboradores" }).click();
+  await page.getByRole("button", { name: "Configurar RH" }).click();
+  await page.locator("#categoryName").fill("Servidor efetivo");
+  await page.getByLabel("Elegível ao fluxo de férias").check();
+  await page.getByRole("button", { name: "Adicionar categoria" }).click();
+  await expect(
+    page.getByText("Servidor efetivo", { exact: true }),
+  ).toBeVisible();
+  await page.locator("#unitCode").fill("CGTI");
+  await page.locator("#unitName").fill("Tecnologia da Informação");
+  await page.getByRole("button", { name: "Adicionar unidade" }).click();
+  await expect(page.getByText("CGTI", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await page.getByRole("button", { name: "Importar CSV" }).click();
+  await page.getByLabel("Arquivo CSV").setInputFiles({
+    name: "pessoas-e2e.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      [
+        "matricula,nome,nome_preferido,data_nascimento,aniversario_visivel,categoria,unidade_codigo,unidade_nome,cargo,data_inicio,ativo",
+        "E2E-001,Supervisora E2E,Supervisora,1985-02-10,sim,Servidor efetivo,CGTI,Tecnologia da Informação,Gerente,2020-01-02,sim",
+        "E2E-002,Trabalhador E2E,Trabalhador,1990-08-15,sim,Servidor efetivo,CGTI,Tecnologia da Informação,Analista,2021-03-04,sim",
+      ].join("\n"),
+    ),
+  });
+  await page.getByRole("button", { name: "Validar" }).click();
+  await expect(page.getByText(/2 válidas · 0 com erro/)).toBeVisible();
+  await page.getByRole("button", { name: "Aplicar importação" }).click();
+  await page.getByRole("button", { name: "Fechar" }).click();
+  await expect(page.getByText("Trabalhador", { exact: true })).toBeVisible();
+
+  const workerRow = page.getByRole("row", { name: /Trabalhador E2E/ });
+  await workerRow.getByRole("button", { name: "Definir chefia" }).click();
+  await page.getByLabel("Chefia direta").selectOption({ label: "Supervisora" });
+  await page.getByRole("button", { name: "Salvar chefia" }).click();
+
+  await page.getByRole("link", { name: "Administração" }).click();
+  await createAccount(
+    page,
+    "Supervisora",
+    supervisor.email,
+    supervisor.temporaryPassword,
+  );
+  await createAccount(
+    page,
+    "Trabalhador",
+    worker.email,
+    worker.temporaryPassword,
+  );
+  await createRole(page, "Chefia E2E", "Decisão da chefia");
+  await createRole(page, "Colaborador E2E", "Solicitar férias");
+  await assignRole(
+    page,
+    "Supervisora",
+    "Chefia E2E",
+    "CGTI · Tecnologia da Informação",
+  );
+  await assignRole(
+    page,
+    "Trabalhador",
+    "Colaborador E2E",
+    "CGTI · Tecnologia da Informação",
+  );
+
+  await logout(page, "Administrador da Plataforma");
+  await firstLogin(page, worker, "Trabalhador");
+  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await page.getByRole("button", { name: "Nova solicitação" }).click();
+  await page.getByLabel("Data inicial").fill("2026-09-01");
+  await page.getByLabel("Data final").fill("2026-09-15");
+  await page.getByRole("button", { name: "Enviar para chefia" }).click();
+  await expect(page.getByText("Aguardando chefia")).toBeVisible();
+
+  await logout(page, "Trabalhador");
+  await firstLogin(page, supervisor, "Supervisora");
+  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  const supervisorQueue = page.getByRole("heading", {
+    name: "Decisões da chefia",
+  });
+  await expect(supervisorQueue).toBeVisible();
+  await page
+    .getByRole("row", { name: /Trabalhador.*Decidir/ })
+    .getByRole("button", { name: "Decidir" })
+    .click();
+  await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
+  await page.getByLabel("Comentário").fill("Período validado pela chefia.");
+  await page.getByRole("button", { name: "Registrar decisão" }).click();
+  await expect(
+    page.getByText("Nenhuma solicitação aguarda decisão da chefia."),
+  ).toBeVisible();
+
+  await logout(page, "Supervisora");
+  await login(page, admin.email, admin.password);
+  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  const finalRow = page.getByRole("row", { name: /Trabalhador.*Decidir/ });
+  await finalRow.getByRole("button", { name: "Decidir" }).click();
+  await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
+  await page
+    .getByLabel("Comentário")
+    .fill("Elegibilidade conferida pela área de RH.");
+  await page.getByRole("button", { name: "Registrar decisão" }).click();
+  await expect(
+    page.getByText("Nenhuma solicitação aguarda decisão final."),
+  ).toBeVisible();
+
+  const audit = await page.request.get("/api/audit-events/export");
+  expect(audit.ok()).toBeTruthy();
+  const auditCsv = await audit.text();
+  expect(auditCsv).toContain("people-import.apply");
+  expect(auditCsv).toContain("vacation.submitted");
+  expect(auditCsv).toContain("vacation.supervisor-approve");
+  expect(auditCsv).toContain("vacation.final-approve");
+});
+
+test("login remains usable with keyboard on a narrow viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/login");
+  await expect(page.getByText("CGE Amazonas")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("E-mail institucional")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Senha")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Entrar na intranet" }),
+  ).toBeFocused();
+});
+
+test("login rate limit is isolated by account identifier", async ({
+  request,
+}) => {
+  const attempts = [];
+  for (let index = 0; index < 6; index += 1) {
+    attempts.push(
+      await request.post("/api/auth/login", {
+        headers: { Origin: "http://127.0.0.1:4173" },
+        data: {
+          email: "rate-limit-e2e@local.invalid",
+          password: "invalid-password",
+        },
+      }),
+    );
+  }
+  expect(
+    attempts.slice(0, 5).every((response) => response.status() === 401),
+  ).toBeTruthy();
+  expect(attempts[5]?.status()).toBe(429);
+});
+
+async function login(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await page.getByLabel("E-mail institucional").fill(email);
+  await page.getByLabel("Senha").fill(password);
+  await page.getByRole("button", { name: "Entrar na intranet" }).click();
+}
+
+async function firstLogin(
+  page: Page,
+  account: {
+    email: string;
+    temporaryPassword: string;
+    password: string;
+  },
+  expectedName: string,
+) {
+  await login(page, account.email, account.temporaryPassword);
+  await expect(
+    page.getByRole("heading", { name: "Proteja sua conta" }),
+  ).toBeVisible();
+  await page.getByLabel("Senha temporária").fill(account.temporaryPassword);
+  await page.getByLabel("Nova senha", { exact: true }).fill(account.password);
+  await page.getByLabel("Confirme a nova senha").fill(account.password);
+  await page.getByRole("button", { name: "Salvar e continuar" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Bem-vindo de volta" }),
+  ).toBeVisible();
+  await login(page, account.email, account.password);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(`Sair da conta de ${expectedName}`, "i"),
+    }),
+  ).toBeVisible();
+}
+
+async function logout(page: Page, displayName: string) {
+  await page
+    .getByRole("button", {
+      name: new RegExp(`Sair da conta de ${displayName}`, "i"),
+    })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Bem-vindo de volta" }),
+  ).toBeVisible();
+}
+
+async function createAccount(
+  page: Page,
+  person: string,
+  email: string,
+  password: string,
+) {
+  await page.getByRole("button", { name: "Nova conta" }).click();
+  await page.getByLabel("Pessoa").selectOption({ label: person });
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Senha temporária").fill(password);
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+}
+
+async function createRole(page: Page, name: string, permission: string) {
+  await page.getByRole("button", { name: "Novo papel" }).click();
+  await page.getByLabel("Nome").fill(name);
+  await page.getByLabel(permission).check();
+  await page.getByRole("button", { name: "Criar papel" }).click();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+}
+
+async function assignRole(
+  page: Page,
+  account: string,
+  role: string,
+  unitLabel: string,
+) {
+  await page.getByRole("button", { name: "Atribuir", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Conta", { exact: true }).selectOption({
+    label: account,
+  });
+  await dialog.getByLabel("Papel").selectOption({ label: role });
+  await dialog.getByLabel("Escopo").selectOption({ label: unitLabel });
+  await dialog.getByRole("button", { name: "Atribuir papel" }).click();
+  await expect(
+    page.getByText(`${role} · ${unitLabel.split(" · ")[1] ?? unitLabel}`, {
+      exact: true,
+    }),
+  ).toBeVisible();
+}

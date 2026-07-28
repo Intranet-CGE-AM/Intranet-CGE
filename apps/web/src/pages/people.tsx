@@ -47,6 +47,7 @@ export function PeoplePage() {
   const [personDialog, setPersonDialog] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
+  const [supervisorPerson, setSupervisorPerson] = useState<Person | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<PeopleImportResult | null>(
     null,
@@ -119,7 +120,8 @@ export function PeoplePage() {
 
   async function createCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     try {
       await api("/api/employment-categories", {
         method: "POST",
@@ -128,7 +130,7 @@ export function PeoplePage() {
           vacationEligible: data.get("vacationEligible") === "on",
         }),
       });
-      event.currentTarget.reset();
+      form.reset();
       await load();
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível criar a categoria."));
@@ -137,7 +139,8 @@ export function PeoplePage() {
 
   async function createUnit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     try {
       await api("/api/organization-units", {
         method: "POST",
@@ -147,7 +150,7 @@ export function PeoplePage() {
           parentId: null,
         }),
       });
-      event.currentTarget.reset();
+      form.reset();
       await load();
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível criar a unidade."));
@@ -191,6 +194,26 @@ export function PeoplePage() {
       await load();
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível desativar o colaborador."));
+    }
+  }
+
+  async function assignSupervisor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supervisorPerson) return;
+    const data = new FormData(event.currentTarget);
+    try {
+      await api(`/api/people/${supervisorPerson.id}`, {
+        method: "PATCH",
+        body: json({
+          employment: {
+            supervisorRelationshipId: data.get("supervisorRelationshipId"),
+          },
+        }),
+      });
+      setSupervisorPerson(null);
+      await load();
+    } catch (cause) {
+      setError(messageFor(cause, "Não foi possível definir a chefia."));
     }
   }
 
@@ -297,13 +320,22 @@ export function PeoplePage() {
                     {managesPeople ? (
                       <TableCell>
                         {person.employment ? (
-                          <Button
-                            variant="quiet"
-                            size="sm"
-                            onClick={() => void deactivate(person)}
-                          >
-                            Desativar
-                          </Button>
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              variant="quiet"
+                              size="sm"
+                              onClick={() => setSupervisorPerson(person)}
+                            >
+                              Definir chefia
+                            </Button>
+                            <Button
+                              variant="quiet"
+                              size="sm"
+                              onClick={() => void deactivate(person)}
+                            >
+                              Desativar
+                            </Button>
+                          </div>
                         ) : null}
                       </TableCell>
                     ) : null}
@@ -410,6 +442,48 @@ export function PeoplePage() {
               </Button>
               <Button type="submit">Cadastrar</Button>
             </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(supervisorPerson)}
+        onOpenChange={() => setSupervisorPerson(null)}
+      >
+        <DialogContent
+          title="Definir chefia"
+          description={
+            supervisorPerson
+              ? `Selecione a chefia direta de ${supervisorPerson.preferredName ?? supervisorPerson.fullName}.`
+              : undefined
+          }
+        >
+          <form className="space-y-4" onSubmit={assignSupervisor}>
+            <FormField htmlFor="supervisorRelationshipId" label="Chefia direta">
+              <Select
+                id="supervisorRelationshipId"
+                name="supervisorRelationshipId"
+                required
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Selecione
+                </option>
+                {people
+                  .filter(
+                    (person) =>
+                      person.id !== supervisorPerson?.id && person.employment,
+                  )
+                  .map((person) => (
+                    <option key={person.id} value={person.employment?.id ?? ""}>
+                      {person.preferredName ?? person.fullName}
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+            <Button className="w-full" type="submit">
+              Salvar chefia
+            </Button>
           </form>
         </DialogContent>
       </Dialog>

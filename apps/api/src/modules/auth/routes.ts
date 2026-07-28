@@ -42,6 +42,10 @@ export const authRoutes: FastifyPluginAsync<{
         rateLimit: {
           max: 5,
           timeWindow: "1 minute",
+          keyGenerator: (request) => {
+            const body = request.body as { email?: string } | undefined;
+            return `${request.ip}:${body?.email?.trim().toLowerCase() ?? ""}`;
+          },
         },
       },
       schema: {

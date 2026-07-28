@@ -233,11 +233,13 @@ export async function runPeopleImport(
     );
   }
   const failedRows = new Set(failures.map((row) => row.rowNumber)).size;
+  const reportedSuccessfulRows =
+    input.mode === "preview" ? rows.length - failedRows : successfulRows;
   await db
     .update(importRuns)
     .set({
       status: input.mode === "preview" ? "previewed" : "completed",
-      successfulRows: input.mode === "apply" ? successfulRows : 0,
+      successfulRows: reportedSuccessfulRows,
       failedRows,
       completedAt: input.mode === "apply" ? new Date() : null,
     })
@@ -247,7 +249,7 @@ export async function runPeopleImport(
     importRunId: run.id,
     checksum,
     totalRows: rows.length,
-    successfulRows: input.mode === "apply" ? successfulRows : 0,
+    successfulRows: reportedSuccessfulRows,
     failedRows,
     rows: rows.map((row) => ({
       rowNumber: row.rowNumber,

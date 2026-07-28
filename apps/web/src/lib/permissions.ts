@@ -8,6 +8,8 @@ export function can(
   return user.permissions.some(
     (grant) =>
       grant.key === permission &&
-      (grant.unitId === null || grant.unitId === unitId),
+      (unitId === undefined ||
+        grant.unitId === null ||
+        grant.unitId === unitId),
   );
 }

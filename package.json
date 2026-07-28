@@ -11,10 +11,12 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "./infra/scripts/e2e.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.2",
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",

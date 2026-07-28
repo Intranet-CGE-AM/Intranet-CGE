@@ -57,6 +57,7 @@ export async function buildApp({
   });
   await app.register(rateLimit, {
     global: false,
+    hook: "preHandler",
   });
   await app.register(helmet);
   await app.register(cors, {
