@@ -19,7 +19,7 @@ test("homolog worker sees every vacation state and immutable history", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
-  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(page, "Férias");
   for (const label of [
     "Rascunho",
     "Aguardando chefia",
@@ -40,12 +40,33 @@ test("homolog worker sees every vacation state and immutable history", async ({
 
 test("unit scopes suppress unrelated people and modules", async ({ page }) => {
   await login(page, accounts.viewer, password);
-  await expect(page.getByRole("link", { name: "Colaboradores" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Férias" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Administração" })).toHaveCount(
-    0,
-  );
-  await page.getByRole("link", { name: "Colaboradores" }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  await expect(
+    navigation.getByRole("link", { name: "Recursos Humanos", exact: true }),
+  ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Férias", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    navigation.getByRole("link", {
+      name: "Administração",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await navigation
+    .getByRole("link", { name: "Recursos Humanos", exact: true })
+    .click();
+  await expect(
+    navigation.getByRole("link", { name: "Colaboradores", exact: true }),
+  ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Férias", exact: true }),
+  ).toHaveCount(0);
+  await navigation
+    .getByRole("link", { name: "Colaboradores", exact: true })
+    .click();
   await expect(
     page.getByText("Leonardo Araújo", { exact: true }),
   ).toBeVisible();
@@ -70,9 +91,7 @@ test("supervisor and HR receive only their decision stages", async ({
   const supervisorContext = await browser.newContext();
   const supervisorPage = await supervisorContext.newPage();
   await login(supervisorPage, accounts.supervisor, password);
-  await supervisorPage
-    .getByRole("link", { name: "Férias", exact: true })
-    .click();
+  await openHrRoute(supervisorPage, "Férias");
   await expect(
     supervisorPage.getByRole("heading", { name: "Decisões da chefia" }),
   ).toBeVisible();
@@ -87,7 +106,7 @@ test("supervisor and HR receive only their decision stages", async ({
   const hrContext = await browser.newContext();
   const hrPage = await hrContext.newPage();
   await login(hrPage, accounts.hr, password);
-  await hrPage.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(hrPage, "Férias");
   await expect(
     hrPage.getByRole("heading", { name: "Decisão final" }),
   ).toBeVisible();
@@ -107,7 +126,7 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   page,
 }) => {
   await login(page, accounts.contractor, password);
-  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
   await page.getByLabel("Data inicial").fill("2027-02-01");
   await page.getByLabel("Data final").fill("2027-02-10");
@@ -132,7 +151,10 @@ test("administration supports role editing, password reset, and audit export", a
   await expect(
     page.getByRole("link", { name: "Solicitar férias" }),
   ).toHaveCount(0);
-  await page.getByRole("link", { name: "Administração" }).click();
+  await page
+    .getByRole("navigation", { name: "Navegação principal" })
+    .getByRole("link", { name: "Administração", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Atividade de auditoria" }),
   ).toBeVisible();
@@ -238,7 +260,13 @@ test("critical pages pass WCAG AA automation at mobile, tablet, and desktop size
   await login(page, admin.email, admin.password);
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    for (const path of ["/", "/pessoas", "/ferias", "/administracao"]) {
+    for (const path of [
+      "/",
+      "/rh",
+      "/rh/colaboradores",
+      "/rh/ferias",
+      "/sistema/administracao",
+    ]) {
       await page.goto(path);
       await expect(page.locator("h1")).toBeVisible();
       await expectAccessiblePage(page, path, viewport.width);
@@ -271,4 +299,11 @@ async function login(page: Page, email: string, loginPassword: string) {
   if (email !== accounts.disabled) {
     await expect(page.getByRole("heading", { name: /^Olá,/ })).toBeVisible();
   }
+}
+
+async function openHrRoute(page: Page, route: "Colaboradores" | "Férias") {
+  await page
+    .getByRole("link", { name: "Recursos Humanos", exact: true })
+    .click();
+  await page.getByRole("link", { name: route, exact: true }).click();
 }

@@ -132,7 +132,7 @@ export function DashboardPage() {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-            Visão operacional
+            Recursos Humanos
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
             Olá, {firstName}
@@ -181,7 +181,7 @@ export function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             {user.employment && can(user, "vacations.create") ? (
               <Button asChild>
-                <Link to="/ferias">
+                <Link to="/rh/ferias">
                   <CalendarCheck aria-hidden="true" size={17} />
                   Solicitar férias
                 </Link>
@@ -193,7 +193,7 @@ export function DashboardPage() {
                 className="border-white/30 bg-white/10 text-white hover:bg-white/20"
                 variant="secondary"
               >
-                <Link to="/pessoas">
+                <Link to="/rh/colaboradores">
                   <UsersThree aria-hidden="true" size={17} />
                   Abrir diretório
                 </Link>
@@ -247,7 +247,7 @@ export function DashboardPage() {
               </p>
             </div>
             <Button asChild variant="quiet" size="sm">
-              <Link to="/ferias">
+              <Link to="/rh/ferias">
                 Ver fluxo
                 <ArrowRight aria-hidden="true" size={15} />
               </Link>

@@ -35,7 +35,7 @@ test("complete HR journey from import through final vacation approval", async ({
     page.getByRole("heading", { name: /Olá, Administrador/ }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "Colaboradores" }).click();
+  await openHrRoute(page, "Colaboradores");
   await page.getByRole("button", { name: "Configurar RH" }).click();
   await page.locator("#categoryName").fill("Servidor efetivo E2E");
   await page.getByLabel("Elegível ao fluxo de férias").check();
@@ -97,7 +97,7 @@ test("complete HR journey from import through final vacation approval", async ({
 
   await logout(page, "Administrador da Plataforma");
   await firstLogin(page, worker, "Trabalhador");
-  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
   await page.getByLabel("Data inicial").fill("2026-09-01");
   await page.getByLabel("Data final").fill("2026-09-15");
@@ -106,7 +106,7 @@ test("complete HR journey from import through final vacation approval", async ({
 
   await logout(page, "Trabalhador");
   await firstLogin(page, supervisor, "Supervisora");
-  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(page, "Férias");
   const supervisorQueue = page.getByRole("heading", {
     name: "Decisões da chefia",
   });
@@ -124,7 +124,7 @@ test("complete HR journey from import through final vacation approval", async ({
 
   await logout(page, "Supervisora");
   await login(page, admin.email, admin.password);
-  await page.getByRole("link", { name: "Férias", exact: true }).click();
+  await openHrRoute(page, "Férias");
   const finalRow = page.getByRole("row", { name: /Trabalhador.*Decidir/ });
   await finalRow.getByRole("button", { name: "Decidir" }).click();
   await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
@@ -190,6 +190,13 @@ async function login(page: Page, email: string, password: string) {
   await page.getByLabel("E-mail institucional").fill(email);
   await page.getByLabel("Senha").fill(password);
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
+}
+
+async function openHrRoute(page: Page, route: "Colaboradores" | "Férias") {
+  await page
+    .getByRole("link", { name: "Recursos Humanos", exact: true })
+    .click();
+  await page.getByRole("link", { name: route, exact: true }).click();
 }
 
 async function firstLogin(

@@ -14,6 +14,9 @@ const DashboardPage = lazy(() =>
     default: module.DashboardPage,
   })),
 );
+const HubPage = lazy(() =>
+  import("./pages/hub").then((module) => ({ default: module.HubPage })),
+);
 const PeoplePage = lazy(() =>
   import("./pages/people").then((module) => ({ default: module.PeoplePage })),
 );
@@ -37,12 +40,20 @@ export function App() {
             index
             element={
               <Suspense fallback={<PageFallback />}>
+                <HubPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh"
+            element={
+              <Suspense fallback={<PageFallback />}>
                 <DashboardPage />
               </Suspense>
             }
           />
           <Route
-            path="pessoas"
+            path="rh/colaboradores"
             element={
               <Suspense fallback={<PageFallback />}>
                 <PeoplePage />
@@ -50,7 +61,7 @@ export function App() {
             }
           />
           <Route
-            path="ferias"
+            path="rh/ferias"
             element={
               <Suspense fallback={<PageFallback />}>
                 <VacationsPage />
@@ -58,7 +69,7 @@ export function App() {
             }
           />
           <Route
-            path="administracao"
+            path="sistema/administracao"
             element={
               <Suspense fallback={<PageFallback />}>
                 <AdminPage />
@@ -75,6 +86,15 @@ export function App() {
               }
             />
           ) : null}
+          <Route
+            path="pessoas"
+            element={<Navigate to="/rh/colaboradores" replace />}
+          />
+          <Route path="ferias" element={<Navigate to="/rh/ferias" replace />} />
+          <Route
+            path="administracao"
+            element={<Navigate to="/sistema/administracao" replace />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

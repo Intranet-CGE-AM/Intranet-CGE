@@ -1,55 +1,21 @@
 import { Button, Sheet, SheetContent, SheetTrigger } from "@cge/ui";
 import {
-  CalendarDots,
   CaretLeft,
   CaretRight,
-  GearSix,
   List,
   ShieldCheck,
   SignOut,
-  SquaresFour,
-  UsersThree,
 } from "@phosphor-icons/react";
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth";
-import { can } from "../lib/permissions";
-
-const navigation = [
-  {
-    label: "Início",
-    href: "/",
-    icon: SquaresFour,
-    end: true,
-    visible: () => true,
-  },
-  {
-    label: "Colaboradores",
-    href: "/pessoas",
-    icon: UsersThree,
-    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
-      can(user, "people.read"),
-  },
-  {
-    label: "Férias",
-    href: "/ferias",
-    icon: CalendarDots,
-    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
-      can(user, "vacations.create") ||
-      can(user, "vacations.review.supervisor") ||
-      can(user, "vacations.review.final"),
-  },
-  {
-    label: "Administração",
-    href: "/administracao",
-    icon: GearSix,
-    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
-      can(user, "accounts.manage") ||
-      can(user, "access.manage") ||
-      can(user, "audit.read"),
-  },
-] as const;
+import {
+  availableModules,
+  availableSystemNavigation,
+  homeNavigation,
+  type NavigationItem,
+} from "../navigation";
 
 function Logo({ collapsed = false }: { collapsed?: boolean }) {
   return (
@@ -83,46 +49,138 @@ function Navigation({
   onNavigate?: () => void;
   user: NonNullable<ReturnType<typeof useAuth>["user"]>;
 }) {
+  const { pathname } = useLocation();
+  const modules = availableModules(user);
+  const systemItems = availableSystemNavigation(user);
+
   return (
     <nav aria-label="Navegação principal" className="mt-8 space-y-1">
       {!collapsed ? (
         <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Geral
+          Intranet
         </p>
       ) : null}
-      {navigation
-        .filter((item) => item.visible(user))
-        .map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
+      <NavigationLink
+        collapsed={collapsed}
+        item={homeNavigation}
+        onNavigate={onNavigate}
+      />
+
+      {modules.length ? (
+        <div className={collapsed ? "pt-3" : "pt-5"}>
+          {!collapsed ? (
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+              Módulos
+            </p>
+          ) : null}
+          <div className="space-y-1">
+            {modules.map((module) => {
+              const Icon = module.icon;
+              const active =
+                pathname === module.href ||
+                pathname.startsWith(`${module.href}/`);
+              return (
+                <div key={module.id}>
+                  <Link
+                    aria-label={collapsed ? module.label : undefined}
+                    className={[
+                      "flex min-h-10 items-center rounded-[10px] text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+                      collapsed ? "justify-center px-2" : "gap-3 px-3",
+                      active
+                        ? "text-[var(--brand-strong)]"
+                        : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
+                    ].join(" ")}
+                    onClick={onNavigate}
+                    title={collapsed ? module.label : undefined}
+                    to={module.href}
+                  >
+                    <Icon aria-hidden="true" size={18} />
+                    {!collapsed ? <span>{module.label}</span> : null}
+                  </Link>
+                  {active && !collapsed ? (
+                    <div className="ml-[21px] mt-1 space-y-1 border-l border-[var(--border)] pl-3">
+                      {module.routes
+                        .filter((route) => route.visible(user))
+                        .map((route) => (
+                          <NavigationLink
+                            item={route}
+                            key={route.href}
+                            nested
+                            onNavigate={onNavigate}
+                          />
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {systemItems.length ? (
+        <div className={collapsed ? "pt-3" : "pt-5"}>
+          {!collapsed ? (
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+              Sistema
+            </p>
+          ) : null}
+          {systemItems.map((item) => (
+            <NavigationLink
+              collapsed={collapsed}
+              item={item}
               key={item.href}
-              to={item.href}
-              end={"end" in item && item.end}
-              title={collapsed ? item.label : undefined}
-              aria-label={collapsed ? item.label : undefined}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                [
-                  "flex min-h-10 items-center rounded-[10px] text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
-                  collapsed ? "justify-center px-2" : "gap-3 px-3",
-                  isActive
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                    : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
-                ].join(" ")
-              }
-            >
-              <Icon aria-hidden="true" size={18} />
-              {!collapsed ? <span>{item.label}</span> : null}
-            </NavLink>
-          );
-        })}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      ) : null}
     </nav>
+  );
+}
+
+function NavigationLink({
+  collapsed = false,
+  item,
+  nested = false,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  item: NavigationItem;
+  nested?: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <NavLink
+      aria-label={collapsed ? item.label : undefined}
+      className={({ isActive }) =>
+        [
+          "flex items-center rounded-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+          nested
+            ? "min-h-9 gap-2.5 px-3 text-xs"
+            : collapsed
+              ? "min-h-10 justify-center px-2 text-sm"
+              : "min-h-10 gap-3 px-3 text-sm",
+          isActive
+            ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+            : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
+        ].join(" ")
+      }
+      end={item.end}
+      onClick={onNavigate}
+      title={collapsed ? item.label : undefined}
+      to={item.href}
+    >
+      <Icon aria-hidden="true" size={nested ? 16 : 18} />
+      {!collapsed ? <span>{item.label}</span> : null}
+    </NavLink>
   );
 }
 
 export function AppShell() {
   const { logout, user } = useAuth();
+  const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   if (!user) {
@@ -134,6 +192,21 @@ export function AppShell() {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+  const activeModule = availableModules(user).find(
+    (module) =>
+      pathname === module.href || pathname.startsWith(`${module.href}/`),
+  );
+  const inSystem = pathname.startsWith("/sistema/");
+  const contextTitle = activeModule
+    ? activeModule.label
+    : inSystem
+      ? "Administração da plataforma"
+      : "Intranet CGE";
+  const contextDescription = activeModule
+    ? "Módulo da Intranet CGE"
+    : inSystem
+      ? "Configurações compartilhadas"
+      : "Hub de módulos";
 
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -232,10 +305,10 @@ export function AppShell() {
             </p>
             <div className="ml-auto min-w-0 text-right">
               <p className="truncate text-xs font-bold text-[var(--text)]">
-                {user.employment?.unit.name ?? "Administração da plataforma"}
+                {contextTitle}
               </p>
               <p className="hidden text-[10px] text-[var(--text-faint)] sm:block">
-                Ambiente interno da CGE Amazonas
+                {contextDescription}
               </p>
             </div>
           </header>
