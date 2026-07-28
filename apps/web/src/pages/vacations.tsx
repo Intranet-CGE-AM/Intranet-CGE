@@ -30,6 +30,7 @@ import {
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
+import { manausToday } from "../lib/dates";
 import { can } from "../lib/permissions";
 
 const statusLabels: Record<
@@ -587,12 +588,3 @@ const eventLabels: Record<string, string> = {
   rejected: "Solicitação rejeitada",
   submitted: "Enviada para a chefia",
 };
-
-function manausToday() {
-  return new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Manaus",
-    year: "numeric",
-  }).format(new Date());
-}

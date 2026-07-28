@@ -1,5 +1,6 @@
 import type {
   AdminUser,
+  EmploymentCategory,
   OrganizationUnit,
   PermissionKey,
   Person,
@@ -28,10 +29,15 @@ import {
 } from "@cge/ui";
 import { DownloadSimple, Key, PencilSimple, Plus } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
 import { can } from "../lib/permissions";
+import {
+  personInputFromForm,
+  PersonFormFields,
+} from "../modules/hr/person-form-fields";
 
 const permissionLabels: Record<PermissionKey, string> = {
   "access.manage": "Papéis e permissões",
@@ -124,6 +130,7 @@ export function AdminPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [assignments, setAssignments] = useState<RoleAssignment[]>([]);
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
@@ -134,15 +141,20 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [userDialog, setUserDialog] = useState(false);
+  const [userMode, setUserMode] = useState<"new" | "existing">("existing");
   const [roleDialog, setRoleDialog] = useState<Role | "new" | null>(null);
   const [assignmentDialog, setAssignmentDialog] = useState(false);
   const [passwordAccount, setPasswordAccount] = useState<AdminUser | null>(
     null,
   );
   const managesAccounts = Boolean(user && can(user, "accounts.manage"));
+  const managesPeople = Boolean(
+    user && can(user, "people.manage") && can(user, "people.read"),
+  );
   const managesAccess = Boolean(user && can(user, "access.manage"));
   const readsAudit = Boolean(user && can(user, "audit.read"));
   const exportsAudit = Boolean(user && can(user, "audit.export"));
+  const hrReady = categories.length > 0 && units.length > 0;
 
   const load = useCallback(async () => {
     try {
@@ -150,6 +162,7 @@ export function AdminPage() {
       const [
         usersResult,
         peopleResult,
+        categoriesResult,
         rolesResult,
         assignmentsResult,
         unitsResult,
@@ -161,6 +174,11 @@ export function AdminPage() {
         managesAccounts
           ? api<{ people: Person[] }>("/api/admin/people")
           : Promise.resolve({ people: [] }),
+        managesPeople
+          ? api<{ categories: EmploymentCategory[] }>(
+              "/api/employment-categories",
+            )
+          : Promise.resolve({ categories: [] }),
         managesAccess
           ? api<{ roles: Role[] }>("/api/admin/roles")
           : Promise.resolve({ roles: [] }),
@@ -178,6 +196,7 @@ export function AdminPage() {
       ]);
       setUsers(usersResult.users);
       setPeople(peopleResult.people);
+      setCategories(categoriesResult.categories);
       setRoles(rolesResult.roles);
       setAssignments(assignmentsResult.assignments);
       setUnits(unitsResult.units);
@@ -187,7 +206,7 @@ export function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [managesAccess, managesAccounts, readsAudit]);
+  }, [managesAccess, managesAccounts, managesPeople, readsAudit]);
 
   useEffect(() => {
     void load();
@@ -220,17 +239,53 @@ export function AdminPage() {
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await mutate(async () => {
-      await api("/api/admin/users", {
-        method: "POST",
-        body: json({
-          personId: data.get("personId"),
-          email: data.get("email"),
-          temporaryPassword: data.get("temporaryPassword"),
-        }),
-      });
-      setUserDialog(false);
-    }, "Conta criada. A senha deverá ser alterada no primeiro acesso.");
+    await mutate(
+      async () => {
+        const email = String(data.get("email")).trim().toLowerCase();
+        if (users.some((account) => account.email.toLowerCase() === email)) {
+          throw new ApiError(
+            409,
+            "EMAIL_ALREADY_IN_USE",
+            "Já existe uma conta com este e-mail.",
+          );
+        }
+
+        let personId = String(data.get("personId") ?? "");
+        if (userMode === "new") {
+          const created = await api<{ personId: string }>("/api/people", {
+            method: "POST",
+            body: json(personInputFromForm(data)),
+          });
+          personId = created.personId;
+        }
+
+        try {
+          await api("/api/admin/users", {
+            method: "POST",
+            body: json({
+              personId,
+              email,
+              temporaryPassword: data.get("temporaryPassword"),
+            }),
+          });
+        } catch (cause) {
+          if (userMode === "new") {
+            await load();
+            setUserMode("existing");
+            throw new ApiError(
+              cause instanceof ApiError ? cause.status : 500,
+              "ACCOUNT_PROVISIONING_FAILED",
+              "O colaborador foi cadastrado, mas o acesso não foi criado. Selecione a pessoa cadastrada e tente novamente.",
+            );
+          }
+          throw cause;
+        }
+        setUserDialog(false);
+      },
+      userMode === "new"
+        ? "Colaborador e conta de acesso criados."
+        : "Conta criada. A senha deverá ser alterada no primeiro acesso.",
+    );
   }
 
   async function saveRole(event: FormEvent<HTMLFormElement>) {
@@ -366,12 +421,18 @@ export function AdminPage() {
             <div>
               <h2 className="font-bold">Contas de acesso</h2>
               <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                Uma conta pertence a uma pessoa já cadastrada.
+                Cadastre o colaborador e o acesso no mesmo fluxo.
               </p>
             </div>
-            <Button size="sm" onClick={() => setUserDialog(true)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setUserMode(managesPeople ? "new" : "existing");
+                setUserDialog(true);
+              }}
+            >
               <Plus aria-hidden="true" size={15} weight="bold" />
-              Nova conta
+              Novo acesso
             </Button>
           </CardHeader>
           {loading ? (
@@ -656,56 +717,146 @@ export function AdminPage() {
         }}
       >
         <DialogContent
-          title="Nova conta"
-          description="A pessoa receberá uma senha temporária e deverá alterá-la no primeiro acesso."
+          className="max-w-2xl"
+          title="Novo acesso"
+          description="Cadastre um colaborador ou vincule uma pessoa já existente."
         >
-          <form className="space-y-4" onSubmit={createUser}>
+          <form className="space-y-6" onSubmit={createUser}>
             {dialogError ? (
               <Alert title="Revise os dados" tone="danger">
                 {dialogError}
               </Alert>
             ) : null}
-            <FormField htmlFor="personId" label="Pessoa">
-              <Select autoComplete="off" id="personId" name="personId" required>
-                <option value="">Selecione</option>
-                {people
-                  .filter(
-                    (person) =>
-                      !users.some((account) => account.person.id === person.id),
-                  )
-                  .map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.preferredName ?? person.fullName}
-                    </option>
-                  ))}
-              </Select>
-            </FormField>
-            <FormField htmlFor="accountEmail" label="E-mail">
-              <Input
-                autoComplete="off"
-                id="accountEmail"
-                name="email"
-                spellCheck={false}
-                type="email"
-                required
-              />
-            </FormField>
-            <FormField
-              htmlFor="temporaryPassword"
-              label="Senha temporária"
-              hint="Mínimo de 12 caracteres."
+
+            {managesPeople ? (
+              <div
+                aria-label="Tipo de cadastro"
+                className="grid grid-cols-2 rounded-[11px] bg-[var(--surface-subtle)] p-1"
+                role="group"
+              >
+                {[
+                  { label: "Novo colaborador", value: "new" as const },
+                  { label: "Pessoa já cadastrada", value: "existing" as const },
+                ].map((option) => (
+                  <button
+                    aria-pressed={userMode === option.value}
+                    className={[
+                      "min-h-10 rounded-[8px] px-3 text-sm font-semibold transition-[background-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.98]",
+                      userMode === option.value
+                        ? "bg-white text-[var(--text)] shadow-[0_1px_2px_rgb(16_35_38/8%)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text)]",
+                    ].join(" ")}
+                    key={option.value}
+                    onClick={() => setUserMode(option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {userMode === "new" ? (
+              <section>
+                <h3 className="text-sm font-bold">Dados funcionais</h3>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                  Informações usadas pelo módulo de Recursos Humanos.
+                </p>
+                {!hrReady ? (
+                  <Alert
+                    className="mt-4"
+                    title="Configuração de RH necessária"
+                    tone="warning"
+                  >
+                    Cadastre ao menos uma categoria e uma unidade antes de
+                    adicionar colaboradores.{" "}
+                    <Link
+                      className="font-semibold underline underline-offset-2"
+                      to="/rh/colaboradores"
+                    >
+                      Abrir configuração de RH
+                    </Link>
+                  </Alert>
+                ) : null}
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <PersonFormFields
+                    categories={categories}
+                    idPrefix="onboarding"
+                    units={units}
+                  />
+                </div>
+              </section>
+            ) : (
+              <FormField
+                hint="Somente pessoas ainda sem conta de acesso."
+                htmlFor="personId"
+                label="Pessoa"
+              >
+                <Select
+                  autoComplete="off"
+                  id="personId"
+                  name="personId"
+                  required
+                >
+                  <option value="">Selecione</option>
+                  {people
+                    .filter(
+                      (person) =>
+                        !users.some(
+                          (account) => account.person.id === person.id,
+                        ),
+                    )
+                    .map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.preferredName ?? person.fullName}
+                      </option>
+                    ))}
+                </Select>
+              </FormField>
+            )}
+
+            <section className="border-t border-[var(--border)] pt-5">
+              <h3 className="text-sm font-bold">Conta de acesso</h3>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                A senha deverá ser alterada no primeiro acesso.
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <FormField htmlFor="accountEmail" label="E-mail institucional">
+                  <Input
+                    autoComplete="off"
+                    id="accountEmail"
+                    name="email"
+                    spellCheck={false}
+                    type="email"
+                    required
+                  />
+                </FormField>
+                <FormField
+                  hint="Mínimo de 12 caracteres."
+                  htmlFor="temporaryPassword"
+                  label="Senha temporária"
+                >
+                  <Input
+                    autoComplete="new-password"
+                    id="temporaryPassword"
+                    minLength={12}
+                    name="temporaryPassword"
+                    type="password"
+                    required
+                  />
+                </FormField>
+              </div>
+            </section>
+            <Button
+              className="w-full"
+              disabled={busy || (userMode === "new" && !hrReady)}
+              type="submit"
             >
-              <Input
-                autoComplete="new-password"
-                id="temporaryPassword"
-                minLength={12}
-                name="temporaryPassword"
-                type="password"
-                required
-              />
-            </FormField>
-            <Button className="w-full" disabled={busy} type="submit">
-              {busy ? "Criando conta…" : "Criar conta"}
+              {busy
+                ? "Criando acesso…"
+                : userMode === "new"
+                  ? "Cadastrar colaborador e criar acesso"
+                  : "Criar conta de acesso"}
             </Button>
           </form>
         </DialogContent>

@@ -144,7 +144,7 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   ).toBeVisible();
 });
 
-test("administration supports role editing, password reset, and audit export", async ({
+test("administration onboards an employee and supports account operations", async ({
   page,
 }) => {
   await login(page, admin.email, admin.password);
@@ -159,20 +159,34 @@ test("administration supports role editing, password reset, and audit export", a
     page.getByRole("heading", { name: "Atividade de auditoria" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Nova conta" }).click();
-  await page.getByLabel("Pessoa").selectOption({
-    label: "Ana Beatriz Vasconcelos",
-  });
-  await page.getByLabel("E-mail").fill("account-audit-e2e@local.invalid");
+  await page.getByRole("button", { name: "Novo acesso" }).click();
+  await expect(
+    page.getByRole("button", { name: "Novo colaborador" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expectAccessiblePage(page, "novo acesso", 1280);
+  await page.getByLabel("Nome completo").fill("Íris Fernandes E2E");
+  await page.getByLabel("Nome social ou preferido").fill("Íris");
+  await page.getByLabel("Data de nascimento").fill("1992-04-17");
+  await page.getByLabel("Matrícula").fill("ADM-E2E-001");
+  await page.getByLabel("Data de início").fill("2026-07-28");
+  await page.getByLabel("Categoria").selectOption({ index: 1 });
+  await page.getByLabel("Unidade").selectOption({ index: 1 });
+  await page.getByLabel("Cargo").fill("Analista de controle");
+  await page
+    .getByLabel("E-mail institucional")
+    .fill("account-audit-e2e@local.invalid");
   await page
     .getByLabel("Senha temporária")
     .fill("Account-Audit-E2E-Password-123");
-  await page.getByRole("button", { name: "Criar conta" }).click();
+  await page
+    .getByRole("button", {
+      name: "Cadastrar colaborador e criar acesso",
+    })
+    .click();
   await expect(
-    page.getByText(
-      "Conta criada. A senha deverá ser alterada no primeiro acesso.",
-    ),
+    page.getByText("Colaborador e conta de acesso criados."),
   ).toBeVisible();
+  await expect(page.getByText("Íris", { exact: true })).toBeVisible();
 
   await page
     .getByRole("button", {
@@ -195,7 +209,7 @@ test("administration supports role editing, password reset, and audit export", a
     .getByRole("row")
     .filter({ hasText: "account-audit-e2e@local.invalid" });
   await workerRow
-    .getByRole("button", { name: /Redefinir senha de Ana Beatriz/i })
+    .getByRole("button", { name: /Redefinir senha de Íris/i })
     .click();
   await page
     .getByLabel("Nova senha temporária")
@@ -206,7 +220,10 @@ test("administration supports role editing, password reset, and audit export", a
   const audit = await page.request.get("/api/audit-events/export");
   expect(audit.ok()).toBeTruthy();
   expect(audit.headers()["content-type"]).toContain("text/csv");
-  expect(await audit.text()).toContain("role.updated");
+  const auditText = await audit.text();
+  expect(auditText).toContain("person.created");
+  expect(auditText).toContain("account.created");
+  expect(auditText).toContain("role.updated");
 
   await page.getByRole("button", { name: "Recolher barra lateral" }).click();
   await expect(

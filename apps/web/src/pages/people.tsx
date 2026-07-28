@@ -42,7 +42,12 @@ import {
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
+import { manausToday } from "../lib/dates";
 import { can } from "../lib/permissions";
+import {
+  personInputFromForm,
+  PersonFormFields,
+} from "../modules/hr/person-form-fields";
 
 export function PeoplePage() {
   const { user } = useAuth();
@@ -112,19 +117,7 @@ export function PeoplePage() {
       setBusy(true);
       await api(current ? `/api/people/${current.id}` : "/api/people", {
         method: current ? "PATCH" : "POST",
-        body: json({
-          fullName: data.get("fullName"),
-          preferredName: data.get("preferredName") || null,
-          birthDate: data.get("birthDate") || null,
-          birthdayVisible: data.get("birthdayVisible") === "on",
-          employment: {
-            employeeNumber: data.get("employeeNumber"),
-            categoryId: data.get("categoryId"),
-            unitId: data.get("unitId"),
-            startDate: data.get("startDate"),
-            jobTitle: data.get("jobTitle") || null,
-          },
-        }),
+        body: json(personInputFromForm(data)),
       });
       setPersonDialog(null);
       await load();
@@ -463,137 +456,12 @@ export function PeoplePage() {
                 {dialogError}
               </Alert>
             ) : null}
-            <FormField
-              htmlFor="fullName"
-              label="Nome completo"
-              className="sm:col-span-2"
-            >
-              <Input
-                autoComplete="off"
-                defaultValue={
-                  personDialog === "new" ? "" : personDialog?.fullName
-                }
-                id="fullName"
-                name="fullName"
-                required
-                minLength={2}
-              />
-            </FormField>
-            <FormField htmlFor="preferredName" label="Nome social ou preferido">
-              <Input
-                autoComplete="off"
-                defaultValue={
-                  personDialog === "new"
-                    ? ""
-                    : (personDialog?.preferredName ?? "")
-                }
-                id="preferredName"
-                name="preferredName"
-              />
-            </FormField>
-            <FormField htmlFor="birthDate" label="Data de nascimento">
-              <Input
-                defaultValue={
-                  personDialog === "new" ? "" : (personDialog?.birthDate ?? "")
-                }
-                id="birthDate"
-                name="birthDate"
-                type="date"
-              />
-            </FormField>
-            <FormField htmlFor="employeeNumber" label="Matrícula">
-              <Input
-                autoComplete="off"
-                defaultValue={
-                  personDialog === "new"
-                    ? ""
-                    : (personDialog?.employment?.employeeNumber ?? "")
-                }
-                id="employeeNumber"
-                name="employeeNumber"
-                required
-              />
-            </FormField>
-            <FormField htmlFor="startDate" label="Data de início">
-              <Input
-                id="startDate"
-                name="startDate"
-                type="date"
-                defaultValue={
-                  personDialog === "new"
-                    ? manausToday()
-                    : personDialog?.employment?.startDate
-                }
-                required
-              />
-            </FormField>
-            <FormField htmlFor="categoryId" label="Categoria">
-              <Select
-                id="categoryId"
-                name="categoryId"
-                required
-                defaultValue={
-                  personDialog === "new"
-                    ? ""
-                    : personDialog?.employment?.categoryId
-                }
-              >
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {categories.map((category) => (
-                  <option value={category.id} key={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField htmlFor="unitId" label="Unidade">
-              <Select
-                id="unitId"
-                name="unitId"
-                required
-                defaultValue={
-                  personDialog === "new" ? "" : personDialog?.employment?.unitId
-                }
-              >
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {units.map((unit) => (
-                  <option value={unit.id} key={unit.id}>
-                    {unit.code} — {unit.name}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField
-              htmlFor="jobTitle"
-              label="Cargo"
-              className="sm:col-span-2"
-            >
-              <Input
-                autoComplete="off"
-                defaultValue={
-                  personDialog === "new"
-                    ? ""
-                    : (personDialog?.employment?.jobTitle ?? "")
-                }
-                id="jobTitle"
-                name="jobTitle"
-              />
-            </FormField>
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input
-                className="size-4"
-                defaultChecked={
-                  personDialog === "new" ? false : personDialog?.birthdayVisible
-                }
-                name="birthdayVisible"
-                type="checkbox"
-              />
-              Autoriza exibição do aniversário (somente dia e mês)
-            </label>
+            <PersonFormFields
+              categories={categories}
+              idPrefix="person"
+              person={personDialog === "new" ? null : personDialog}
+              units={units}
+            />
             <div className="flex justify-end gap-2 sm:col-span-2">
               <Button
                 type="button"
@@ -831,13 +699,4 @@ export function PeoplePage() {
 
 function messageFor(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback;
-}
-
-function manausToday() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Manaus",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 }

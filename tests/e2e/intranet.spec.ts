@@ -244,11 +244,12 @@ async function createAccount(
   email: string,
   password: string,
 ) {
-  await page.getByRole("button", { name: "Nova conta" }).click();
+  await page.getByRole("button", { name: "Novo acesso" }).click();
+  await page.getByRole("button", { name: "Pessoa já cadastrada" }).click();
   await page.getByLabel("Pessoa").selectOption({ label: person });
-  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("E-mail institucional").fill(email);
   await page.getByLabel("Senha temporária").fill(password);
-  await page.getByRole("button", { name: "Criar conta" }).click();
+  await page.getByRole("button", { name: "Criar conta de acesso" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
 }
 
