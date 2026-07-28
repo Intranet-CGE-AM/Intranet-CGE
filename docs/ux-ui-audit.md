@@ -64,4 +64,52 @@ crítico ou alto em aberto.
 
 ## Resultado final
 
-Será preenchido após a implementação e a validação completa.
+| Dimensão       |   Nota | Evidência                                                                                                         |
+| -------------- | -----: | ----------------------------------------------------------------------------------------------------------------- |
+| Funcionalidade |     94 | jornadas de conta, escopo, importação, férias, papéis, senha e auditoria concluídas com estados seguros de erro   |
+| UX             |     93 | feedback em contexto, confirmações, histórico, prevenção de ações impossíveis e navegação móvel modal             |
+| UI             |     92 | tokens compartilhados, hierarquia mais firme, menos recipientes, ícones Phosphor sem blocos decorativos repetidos |
+| Acessibilidade |     95 | teclado, foco contido/restaurado, Escape, contraste AA, semântica e rolagem de tabelas acessível                  |
+| Responsividade |     94 | login e quatro rotas críticas sem overflow em 390 × 844, 768 × 1024 e 1440 × 900                                  |
+| Cobertura      |     95 | 10 jornadas Playwright, 15 varreduras Axe, 14 testes de API e seed com todos os estados relevantes                |
+| **Geral**      | **94** | aprovado                                                                                                          |
+
+Não restou problema crítico ou alto no escopo v1 auditado.
+
+## Entregas verificadas
+
+- Administração permite criar contas e papéis, editar permissões, redefinir
+  senha, revogar sessões, atribuir papéis globais/por unidade e exportar
+  auditoria.
+- Pessoas permite criar, editar, desativar, definir chefia e importar CSV com
+  erro exibido dentro do diálogo que originou a operação.
+- Férias valida datas e elegibilidade, exige motivo na rejeição, mostra o
+  histórico imutável e impede ações sem vínculo funcional.
+- O menu móvel contém foco, fecha por Escape e devolve foco ao acionador.
+- Tabelas roláveis recebem foco visível; contraste de textos, estados e ações
+  atende ao portão automatizado WCAG 2.2 AA.
+- O seed de homologação cobre 7 pessoas, 6 contas, 4 papéis, escopos distintos,
+  conta desativada, aniversário com opt-out e os 7 estados de férias.
+
+## Evidência de validação
+
+Executado em 28 de julho de 2026:
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` e `pnpm build`;
+- `pnpm test`: 14 testes de API aprovados;
+- `pnpm test:e2e`: 10 jornadas aprovadas em conjunto;
+- Axe: login, painel, pessoas, férias e administração nos três tamanhos, sem
+  violação AA e sem overflow de página;
+- seed executado duas vezes no mesmo PostgreSQL de homologação, mantendo as
+  mesmas contagens, seguido de remoção do banco descartável;
+- revisão visual em navegador com dados densos, vazios, erros, nomes longos,
+  papéis distintos e conta sem vínculo.
+
+## Limites conhecidos
+
+- Axe e os testes de teclado não substituem avaliação periódica com tecnologias
+  assistivas e usuários reais.
+- Tabelas densas usam rolagem horizontal acessível em telas estreitas; uma visão
+  resumida só deve ser criada se pesquisa de uso mostrar necessidade.
+- Não há teste de regressão por comparação de pixels. Adicionar somente se
+  regressões visuais recorrentes justificarem seu custo de manutenção.

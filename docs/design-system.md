@@ -29,9 +29,12 @@ Regras para novos módulos:
 - preserve `prefers-reduced-motion`;
 - não invente números, alertas ou controles sem comportamento;
 - use dados reais, loading, vazio e erro explícitos;
-- valide desktop e 390 px;
+- use ícones Phosphor sem fundo por padrão; reserve recipientes coloridos para
+  marca, avatar ou estado que realmente precise de contenção;
+- não repita cartões equivalentes quando divisores e espaço negativo bastarem;
+- valide 390 px, 768 px e 1440 px;
 - consulte `/dev/ui` em desenvolvimento para revisar as primitivas.
 
 O layout foi extraído das referências fornecidas: controles compactos, raios de
-12–16 px, hierarquia tipográfica firme, uma superfície dominante por seção e
+10–14 px, hierarquia tipográfica firme, uma superfície dominante por seção e
 uso restrito do teal para orientação e ação.
