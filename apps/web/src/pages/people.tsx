@@ -411,7 +411,7 @@ export function PeoplePage() {
             description={
               query
                 ? "Tente buscar por outro nome, unidade ou categoria."
-                : "Os colaboradores do seu escopo aparecerão aqui."
+                : "Nenhum colaborador está disponível nas unidades autorizadas para a sua conta. Se esperava ver alguém, solicite a revisão do seu perfil de acesso."
             }
           />
         )}
@@ -714,10 +714,23 @@ export function PeoplePage() {
                 {busy ? "Validando…" : "Validar arquivo"}
               </Button>
               <Button
-                disabled={!importFile || !importResult || busy}
+                disabled={
+                  !importFile ||
+                  !importResult ||
+                  importResult.successfulRows === 0 ||
+                  busy
+                }
                 onClick={() => void runImport("apply")}
               >
-                {busy ? "Aplicando…" : "Aplicar importação"}
+                {busy
+                  ? "Aplicando…"
+                  : importResult
+                    ? `Aplicar ${importResult.successfulRows} ${
+                        importResult.successfulRows === 1
+                          ? "linha válida"
+                          : "linhas válidas"
+                      }`
+                    : "Aplicar importação"}
               </Button>
             </div>
           </div>

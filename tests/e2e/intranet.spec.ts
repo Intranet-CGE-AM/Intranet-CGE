@@ -66,7 +66,7 @@ test("complete HR journey from import through final vacation approval", async ({
   });
   await page.getByRole("button", { name: "Validar arquivo" }).click();
   await expect(page.getByText(/2 válidas · 0 com erro/)).toBeVisible();
-  await page.getByRole("button", { name: "Aplicar importação" }).click();
+  await page.getByRole("button", { name: "Aplicar 2 linhas válidas" }).click();
   await page.getByRole("button", { name: "Fechar" }).click();
   await expect(page.getByText("Trabalhador", { exact: true })).toBeVisible();
 
@@ -264,7 +264,7 @@ async function createRole(page: Page, name: string, permission: string) {
   await page.getByRole("link", { name: /Perfis e acessos/ }).click();
   await page.getByRole("button", { name: "Novo perfil" }).click();
   await page.getByLabel("Nome").fill(name);
-  await page.getByLabel(permission).check();
+  await page.getByRole("checkbox", { name: permission, exact: true }).check();
   await page.getByRole("button", { name: "Criar perfil" }).click();
   await expect(page.getByText(name, { exact: true })).toBeVisible();
 }

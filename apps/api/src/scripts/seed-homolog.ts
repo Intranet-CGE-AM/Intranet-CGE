@@ -99,6 +99,11 @@ async function seedHomolog() {
       );
       const control = await ensureUnit(transaction, "CCI", "Controle Interno");
       const cabinet = await ensureUnit(transaction, "GAB", "Gabinete");
+      const ombudsman = await ensureUnit(
+        transaction,
+        "OUV",
+        "Ouvidoria e Transparência",
+      );
 
       const today = manausDate();
       const tomorrow = addDays(today, 1);
@@ -182,6 +187,39 @@ async function seedHomolog() {
             "Assessora Especial de Monitoramento e Integridade Institucional",
           startDate: "2016-10-03",
         },
+        {
+          employeeNumber: "HOM-008",
+          fullName: "Luiza Barreto Sampaio",
+          preferredName: "Luiza Barreto",
+          birthDate: "1993-02-16",
+          birthdayVisible: true,
+          categoryId: eligible.id,
+          unitId: cgti.id,
+          jobTitle: "Analista de Tecnologia",
+          startDate: "2025-01-13",
+        },
+        {
+          employeeNumber: "HOM-009",
+          fullName: "Thiago Freitas Lima",
+          preferredName: "Thiago Freitas",
+          birthDate: "1988-06-08",
+          birthdayVisible: true,
+          categoryId: eligible.id,
+          unitId: cabinet.id,
+          jobTitle: "Assessor de Gabinete",
+          startDate: "2022-05-09",
+        },
+        {
+          employeeNumber: "HOM-010",
+          fullName: "Renata Martins Queiroz",
+          preferredName: "Renata Martins",
+          birthDate: "1990-03-27",
+          birthdayVisible: true,
+          categoryId: commissioned.id,
+          unitId: cabinet.id,
+          jobTitle: "Assessora Administrativa",
+          startDate: "2020-07-06",
+        },
       ] satisfies FixturePerson[];
 
       const seededPeople = new Map<
@@ -196,6 +234,15 @@ async function seedHomolog() {
       }
       const supervisor = required(seededPeople.get("HOM-002"));
       const worker = required(seededPeople.get("HOM-003"));
+      await transaction
+        .update(employmentRelationships)
+        .set({ supervisorRelationshipId: null, updatedAt: new Date() })
+        .where(
+          inArray(
+            employmentRelationships.id,
+            [...seededPeople.values()].map((person) => person.employmentId),
+          ),
+        );
       for (const employmentId of [
         worker.employmentId,
         required(seededPeople.get("HOM-006")).employmentId,
@@ -208,6 +255,15 @@ async function seedHomolog() {
           })
           .where(eq(employmentRelationships.id, employmentId));
       }
+      await transaction
+        .update(employmentRelationships)
+        .set({ endDate: addDays(today, -1), updatedAt: new Date() })
+        .where(
+          eq(
+            employmentRelationships.id,
+            required(seededPeople.get("HOM-010")).employmentId,
+          ),
+        );
 
       const accounts = {
         hr: await ensureAccount(
@@ -245,6 +301,32 @@ async function seedHomolog() {
           transaction,
           required(seededPeople.get("HOM-006")).personId,
           `dandara.ribeiro@${accountDomain}`,
+          passwordHash,
+        ),
+        noAccess: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-007")).personId,
+          `ana.vasconcelos@${accountDomain}`,
+          passwordHash,
+        ),
+        firstAccess: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-008")).personId,
+          `luiza.barreto@${accountDomain}`,
+          passwordHash,
+          "active",
+          true,
+        ),
+        emptyScope: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-009")).personId,
+          `thiago.freitas@${accountDomain}`,
+          passwordHash,
+        ),
+        inactiveEmployment: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-010")).personId,
+          `renata.martins@${accountDomain}`,
           passwordHash,
         ),
       };
@@ -296,6 +378,12 @@ async function seedHomolog() {
           description: "Consulta ao diretório por unidade.",
           permissions: ["people.read"],
         },
+        {
+          key: "audit",
+          name: "Auditoria Homologação",
+          description: "Consulta e exportação da auditoria da plataforma.",
+          permissions: ["audit.read", "audit.export"],
+        },
       ];
       const seededRoles = new Map<string, { id: string }>();
       for (const fixture of roleFixtures) {
@@ -333,6 +421,25 @@ async function seedHomolog() {
           accountId: accounts.contractor.id,
           roleId: required(seededRoles.get("worker")).id,
           unitId: cgti.id,
+        },
+        {
+          accountId: accounts.firstAccess.id,
+          roleId: required(seededRoles.get("worker")).id,
+          unitId: cgti.id,
+        },
+        {
+          accountId: accounts.firstAccess.id,
+          roleId: required(seededRoles.get("audit")).id,
+        },
+        {
+          accountId: accounts.emptyScope.id,
+          roleId: required(seededRoles.get("viewer")).id,
+          unitId: ombudsman.id,
+        },
+        {
+          accountId: accounts.inactiveEmployment.id,
+          roleId: required(seededRoles.get("worker")).id,
+          unitId: cabinet.id,
         },
       ]);
 
@@ -388,6 +495,13 @@ async function seedHomolog() {
           metadata: { fixture: true },
         },
         {
+          actorAccountId: null,
+          action: "auth.login",
+          objectType: "homolog-fixture",
+          outcome: "failure",
+          metadata: { fixture: true, reason: "invalid-credentials" },
+        },
+        {
           actorAccountId: accounts.supervisor.id,
           action: "vacation.supervisor-approved",
           objectType: "homolog-fixture",
@@ -420,6 +534,10 @@ async function seedHomolog() {
     console.log(`Colaborador: caio.nascimento@${accountDomain}`);
     console.log(`Consulta: leonardo.araujo@${accountDomain}`);
     console.log(`Não elegível: dandara.ribeiro@${accountDomain}`);
+    console.log(`Sem acesso: ana.vasconcelos@${accountDomain}`);
+    console.log(`Primeiro acesso: luiza.barreto@${accountDomain}`);
+    console.log(`Escopo vazio: thiago.freitas@${accountDomain}`);
+    console.log(`Vínculo encerrado: renata.martins@${accountDomain}`);
   } finally {
     await client.end();
   }
@@ -535,7 +653,11 @@ async function ensureAccount(
   email: string,
   passwordHash: string,
   status: "active" | "disabled" = "active",
+  mustChangePassword = false,
 ) {
+  const passwordState = mustChangePassword
+    ? { forcePasswordChangeAt: new Date(), passwordChangedAt: null }
+    : { forcePasswordChangeAt: null, passwordChangedAt: new Date() };
   const [existing] = await db
     .select({ id: userAccounts.id })
     .from(userAccounts)
@@ -545,8 +667,7 @@ async function ensureAccount(
     await db
       .update(userAccounts)
       .set({
-        forcePasswordChangeAt: null,
-        passwordChangedAt: new Date(),
+        ...passwordState,
         passwordHash,
         personId,
         status,
@@ -559,8 +680,7 @@ async function ensureAccount(
     .insert(userAccounts)
     .values({
       email,
-      forcePasswordChangeAt: null,
-      passwordChangedAt: new Date(),
+      ...passwordState,
       passwordHash,
       personId,
       status,

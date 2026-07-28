@@ -38,9 +38,15 @@ export function HubPage() {
         </div>
         <div className="divide-y divide-[var(--border)]">
           {modules.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-[var(--text-muted)]">
-              Nenhum módulo está disponível para a sua conta.
-            </p>
+            <div className="px-5 py-8">
+              <p className="text-sm font-semibold">
+                Nenhum módulo está disponível
+              </p>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+                Sua conta ainda não recebeu acesso a módulos. Procure a
+                administração da intranet se isso não estiver correto.
+              </p>
+            </div>
           ) : null}
           {modules.map((module) => {
             const Icon = module.icon;

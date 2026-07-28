@@ -100,7 +100,8 @@ export const vacationRoutes: FastifyPluginAsync<{
         return tokenUser
           ? reply.status(400).send({
               code: "NO_ACTIVE_EMPLOYMENT",
-              message: "Não há vínculo funcional ativo.",
+              message:
+                "Sua conta não possui vínculo funcional ativo. Procure a Gestão de Pessoas.",
             })
           : undefined;
       }

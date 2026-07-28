@@ -5,7 +5,11 @@ const password = "Homolog-Password-2026";
 const accounts = {
   contractor: "dandara.ribeiro@homolog.cge.am.gov.br",
   disabled: "patricia.mota@homolog.cge.am.gov.br",
+  emptyScope: "thiago.freitas@homolog.cge.am.gov.br",
+  firstAccess: "luiza.barreto@homolog.cge.am.gov.br",
   hr: "marina.rocha@homolog.cge.am.gov.br",
+  inactiveEmployment: "renata.martins@homolog.cge.am.gov.br",
+  noAccess: "ana.vasconcelos@homolog.cge.am.gov.br",
   supervisor: "helena.monteiro@homolog.cge.am.gov.br",
   viewer: "leonardo.araujo@homolog.cge.am.gov.br",
   worker: "caio.nascimento@homolog.cge.am.gov.br",
@@ -19,7 +23,15 @@ test("homolog worker sees every vacation state and immutable history", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
+  await page
+    .getByRole("link", { name: "Recursos Humanos", exact: true })
+    .click();
+  await expect(page.getByText(/solicitações em andamento/)).toBeVisible();
+  await expect(page.getByText(/ações pendentes/)).toHaveCount(0);
   await openHrRoute(page, "Férias");
+  await expect(
+    page.getByRole("list", { name: "Etapas do fluxo de férias" }),
+  ).toContainText("EnvioChefia imediataDecisão final da Gestão de Pessoas");
   for (const label of [
     "Rascunho",
     "Aguardando chefia",
@@ -152,7 +164,7 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   await expect(
     page
       .getByRole("alert")
-      .getByText(/categoria funcional não está habilitada/i),
+      .getByText(/categoria funcional não usa este fluxo/i),
   ).toBeVisible();
 
   await page.context().clearCookies();
@@ -160,6 +172,136 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   await expect(
     page.getByRole("alert").getByText("E-mail ou senha inválidos."),
   ).toBeVisible();
+});
+
+test("first access exposes multiple modules and explains a missing supervisor", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await page.getByLabel("E-mail institucional").fill(accounts.firstAccess);
+  await page.getByLabel("Senha").fill(password);
+  await page.getByRole("button", { name: "Entrar na intranet" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Proteja sua conta" }),
+  ).toBeVisible();
+  await page.getByLabel("Senha temporária").fill(password);
+  await page
+    .getByLabel("Nova senha", { exact: true })
+    .fill("Luiza-Final-Password-2026");
+  await page
+    .getByLabel("Confirme a nova senha")
+    .fill("Luiza-Final-Password-2026");
+  await page.getByRole("button", { name: "Alterar senha" }).click();
+  await expect(
+    page.getByText(/Entre novamente usando a nova senha/),
+  ).toBeVisible();
+  await login(page, accounts.firstAccess, "Luiza-Final-Password-2026");
+
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  await expect(
+    navigation.getByRole("link", { name: "Recursos Humanos", exact: true }),
+  ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Administração", exact: true }),
+  ).toBeVisible();
+
+  await openHrRoute(page, "Férias");
+  await expect(
+    page.getByText("Você ainda não possui solicitações."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Nova solicitação" }).click();
+  await page.getByLabel("Data inicial").fill("2028-02-01");
+  await page.getByLabel("Data final").fill("2028-02-10");
+  await page.getByRole("button", { name: "Enviar para chefia" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .getByText(/chefia imediata ainda não foi cadastrada/i),
+  ).toBeVisible();
+});
+
+test("empty, no-access, and inactive-employment personas give next steps", async ({
+  page,
+}) => {
+  await login(page, accounts.emptyScope, password);
+  await openHrRoute(page, "Colaboradores");
+  await expect(
+    page.getByRole("heading", { name: "Diretório vazio" }),
+  ).toBeVisible();
+  await expect(page.getByText(/unidades autorizadas/)).toBeVisible();
+
+  await page.context().clearCookies();
+  await login(page, accounts.noAccess, password);
+  await expect(
+    page.getByText("Nenhum módulo está disponível", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/administração da intranet/)).toBeVisible();
+
+  await page.context().clearCookies();
+  await login(page, accounts.inactiveEmployment, password);
+  await openHrRoute(page, "Férias");
+  await expect(
+    page.getByRole("status").getByText(/não possui vínculo funcional ativo/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Nova solicitação" }),
+  ).toHaveCount(0);
+});
+
+test("malformed CSV keeps invalid imports from being applied", async ({
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  await openHrRoute(page, "Colaboradores");
+  await page.getByRole("button", { name: "Importar CSV" }).click();
+  await page.getByLabel("Arquivo CSV").setInputFiles({
+    name: "colaboradores-invalidos.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      [
+        "matricula,nome,nome_preferido,data_nascimento,aniversario_visivel,categoria,unidade_codigo,unidade_nome,cargo,data_inicio,ativo",
+        "INVALIDO-001,,Pessoa inválida,31/02/2020,talvez,,SEM,,,ontem,sim",
+      ].join("\n"),
+    ),
+  });
+  await page.getByRole("button", { name: "Validar arquivo" }).click();
+  await expect(page.getByText(/Linha 2:/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Aplicar 0 linhas válidas" }),
+  ).toBeDisabled();
+});
+
+test("stale vacation actions return an actionable concurrency state", async ({
+  page,
+}) => {
+  await login(page, accounts.worker, password);
+  await openHrRoute(page, "Férias");
+  await page.getByRole("button", { name: "Nova solicitação" }).click();
+  await page.getByLabel("Data inicial").fill("2028-06-01");
+  await page.getByLabel("Data final").fill("2028-06-10");
+  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await expect(page.getByText(/Rascunho salvo/)).toBeVisible();
+
+  const stalePage = await page.context().newPage();
+  await stalePage.goto("/rh/ferias");
+  const currentRow = page.getByRole("row").filter({ hasText: "01 de jun." });
+  const staleRow = stalePage.getByRole("row").filter({ hasText: "01 de jun." });
+  await expect(
+    staleRow.getByRole("button", { name: "Enviar para chefia" }),
+  ).toBeVisible();
+  await currentRow.getByRole("button", { name: "Enviar para chefia" }).click();
+  await expect(
+    page.getByText(/Solicitação enviada para a chefia/),
+  ).toBeVisible();
+  await staleRow.getByRole("button", { name: "Enviar para chefia" }).click();
+  await expect(
+    stalePage
+      .getByRole("alert")
+      .getByText(/Atualize a página e tente novamente/i),
+  ).toBeVisible();
+  await stalePage.close();
 });
 
 test("administration onboards an employee and supports account operations", async ({
@@ -292,7 +434,7 @@ test("mobile navigation traps focus, closes with Escape, and restores focus", as
 test("desktop collapse control remains fully visible and interactive", async ({
   page,
 }) => {
-  await login(page, admin.email, admin.password);
+  await login(page, accounts.worker, password);
   const control = page.getByRole("button", {
     name: "Recolher barra lateral",
   });

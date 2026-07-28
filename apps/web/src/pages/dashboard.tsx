@@ -30,10 +30,10 @@ const status: Record<
 > = {
   draft: { label: "Rascunho", tone: "neutral" },
   submitted: { label: "Aguardando chefia", tone: "warning" },
-  supervisor_approved: { label: "Decisão final", tone: "brand" },
+  supervisor_approved: { label: "Aguardando decisão final", tone: "brand" },
   supervisor_rejected: { label: "Rejeitada pela chefia", tone: "danger" },
   final_approved: { label: "Aprovada", tone: "success" },
-  final_rejected: { label: "Rejeitada", tone: "danger" },
+  final_rejected: { label: "Rejeitada na decisão final", tone: "danger" },
   cancelled: { label: "Cancelada", tone: "neutral" },
 };
 
@@ -119,8 +119,17 @@ export function DashboardPage() {
     return null;
   }
 
-  const pending = requests.filter((request) =>
-    ["submitted", "supervisor_approved"].includes(request.status),
+  const reviewPending = requests.filter(
+    (request) =>
+      (request.status === "submitted" &&
+        can(user, "vacations.review.supervisor")) ||
+      (request.status === "supervisor_approved" &&
+        can(user, "vacations.review.final")),
+  );
+  const mineInProgress = requests.filter(
+    (request) =>
+      request.requester.personId === user.person.id &&
+      ["submitted", "supervisor_approved"].includes(request.status),
   );
   const approved = requests.filter(
     (request) => request.status === "final_approved",
@@ -166,26 +175,42 @@ export function DashboardPage() {
               <Skeleton className="mt-3 h-10 w-52 bg-white/10" />
             ) : (
               <p className="mt-2 text-3xl font-extrabold tracking-[-0.045em]">
-                {pending.length
-                  ? `${pending.length} ${
-                      pending.length === 1 ? "ação pendente" : "ações pendentes"
+                {reviewPending.length
+                  ? `${reviewPending.length} ${
+                      reviewPending.length === 1
+                        ? "solicitação para analisar"
+                        : "solicitações para analisar"
                     }`
-                  : "Nenhuma pendência aberta"}
+                  : mineInProgress.length
+                    ? `${mineInProgress.length} ${
+                        mineInProgress.length === 1
+                          ? "solicitação em andamento"
+                          : "solicitações em andamento"
+                      }`
+                    : "Nenhuma pendência aberta"}
               </p>
             )}
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
-              Solicitações seguem a chefia registrada e uma decisão final
-              atribuída por permissão.
+              {reviewPending.length
+                ? "Abra a fila de férias para registrar as decisões sob sua responsabilidade."
+                : mineInProgress.length
+                  ? "Acompanhe a etapa atual de cada solicitação no fluxo de férias."
+                  : "Solicitações seguem a chefia registrada e uma decisão final atribuída por permissão."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {pending.length &&
-            (can(user, "vacations.review.supervisor") ||
-              can(user, "vacations.review.final")) ? (
+            {reviewPending.length ? (
               <Button asChild>
                 <Link to="/rh/ferias">
                   <CalendarCheck aria-hidden="true" size={17} />
                   Revisar pendências
+                </Link>
+              </Button>
+            ) : mineInProgress.length ? (
+              <Button asChild>
+                <Link to="/rh/ferias">
+                  <CalendarCheck aria-hidden="true" size={17} />
+                  Acompanhar solicitações
                 </Link>
               </Button>
             ) : user.employment && can(user, "vacations.create") ? (

@@ -26,13 +26,36 @@ O banco deve estar migrado antes da execução.
 
 ## Cenários criados
 
-- 7 pessoas ativas, incluindo nome e cargo longos;
+- 10 pessoas, incluindo nome e cargo longos e vínculo encerrado;
 - aniversário hoje, amanhã, futuro e opt-out;
 - categoria elegível e categoria não elegível a férias;
-- contas de RH, chefia, colaborador, consulta, terceirizado e desativada;
-- papéis globais e restritos por unidade;
+- conta sem acesso a módulos, conta desativada e primeiro acesso obrigatório;
+- papéis globais, restritos por unidade e múltiplos papéis na mesma conta;
+- unidade vazia para validar escopos sem resultados;
 - solicitações nos 7 estados do fluxo de férias;
-- eventos imutáveis e registros de auditoria.
+- eventos imutáveis e registros de auditoria com sucesso e falha.
 
 As contas ativas usam o valor de `HOMOLOG_SEED_PASSWORD`. O comando imprime os
 e-mails disponíveis, mas nunca imprime a senha.
+
+## Personas de validação
+
+| Conta                                   | Estado principal                                           |
+| --------------------------------------- | ---------------------------------------------------------- |
+| `marina.rocha@homolog.cge.am.gov.br`    | Gestão de pessoas e decisão final                          |
+| `helena.monteiro@homolog.cge.am.gov.br` | Chefia com escopo de unidade                               |
+| `caio.nascimento@homolog.cge.am.gov.br` | Todos os estados do fluxo de férias                        |
+| `leonardo.araujo@homolog.cge.am.gov.br` | Diretório limitado por unidade e aniversário oculto        |
+| `dandara.ribeiro@homolog.cge.am.gov.br` | Categoria não elegível a férias                            |
+| `patricia.mota@homolog.cge.am.gov.br`   | Conta desativada                                           |
+| `ana.vasconcelos@homolog.cge.am.gov.br` | Conta ativa sem acesso a módulos                           |
+| `luiza.barreto@homolog.cge.am.gov.br`   | Primeiro acesso, sem chefia e com papéis em RH e auditoria |
+| `thiago.freitas@homolog.cge.am.gov.br`  | Diretório com escopo autorizado vazio                      |
+| `renata.martins@homolog.cge.am.gov.br`  | Conta ativa com vínculo funcional encerrado                |
+
+## Estados que não pertencem ao seed
+
+Estados transitórios não são persistidos artificialmente no banco. Os testes
+Playwright reproduzem carregamento, validação de formulário, CSV inválido,
+concorrência desatualizada, foco, responsividade e falhas de autorização sobre
+os mesmos dados de homologação.

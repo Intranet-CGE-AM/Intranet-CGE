@@ -19,7 +19,7 @@ import {
   TableRow,
   Textarea,
 } from "@cge/ui";
-import { CalendarPlus, Info } from "@phosphor-icons/react";
+import { ArrowRight, CalendarPlus, Info } from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -67,6 +67,7 @@ export function VacationsPage() {
   const [createDialog, setCreateDialog] = useState(false);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [history, setHistory] = useState<VacationRequest | null>(null);
+  const hasCreatePermission = Boolean(user && can(user, "vacations.create"));
   const creates = Boolean(user?.employment && can(user, "vacations.create"));
   const reviewsSupervisor = Boolean(
     user && can(user, "vacations.review.supervisor"),
@@ -270,6 +271,33 @@ export function VacationsPage() {
           saldo oficial permanecem no sistema de pessoal competente.
         </p>
       </div>
+
+      <ol
+        aria-label="Etapas do fluxo de férias"
+        className="flex flex-wrap items-center gap-2 border-y border-[var(--border)] py-3 text-xs font-semibold text-[var(--text-muted)]"
+      >
+        {["Envio", "Chefia imediata", "Decisão final da Gestão de Pessoas"].map(
+          (step, index) => (
+            <li className="flex items-center gap-2" key={step}>
+              {step}
+              {index < 2 ? (
+                <ArrowRight
+                  aria-hidden="true"
+                  className="text-[var(--text-faint)]"
+                  size={14}
+                />
+              ) : null}
+            </li>
+          ),
+        )}
+      </ol>
+
+      {hasCreatePermission && !user?.employment ? (
+        <Alert title="Vínculo funcional necessário" tone="warning">
+          Sua conta não possui vínculo funcional ativo. Procure a Gestão de
+          Pessoas para revisar o cadastro antes de solicitar férias.
+        </Alert>
+      ) : null}
 
       {loading ? (
         <Card>

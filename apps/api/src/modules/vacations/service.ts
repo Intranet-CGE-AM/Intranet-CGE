@@ -150,21 +150,21 @@ export class VacationService {
       throw new VacationError(
         "NO_ACTIVE_EMPLOYMENT",
         400,
-        "Não há vínculo funcional ativo.",
+        "Sua conta não possui vínculo funcional ativo. Procure a Gestão de Pessoas.",
       );
     }
     if (!employment.vacationEligible) {
       throw new VacationError(
         "VACATION_NOT_ELIGIBLE",
         403,
-        "A categoria funcional não está habilitada para esta solicitação.",
+        "Sua categoria funcional não usa este fluxo de férias. Procure a Gestão de Pessoas se isso parecer incorreto.",
       );
     }
     if (input.submit && !employment.supervisorRelationshipId) {
       throw new VacationError(
         "SUPERVISOR_REQUIRED",
         400,
-        "Defina a chefia imediata antes de enviar a solicitação.",
+        "Sua chefia imediata ainda não foi cadastrada. Procure a Gestão de Pessoas antes de enviar.",
       );
     }
 
@@ -215,14 +215,14 @@ export class VacationService {
       throw new VacationError(
         "VACATION_NOT_ELIGIBLE",
         403,
-        "A categoria funcional não está habilitada para esta solicitação.",
+        "Sua categoria funcional não usa este fluxo de férias. Procure a Gestão de Pessoas se isso parecer incorreto.",
       );
     }
     if (!employment.supervisorRelationshipId) {
       throw new VacationError(
         "SUPERVISOR_REQUIRED",
         400,
-        "Defina a chefia imediata antes de enviar a solicitação.",
+        "Sua chefia imediata ainda não foi cadastrada. Procure a Gestão de Pessoas antes de enviar.",
       );
     }
     return this.transition(
