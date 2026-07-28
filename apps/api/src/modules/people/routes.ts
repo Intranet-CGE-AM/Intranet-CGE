@@ -1,12 +1,10 @@
 import {
-  accountCreateSchema,
   authErrorSchema,
   birthdaySchema,
   employmentCategoryInputSchema,
   employmentCategorySchema,
   organizationUnitInputSchema,
   organizationUnitSchema,
-  passwordResetSchema,
   peopleImportRequestSchema,
   peopleImportResultSchema,
   personInputSchema,
@@ -381,113 +379,6 @@ export const peopleRoutes: FastifyPluginAsync<{
       return reply
         .status(201)
         .send(await options.peopleService.createUnit(request.body));
-    },
-  );
-
-  typedApp.post(
-    "/api/people/:id/account",
-    {
-      schema: {
-        body: accountCreateSchema,
-        params: idParamsSchema,
-        response: {
-          201: z.object({ id: z.uuid(), email: z.email() }),
-          401: authErrorSchema,
-          403: authErrorSchema,
-          404: authErrorSchema,
-        },
-      },
-    },
-    async (request, reply) => {
-      const unitId = await options.peopleService.getActiveUnitId(
-        request.params.id,
-      );
-      if (!unitId) {
-        return reply.status(404).send({
-          code: "PERSON_NOT_FOUND",
-          message: "Colaborador ativo não encontrado.",
-        });
-      }
-      const user = await requirePermission(
-        request,
-        reply,
-        options.authenticationService,
-        options.accessService,
-        "people.manage",
-        unitId,
-      );
-      if (!user) {
-        return;
-      }
-      return reply
-        .status(201)
-        .send(
-          await options.authenticationService.createAccount(
-            request.params.id,
-            request.body,
-            user.account.id,
-          ),
-        );
-    },
-  );
-
-  typedApp.post(
-    "/api/accounts/:id/password-reset",
-    {
-      schema: {
-        body: passwordResetSchema,
-        params: idParamsSchema,
-      },
-    },
-    async (request, reply) => {
-      const user = await requirePermission(
-        request,
-        reply,
-        options.authenticationService,
-        options.accessService,
-        "people.manage",
-      );
-      if (!user) {
-        return;
-      }
-      const changed = await options.authenticationService.resetPassword(
-        request.params.id,
-        request.body,
-        user.account.id,
-      );
-      return changed
-        ? { changed: true }
-        : reply.status(404).send({
-            code: "ACCOUNT_NOT_FOUND",
-            message: "Conta não encontrada.",
-          });
-    },
-  );
-
-  typedApp.post(
-    "/api/accounts/:id/deactivate",
-    { schema: { params: idParamsSchema } },
-    async (request, reply) => {
-      const user = await requirePermission(
-        request,
-        reply,
-        options.authenticationService,
-        options.accessService,
-        "people.manage",
-      );
-      if (!user) {
-        return;
-      }
-      const changed = await options.authenticationService.deactivateAccount(
-        request.params.id,
-        user.account.id,
-      );
-      return changed
-        ? { deactivated: true }
-        : reply.status(404).send({
-            code: "ACCOUNT_NOT_FOUND",
-            message: "Conta não encontrada.",
-          });
     },
   );
 

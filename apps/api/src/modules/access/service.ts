@@ -143,6 +143,13 @@ export class AccessService {
     return assignment;
   }
 
+  listAssignments(accountId?: string) {
+    return this.db
+      .select()
+      .from(roleAssignments)
+      .where(accountId ? eq(roleAssignments.accountId, accountId) : undefined);
+  }
+
   async deleteAssignment(id: string) {
     const [assignment] = await this.db
       .delete(roleAssignments)

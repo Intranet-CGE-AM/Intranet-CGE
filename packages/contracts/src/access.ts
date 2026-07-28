@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const permissionKeys = [
   "access.manage",
+  "accounts.manage",
   "audit.read",
   "audit.export",
   "people.read",
@@ -44,3 +45,5 @@ export const roleAssignmentSchema = z.object({
 export type PermissionKey = z.infer<typeof permissionKeySchema>;
 export type RoleInput = z.infer<typeof roleInputSchema>;
 export type RoleAssignmentInput = z.infer<typeof roleAssignmentInputSchema>;
+export type Role = z.infer<typeof roleSchema>;
+export type RoleAssignment = z.infer<typeof roleAssignmentSchema>;

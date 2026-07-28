@@ -49,6 +49,10 @@ class FakeAuthenticationService implements AuthenticationService {
 
   async logout() {}
 
+  async listAccounts() {
+    return [];
+  }
+
   async resetPassword() {
     return true;
   }

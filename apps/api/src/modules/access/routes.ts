@@ -174,6 +174,40 @@ export const accessRoutes: FastifyPluginAsync<{
     },
   );
 
+  typedApp.get(
+    "/api/admin/role-assignments",
+    {
+      schema: {
+        querystring: z.object({ accountId: z.uuid().optional() }),
+        response: {
+          200: z.object({
+            assignments: z.array(roleAssignmentSchema),
+          }),
+          401: authErrorSchema,
+          403: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (
+        !(await requirePermission(
+          request,
+          reply,
+          options.authenticationService,
+          options.accessService,
+          "access.manage",
+        ))
+      ) {
+        return;
+      }
+      return {
+        assignments: await options.accessService.listAssignments(
+          request.query.accountId,
+        ),
+      };
+    },
+  );
+
   typedApp.delete(
     "/api/admin/role-assignments/:id",
     {

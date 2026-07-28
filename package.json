@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @cge/api --filter @cge/web dev",
     "build": "pnpm -r --if-present build",
+    "admin:bootstrap": "pnpm --filter @cge/api admin:bootstrap",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",

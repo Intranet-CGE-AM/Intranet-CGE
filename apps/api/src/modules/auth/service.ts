@@ -34,6 +34,15 @@ export interface AuthenticationService {
   login(
     input: LoginRequest,
   ): Promise<{ token: string; user: AuthenticatedUser } | null>;
+  listAccounts(): Promise<
+    Array<{
+      id: string;
+      email: string;
+      status: "active" | "disabled";
+      person: { id: string; displayName: string };
+      employment: { unitId: string; unitName: string } | null;
+    }>
+  >;
   logout(token: string): Promise<void>;
   resetPassword(
     accountId: string,
@@ -197,6 +206,48 @@ export class LocalAuthenticationService implements AuthenticationService {
     }
 
     return { token, user };
+  }
+
+  async listAccounts() {
+    const accounts = await this.db
+      .select({
+        id: userAccounts.id,
+        email: userAccounts.email,
+        status: userAccounts.status,
+        personId: people.id,
+        fullName: people.fullName,
+        preferredName: people.preferredName,
+        unitId: organizationUnits.id,
+        unitName: organizationUnits.name,
+      })
+      .from(userAccounts)
+      .innerJoin(people, eq(userAccounts.personId, people.id))
+      .leftJoin(
+        employmentRelationships,
+        and(
+          eq(employmentRelationships.personId, people.id),
+          isNull(employmentRelationships.endDate),
+        ),
+      )
+      .leftJoin(
+        organizationUnits,
+        eq(employmentRelationships.unitId, organizationUnits.id),
+      )
+      .orderBy(people.fullName);
+
+    return accounts.map((account) => ({
+      id: account.id,
+      email: account.email,
+      status: account.status,
+      person: {
+        id: account.personId,
+        displayName: account.preferredName ?? account.fullName,
+      },
+      employment:
+        account.unitId && account.unitName
+          ? { unitId: account.unitId, unitName: account.unitName }
+          : null,
+    }));
   }
 
   async logout(token: string) {

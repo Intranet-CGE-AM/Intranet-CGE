@@ -5,6 +5,7 @@ import { buildApp } from "../../app.js";
 import type { AppConfig } from "../../config.js";
 import type { Database } from "../../db/client.js";
 import type { AuthenticationService } from "../auth/service.js";
+import type { PeopleService } from "../people/service.js";
 import type { AccessService } from "./service.js";
 
 const config: AppConfig = {
@@ -46,6 +47,9 @@ const authenticationService: AuthenticationService = {
       : null;
   },
   async logout() {},
+  async listAccounts() {
+    return [];
+  },
   async resetPassword() {
     return true;
   },
@@ -65,6 +69,7 @@ describe("access routes", () => {
       authenticationService,
       config,
       db: {} as Database,
+      peopleService: {} as PeopleService,
       readinessCheck: async () => undefined,
     });
     const login = await app.inject({
@@ -89,6 +94,45 @@ describe("access routes", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "FORBIDDEN" });
+    await app.close();
+  });
+
+  it("does not let a platform administrator deactivate their own account", async () => {
+    const accessService = {
+      allows: async () => true,
+    } as unknown as AccessService;
+    const app = await buildApp({
+      accessService,
+      authenticationService,
+      config,
+      db: {} as Database,
+      peopleService: {} as PeopleService,
+      readinessCheck: async () => undefined,
+    });
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: { origin: config.WEB_ORIGIN },
+      payload: {
+        email: user.account.email,
+        password: "correct-password",
+      },
+    });
+    const setCookie = login.headers["set-cookie"];
+    const cookie = (Array.isArray(setCookie) ? setCookie[0] : setCookie)!.split(
+      ";",
+    )[0];
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${user.account.id}/deactivate`,
+      headers: { cookie, origin: config.WEB_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "SELF_DEACTIVATION_NOT_ALLOWED",
+    });
     await app.close();
   });
 });

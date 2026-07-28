@@ -13,6 +13,7 @@ import {
 
 import type { AppConfig } from "./config.js";
 import type { Database } from "./db/client.js";
+import { adminRoutes } from "./modules/admin/routes.js";
 import { accessRoutes } from "./modules/access/routes.js";
 import type { AccessService } from "./modules/access/service.js";
 import { auditRoutes } from "./modules/audit/routes.js";
@@ -91,6 +92,13 @@ export async function buildApp({
     });
   }
   if (authenticationService && accessService && db) {
+    if (peopleService) {
+      await app.register(adminRoutes, {
+        accessService,
+        authenticationService,
+        peopleService,
+      });
+    }
     await app.register(accessRoutes, {
       accessService,
       authenticationService,

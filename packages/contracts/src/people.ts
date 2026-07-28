@@ -71,15 +71,6 @@ export const organizationUnitSchema = organizationUnitInputSchema.extend({
   parentId: z.uuid().nullable(),
 });
 
-export const accountCreateSchema = z.object({
-  email: z.email().max(254),
-  temporaryPassword: z.string().min(12).max(128),
-});
-
-export const passwordResetSchema = z.object({
-  temporaryPassword: z.string().min(12).max(128),
-});
-
 export const peopleImportRequestSchema = z.object({
   filename: z.string().trim().min(1).max(255),
   csv: z.string().min(1).max(5_000_000),
@@ -127,5 +118,6 @@ export type EmploymentCategoryInput = z.infer<
 >;
 export type OrganizationUnitInput = z.infer<typeof organizationUnitInputSchema>;
 export type PeopleImportRequest = z.infer<typeof peopleImportRequestSchema>;
-export type AccountCreate = z.infer<typeof accountCreateSchema>;
-export type PasswordReset = z.infer<typeof passwordResetSchema>;
+export type Person = z.infer<typeof personSchema>;
+export type OrganizationUnit = z.infer<typeof organizationUnitSchema>;
+export type Birthday = z.infer<typeof birthdaySchema>;

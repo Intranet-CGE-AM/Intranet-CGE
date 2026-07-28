@@ -65,12 +65,12 @@ a {
 
 .hero-pattern {
   background-image:
-    linear-gradient(135deg, transparent 68%, rgb(255 255 255 / 7%) 68%),
-    linear-gradient(45deg, transparent 72%, rgb(255 255 255 / 5%) 72%);
+    linear-gradient(135deg, transparent 68%, rgb(255 255 255 / 4%) 68%),
+    linear-gradient(45deg, transparent 72%, rgb(255 255 255 / 3%) 72%);
   background-position:
     0 0,
-    34px 34px;
-  background-size: 68px 68px;
+    44px 44px;
+  background-size: 88px 88px;
 }
 
 .page-enter {

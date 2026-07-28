@@ -58,3 +58,4 @@ export const vacationRequestSchema = z.object({
 
 export type VacationRequestInput = z.infer<typeof vacationRequestInputSchema>;
 export type VacationDecisionInput = z.infer<typeof vacationDecisionInputSchema>;
+export type VacationRequest = z.infer<typeof vacationRequestSchema>;

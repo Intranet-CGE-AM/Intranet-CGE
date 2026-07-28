@@ -1,9 +1,13 @@
+import type { Birthday, Person, VacationRequest } from "@cge/contracts";
 import {
+  Alert,
   Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
+  EmptyState,
+  Skeleton,
   Table,
   TableCell,
   TableHead,
@@ -11,205 +15,304 @@ import {
 } from "@cge/ui";
 import {
   ArrowRight,
+  CakeSlice,
   CalendarCheck2,
   CalendarClock,
-  CakeSlice,
-  Check,
-  Clock3,
-  UserPlus,
+  CheckCircle2,
   UsersRound,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const requests = [
-  {
-    person: "Marina Oliveira",
-    unit: "Auditoria Governamental",
-    period: "12–26 ago",
-    status: "Aguardando chefia",
-    tone: "warning" as const,
-  },
-  {
-    person: "Rafael Nascimento",
-    unit: "Controle Interno",
-    period: "02–16 set",
-    status: "Análise final",
-    tone: "brand" as const,
-  },
-  {
-    person: "Lívia Souza",
-    unit: "Ouvidoria",
-    period: "08–22 jul",
-    status: "Aprovada",
-    tone: "success" as const,
-  },
-];
+import { useAuth } from "../auth";
+import { api, ApiError } from "../lib/api";
+import { can } from "../lib/permissions";
 
-const birthdays = [
-  { initials: "RM", name: "Ricardo Mendes", date: "Hoje", unit: "Tecnologia" },
-  { initials: "JC", name: "Juliana Costa", date: "30 jul", unit: "Financeiro" },
-  { initials: "PA", name: "Paula Almeida", date: "02 ago", unit: "Auditoria" },
-];
+const status: Record<
+  VacationRequest["status"],
+  {
+    label: string;
+    tone: "neutral" | "warning" | "success" | "danger" | "brand";
+  }
+> = {
+  draft: { label: "Rascunho", tone: "neutral" },
+  submitted: { label: "Aguardando chefia", tone: "warning" },
+  supervisor_approved: { label: "Decisão final", tone: "brand" },
+  supervisor_rejected: { label: "Rejeitada pela chefia", tone: "danger" },
+  final_approved: { label: "Aprovada", tone: "success" },
+  final_rejected: { label: "Rejeitada", tone: "danger" },
+  cancelled: { label: "Cancelada", tone: "neutral" },
+};
+
+const date = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
 export function DashboardPage() {
+  const { user } = useAuth();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
+  const [requests, setRequests] = useState<VacationRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    let active = true;
+    async function load() {
+      try {
+        const results = await Promise.all([
+          can(user!, "people.read")
+            ? api<{ people: Person[] }>("/api/people")
+            : Promise.resolve({ people: [] }),
+          can(user!, "birthdays.read")
+            ? api<{ birthdays: Birthday[] }>("/api/birthdays?days=30")
+            : Promise.resolve({ birthdays: [] }),
+          can(user!, "vacations.create")
+            ? api<{ requests: VacationRequest[] }>(
+                "/api/vacation-requests?scope=mine",
+              )
+            : Promise.resolve({ requests: [] }),
+          can(user!, "vacations.review.supervisor")
+            ? api<{ requests: VacationRequest[] }>(
+                "/api/vacation-requests?scope=supervisor",
+              )
+            : Promise.resolve({ requests: [] }),
+          can(user!, "vacations.review.final")
+            ? api<{ requests: VacationRequest[] }>(
+                "/api/vacation-requests?scope=final",
+              )
+            : Promise.resolve({ requests: [] }),
+        ]);
+        if (!active) {
+          return;
+        }
+        setPeople(results[0].people);
+        setBirthdays(results[1].birthdays);
+        setRequests([
+          ...new Map(
+            [
+              ...results[2].requests,
+              ...results[3].requests,
+              ...results[4].requests,
+            ].map((request) => [request.id, request]),
+          ).values(),
+        ]);
+      } catch (cause) {
+        if (active) {
+          setError(
+            cause instanceof ApiError
+              ? cause.message
+              : "Não foi possível carregar o painel.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  if (!user) {
+    return null;
+  }
+
+  const pending = requests.filter((request) =>
+    ["submitted", "supervisor_approved"].includes(request.status),
+  );
+  const approved = requests.filter(
+    (request) => request.status === "final_approved",
+  );
+  const firstName = user.person.displayName.split(/\s+/)[0];
+
   return (
     <div className="page-enter space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-            Terça-feira, 28 de julho
+            Visão operacional
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-            Boa tarde, Ana
+            Olá, {firstName}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Aqui está o resumo da equipe e das solicitações de hoje.
+            Acompanhe o que exige atenção hoje.
           </p>
         </div>
-        <Button asChild>
-          <Link to="/pessoas">
-            <UserPlus aria-hidden="true" size={17} />
-            Novo colaborador
-          </Link>
-        </Button>
+        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
+          {new Intl.DateTimeFormat("pt-BR", {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+          }).format(new Date())}
+        </p>
       </div>
 
-      <Card className="hero-pattern overflow-hidden border-0 bg-[var(--brand)] text-white">
-        <CardContent className="flex min-h-[150px] flex-col justify-between gap-6 p-6 sm:flex-row sm:items-center">
+      {error ? <Alert title="Painel indisponível">{error}</Alert> : null}
+
+      <section className="hero-pattern overflow-hidden rounded-2xl bg-[var(--brand)] text-white">
+        <div className="grid min-h-[170px] gap-8 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <p className="text-sm font-semibold text-white/70">
-              Pessoas ativas
+            <p className="text-sm font-semibold text-white/65">
+              Fila de trabalho
             </p>
-            <div className="mt-2 flex items-end gap-3">
-              <span className="text-4xl font-semibold tracking-[-0.05em]">
-                128
-              </span>
-              <span className="mb-1 rounded-full bg-white/10 px-2 py-1 text-xs font-semibold text-[var(--action)]">
-                7 unidades
-              </span>
-            </div>
-            <p className="mt-3 text-xs text-white/60">
-              Base atualizada em 27 de julho às 16:42
+            {loading ? (
+              <Skeleton className="mt-3 h-10 w-52 bg-white/10" />
+            ) : (
+              <p className="mt-2 text-3xl font-extrabold tracking-[-0.045em]">
+                {pending.length
+                  ? `${pending.length} ${
+                      pending.length === 1 ? "ação pendente" : "ações pendentes"
+                    }`
+                  : "Nenhuma pendência aberta"}
+              </p>
+            )}
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/60">
+              Solicitações seguem a chefia registrada e uma decisão final
+              atribuída por permissão.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <Link to="/ferias">
-                <CalendarCheck2 aria-hidden="true" size={17} />
-                Solicitar férias
-              </Link>
-            </Button>
-            <Button
-              asChild
-              className="border-white/15 bg-white/10 text-white hover:bg-white/15"
-              variant="secondary"
-            >
-              <Link to="/pessoas">
-                <UsersRound aria-hidden="true" size={17} />
-                Ver diretório
-              </Link>
-            </Button>
+            {can(user, "vacations.create") ? (
+              <Button asChild>
+                <Link to="/ferias">
+                  <CalendarCheck2 aria-hidden="true" size={17} />
+                  Solicitar férias
+                </Link>
+              </Button>
+            ) : null}
+            {can(user, "people.read") ? (
+              <Button
+                asChild
+                className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                variant="secondary"
+              >
+                <Link to="/pessoas">
+                  <UsersRound aria-hidden="true" size={17} />
+                  Abrir diretório
+                </Link>
+              </Button>
+            ) : null}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {[
           {
+            label: "Pessoas ativas visíveis",
+            value: people.length,
+            detail: "dentro do seu escopo",
             icon: UsersRound,
-            label: "Colaboradores ativos",
-            value: "128",
-            detail: "4 perfis atualizados",
           },
           {
-            icon: CalendarClock,
-            label: "Férias pendentes",
-            value: "06",
-            detail: "2 aguardam sua ação",
+            label: "Aniversários em 30 dias",
+            value: birthdays.length,
+            detail: "com autorização de exibição",
+            icon: CakeSlice,
           },
           {
-            icon: Check,
-            label: "Aprovadas no mês",
-            value: "14",
-            detail: "Sem conflitos abertos",
+            label: "Solicitações aprovadas",
+            value: approved.length,
+            detail: "na sua visão atual",
+            icon: CheckCircle2,
           },
-          {
-            icon: Clock3,
-            label: "Importação mais recente",
-            value: "27 jul",
-            detail: "126 linhas processadas",
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          return (
-            <Card key={item.label}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="grid size-9 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">
-                    <Icon aria-hidden="true" size={18} />
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-faint)]">
-                    Agora
-                  </span>
-                </div>
-                <p className="mt-5 text-sm font-semibold text-[var(--text-muted)]">
-                  {item.label}
-                </p>
-                <p className="mt-1 text-2xl font-extrabold tracking-[-0.04em]">
-                  {item.value}
-                </p>
-                <p className="mt-3 text-xs text-[var(--text-faint)]">
-                  {item.detail}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+        ].map(({ label, value, detail, icon: Icon }) => (
+          <div className="p-5" key={label}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-[var(--text-muted)]">
+                {label}
+              </p>
+              <Icon
+                aria-hidden="true"
+                className="text-[var(--brand)]"
+                size={17}
+              />
+            </div>
+            {loading ? (
+              <Skeleton className="mt-3 h-8 w-16" />
+            ) : (
+              <p className="mt-2 text-2xl font-extrabold tracking-[-0.04em]">
+                {value}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-[var(--text-faint)]">{detail}</p>
+          </div>
+        ))}
+      </section>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.7fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(290px,0.7fr)]">
         <Card>
           <CardHeader>
             <div>
-              <h2 className="font-bold">Solicitações recentes</h2>
+              <h2 className="font-bold">Fluxo de férias</h2>
               <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                Férias que precisam de acompanhamento
+                Solicitações visíveis para a sua conta
               </p>
             </div>
             <Button asChild variant="quiet" size="sm">
               <Link to="/ferias">
-                Ver todas
+                Ver fluxo
                 <ArrowRight aria-hidden="true" size={15} />
               </Link>
             </Button>
           </CardHeader>
-          <Table>
-            <thead>
-              <tr>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Status</TableHead>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((request) => (
-                <TableRow key={request.person}>
-                  <TableCell>
-                    <p className="font-semibold">{request.person}</p>
-                    <p className="mt-0.5 text-xs text-[var(--text-faint)]">
-                      {request.unit}
-                    </p>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-[var(--text-muted)]">
-                    {request.period}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={request.tone}>{request.status}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </tbody>
-          </Table>
+          {loading ? (
+            <CardContent className="space-y-3">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </CardContent>
+          ) : requests.length ? (
+            <Table>
+              <thead>
+                <tr>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Etapa</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.slice(0, 6).map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <p className="font-semibold">
+                        {request.requester.displayName}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                        {request.requester.unitName}
+                      </p>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-[var(--text-muted)]">
+                      {date.format(new Date(`${request.startDate}T12:00:00`))}
+                      {" – "}
+                      {date.format(new Date(`${request.endDate}T12:00:00`))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={status[request.status].tone}>
+                        {status[request.status].label}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <EmptyState
+              icon={<CalendarClock aria-hidden="true" size={20} />}
+              title="Nenhuma solicitação visível"
+              description="Novas solicitações e decisões aparecerão aqui conforme o seu escopo."
+            />
+          )}
         </Card>
 
         <Card>
@@ -223,27 +326,54 @@ export function DashboardPage() {
               <h2 className="font-bold">Próximos aniversários</h2>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {birthdays.map((birthday) => (
-              <div className="flex items-center gap-3" key={birthday.name}>
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-xs font-extrabold text-[var(--brand)]">
-                  {birthday.initials}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{birthday.name}</p>
-                  <p className="text-xs text-[var(--text-faint)]">
-                    {birthday.unit}
-                  </p>
-                </div>
-                <Badge
-                  variant={birthday.date === "Hoje" ? "success" : "neutral"}
-                >
-                  {birthday.date}
-                </Badge>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
               </div>
-            ))}
-            <p className="border-t border-[var(--border)] pt-4 text-xs leading-relaxed text-[var(--text-faint)]">
-              Apenas pessoas que autorizaram a exibição aparecem aqui.
+            ) : birthdays.length ? (
+              <div className="divide-y divide-[var(--border)]">
+                {birthdays.slice(0, 5).map((birthday) => (
+                  <div
+                    className="flex items-center gap-3 py-3 first:pt-0"
+                    key={birthday.personId}
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-xs font-extrabold text-[var(--brand)]">
+                      {birthday.displayName
+                        .split(/\s+/)
+                        .slice(0, 2)
+                        .map((part) => part[0])
+                        .join("")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">
+                        {birthday.displayName}
+                      </p>
+                      <p className="truncate text-xs text-[var(--text-faint)]">
+                        {birthday.unit.name}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={birthday.daysUntil === 0 ? "success" : "neutral"}
+                    >
+                      {birthday.daysUntil === 0
+                        ? "Hoje"
+                        : `${String(birthday.day).padStart(2, "0")}/${String(
+                            birthday.month,
+                          ).padStart(2, "0")}`}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-[var(--text-muted)]">
+                Nenhum aniversário autorizado nos próximos 30 dias.
+              </p>
+            )}
+            <p className="mt-4 border-t border-[var(--border)] pt-4 text-xs leading-5 text-[var(--text-faint)]">
+              Apenas nome, dia e mês de pessoas que autorizaram a exibição.
             </p>
           </CardContent>
         </Card>

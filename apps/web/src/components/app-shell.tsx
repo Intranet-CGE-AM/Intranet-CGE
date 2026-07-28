@@ -1,14 +1,11 @@
-import { Button, Input } from "@cge/ui";
+import { Button } from "@cge/ui";
 import {
-  Bell,
-  CakeSlice,
   CalendarDays,
   ChevronDown,
   LayoutDashboard,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
   Settings2,
   ShieldCheck,
   UsersRound,
@@ -17,11 +14,42 @@ import {
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { useAuth } from "../auth";
+import { can } from "../lib/permissions";
+
 const navigation = [
-  { label: "Início", href: "/", icon: LayoutDashboard, end: true },
-  { label: "Colaboradores", href: "/pessoas", icon: UsersRound },
-  { label: "Férias", href: "/ferias", icon: CalendarDays },
-  { label: "Administração", href: "/administracao", icon: Settings2 },
+  {
+    label: "Início",
+    href: "/",
+    icon: LayoutDashboard,
+    end: true,
+    visible: () => true,
+  },
+  {
+    label: "Colaboradores",
+    href: "/pessoas",
+    icon: UsersRound,
+    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
+      can(user, "people.read"),
+  },
+  {
+    label: "Férias",
+    href: "/ferias",
+    icon: CalendarDays,
+    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
+      can(user, "vacations.create") ||
+      can(user, "vacations.review.supervisor") ||
+      can(user, "vacations.review.final"),
+  },
+  {
+    label: "Administração",
+    href: "/administracao",
+    icon: Settings2,
+    visible: (user: NonNullable<ReturnType<typeof useAuth>["user"]>) =>
+      can(user, "accounts.manage") ||
+      can(user, "access.manage") ||
+      can(user, "audit.read"),
+  },
 ] as const;
 
 function Logo({ collapsed = false }: { collapsed?: boolean }) {
@@ -44,7 +72,13 @@ function Logo({ collapsed = false }: { collapsed?: boolean }) {
   );
 }
 
-function Navigation({ collapsed = false }: { collapsed?: boolean }) {
+function Navigation({
+  collapsed = false,
+  user,
+}: {
+  collapsed?: boolean;
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
+}) {
   return (
     <nav aria-label="Navegação principal" className="mt-8 space-y-1">
       {!collapsed ? (
@@ -52,36 +86,48 @@ function Navigation({ collapsed = false }: { collapsed?: boolean }) {
           Geral
         </p>
       ) : null}
-      {navigation.map((item) => {
-        const Icon = item.icon;
-        return (
-          <NavLink
-            key={item.href}
-            to={item.href}
-            end={"end" in item && item.end}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              [
-                "flex min-h-10 items-center rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
-                collapsed ? "justify-center px-2" : "gap-3 px-3",
-                isActive
-                  ? "border border-[var(--border)] bg-white text-[var(--brand)] shadow-[0_4px_12px_rgb(16_35_38/4%)]"
-                  : "border border-transparent text-[var(--text-muted)] hover:bg-white/70 hover:text-[var(--text)]",
-              ].join(" ")
-            }
-          >
-            <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
-            {!collapsed ? <span>{item.label}</span> : null}
-          </NavLink>
-        );
-      })}
+      {navigation
+        .filter((item) => item.visible(user))
+        .map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.href}
+              to={item.href}
+              end={"end" in item && item.end}
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                [
+                  "flex min-h-10 items-center rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+                  collapsed ? "justify-center px-2" : "gap-3 px-3",
+                  isActive
+                    ? "border border-[var(--border)] bg-white text-[var(--brand)] shadow-[0_4px_12px_rgb(16_35_38/4%)]"
+                    : "border border-transparent text-[var(--text-muted)] hover:bg-white/70 hover:text-[var(--text)]",
+                ].join(" ")
+              }
+            >
+              <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
+              {!collapsed ? <span>{item.label}</span> : null}
+            </NavLink>
+          );
+        })}
     </nav>
   );
 }
 
 export function AppShell() {
+  const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  if (!user) {
+    return null;
+  }
+  const initials = user.person.displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[auto_1fr]">
@@ -100,7 +146,7 @@ export function AppShell() {
       >
         <div className={collapsed ? "px-1 pt-1" : "px-2 pt-1"}>
           <Logo collapsed={collapsed} />
-          <Navigation collapsed={collapsed} />
+          <Navigation collapsed={collapsed} user={user} />
         </div>
         <div className="mt-auto">
           <Button
@@ -125,18 +171,20 @@ export function AppShell() {
               collapsed ? "justify-center" : "gap-3",
             ].join(" ")}
             type="button"
+            onClick={() => void logout()}
+            aria-label={`Sair da conta de ${user.person.displayName}`}
           >
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-xs font-extrabold text-[var(--brand)]">
-              AS
+              {initials}
             </span>
             {!collapsed ? (
               <>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold">
-                    Ana Silva
+                    {user.person.displayName}
                   </span>
                   <span className="block truncate text-[10px] text-[var(--text-faint)]">
-                    Auditoria Interna
+                    {user.employment?.unit.name ?? "Sem vínculo ativo"}
                   </span>
                 </span>
                 <ChevronDown
@@ -171,7 +219,7 @@ export function AppShell() {
               </Button>
             </div>
             <div onClick={() => setMobileOpen(false)}>
-              <Navigation />
+              <Navigation user={user} />
             </div>
           </aside>
         </div>
@@ -188,35 +236,13 @@ export function AppShell() {
           >
             <Menu aria-hidden="true" size={20} />
           </Button>
-          <div className="relative hidden max-w-[360px] flex-1 md:block">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
-              size={17}
-            />
-            <Input
-              type="search"
-              aria-label="Buscar na intranet"
-              placeholder="Buscar pessoas ou solicitações"
-              className="pl-10"
-            />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2 text-xs font-semibold text-[var(--brand)] sm:flex">
-              <CakeSlice aria-hidden="true" size={15} />2 aniversários esta
-              semana
-            </div>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="relative"
-              aria-label="Notificações, 3 não lidas"
-            >
-              <Bell aria-hidden="true" size={18} />
-              <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[var(--danger)] text-[9px] font-bold text-white">
-                3
-              </span>
-            </Button>
+          <div className="ml-auto min-w-0 text-right">
+            <p className="truncate text-xs font-bold text-[var(--text)]">
+              {user.employment?.unit.name ?? "Administração da plataforma"}
+            </p>
+            <p className="hidden text-[10px] text-[var(--text-faint)] sm:block">
+              Ambiente interno da CGE Amazonas
+            </p>
           </div>
         </header>
 
