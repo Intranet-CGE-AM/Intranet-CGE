@@ -4,3 +4,4 @@ coverage
 pnpm-lock.yaml
 legacy
 .scratch/intranet-cge-v1/assets
+apps/api/drizzle/meta

@@ -1,1 +1,1 @@
-export const applicationName = "Intranet CGE";
+export * from "./system";
