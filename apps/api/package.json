@@ -9,6 +9,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "admin:bootstrap": "tsx src/scripts/bootstrap-admin.ts",
+    "homolog:seed": "tsx src/scripts/seed-homolog.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

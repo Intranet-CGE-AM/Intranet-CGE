@@ -65,4 +65,5 @@ solicita férias, aprova nas duas etapas e confirma o CSV de auditoria.
 - [Administração](docs/administration.md)
 - [Contrato da importação CSV](docs/csv-import.md)
 - [Design system](docs/design-system.md)
+- [Homologação e dados de teste](docs/homologation.md)
 - [Implantação, backup e restauração](docs/deployment.md)

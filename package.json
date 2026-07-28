@@ -7,6 +7,7 @@
     "dev": "pnpm --parallel --filter @cge/api --filter @cge/web dev",
     "build": "pnpm -r --if-present build",
     "admin:bootstrap": "pnpm --filter @cge/api admin:bootstrap",
+    "homolog:seed": "pnpm --filter @cge/api homolog:seed",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
