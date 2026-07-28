@@ -11,9 +11,9 @@ import { z } from "zod";
 
 import type { AuthenticationService } from "./service.js";
 
-const SESSION_COOKIE = "cge_session";
+export const SESSION_COOKIE = "cge_session";
 
-function readSessionToken(request: FastifyRequest) {
+export function readSessionToken(request: FastifyRequest) {
   const cookie = request.cookies[SESSION_COOKIE];
   if (!cookie) {
     return null;

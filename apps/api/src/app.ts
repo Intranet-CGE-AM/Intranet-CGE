@@ -12,6 +12,10 @@ import {
 } from "fastify-type-provider-zod";
 
 import type { AppConfig } from "./config.js";
+import type { Database } from "./db/client.js";
+import { accessRoutes } from "./modules/access/routes.js";
+import type { AccessService } from "./modules/access/service.js";
+import { auditRoutes } from "./modules/audit/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
 import { systemRoutes } from "./modules/system/routes.js";
@@ -19,11 +23,15 @@ import { systemRoutes } from "./modules/system/routes.js";
 export async function buildApp({
   config,
   authenticationService,
+  accessService,
+  db,
   readinessCheck,
   logger = false,
 }: {
   config: AppConfig;
   authenticationService?: AuthenticationService;
+  accessService?: AccessService;
+  db?: Database;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
@@ -72,6 +80,18 @@ export async function buildApp({
       authenticationService,
       secureCookies: config.NODE_ENV === "production",
       sessionTtlHours: config.SESSION_TTL_HOURS,
+    });
+  }
+  if (authenticationService && accessService && db) {
+    await app.register(accessRoutes, {
+      accessService,
+      authenticationService,
+      db,
+    });
+    await app.register(auditRoutes, {
+      accessService,
+      authenticationService,
+      db,
     });
   }
 

@@ -5,17 +5,24 @@ import { sql } from "drizzle-orm";
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createDatabase } from "./db/client.js";
+import { AccessService } from "./modules/access/service.js";
+import { recordAudit } from "./modules/audit/service.js";
 import { LocalAuthenticationService } from "./modules/auth/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
+const accessService = new AccessService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
+  (accountId) => accessService.resolvePermissions(accountId),
+  (input) => recordAudit(db, input),
 );
 const app = await buildApp({
+  accessService,
   authenticationService,
   config,
+  db,
   logger: true,
   readinessCheck: async () => {
     await db.execute(sql`select 1`);

@@ -1,6 +1,7 @@
 import type {
   AuthenticatedUser,
   ChangePasswordRequest,
+  PermissionKey,
   LoginRequest,
 } from "@cge/contracts";
 import { argon2id, hash, verify } from "argon2";
@@ -13,6 +14,7 @@ import {
   organizationUnits,
   people,
 } from "../people/schema.js";
+import type { AuditInput } from "../audit/service.js";
 import { sessions, userAccounts } from "./schema.js";
 import { createSessionToken, hashSessionToken } from "./token.js";
 
@@ -32,6 +34,14 @@ export class LocalAuthenticationService implements AuthenticationService {
   constructor(
     private readonly db: Database,
     private readonly sessionTtlHours: number,
+    private readonly resolvePermissions: (
+      accountId: string,
+    ) => Promise<
+      Array<{ key: PermissionKey; unitId: string | null }>
+    > = async () => [],
+    private readonly recordEvent: (
+      input: AuditInput,
+    ) => Promise<void> = async () => {},
   ) {}
 
   async authenticate(token: string) {
@@ -83,7 +93,10 @@ export class LocalAuthenticationService implements AuthenticationService {
       return null;
     }
 
-    return this.toAuthenticatedUser(record);
+    return {
+      ...this.toAuthenticatedUser(record),
+      permissions: await this.resolvePermissions(record.accountId),
+    };
   }
 
   async login(input: LoginRequest) {
@@ -103,9 +116,22 @@ export class LocalAuthenticationService implements AuthenticationService {
       account.status !== "active" ||
       !(await verify(account.passwordHash, input.password))
     ) {
+      await this.recordEvent({
+        action: "auth.login",
+        objectType: "account",
+        outcome: "failure",
+        metadata: { email: normalizedEmail },
+      });
       return null;
     }
 
+    await this.recordEvent({
+      actorAccountId: account.id,
+      action: "auth.login",
+      objectType: "account",
+      objectId: account.id,
+      outcome: "success",
+    });
     const token = createSessionToken();
     const expiresAt = new Date(
       Date.now() + this.sessionTtlHours * 60 * 60 * 1000,
@@ -126,9 +152,22 @@ export class LocalAuthenticationService implements AuthenticationService {
   }
 
   async logout(token: string) {
-    await this.db
-      .delete(sessions)
-      .where(eq(sessions.tokenHash, hashSessionToken(token)));
+    const tokenHash = hashSessionToken(token);
+    const [session] = await this.db
+      .select({ accountId: sessions.accountId })
+      .from(sessions)
+      .where(eq(sessions.tokenHash, tokenHash))
+      .limit(1);
+    await this.db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+    if (session) {
+      await this.recordEvent({
+        actorAccountId: session.accountId,
+        action: "auth.logout",
+        objectType: "account",
+        objectId: session.accountId,
+        outcome: "success",
+      });
+    }
   }
 
   async changePassword(accountId: string, input: ChangePasswordRequest) {
@@ -142,6 +181,13 @@ export class LocalAuthenticationService implements AuthenticationService {
       !account ||
       !(await verify(account.passwordHash, input.currentPassword))
     ) {
+      await this.recordEvent({
+        actorAccountId: accountId,
+        action: "auth.password-change",
+        objectType: "account",
+        objectId: accountId,
+        outcome: "failure",
+      });
       return "invalid-current-password" as const;
     }
 
@@ -165,6 +211,13 @@ export class LocalAuthenticationService implements AuthenticationService {
       await transaction
         .delete(sessions)
         .where(eq(sessions.accountId, accountId));
+    });
+    await this.recordEvent({
+      actorAccountId: accountId,
+      action: "auth.password-change",
+      objectType: "account",
+      objectId: accountId,
+      outcome: "success",
     });
 
     return "changed" as const;
