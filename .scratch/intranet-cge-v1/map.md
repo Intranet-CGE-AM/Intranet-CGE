@@ -18,6 +18,7 @@ An implementation-ready and deployed-on-main v1 specification and application fo
 - [Define people and employment language](issues/02-define-people-and-employment-language.md) — people, employment relationships, and login accounts have independent lifecycles.
 - [Define security and delivery constraints](issues/03-define-security-and-delivery-constraints.md) — local password accounts, database sessions, scoped roles, auditability, and direct validated delivery to `main`.
 - [Define the shared visual system](issues/04-define-shared-visual-system.md) — a restrained institutional dashboard using customized, self-owned primitives derived from the supplied reference.
+- [Validate official policy constraints](issues/05-validate-official-policy-constraints.md) — minimize personal data, default birthday publication to private pending DPO confirmation, and keep final vacation authority assignable.
 
 ## Not yet specified
 
