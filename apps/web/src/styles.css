@@ -1,67 +1,7 @@
 @import "@fontsource-variable/manrope";
+@import "@cge/ui/styles.css";
 @import "tailwindcss";
 @source "../../../packages/ui/src";
-
-:root {
-  color-scheme: light;
-  font-family: "Manrope Variable", sans-serif;
-  font-synthesis: none;
-  --canvas: #f4f6f6;
-  --surface: #ffffff;
-  --surface-subtle: #f1f4f4;
-  --border: #dde4e4;
-  --text: #102326;
-  --text-muted: #5f6f72;
-  --text-faint: #849194;
-  --brand: #075f63;
-  --brand-strong: #044b4e;
-  --brand-soft: #e5f3f2;
-  --action: #08ce83;
-  --action-hover: #06ba76;
-  --action-foreground: #073c2c;
-  --success-soft: #e2f8ef;
-  --success-strong: #087a54;
-  --warning-soft: #fff6dd;
-  --warning-border: #f0d999;
-  --warning-strong: #7a5a08;
-  --danger: #c93b68;
-  --danger-strong: #a92952;
-  --danger-soft: #fdeaf0;
-  --focus: rgb(8 206 131 / 32%);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  min-width: 320px;
-  background: var(--canvas);
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-  background:
-    radial-gradient(circle at 96% 3%, rgb(8 206 131 / 5%), transparent 22rem),
-    var(--canvas);
-  color: var(--text);
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
-
-::selection {
-  background: rgb(8 206 131 / 25%);
-}
 
 .hero-pattern {
   background-image:
@@ -85,16 +25,5 @@ a {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }
