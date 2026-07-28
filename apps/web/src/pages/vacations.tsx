@@ -63,13 +63,14 @@ export function VacationsPage() {
   const [supervisor, setSupervisor] = useState<VacationRequest[]>([]);
   const [finalReview, setFinalReview] = useState<VacationRequest[]>([]);
   const [error, setError] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [createDialog, setCreateDialog] = useState(false);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [history, setHistory] = useState<VacationRequest | null>(null);
-  const creates = Boolean(user && can(user, "vacations.create"));
+  const creates = Boolean(user?.employment && can(user, "vacations.create"));
   const reviewsSupervisor = Boolean(
     user && can(user, "vacations.review.supervisor"),
   );
@@ -115,12 +116,14 @@ export function VacationsPage() {
     const startDate = String(data.get("startDate"));
     const endDate = String(data.get("endDate"));
     if (endDate < startDate) {
-      setError("A data final deve ser igual ou posterior à data inicial.");
+      setDialogError(
+        "A data final deve ser igual ou posterior à data inicial.",
+      );
       return;
     }
     try {
       setBusy(true);
-      setError("");
+      setDialogError("");
       setSuccess("");
       await api("/api/vacation-requests", {
         method: "POST",
@@ -134,7 +137,9 @@ export function VacationsPage() {
       await load();
       setSuccess("Solicitação enviada para a chefia.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível enviar a solicitação."));
+      setDialogError(
+        messageFor(cause, "Não foi possível enviar a solicitação."),
+      );
     } finally {
       setBusy(false);
     }
@@ -147,14 +152,16 @@ export function VacationsPage() {
     const decisionValue = String(data.get("decision"));
     const comment = String(data.get("comment") ?? "").trim();
     if (decisionValue === "reject" && comment.length < 2) {
-      setError("Informe o motivo da rejeição para manter o histórico claro.");
+      setDialogError(
+        "Informe o motivo da rejeição para manter o histórico claro.",
+      );
       return;
     }
     const route =
       decision.stage === "supervisor" ? "supervisor-decision" : "hr-decision";
     try {
       setBusy(true);
-      setError("");
+      setDialogError("");
       setSuccess("");
       await api(`/api/vacation-requests/${decision.request.id}/${route}`, {
         method: "POST",
@@ -168,7 +175,9 @@ export function VacationsPage() {
       await load();
       setSuccess("Decisão registrada no histórico.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível registrar a decisão."));
+      setDialogError(
+        messageFor(cause, "Não foi possível registrar a decisão."),
+      );
     } finally {
       setBusy(false);
     }
@@ -315,12 +324,23 @@ export function VacationsPage() {
         </>
       )}
 
-      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+      <Dialog
+        open={createDialog}
+        onOpenChange={(open) => {
+          setCreateDialog(open);
+          if (!open) setDialogError("");
+        }}
+      >
         <DialogContent
           title="Nova solicitação"
           description="O período será enviado diretamente para sua chefia."
         >
           <form className="space-y-4" onSubmit={createRequest}>
+            {dialogError ? (
+              <Alert title="Revise a solicitação" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField htmlFor="vacationStartDate" label="Data inicial">
                 <Input
@@ -357,7 +377,13 @@ export function VacationsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(decision)} onOpenChange={() => setDecision(null)}>
+      <Dialog
+        open={Boolean(decision)}
+        onOpenChange={() => {
+          setDecision(null);
+          setDialogError("");
+        }}
+      >
         <DialogContent
           title={
             decision?.stage === "supervisor"
@@ -371,6 +397,11 @@ export function VacationsPage() {
           }
         >
           <form className="space-y-4" onSubmit={decideRequest}>
+            {dialogError ? (
+              <Alert title="Revise a decisão" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField htmlFor="vacationDecision" label="Decisão">
               <Select
                 id="vacationDecision"

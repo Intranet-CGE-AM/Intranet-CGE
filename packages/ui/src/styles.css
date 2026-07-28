@@ -7,8 +7,8 @@
   --surface-subtle: #f1f4f4;
   --border: #dde4e4;
   --text: #102326;
-  --text-muted: #5f6f72;
-  --text-faint: #849194;
+  --text-muted: #536568;
+  --text-faint: #637174;
   --brand: #075f63;
   --brand-strong: #044b4e;
   --brand-soft: #e5f3f2;
@@ -22,8 +22,8 @@
   --warning-soft: #fff6dd;
   --warning-border: #f0d999;
   --warning-strong: #7a5a08;
-  --danger: #c93b68;
-  --danger-strong: #a92952;
+  --danger: #a92952;
+  --danger-strong: #8d1f44;
   --danger-soft: #fdeaf0;
   --focus: rgb(8 206 131 / 32%);
 }

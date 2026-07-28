@@ -164,7 +164,7 @@ export function DashboardPage() {
       <section className="overflow-hidden rounded-[14px] bg-[var(--brand)] text-white">
         <div className="grid min-h-[170px] gap-8 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
-            <p className="text-sm font-semibold text-white/65">
+            <p className="text-sm font-semibold text-white/80">
               Fila de trabalho
             </p>
             {loading ? (
@@ -178,13 +178,13 @@ export function DashboardPage() {
                   : "Nenhuma pendência aberta"}
               </p>
             )}
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/60">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
               Solicitações seguem a chefia registrada e uma decisão final
               atribuída por permissão.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {can(user, "vacations.create") ? (
+            {user.employment && can(user, "vacations.create") ? (
               <Button asChild>
                 <Link to="/ferias">
                   <CalendarCheck aria-hidden="true" size={17} />
@@ -195,7 +195,7 @@ export function DashboardPage() {
             {can(user, "people.read") ? (
               <Button
                 asChild
-                className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
                 variant="secondary"
               >
                 <Link to="/pessoas">

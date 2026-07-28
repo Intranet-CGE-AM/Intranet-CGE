@@ -16,6 +16,7 @@
     "test:e2e": "./infra/scripts/e2e.sh"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.2",

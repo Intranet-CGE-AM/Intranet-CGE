@@ -240,7 +240,7 @@ export function AppShell() {
 
           <main
             id="conteudo"
-            className="mx-auto w-full max-w-[1440px] p-4 md:p-6"
+            className="mx-auto w-full max-w-[1440px] overflow-x-clip p-4 md:p-6"
           >
             <Outlet />
           </main>

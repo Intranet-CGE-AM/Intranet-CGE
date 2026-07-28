@@ -12,7 +12,10 @@ export function Table({
   ...props
 }: TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div
+      className="w-full overflow-x-auto focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-[var(--focus)]"
+      tabIndex={0}
+    >
       <table
         className={cn(
           "w-full border-collapse text-left text-sm tabular-nums",

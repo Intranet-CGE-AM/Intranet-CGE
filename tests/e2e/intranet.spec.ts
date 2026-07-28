@@ -37,16 +37,16 @@ test("complete HR journey from import through final vacation approval", async ({
 
   await page.getByRole("link", { name: "Colaboradores" }).click();
   await page.getByRole("button", { name: "Configurar RH" }).click();
-  await page.locator("#categoryName").fill("Servidor efetivo");
+  await page.locator("#categoryName").fill("Servidor efetivo E2E");
   await page.getByLabel("Elegível ao fluxo de férias").check();
   await page.getByRole("button", { name: "Adicionar categoria" }).click();
   await expect(
-    page.getByText("Servidor efetivo", { exact: true }),
+    page.getByRole("dialog").getByText(/Servidor efetivo E2E/),
   ).toBeVisible();
-  await page.locator("#unitCode").fill("CGTI");
-  await page.locator("#unitName").fill("Tecnologia da Informação");
+  await page.locator("#unitCode").fill("E2ETI");
+  await page.locator("#unitName").fill("Tecnologia E2E");
   await page.getByRole("button", { name: "Adicionar unidade" }).click();
-  await expect(page.getByText("CGTI", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(/E2ETI/)).toBeVisible();
   await page.getByRole("button", { name: "Fechar" }).click();
 
   await page.getByRole("button", { name: "Importar CSV" }).click();
@@ -56,8 +56,8 @@ test("complete HR journey from import through final vacation approval", async ({
     buffer: Buffer.from(
       [
         "matricula,nome,nome_preferido,data_nascimento,aniversario_visivel,categoria,unidade_codigo,unidade_nome,cargo,data_inicio,ativo",
-        "E2E-001,Supervisora E2E,Supervisora,1985-02-10,sim,Servidor efetivo,CGTI,Tecnologia da Informação,Gerente,2020-01-02,sim",
-        "E2E-002,Trabalhador E2E,Trabalhador,1990-08-15,sim,Servidor efetivo,CGTI,Tecnologia da Informação,Analista,2021-03-04,sim",
+        "E2E-001,Supervisora E2E,Supervisora,1985-02-10,sim,Servidor efetivo E2E,E2ETI,Tecnologia E2E,Gerente,2020-01-02,sim",
+        "E2E-002,Trabalhador E2E,Trabalhador,1990-08-15,sim,Servidor efetivo E2E,E2ETI,Tecnologia E2E,Analista,2021-03-04,sim",
       ].join("\n"),
     ),
   });
@@ -87,17 +87,12 @@ test("complete HR journey from import through final vacation approval", async ({
   );
   await createRole(page, "Chefia E2E", "Decisão da chefia");
   await createRole(page, "Colaborador E2E", "Solicitar férias");
-  await assignRole(
-    page,
-    "Supervisora",
-    "Chefia E2E",
-    "CGTI · Tecnologia da Informação",
-  );
+  await assignRole(page, "Supervisora", "Chefia E2E", "E2ETI · Tecnologia E2E");
   await assignRole(
     page,
     "Trabalhador",
     "Colaborador E2E",
-    "CGTI · Tecnologia da Informação",
+    "E2ETI · Tecnologia E2E",
   );
 
   await logout(page, "Administrador da Plataforma");
@@ -138,8 +133,11 @@ test("complete HR journey from import through final vacation approval", async ({
     .fill("Elegibilidade conferida pela área de RH.");
   await page.getByRole("button", { name: "Registrar decisão" }).click();
   await expect(
-    page.getByText("Nenhuma solicitação aguarda decisão final."),
+    page.getByText("Decisão registrada no histórico."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /Trabalhador.*Decidir/ }),
+  ).toHaveCount(0);
 
   const audit = await page.request.get("/api/audit-events/export");
   expect(audit.ok()).toBeTruthy();

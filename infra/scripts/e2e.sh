@@ -30,5 +30,10 @@ NODE_ENV=test \
 DATABASE_URL=$database_url \
 BOOTSTRAP_ADMIN_EMAIL=$admin_email \
 pnpm --filter @cge/api exec tsx src/scripts/prepare-e2e.ts
+NODE_ENV=test \
+DATABASE_URL=$database_url \
+HOMOLOG_SEED_CONFIRM=SEED_CGE_HOMOLOG \
+HOMOLOG_SEED_PASSWORD=Homolog-Password-2026 \
+pnpm homolog:seed
 
 pnpm exec playwright test "$@"

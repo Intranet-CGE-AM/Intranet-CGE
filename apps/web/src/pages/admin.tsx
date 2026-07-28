@@ -61,11 +61,13 @@ const actionLabels: Record<string, string> = {
   "account.password-reset": "Senha redefinida",
   "auth.login": "Entrada na intranet",
   "auth.logout": "Saída da intranet",
+  "auth.password-change": "Senha alterada",
   "people-import.apply": "Importação aplicada",
   "people-import.preview": "Importação validada",
   "people.created": "Pessoa cadastrada",
   "people.deactivated": "Pessoa desativada",
   "people.updated": "Pessoa atualizada",
+  "platform-admin.bootstrapped": "Administrador inicial criado",
   "role-assignment.created": "Papel atribuído",
   "role-assignment.deleted": "Atribuição removida",
   "role.created": "Papel criado",
@@ -96,6 +98,7 @@ export function AdminPage() {
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [error, setError] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -162,13 +165,22 @@ export function AdminPage() {
   async function mutate(action: () => Promise<void>, message: string) {
     setBusy(true);
     setError("");
+    setDialogError("");
     setSuccess("");
     try {
       await action();
       await load();
       setSuccess(message);
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível concluir a operação."));
+      const message = messageFor(
+        cause,
+        "Não foi possível concluir a operação.",
+      );
+      if (userDialog || roleDialog || assignmentDialog || passwordAccount) {
+        setDialogError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -595,12 +607,23 @@ export function AdminPage() {
         </Card>
       ) : null}
 
-      <Dialog open={userDialog} onOpenChange={setUserDialog}>
+      <Dialog
+        open={userDialog}
+        onOpenChange={(open) => {
+          setUserDialog(open);
+          if (!open) setDialogError("");
+        }}
+      >
         <DialogContent
           title="Nova conta"
           description="A pessoa receberá uma senha temporária e deverá alterá-la no primeiro acesso."
         >
           <form className="space-y-4" onSubmit={createUser}>
+            {dialogError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField htmlFor="personId" label="Pessoa">
               <Select autoComplete="off" id="personId" name="personId" required>
                 <option value="">Selecione</option>
@@ -649,7 +672,12 @@ export function AdminPage() {
 
       <Dialog
         open={Boolean(roleDialog)}
-        onOpenChange={(open) => !open && setRoleDialog(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRoleDialog(null);
+            setDialogError("");
+          }
+        }}
       >
         <DialogContent
           title={roleDialog === "new" ? "Novo papel" : "Editar papel"}
@@ -660,6 +688,11 @@ export function AdminPage() {
             key={roleDialog === "new" ? "new" : roleDialog?.id}
             onSubmit={saveRole}
           >
+            {dialogError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField htmlFor="roleName" label="Nome">
               <Input
                 autoComplete="off"
@@ -713,9 +746,20 @@ export function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={assignmentDialog} onOpenChange={setAssignmentDialog}>
+      <Dialog
+        open={assignmentDialog}
+        onOpenChange={(open) => {
+          setAssignmentDialog(open);
+          if (!open) setDialogError("");
+        }}
+      >
         <DialogContent title="Atribuir papel">
           <form className="space-y-4" onSubmit={createAssignment}>
+            {dialogError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField htmlFor="accountId" label="Conta">
               <Select
                 autoComplete="off"
@@ -766,7 +810,12 @@ export function AdminPage() {
 
       <Dialog
         open={Boolean(passwordAccount)}
-        onOpenChange={(open) => !open && setPasswordAccount(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordAccount(null);
+            setDialogError("");
+          }
+        }}
       >
         <DialogContent
           title="Redefinir senha"
@@ -777,6 +826,11 @@ export function AdminPage() {
           }
         >
           <form className="space-y-4" onSubmit={resetPassword}>
+            {dialogError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField
               htmlFor="resetTemporaryPassword"
               label="Nova senha temporária"

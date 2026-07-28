@@ -27,7 +27,10 @@ import {
   FileArrowUp as FileUp,
   GearSix as Settings2,
   MagnifyingGlass as Search,
+  PencilSimple,
   Plus,
+  TreeStructure,
+  UserMinus,
   UsersThree as UsersRound,
 } from "@phosphor-icons/react";
 import {
@@ -49,6 +52,7 @@ export function PeoplePage() {
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -66,6 +70,7 @@ export function PeoplePage() {
   const load = useCallback(async () => {
     try {
       setError("");
+      setDialogError("");
       const [peopleResult, categoriesResult, unitsResult] = await Promise.all([
         api<{ people: Person[] }>("/api/people"),
         api<{ categories: EmploymentCategory[] }>("/api/employment-categories"),
@@ -128,7 +133,9 @@ export function PeoplePage() {
         current ? "Colaborador atualizado." : "Colaborador cadastrado.",
       );
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível salvar o colaborador."));
+      setDialogError(
+        messageFor(cause, "Não foi possível salvar o colaborador."),
+      );
     } finally {
       setBusy(false);
     }
@@ -139,6 +146,7 @@ export function PeoplePage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      setDialogError("");
       setBusy(true);
       await api("/api/employment-categories", {
         method: "POST",
@@ -151,7 +159,7 @@ export function PeoplePage() {
       await load();
       setSuccess("Categoria adicionada.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível criar a categoria."));
+      setDialogError(messageFor(cause, "Não foi possível criar a categoria."));
     } finally {
       setBusy(false);
     }
@@ -162,6 +170,7 @@ export function PeoplePage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      setDialogError("");
       setBusy(true);
       await api("/api/organization-units", {
         method: "POST",
@@ -175,7 +184,7 @@ export function PeoplePage() {
       await load();
       setSuccess("Unidade adicionada.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível criar a unidade."));
+      setDialogError(messageFor(cause, "Não foi possível criar a unidade."));
     } finally {
       setBusy(false);
     }
@@ -185,6 +194,7 @@ export function PeoplePage() {
     if (!importFile) return;
     try {
       setError("");
+      setDialogError("");
       setSuccess("");
       setBusy(true);
       const result = await api<PeopleImportResult>("/api/imports/people", {
@@ -201,7 +211,7 @@ export function PeoplePage() {
         setSuccess("Importação aplicada.");
       }
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível processar o CSV."));
+      setDialogError(messageFor(cause, "Não foi possível processar o CSV."));
     } finally {
       setBusy(false);
     }
@@ -216,6 +226,7 @@ export function PeoplePage() {
       return;
     }
     try {
+      setDialogError("");
       setBusy(true);
       await api(`/api/people/${person.id}/deactivate`, {
         method: "POST",
@@ -248,7 +259,7 @@ export function PeoplePage() {
       await load();
       setSuccess("Chefia direta atualizada.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível definir a chefia."));
+      setDialogError(messageFor(cause, "Não foi possível definir a chefia."));
     } finally {
       setBusy(false);
     }
@@ -364,31 +375,37 @@ export function PeoplePage() {
                       </Badge>
                     </TableCell>
                     {managesPeople ? (
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {person.employment ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex gap-1">
                             <Button
                               variant="quiet"
-                              size="sm"
+                              size="icon"
+                              aria-label={`Editar ${person.preferredName ?? person.fullName}`}
+                              title="Editar colaborador"
                               onClick={() => setPersonDialog(person)}
                             >
-                              Editar
+                              <PencilSimple aria-hidden="true" size={17} />
                             </Button>
                             <Button
                               variant="quiet"
-                              size="sm"
+                              size="icon"
+                              aria-label={`Definir chefia de ${person.preferredName ?? person.fullName}`}
+                              title="Definir chefia"
                               disabled={busy}
                               onClick={() => setSupervisorPerson(person)}
                             >
-                              Definir chefia
+                              <TreeStructure aria-hidden="true" size={17} />
                             </Button>
                             <Button
                               variant="quiet"
-                              size="sm"
+                              size="icon"
+                              aria-label={`Desativar ${person.preferredName ?? person.fullName}`}
+                              title="Desativar vínculo"
                               disabled={busy}
                               onClick={() => void deactivate(person)}
                             >
-                              Desativar
+                              <UserMinus aria-hidden="true" size={17} />
                             </Button>
                           </div>
                         ) : null}
@@ -417,7 +434,12 @@ export function PeoplePage() {
 
       <Dialog
         open={Boolean(personDialog)}
-        onOpenChange={(open) => !open && setPersonDialog(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPersonDialog(null);
+            setDialogError("");
+          }
+        }}
       >
         <DialogContent
           title={
@@ -434,6 +456,15 @@ export function PeoplePage() {
             key={personDialog === "new" ? "new" : personDialog?.id}
             onSubmit={savePerson}
           >
+            {dialogError ? (
+              <Alert
+                className="sm:col-span-2"
+                title="Revise os dados"
+                tone="danger"
+              >
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField
               htmlFor="fullName"
               label="Nome completo"
@@ -587,7 +618,10 @@ export function PeoplePage() {
 
       <Dialog
         open={Boolean(supervisorPerson)}
-        onOpenChange={() => setSupervisorPerson(null)}
+        onOpenChange={() => {
+          setSupervisorPerson(null);
+          setDialogError("");
+        }}
       >
         <DialogContent
           title="Definir chefia"
@@ -598,6 +632,11 @@ export function PeoplePage() {
           }
         >
           <form className="space-y-4" onSubmit={assignSupervisor}>
+            {dialogError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
             <FormField htmlFor="supervisorRelationshipId" label="Chefia direta">
               <Select
                 id="supervisorRelationshipId"
@@ -627,12 +666,28 @@ export function PeoplePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={settingsDialog} onOpenChange={setSettingsDialog}>
+      <Dialog
+        open={settingsDialog}
+        onOpenChange={(open) => {
+          setSettingsDialog(open);
+          if (!open) setDialogError("");
+        }}
+      >
         <DialogContent
           title="Configuração de RH"
           description="Categorias funcionais e unidades usadas nos vínculos."
           className="max-w-2xl"
         >
+          {dialogError ? (
+            <Alert className="mb-4" title="Revise os dados" tone="danger">
+              {dialogError}
+            </Alert>
+          ) : null}
+          {success ? (
+            <Alert className="mb-4" title="Operação concluída" tone="success">
+              {success}
+            </Alert>
+          ) : null}
           <div className="grid gap-6 md:grid-cols-2">
             <section>
               <h3 className="font-bold">Categorias</h3>
@@ -698,12 +753,28 @@ export function PeoplePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importDialog} onOpenChange={setImportDialog}>
+      <Dialog
+        open={importDialog}
+        onOpenChange={(open) => {
+          setImportDialog(open);
+          if (!open) setDialogError("");
+        }}
+      >
         <DialogContent
           title="Importar colaboradores"
           description="Valide o arquivo antes de aplicar qualquer alteração."
         >
           <div className="space-y-4">
+            {dialogError ? (
+              <Alert title="Revise o arquivo" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
+            {success ? (
+              <Alert title="Operação concluída" tone="success">
+                {success}
+              </Alert>
+            ) : null}
             <FormField htmlFor="peopleCsv" label="Arquivo CSV">
               <Input
                 id="peopleCsv"
