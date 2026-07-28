@@ -11,6 +11,10 @@ export function LoginPage() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const state = location.state as {
+    from?: string;
+    passwordChanged?: boolean;
+  } | null;
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,8 +32,7 @@ export function LoginPage() {
         email: String(data.get("email")),
         password: String(data.get("password")),
       });
-      const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? "/", { replace: true });
+      navigate(state?.from ?? "/", { replace: true });
     } catch (cause) {
       setError(
         cause instanceof ApiError
@@ -47,10 +50,15 @@ export function LoginPage() {
       title="Bem-vindo de volta"
       description="Entre com as credenciais fornecidas pela administração da intranet."
     >
-      <div className="mb-6 flex items-center gap-2 border-l-2 border-[var(--brand)] pl-3 text-xs font-semibold text-[var(--text-muted)]">
+      <div className="mb-6 flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
         <LockKey aria-hidden="true" className="text-[var(--brand)]" size={16} />
         Autenticação local protegida
       </div>
+      {state?.passwordChanged ? (
+        <Alert title="Senha alterada" className="mb-5" tone="success">
+          Entre novamente usando a nova senha.
+        </Alert>
+      ) : null}
       {error ? (
         <Alert title="Não foi possível entrar" className="mb-5" tone="danger">
           {error}

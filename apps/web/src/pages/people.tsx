@@ -27,10 +27,7 @@ import {
   FileArrowUp as FileUp,
   GearSix as Settings2,
   MagnifyingGlass as Search,
-  PencilSimple,
   Plus,
-  TreeStructure,
-  UserMinus,
 } from "@phosphor-icons/react";
 import {
   useCallback,
@@ -275,7 +272,7 @@ export function PeoplePage() {
           {managesPeople ? (
             <Button variant="quiet" onClick={() => setSettingsDialog(true)}>
               <Settings2 aria-hidden="true" size={16} />
-              Configurar RH
+              Categorias e unidades
             </Button>
           ) : null}
           {importsPeople ? (
@@ -336,10 +333,10 @@ export function PeoplePage() {
               <thead>
                 <tr>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead>Unidade de lotação</TableHead>
+                  <TableHead>Categoria funcional</TableHead>
                   <TableHead>Matrícula</TableHead>
-                  {managesPeople ? <TableHead>Ação</TableHead> : null}
+                  {managesPeople ? <TableHead>Ações</TableHead> : null}
                 </tr>
               </thead>
               <tbody>
@@ -372,32 +369,29 @@ export function PeoplePage() {
                           <div className="flex gap-1">
                             <Button
                               variant="quiet"
-                              size="icon"
+                              size="sm"
                               aria-label={`Editar ${person.preferredName ?? person.fullName}`}
-                              title="Editar colaborador"
                               onClick={() => setPersonDialog(person)}
                             >
-                              <PencilSimple aria-hidden="true" size={17} />
+                              Editar
                             </Button>
                             <Button
                               variant="quiet"
-                              size="icon"
+                              size="sm"
                               aria-label={`Definir chefia de ${person.preferredName ?? person.fullName}`}
-                              title="Definir chefia"
                               disabled={busy}
                               onClick={() => setSupervisorPerson(person)}
                             >
-                              <TreeStructure aria-hidden="true" size={17} />
+                              Definir chefia
                             </Button>
                             <Button
                               variant="quiet"
-                              size="icon"
+                              size="sm"
                               aria-label={`Desativar ${person.preferredName ?? person.fullName}`}
-                              title="Desativar vínculo"
                               disabled={busy}
                               onClick={() => void deactivate(person)}
                             >
-                              <UserMinus aria-hidden="true" size={17} />
+                              Desativar
                             </Button>
                           </div>
                         ) : null}
@@ -493,7 +487,7 @@ export function PeoplePage() {
           title="Definir chefia"
           description={
             supervisorPerson
-              ? `Selecione a chefia direta de ${supervisorPerson.preferredName ?? supervisorPerson.fullName}.`
+              ? `Selecione a chefia direta de ${supervisorPerson.preferredName ?? supervisorPerson.fullName}. Ela será a primeira responsável por analisar solicitações de férias.`
               : undefined
           }
         >
@@ -540,8 +534,8 @@ export function PeoplePage() {
         }}
       >
         <DialogContent
-          title="Configuração de RH"
-          description="Categorias funcionais e unidades usadas nos vínculos."
+          title="Categorias e unidades"
+          description="Cadastre as opções usadas no vínculo de cada colaborador."
           className="max-w-2xl"
         >
           {dialogError ? (
@@ -556,14 +550,34 @@ export function PeoplePage() {
           ) : null}
           <div className="grid gap-6 md:grid-cols-2">
             <section>
-              <h3 className="font-bold">Categorias</h3>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                {categories.length
-                  ? categories.map((item) => item.name).join(", ")
-                  : "Nenhuma categoria cadastrada."}
-              </p>
+              <h3 className="font-bold">Categorias funcionais</h3>
+              {categories.length ? (
+                <ul className="mt-2 divide-y divide-[var(--border)] text-sm">
+                  {categories.map((item) => (
+                    <li
+                      className="flex justify-between gap-3 py-2"
+                      key={item.id}
+                    >
+                      <span>{item.name}</span>
+                      <span className="text-xs text-[var(--text-faint)]">
+                        {item.vacationEligible
+                          ? "Férias habilitadas"
+                          : "Sem fluxo de férias"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-[var(--text-muted)]">
+                  Nenhuma categoria cadastrada.
+                </p>
+              )}
               <form className="mt-4 space-y-3" onSubmit={createCategory}>
-                <FormField htmlFor="categoryName" label="Nome">
+                <FormField
+                  htmlFor="categoryName"
+                  label="Nome da categoria"
+                  hint="Ex.: Servidor efetivo"
+                >
                   <Input
                     autoComplete="off"
                     id="categoryName"
@@ -578,22 +592,33 @@ export function PeoplePage() {
                     name="vacationEligible"
                     type="checkbox"
                   />
-                  Elegível ao fluxo de férias
+                  Pode solicitar férias por este fluxo
                 </label>
                 <Button disabled={busy} type="submit" size="sm">
-                  {busy ? "Adicionando…" : "Adicionar categoria"}
+                  {busy ? "Cadastrando…" : "Cadastrar categoria"}
                 </Button>
               </form>
             </section>
             <section>
-              <h3 className="font-bold">Unidades</h3>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                {units.length
-                  ? units.map((item) => item.code).join(", ")
-                  : "Nenhuma unidade cadastrada."}
-              </p>
+              <h3 className="font-bold">Unidades de lotação</h3>
+              {units.length ? (
+                <ul className="mt-2 divide-y divide-[var(--border)] text-sm">
+                  {units.map((item) => (
+                    <li className="py-2" key={item.id}>
+                      <span className="font-semibold">{item.code}</span>
+                      <span className="ml-2 text-[var(--text-muted)]">
+                        {item.name}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-[var(--text-muted)]">
+                  Nenhuma unidade cadastrada.
+                </p>
+              )}
               <form className="mt-4 space-y-3" onSubmit={createUnit}>
-                <FormField htmlFor="unitCode" label="Sigla">
+                <FormField htmlFor="unitCode" label="Sigla da unidade">
                   <Input
                     autoComplete="off"
                     id="unitCode"
@@ -601,7 +626,7 @@ export function PeoplePage() {
                     required
                   />
                 </FormField>
-                <FormField htmlFor="unitName" label="Nome">
+                <FormField htmlFor="unitName" label="Nome da unidade">
                   <Input
                     autoComplete="off"
                     id="unitName"
@@ -611,7 +636,7 @@ export function PeoplePage() {
                   />
                 </FormField>
                 <Button disabled={busy} type="submit" size="sm">
-                  {busy ? "Adicionando…" : "Adicionar unidade"}
+                  {busy ? "Cadastrando…" : "Cadastrar unidade"}
                 </Button>
               </form>
             </section>
@@ -628,7 +653,7 @@ export function PeoplePage() {
       >
         <DialogContent
           title="Importar colaboradores"
-          description="Valide o arquivo antes de aplicar qualquer alteração."
+          description="A validação mostra os erros sem alterar dados. A importação só é liberada depois da prévia."
         >
           <div className="space-y-4">
             {dialogError ? (
@@ -641,6 +666,11 @@ export function PeoplePage() {
                 {success}
               </Alert>
             ) : null}
+            <Button asChild variant="quiet" size="sm">
+              <a href="/modelo-importacao-colaboradores.csv" download>
+                Baixar modelo CSV
+              </a>
+            </Button>
             <FormField htmlFor="peopleCsv" label="Arquivo CSV">
               <Input
                 id="peopleCsv"
@@ -681,7 +711,7 @@ export function PeoplePage() {
                 disabled={!importFile || busy}
                 onClick={() => void runImport("preview")}
               >
-                {busy ? "Validando…" : "Validar"}
+                {busy ? "Validando…" : "Validar arquivo"}
               </Button>
               <Button
                 disabled={!importFile || !importResult || busy}

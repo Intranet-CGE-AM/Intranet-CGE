@@ -35,7 +35,10 @@ export function ChangePasswordPage() {
         currentPassword: String(data.get("currentPassword")),
         newPassword,
       });
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+        state: { passwordChanged: true },
+      });
     } catch (cause) {
       setError(
         cause instanceof ApiError
@@ -93,7 +96,7 @@ export function ChangePasswordPage() {
           />
         </FormField>
         <Button className="min-h-12 w-full" disabled={submitting} type="submit">
-          {submitting ? "Salvando…" : "Salvar e continuar"}
+          {submitting ? "Alterando…" : "Alterar senha"}
         </Button>
       </form>
     </AuthLayout>

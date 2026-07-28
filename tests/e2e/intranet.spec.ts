@@ -36,20 +36,23 @@ test("complete HR journey from import through final vacation approval", async ({
   ).toBeVisible();
 
   await openHrRoute(page, "Colaboradores");
-  await page.getByRole("button", { name: "Configurar RH" }).click();
+  await page.getByRole("button", { name: "Categorias e unidades" }).click();
   await page.locator("#categoryName").fill("Servidor efetivo E2E");
-  await page.getByLabel("Elegível ao fluxo de férias").check();
-  await page.getByRole("button", { name: "Adicionar categoria" }).click();
+  await page.getByLabel("Pode solicitar férias por este fluxo").check();
+  await page.getByRole("button", { name: "Cadastrar categoria" }).click();
   await expect(
     page.getByRole("dialog").getByText(/Servidor efetivo E2E/),
   ).toBeVisible();
   await page.locator("#unitCode").fill("E2ETI");
   await page.locator("#unitName").fill("Tecnologia E2E");
-  await page.getByRole("button", { name: "Adicionar unidade" }).click();
+  await page.getByRole("button", { name: "Cadastrar unidade" }).click();
   await expect(page.getByRole("dialog").getByText(/E2ETI/)).toBeVisible();
   await page.getByRole("button", { name: "Fechar" }).click();
 
   await page.getByRole("button", { name: "Importar CSV" }).click();
+  await expect(
+    page.getByRole("link", { name: "Baixar modelo CSV" }),
+  ).toHaveAttribute("download", "");
   await page.getByLabel("Arquivo CSV").setInputFiles({
     name: "pessoas-e2e.csv",
     mimeType: "text/csv",
@@ -61,7 +64,7 @@ test("complete HR journey from import through final vacation approval", async ({
       ].join("\n"),
     ),
   });
-  await page.getByRole("button", { name: "Validar" }).click();
+  await page.getByRole("button", { name: "Validar arquivo" }).click();
   await expect(page.getByText(/2 válidas · 0 com erro/)).toBeVisible();
   await page.getByRole("button", { name: "Aplicar importação" }).click();
   await page.getByRole("button", { name: "Fechar" }).click();
@@ -215,9 +218,12 @@ async function firstLogin(
   await page.getByLabel("Senha temporária").fill(account.temporaryPassword);
   await page.getByLabel("Nova senha", { exact: true }).fill(account.password);
   await page.getByLabel("Confirme a nova senha").fill(account.password);
-  await page.getByRole("button", { name: "Salvar e continuar" }).click();
+  await page.getByRole("button", { name: "Alterar senha" }).click();
   await expect(
     page.getByRole("heading", { name: "Bem-vindo de volta" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Entre novamente usando a nova senha."),
   ).toBeVisible();
   await login(page, account.email, account.password);
   await expect(

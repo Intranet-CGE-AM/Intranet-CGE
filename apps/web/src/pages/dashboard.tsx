@@ -179,7 +179,16 @@ export function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {user.employment && can(user, "vacations.create") ? (
+            {pending.length &&
+            (can(user, "vacations.review.supervisor") ||
+              can(user, "vacations.review.final")) ? (
+              <Button asChild>
+                <Link to="/rh/ferias">
+                  <CalendarCheck aria-hidden="true" size={17} />
+                  Revisar pendências
+                </Link>
+              </Button>
+            ) : user.employment && can(user, "vacations.create") ? (
               <Button asChild>
                 <Link to="/rh/ferias">
                   <CalendarCheck aria-hidden="true" size={17} />
