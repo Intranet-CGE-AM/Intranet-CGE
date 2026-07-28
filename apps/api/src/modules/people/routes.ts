@@ -1,6 +1,7 @@
 import {
   accountCreateSchema,
   authErrorSchema,
+  birthdaySchema,
   employmentCategoryInputSchema,
   employmentCategorySchema,
   organizationUnitInputSchema,
@@ -25,6 +26,7 @@ import { permissionAllows, type AccessService } from "../access/service.js";
 import { recordAudit } from "../audit/service.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { runPeopleImport } from "./import-service.js";
+import { listBirthdays } from "./birthdays.js";
 import type { PeopleService } from "./service.js";
 
 const idParamsSchema = z.object({ id: z.uuid() });
@@ -87,6 +89,54 @@ export const peopleRoutes: FastifyPluginAsync<{
           unitIds,
           includeSensitive,
         ),
+      };
+    },
+  );
+
+  typedApp.get(
+    "/api/birthdays",
+    {
+      schema: {
+        querystring: z.object({
+          days: z.coerce.number().int().min(0).max(90).default(30),
+          unitId: z.uuid().optional(),
+        }),
+        response: {
+          200: z.object({ birthdays: z.array(birthdaySchema) }),
+          401: authErrorSchema,
+          403: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "birthdays.read",
+      );
+      if (!user) {
+        return;
+      }
+      const grants = user.permissions.filter(
+        (grant) => grant.key === "birthdays.read",
+      );
+      if (
+        request.query.unitId &&
+        !permissionAllows(grants, "birthdays.read", request.query.unitId)
+      ) {
+        return reply.status(403).send({
+          code: "FORBIDDEN",
+          message: "Você não possui permissão para esta unidade.",
+        });
+      }
+      const unitIds = request.query.unitId
+        ? [request.query.unitId]
+        : grants.some((grant) => grant.unitId === null)
+          ? null
+          : [...new Set(grants.flatMap((grant) => grant.unitId ?? []))];
+      return {
+        birthdays: await listBirthdays(options.db, unitIds, request.query.days),
       };
     },
   );

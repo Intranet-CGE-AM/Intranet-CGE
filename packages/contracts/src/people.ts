@@ -107,6 +107,19 @@ export const peopleImportResultSchema = z.object({
   rows: z.array(peopleImportRowSchema),
 });
 
+export const birthdaySchema = z.object({
+  personId: z.uuid(),
+  displayName: z.string(),
+  day: z.number().int().min(1).max(31),
+  month: z.number().int().min(1).max(12),
+  daysUntil: z.number().int().min(0),
+  unit: z.object({
+    id: z.uuid(),
+    code: z.string(),
+    name: z.string(),
+  }),
+});
+
 export type PersonInput = z.infer<typeof personInputSchema>;
 export type PersonUpdate = z.infer<typeof personUpdateSchema>;
 export type EmploymentCategoryInput = z.infer<
