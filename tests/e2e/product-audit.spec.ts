@@ -55,6 +55,13 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
   await expect(page.getByText("Caio Nascimento", { exact: true })).toHaveCount(
     0,
   );
+  await page
+    .getByRole("searchbox", { name: "Buscar colaboradores" })
+    .fill("registro inexistente");
+  await expect(
+    page.getByRole("heading", { name: "Nenhum resultado" }),
+  ).toBeVisible();
+  await expect(page.locator('[data-slot="empty-state"] svg')).toHaveCount(0);
 });
 
 test("supervisor and HR receive only their decision stages", async ({

@@ -41,17 +41,27 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon: ReactNode;
+  icon?: ReactNode;
   title: string;
   description: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="grid min-h-56 place-items-center p-8 text-center">
+    <div
+      className="grid min-h-48 place-items-center p-8 text-center"
+      data-slot="empty-state"
+    >
       <div>
-        <div className="mx-auto text-[var(--brand)]">{icon}</div>
-        <h3 className="mt-4 font-semibold text-[var(--text)]">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-[var(--text-muted)]">
+        {icon ? (
+          <div className="mx-auto mb-5 text-[var(--brand)]">{icon}</div>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="mx-auto mb-5 h-px w-10 bg-[var(--border)]"
+          />
+        )}
+        <h3 className="font-bold text-[var(--text)]">{title}</h3>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
           {description}
         </p>
         {action ? <div className="mt-4">{action}</div> : null}

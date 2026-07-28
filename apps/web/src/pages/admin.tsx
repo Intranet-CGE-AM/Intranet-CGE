@@ -26,15 +26,7 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import {
-  DownloadSimple,
-  Key,
-  PencilSimple,
-  Plus,
-  ShieldCheck,
-  UserGear,
-  UsersThree,
-} from "@phosphor-icons/react";
+import { DownloadSimple, Key, PencilSimple, Plus } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "../auth";
@@ -408,7 +400,6 @@ export function AdminPage() {
             </Table>
           ) : (
             <EmptyState
-              icon={<UsersThree aria-hidden="true" size={28} />}
               title="Nenhuma conta"
               description="Crie a primeira conta para uma pessoa cadastrada."
             />
@@ -465,7 +456,6 @@ export function AdminPage() {
               </div>
             ) : (
               <EmptyState
-                icon={<ShieldCheck aria-hidden="true" size={28} />}
                 title="Nenhum papel"
                 description="Crie um papel com as permissões necessárias."
               />
@@ -529,7 +519,6 @@ export function AdminPage() {
               </div>
             ) : (
               <EmptyState
-                icon={<UserGear aria-hidden="true" size={28} />}
                 title="Nenhuma atribuição"
                 description="Atribua um papel a uma conta e defina seu escopo."
               />
@@ -599,7 +588,6 @@ export function AdminPage() {
             </Table>
           ) : (
             <EmptyState
-              icon={<ShieldCheck aria-hidden="true" size={28} />}
               title="Sem atividade registrada"
               description="Eventos de autenticação e administração aparecerão aqui."
             />

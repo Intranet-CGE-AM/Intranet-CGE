@@ -13,12 +13,7 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import {
-  ArrowRight,
-  CalendarCheck,
-  CalendarDots,
-  UsersThree,
-} from "@phosphor-icons/react";
+import { ArrowRight, CalendarCheck, UsersThree } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -300,7 +295,6 @@ export function DashboardPage() {
             </Table>
           ) : (
             <EmptyState
-              icon={<CalendarDots aria-hidden="true" size={26} />}
               title="Nenhuma solicitação visível"
               description="Novas solicitações e decisões aparecerão aqui conforme o seu escopo."
             />

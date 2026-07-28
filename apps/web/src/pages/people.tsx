@@ -31,7 +31,6 @@ import {
   Plus,
   TreeStructure,
   UserMinus,
-  UsersThree as UsersRound,
 } from "@phosphor-icons/react";
 import {
   useCallback,
@@ -421,7 +420,6 @@ export function PeoplePage() {
           </>
         ) : (
           <EmptyState
-            icon={<UsersRound aria-hidden="true" size={20} />}
             title={query ? "Nenhum resultado" : "Diretório vazio"}
             description={
               query

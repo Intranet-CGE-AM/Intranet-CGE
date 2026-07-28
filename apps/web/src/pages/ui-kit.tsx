@@ -12,7 +12,7 @@ import {
   Input,
   Skeleton,
 } from "@cge/ui";
-import { Plus, Tray as Inbox } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 
 export function UiKitPage() {
   return (
@@ -67,7 +67,6 @@ export function UiKitPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <EmptyState
-            icon={<Inbox aria-hidden="true" size={19} />}
             title="Nenhum item encontrado"
             description="Ajuste os filtros ou crie o primeiro registro."
           />

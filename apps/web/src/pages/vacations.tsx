@@ -19,11 +19,7 @@ import {
   TableRow,
   Textarea,
 } from "@cge/ui";
-import {
-  CalendarPlus,
-  CalendarX as CalendarX2,
-  Info,
-} from "@phosphor-icons/react";
+import { CalendarPlus, Info } from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,
@@ -564,11 +560,7 @@ function RequestTable({
           </tbody>
         </Table>
       ) : (
-        <EmptyState
-          icon={<CalendarX2 aria-hidden="true" size={20} />}
-          title="Fila vazia"
-          description={empty}
-        />
+        <EmptyState title="Fila vazia" description={empty} />
       )}
     </Card>
   );
