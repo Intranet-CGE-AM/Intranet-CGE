@@ -47,6 +47,45 @@ const permissionLabels: Record<PermissionKey, string> = {
   "vacations.review.final": "Decisão final de férias",
 };
 
+type PermissionModule = "administration" | "people" | "vacations";
+
+const permissionModule: Record<PermissionKey, PermissionModule> = {
+  "access.manage": "administration",
+  "accounts.manage": "administration",
+  "audit.read": "administration",
+  "audit.export": "administration",
+  "people.read": "people",
+  "people.manage": "people",
+  "people.import": "people",
+  "birthdays.read": "people",
+  "vacations.create": "vacations",
+  "vacations.review.supervisor": "vacations",
+  "vacations.review.final": "vacations",
+};
+
+const permissionGroups = [
+  {
+    key: "administration",
+    title: "Administração do sistema",
+    description: "Papéis, contas e auditoria",
+  },
+  {
+    key: "people",
+    title: "Pessoas e RH",
+    description: "Diretório, cadastros e aniversários",
+  },
+  {
+    key: "vacations",
+    title: "Férias",
+    description: "Solicitações e decisões",
+  },
+].map((group) => ({
+  ...group,
+  permissions: permissionKeys.filter(
+    (permission) => permissionModule[permission] === group.key,
+  ),
+}));
+
 const actionLabels: Record<string, string> = {
   "account.created": "Conta criada",
   "account.deactivated": "Conta desativada",
@@ -444,12 +483,26 @@ export function AdminPage() {
                         <PencilSimple aria-hidden="true" size={17} />
                       </Button>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {role.permissions.map((permission) => (
-                        <Badge key={permission}>
-                          {permissionLabels[permission]}
-                        </Badge>
-                      ))}
+                    <div className="mt-4 space-y-3">
+                      {permissionGroups.map((group) => {
+                        const permissions = group.permissions.filter(
+                          (permission) => role.permissions.includes(permission),
+                        );
+                        return permissions.length ? (
+                          <div key={group.key}>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-faint)]">
+                              {group.title}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {permissions.map((permission) => (
+                                <Badge key={permission}>
+                                  {permissionLabels[permission]}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null;
+                      })}
                     </div>
                   </div>
                 ))}
@@ -668,6 +721,7 @@ export function AdminPage() {
         }}
       >
         <DialogContent
+          className="max-w-2xl"
           title={roleDialog === "new" ? "Novo papel" : "Editar papel"}
           description="As alterações passam a valer nas próximas requisições."
         >
@@ -702,24 +756,42 @@ export function AdminPage() {
             </FormField>
             <fieldset>
               <legend className="text-sm font-semibold">Permissões</legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {permissionKeys.map((permission) => (
-                  <label
-                    className="flex min-h-11 items-start gap-2 rounded-[10px] border border-[var(--border)] p-2 text-xs hover:bg-[var(--surface-subtle)]"
-                    key={permission}
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Combine acessos de módulos diferentes no mesmo papel.
+              </p>
+              <div className="mt-3 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+                {permissionGroups.map((group) => (
+                  <section
+                    className="grid gap-3 py-4 sm:grid-cols-[180px_minmax(0,1fr)]"
+                    key={group.key}
                   >
-                    <input
-                      className="mt-0.5 size-4"
-                      defaultChecked={
-                        roleDialog !== "new" &&
-                        roleDialog?.permissions.includes(permission)
-                      }
-                      name="permissions"
-                      type="checkbox"
-                      value={permission}
-                    />
-                    {permissionLabels[permission]}
-                  </label>
+                    <div>
+                      <h3 className="text-sm font-bold">{group.title}</h3>
+                      <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">
+                        {group.description}
+                      </p>
+                    </div>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      {group.permissions.map((permission) => (
+                        <label
+                          className="flex min-h-10 items-center gap-3 rounded-lg px-2 text-xs hover:bg-[var(--surface-subtle)]"
+                          key={permission}
+                        >
+                          <input
+                            className="size-4 shrink-0 accent-[var(--brand)]"
+                            defaultChecked={
+                              roleDialog !== "new" &&
+                              roleDialog?.permissions.includes(permission)
+                            }
+                            name="permissions"
+                            type="checkbox"
+                            value={permission}
+                          />
+                          {permissionLabels[permission]}
+                        </label>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </fieldset>

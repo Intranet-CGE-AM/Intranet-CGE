@@ -137,11 +137,32 @@ test("administration supports role editing, password reset, and audit export", a
     page.getByRole("heading", { name: "Atividade de auditoria" }),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: "Nova conta" }).click();
+  await page.getByLabel("Pessoa").selectOption({
+    label: "Ana Beatriz Vasconcelos",
+  });
+  await page.getByLabel("E-mail").fill("account-audit-e2e@local.invalid");
+  await page
+    .getByLabel("Senha temporária")
+    .fill("Account-Audit-E2E-Password-123");
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(
+    page.getByText(
+      "Conta criada. A senha deverá ser alterada no primeiro acesso.",
+    ),
+  ).toBeVisible();
+
   await page
     .getByRole("button", {
       name: "Editar papel Colaborador Homologação",
     })
     .click();
+  const roleDialog = page.getByRole("dialog", { name: "Editar papel" });
+  for (const module of ["Administração do sistema", "Pessoas e RH", "Férias"]) {
+    await expect(
+      roleDialog.getByRole("heading", { name: module }),
+    ).toBeVisible();
+  }
   await page
     .getByLabel("Descrição")
     .fill("Acesso de colaborador validado em homologação.");
@@ -150,13 +171,13 @@ test("administration supports role editing, password reset, and audit export", a
 
   const workerRow = page
     .getByRole("row")
-    .filter({ hasText: "worker-e2e@local.invalid" });
+    .filter({ hasText: "account-audit-e2e@local.invalid" });
   await workerRow
-    .getByRole("button", { name: /Redefinir senha de Trabalhador/i })
+    .getByRole("button", { name: /Redefinir senha de Ana Beatriz/i })
     .click();
   await page
     .getByLabel("Nova senha temporária")
-    .fill("Worker-Reset-Password-456");
+    .fill("Account-Audit-Reset-Password-456");
   await page.getByRole("button", { name: "Redefinir senha" }).click();
   await expect(page.getByText(/sessões revogadas/)).toBeVisible();
 
