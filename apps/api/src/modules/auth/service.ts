@@ -16,6 +16,7 @@ import {
   organizationUnits,
   people,
 } from "../people/schema.js";
+import { avatarUrl } from "../people/avatar.js";
 import type { AuditInput } from "../audit/service.js";
 import { sessions, userAccounts } from "./schema.js";
 import { createSessionToken, hashSessionToken } from "./token.js";
@@ -83,6 +84,8 @@ export class LocalAuthenticationService implements AuthenticationService {
         personId: people.id,
         fullName: people.fullName,
         preferredName: people.preferredName,
+        avatarObjectKey: people.avatarObjectKey,
+        avatarUpdatedAt: people.avatarUpdatedAt,
         employmentId: employmentRelationships.id,
         jobTitle: employmentRelationships.jobTitle,
         unitId: organizationUnits.id,
@@ -387,6 +390,8 @@ export class LocalAuthenticationService implements AuthenticationService {
 
   private toAuthenticatedUser(record: {
     accountId: string;
+    avatarObjectKey: string | null;
+    avatarUpdatedAt: Date | null;
     categoryId: string | null;
     categoryName: string | null;
     email: string;
@@ -415,6 +420,9 @@ export class LocalAuthenticationService implements AuthenticationService {
         mustChangePassword: record.forcePasswordChangeAt !== null,
       },
       person: {
+        avatarUrl: record.avatarObjectKey
+          ? avatarUrl(record.personId, record.avatarUpdatedAt)
+          : null,
         displayName: record.preferredName ?? record.fullName,
         id: record.personId,
       },

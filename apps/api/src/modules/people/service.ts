@@ -13,6 +13,7 @@ import {
   organizationUnits,
   people,
 } from "./schema.js";
+import { avatarUrl } from "./avatar.js";
 
 export class PeopleService {
   constructor(private readonly db: Database) {}
@@ -25,6 +26,8 @@ export class PeopleService {
         preferredName: people.preferredName,
         birthDate: people.birthDate,
         birthdayVisible: people.birthdayVisible,
+        avatarObjectKey: people.avatarObjectKey,
+        avatarUpdatedAt: people.avatarUpdatedAt,
         employmentId: employmentRelationships.id,
         employeeNumber: employmentRelationships.employeeNumber,
         categoryId: employmentCategories.id,
@@ -67,6 +70,9 @@ export class PeopleService {
       id: row.id,
       fullName: row.fullName,
       preferredName: row.preferredName,
+      avatarUrl: row.avatarObjectKey
+        ? avatarUrl(row.id, row.avatarUpdatedAt)
+        : null,
       ...(includeSensitive ? { birthDate: row.birthDate } : {}),
       ...(includeSensitive ? { birthdayVisible: row.birthdayVisible } : {}),
       employment:
@@ -137,6 +143,45 @@ export class PeopleService {
       )
       .limit(1);
     return record?.unitId ?? null;
+  }
+
+  async getAvatar(personId: string) {
+    const [record] = await this.db
+      .select({
+        objectKey: people.avatarObjectKey,
+        updatedAt: people.avatarUpdatedAt,
+      })
+      .from(people)
+      .where(eq(people.id, personId))
+      .limit(1);
+    return record ?? null;
+  }
+
+  async setAvatar(personId: string, objectKey: string) {
+    const updatedAt = new Date();
+    const [person] = await this.db
+      .update(people)
+      .set({
+        avatarObjectKey: objectKey,
+        avatarUpdatedAt: updatedAt,
+        updatedAt,
+      })
+      .where(eq(people.id, personId))
+      .returning({ id: people.id });
+    return person ? avatarUrl(person.id, updatedAt) : null;
+  }
+
+  async clearAvatar(personId: string) {
+    const [person] = await this.db
+      .update(people)
+      .set({
+        avatarObjectKey: null,
+        avatarUpdatedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(people.id, personId))
+      .returning({ id: people.id });
+    return person ?? null;
   }
 
   async updatePerson(personId: string, input: PersonUpdate) {

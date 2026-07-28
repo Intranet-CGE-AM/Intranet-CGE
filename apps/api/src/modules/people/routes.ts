@@ -11,6 +11,7 @@ import {
   personSchema,
   personUpdateSchema,
 } from "@cge/contracts";
+import type { PermissionKey } from "@cge/contracts";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -22,21 +23,224 @@ import {
 } from "../access/authorize.js";
 import { permissionAllows, type AccessService } from "../access/service.js";
 import { recordAudit } from "../audit/service.js";
+import { readSessionToken } from "../auth/routes.js";
 import type { AuthenticationService } from "../auth/service.js";
+import type { ObjectStorage } from "../storage/object-storage.js";
+import { avatarObjectKey, maxAvatarBytes, normalizeAvatar } from "./avatar.js";
 import { runPeopleImport } from "./import-service.js";
 import { listBirthdays } from "./birthdays.js";
 import type { PeopleService } from "./service.js";
 
 const idParamsSchema = z.object({ id: z.uuid() });
 const idResultSchema = z.object({ id: z.uuid() });
+const avatarViewPermissions: PermissionKey[] = [
+  "people.read",
+  "birthdays.read",
+  "vacations.review.supervisor",
+  "vacations.review.final",
+];
 
 export const peopleRoutes: FastifyPluginAsync<{
   accessService: AccessService;
   authenticationService: AuthenticationService;
   db: Database;
+  objectStorage: ObjectStorage;
   peopleService: PeopleService;
 }> = async (app, options) => {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
+  typedApp.get(
+    "/api/people/:id/avatar",
+    { schema: { params: idParamsSchema } },
+    async (request, reply) => {
+      const token = readSessionToken(request);
+      const user = token
+        ? await options.authenticationService.authenticate(token)
+        : null;
+      if (!user) {
+        return reply.status(401).send({
+          code: "UNAUTHENTICATED",
+          message: "Sua sessão não é válida.",
+        });
+      }
+      if (user.person.id !== request.params.id) {
+        const unitId = await options.peopleService.getActiveUnitId(
+          request.params.id,
+        );
+        const canView =
+          unitId &&
+          avatarViewPermissions.some((permission) =>
+            permissionAllows(user.permissions, permission, unitId),
+          );
+        if (!canView) {
+          return reply.status(403).send({
+            code: "FORBIDDEN",
+            message: "Você não possui acesso a esta foto.",
+          });
+        }
+      }
+      const avatar = await options.peopleService.getAvatar(request.params.id);
+      if (!avatar?.objectKey) {
+        return reply.status(404).send({
+          code: "AVATAR_NOT_FOUND",
+          message: "Foto não cadastrada.",
+        });
+      }
+      const object = await options.objectStorage.get(avatar.objectKey);
+      if (!object) {
+        return reply.status(404).send({
+          code: "AVATAR_NOT_FOUND",
+          message: "Foto não encontrada.",
+        });
+      }
+      return reply
+        .header("Cache-Control", "private, max-age=86400")
+        .header("Content-Length", object.size)
+        .header("Content-Type", object.contentType)
+        .header("ETag", object.etag)
+        .send(object.body);
+    },
+  );
+
+  typedApp.put(
+    "/api/people/:id/avatar",
+    {
+      schema: {
+        params: idParamsSchema,
+        response: {
+          200: z.object({ avatarUrl: z.string() }),
+          400: authErrorSchema,
+          401: authErrorSchema,
+          403: authErrorSchema,
+          404: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const unitId = await options.peopleService.getActiveUnitId(
+        request.params.id,
+      );
+      if (!unitId) {
+        return reply.status(404).send({
+          code: "PERSON_NOT_FOUND",
+          message: "Colaborador ativo não encontrado.",
+        });
+      }
+      const user = await requirePermission(
+        request,
+        reply,
+        options.authenticationService,
+        options.accessService,
+        "people.manage",
+        unitId,
+      );
+      if (!user) return;
+
+      try {
+        const file = await request.file({
+          limits: { fields: 0, files: 1, fileSize: maxAvatarBytes },
+        });
+        if (!file) {
+          return reply.status(400).send({
+            code: "AVATAR_REQUIRED",
+            message: "Selecione uma foto.",
+          });
+        }
+        const normalized = await normalizeAvatar(
+          await file.toBuffer(),
+          file.mimetype,
+        );
+        const key = avatarObjectKey(request.params.id);
+        await options.objectStorage.put(key, normalized, "image/webp");
+        const avatarUrl = await options.peopleService.setAvatar(
+          request.params.id,
+          key,
+        );
+        if (!avatarUrl) {
+          return reply.status(404).send({
+            code: "PERSON_NOT_FOUND",
+            message: "Colaborador não encontrado.",
+          });
+        }
+        await recordAudit(options.db, {
+          actorAccountId: user.account.id,
+          action: "person.avatar-updated",
+          objectType: "person",
+          objectId: request.params.id,
+          outcome: "success",
+        });
+        return { avatarUrl };
+      } catch (error) {
+        if (
+          error instanceof app.multipartErrors.RequestFileTooLargeError ||
+          (error instanceof Error && error.message === "AVATAR_SIZE")
+        ) {
+          return reply.status(400).send({
+            code: "AVATAR_TOO_LARGE",
+            message: "A foto deve ter no máximo 2 MB.",
+          });
+        }
+        if (
+          error instanceof Error &&
+          ["AVATAR_TYPE", "AVATAR_INVALID"].includes(error.message)
+        ) {
+          return reply.status(400).send({
+            code: "AVATAR_INVALID",
+            message: "Use uma imagem JPEG, PNG ou WebP válida.",
+          });
+        }
+        throw error;
+      }
+    },
+  );
+
+  typedApp.delete(
+    "/api/people/:id/avatar",
+    {
+      schema: {
+        params: idParamsSchema,
+        response: {
+          204: z.null(),
+          401: authErrorSchema,
+          403: authErrorSchema,
+          404: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const unitId = await options.peopleService.getActiveUnitId(
+        request.params.id,
+      );
+      if (!unitId) {
+        return reply.status(404).send({
+          code: "PERSON_NOT_FOUND",
+          message: "Colaborador ativo não encontrado.",
+        });
+      }
+      const user = await requirePermission(
+        request,
+        reply,
+        options.authenticationService,
+        options.accessService,
+        "people.manage",
+        unitId,
+      );
+      if (!user) return;
+      const avatar = await options.peopleService.getAvatar(request.params.id);
+      if (avatar?.objectKey) {
+        await options.objectStorage.delete(avatar.objectKey);
+        await options.peopleService.clearAvatar(request.params.id);
+        await recordAudit(options.db, {
+          actorAccountId: user.account.id,
+          action: "person.avatar-deleted",
+          objectType: "person",
+          objectId: request.params.id,
+          outcome: "success",
+        });
+      }
+      return reply.status(204).send(null);
+    },
+  );
 
   typedApp.get(
     "/api/people",

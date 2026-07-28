@@ -15,6 +15,13 @@ const configSchema = z.object({
     .min(32)
     .default("development-only-session-secret-change-me"),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
+  OBJECT_STORAGE_ENDPOINT: z.url().default("http://localhost:9000"),
+  OBJECT_STORAGE_ACCESS_KEY: z.string().min(3).default("cge-local-minio"),
+  OBJECT_STORAGE_SECRET_KEY: z
+    .string()
+    .min(8)
+    .default("cge-local-minio-password"),
+  OBJECT_STORAGE_BUCKET: z.string().min(3).max(63).default("intranet-cge"),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

@@ -1,6 +1,7 @@
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
@@ -21,6 +22,7 @@ import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
 import { peopleRoutes } from "./modules/people/routes.js";
 import type { PeopleService } from "./modules/people/service.js";
+import type { ObjectStorage } from "./modules/storage/object-storage.js";
 import { systemRoutes } from "./modules/system/routes.js";
 import { vacationRoutes } from "./modules/vacations/routes.js";
 import type { VacationService } from "./modules/vacations/service.js";
@@ -31,6 +33,7 @@ export async function buildApp({
   accessService,
   db,
   peopleService,
+  objectStorage,
   vacationService,
   readinessCheck,
   logger = false,
@@ -40,6 +43,7 @@ export async function buildApp({
   accessService?: AccessService;
   db?: Database;
   peopleService?: PeopleService;
+  objectStorage?: ObjectStorage;
   vacationService?: VacationService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
@@ -60,6 +64,10 @@ export async function buildApp({
     hook: "preHandler",
   });
   await app.register(helmet);
+  await app.register(multipart, {
+    limits: { files: 1 },
+    throwFileSizeLimit: true,
+  });
   await app.register(cors, {
     credentials: true,
     origin: config.WEB_ORIGIN,
@@ -110,12 +118,13 @@ export async function buildApp({
       authenticationService,
       db,
     });
-    if (peopleService) {
+    if (peopleService && objectStorage) {
       await app.register(peopleRoutes, {
         accessService,
         authenticationService,
         db,
         peopleService,
+        objectStorage,
       });
     }
     if (vacationService) {

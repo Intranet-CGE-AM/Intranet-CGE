@@ -30,6 +30,7 @@ export const personSchema = z.object({
   id: z.uuid(),
   fullName: z.string(),
   preferredName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
   birthDate: z.iso.date().nullable().optional(),
   birthdayVisible: z.boolean().optional(),
   employment: z
@@ -101,6 +102,7 @@ export const peopleImportResultSchema = z.object({
 export const birthdaySchema = z.object({
   personId: z.uuid(),
   displayName: z.string(),
+  avatarUrl: z.string().nullable(),
   day: z.number().int().min(1).max(31),
   month: z.number().int().min(1).max(12),
   daysUntil: z.number().int().min(0),

@@ -1,6 +1,7 @@
 import type { Birthday, Person, VacationRequest } from "@cge/contracts";
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -353,13 +354,10 @@ export function DashboardPage() {
                     className="flex items-center gap-3 py-3 first:pt-0"
                     key={birthday.personId}
                   >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--brand-soft)] text-xs font-extrabold text-[var(--brand)]">
-                      {birthday.displayName
-                        .split(/\s+/)
-                        .slice(0, 2)
-                        .map((part) => part[0])
-                        .join("")}
-                    </span>
+                    <Avatar
+                      name={birthday.displayName}
+                      src={birthday.avatarUrl}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold">
                         {birthday.displayName}

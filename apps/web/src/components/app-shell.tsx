@@ -1,4 +1,4 @@
-import { Button, Sheet, SheetContent, SheetTrigger } from "@cge/ui";
+import { Avatar, Button, Sheet, SheetContent, SheetTrigger } from "@cge/ui";
 import {
   CaretLeft,
   CaretRight,
@@ -186,12 +186,6 @@ export function AppShell() {
   if (!user) {
     return null;
   }
-  const initials = user.person.displayName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
   const activeModule = availableModules(user).find(
     (module) =>
       pathname === module.href || pathname.startsWith(`${module.href}/`),
@@ -255,9 +249,11 @@ export function AppShell() {
               onClick={() => void logout()}
               aria-label={`Sair da conta de ${user.person.displayName}`}
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-full border border-[var(--border)] bg-white text-xs font-extrabold text-[var(--brand)]">
-                {initials}
-              </span>
+              <Avatar
+                className="bg-white"
+                name={user.person.displayName}
+                src={user.person.avatarUrl}
+              />
               {!collapsed ? (
                 <>
                   <span className="min-w-0 flex-1">

@@ -6,6 +6,7 @@ import type {
 } from "@cge/contracts";
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -26,6 +27,7 @@ import {
 import {
   FileArrowUp as FileUp,
   GearSix as Settings2,
+  ImageSquare,
   MagnifyingGlass as Search,
   Plus,
 } from "@phosphor-icons/react";
@@ -61,6 +63,8 @@ export function PeoplePage() {
   const [importDialog, setImportDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
   const [supervisorPerson, setSupervisorPerson] = useState<Person | null>(null);
+  const [avatarPerson, setAvatarPerson] = useState<Person | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<PeopleImportResult | null>(
     null,
@@ -254,6 +258,53 @@ export function PeoplePage() {
     }
   }
 
+  async function saveAvatar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!avatarPerson || !avatarFile) return;
+    const body = new FormData();
+    body.append("avatar", avatarFile);
+    try {
+      setBusy(true);
+      setDialogError("");
+      await api(`/api/people/${avatarPerson.id}/avatar`, {
+        method: "PUT",
+        body,
+      });
+      setAvatarPerson(null);
+      setAvatarFile(null);
+      await load();
+      setSuccess("Foto do colaborador atualizada.");
+    } catch (cause) {
+      setDialogError(messageFor(cause, "Não foi possível salvar a foto."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    if (
+      !avatarPerson ||
+      !window.confirm(
+        `Remover a foto de ${avatarPerson.preferredName ?? avatarPerson.fullName}?`,
+      )
+    ) {
+      return;
+    }
+    try {
+      setBusy(true);
+      setDialogError("");
+      await api(`/api/people/${avatarPerson.id}/avatar`, { method: "DELETE" });
+      setAvatarPerson(null);
+      setAvatarFile(null);
+      await load();
+      setSuccess("Foto do colaborador removida.");
+    } catch (cause) {
+      setDialogError(messageFor(cause, "Não foi possível remover a foto."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="page-enter space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -343,14 +394,22 @@ export function PeoplePage() {
                 {filtered.map((person) => (
                   <TableRow key={person.id}>
                     <TableCell>
-                      <p className="font-semibold">
-                        {person.preferredName ?? person.fullName}
-                      </p>
-                      {person.preferredName ? (
-                        <p className="text-xs text-[var(--text-faint)]">
-                          {person.fullName}
-                        </p>
-                      ) : null}
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={person.preferredName ?? person.fullName}
+                          src={person.avatarUrl}
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold">
+                            {person.preferredName ?? person.fullName}
+                          </p>
+                          {person.preferredName ? (
+                            <p className="text-xs text-[var(--text-faint)]">
+                              {person.fullName}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {person.employment?.unitName ?? "Sem vínculo ativo"}
@@ -367,6 +426,18 @@ export function PeoplePage() {
                       <TableCell className="whitespace-nowrap">
                         {person.employment ? (
                           <div className="flex gap-1">
+                            <Button
+                              variant="quiet"
+                              size="sm"
+                              aria-label={`Alterar foto de ${person.preferredName ?? person.fullName}`}
+                              onClick={() => {
+                                setAvatarFile(null);
+                                setAvatarPerson(person);
+                              }}
+                            >
+                              <ImageSquare aria-hidden="true" size={15} />
+                              Foto
+                            </Button>
                             <Button
                               variant="quiet"
                               size="sm"
@@ -470,6 +541,102 @@ export function PeoplePage() {
                   : personDialog === "new"
                     ? "Cadastrar"
                     : "Salvar alterações"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(avatarPerson)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAvatarPerson(null);
+            setAvatarFile(null);
+            setDialogError("");
+          }
+        }}
+      >
+        <DialogContent
+          title="Foto do colaborador"
+          description={
+            avatarPerson
+              ? `Atualize a foto de ${avatarPerson.preferredName ?? avatarPerson.fullName}. A imagem será recortada em formato quadrado.`
+              : undefined
+          }
+        >
+          <form className="space-y-5" onSubmit={saveAvatar}>
+            {dialogError ? (
+              <Alert title="Revise a foto" tone="danger">
+                {dialogError}
+              </Alert>
+            ) : null}
+            {avatarPerson ? (
+              <div className="flex items-center gap-4">
+                <Avatar
+                  name={avatarPerson.preferredName ?? avatarPerson.fullName}
+                  size="lg"
+                  src={avatarPerson.avatarUrl}
+                />
+                <div>
+                  <p className="text-sm font-bold">
+                    {avatarPerson.preferredName ?? avatarPerson.fullName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    JPEG, PNG ou WebP · máximo de 2 MB
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <FormField htmlFor="personAvatar" label="Nova foto">
+              <div className="relative rounded-[10px] focus-within:ring-3 focus-within:ring-[var(--focus)]">
+                <Input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="absolute inset-0 z-10 h-full cursor-pointer opacity-0"
+                  id="personAvatar"
+                  name="avatar"
+                  onChange={(event) =>
+                    setAvatarFile(event.target.files?.[0] ?? null)
+                  }
+                  type="file"
+                />
+                <div
+                  aria-hidden="true"
+                  className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                >
+                  <ImageSquare aria-hidden="true" size={18} />
+                  <span className="font-semibold">
+                    {avatarFile ? "Imagem selecionada" : "Selecionar imagem"}
+                  </span>
+                  {avatarFile ? (
+                    <span className="min-w-0 truncate text-[var(--text-muted)]">
+                      {avatarFile.name}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </FormField>
+            <div className="flex flex-wrap justify-end gap-2">
+              {avatarPerson?.avatarUrl ? (
+                <Button
+                  disabled={busy}
+                  onClick={() => void removeAvatar()}
+                  type="button"
+                  variant="quiet"
+                >
+                  Remover foto
+                </Button>
+              ) : null}
+              <Button
+                disabled={busy}
+                onClick={() => setAvatarPerson(null)}
+                type="button"
+                variant="quiet"
+              >
+                Cancelar
+              </Button>
+              <Button disabled={!avatarFile || busy} type="submit">
+                {busy ? "Salvando…" : "Salvar foto"}
               </Button>
             </div>
           </form>

@@ -129,6 +129,8 @@ const actionLabels: Record<string, string> = {
   "people.created": "Pessoa cadastrada",
   "people.deactivated": "Pessoa desativada",
   "people.updated": "Pessoa atualizada",
+  "person.avatar-deleted": "Foto removida",
+  "person.avatar-updated": "Foto atualizada",
   "platform-admin.bootstrapped": "Administrador inicial criado",
   "role-assignment.created": "Acesso concedido",
   "role-assignment.deleted": "Acesso removido",

@@ -21,6 +21,8 @@ export const people = pgTable(
     preferredName: varchar("preferred_name", { length: 120 }),
     birthDate: date("birth_date"),
     birthdayVisible: boolean("birthday_visible").notNull().default(false),
+    avatarObjectKey: varchar("avatar_object_key", { length: 255 }),
+    avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

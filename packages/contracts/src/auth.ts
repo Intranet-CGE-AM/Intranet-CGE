@@ -31,6 +31,7 @@ export const authenticatedUserSchema = z.object({
   person: z.object({
     id: z.uuid(),
     displayName: z.string(),
+    avatarUrl: z.string().nullable(),
   }),
   employment: z
     .object({

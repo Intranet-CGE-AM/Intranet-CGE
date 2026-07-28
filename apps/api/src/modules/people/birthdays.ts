@@ -6,6 +6,7 @@ import {
   organizationUnits,
   people,
 } from "./schema.js";
+import { avatarUrl } from "./avatar.js";
 
 export function dateInManaus(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -48,6 +49,8 @@ export async function listBirthdays(
       personId: people.id,
       fullName: people.fullName,
       preferredName: people.preferredName,
+      avatarObjectKey: people.avatarObjectKey,
+      avatarUpdatedAt: people.avatarUpdatedAt,
       birthDate: people.birthDate,
       unitId: organizationUnits.id,
       unitCode: organizationUnits.code,
@@ -89,6 +92,9 @@ export async function listBirthdays(
             {
               personId: row.personId,
               displayName: row.preferredName ?? row.fullName,
+              avatarUrl: row.avatarObjectKey
+                ? avatarUrl(row.personId, row.avatarUpdatedAt)
+                : null,
               day: day!,
               month: month!,
               daysUntil,

@@ -253,7 +253,7 @@ test("empty, no-access, and inactive-employment personas give next steps", async
 test("malformed CSV keeps invalid imports from being applied", async ({
   page,
 }) => {
-  await login(page, admin.email, admin.password);
+  await login(page, accounts.hr, password);
   await openHrRoute(page, "Colaboradores");
   await page.getByRole("button", { name: "Importar CSV" }).click();
   await page.getByLabel("Arquivo CSV").setInputFiles({
@@ -271,6 +271,67 @@ test("malformed CSV keeps invalid imports from being applied", async ({
   await expect(
     page.getByRole("button", { name: "Aplicar 0 linhas válidas" }),
   ).toBeDisabled();
+});
+
+test("avatar upload normalizes images and respects unit scope", async ({
+  browser,
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  await openHrRoute(page, "Colaboradores");
+  const personRow = page
+    .getByRole("row")
+    .filter({ hasText: "Caio Nascimento" });
+  await personRow
+    .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
+    .click();
+
+  await page.getByLabel("Nova foto").setInputFiles({
+    name: "avatar-falso.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("isto não é uma imagem"),
+  });
+  await page.getByRole("button", { name: "Salvar foto" }).click();
+  await expect(
+    page.getByRole("alert").getByText(/JPEG, PNG ou WebP válida/i),
+  ).toBeVisible();
+
+  await page.getByLabel("Nova foto").setInputFiles({
+    name: "avatar.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await page.getByRole("button", { name: "Salvar foto" }).click();
+  await expect(page.getByText("Foto do colaborador atualizada.")).toBeVisible();
+  const avatar = personRow.locator('[data-slot="avatar"] img');
+  await expect(avatar).toBeVisible();
+  const avatarUrl = await avatar.getAttribute("src");
+  expect(avatarUrl).toMatch(/^\/api\/people\/.+\/avatar\?v=/);
+  const stored = await page.request.get(avatarUrl!);
+  expect(stored.status()).toBe(200);
+  expect(stored.headers()["content-type"]).toContain("image/webp");
+
+  const restrictedContext = await browser.newContext();
+  const restrictedPage = await restrictedContext.newPage();
+  await login(restrictedPage, accounts.viewer, password);
+  expect((await restrictedPage.request.get(avatarUrl!)).status()).toBe(403);
+  await restrictedContext.close();
+
+  await personRow
+    .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
+    .click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Remover foto" }).click();
+  await expect(page.getByText("Foto do colaborador removida.")).toBeVisible();
+  await expect(personRow.locator('[data-slot="avatar"] img')).toHaveCount(0);
+
+  const audit = await page.request.get("/api/audit-events/export");
+  const auditText = await audit.text();
+  expect(auditText).toContain("person.avatar-updated");
+  expect(auditText).toContain("person.avatar-deleted");
 });
 
 test("stale vacation actions return an actionable concurrency state", async ({
