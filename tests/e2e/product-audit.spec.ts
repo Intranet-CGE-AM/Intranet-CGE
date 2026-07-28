@@ -185,6 +185,15 @@ test("administration supports role editing, password reset, and audit export", a
   expect(audit.ok()).toBeTruthy();
   expect(audit.headers()["content-type"]).toContain("text/csv");
   expect(await audit.text()).toContain("role.updated");
+
+  await page.getByRole("button", { name: "Recolher barra lateral" }).click();
+  await expect(
+    page.getByRole("button", { name: "Expandir barra lateral" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Expandir barra lateral" }).click();
+  await expect(
+    page.getByRole("button", { name: "Recolher barra lateral" }),
+  ).toBeVisible();
 });
 
 test("mobile navigation traps focus, closes with Escape, and restores focus", async ({

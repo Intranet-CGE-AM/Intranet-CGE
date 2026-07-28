@@ -1,10 +1,11 @@
 import { Button, Sheet, SheetContent, SheetTrigger } from "@cge/ui";
 import {
   CalendarDots,
+  CaretLeft,
+  CaretRight,
   GearSix,
   List,
   ShieldCheck,
-  SidebarSimple,
   SignOut,
   SquaresFour,
   UsersThree,
@@ -150,30 +151,31 @@ export function AppShell() {
             collapsed ? "w-[76px]" : "w-[248px]",
           ].join(" ")}
         >
+          <button
+            aria-label={
+              collapsed ? "Expandir barra lateral" : "Recolher barra lateral"
+            }
+            className="absolute -right-3.5 top-6 z-10 grid size-7 place-items-center rounded-full border border-[var(--border)] bg-white text-[var(--text-muted)] shadow-[0_1px_3px_rgb(16_35_38/10%)] transition-[background-color,color,transform] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-95"
+            onClick={() => setCollapsed((value) => !value)}
+            title={
+              collapsed ? "Expandir barra lateral" : "Recolher barra lateral"
+            }
+            type="button"
+          >
+            {collapsed ? (
+              <CaretRight aria-hidden="true" size={14} weight="bold" />
+            ) : (
+              <CaretLeft aria-hidden="true" size={14} weight="bold" />
+            )}
+          </button>
           <div className={collapsed ? "px-1 pt-1" : "px-2 pt-1"}>
             <Logo collapsed={collapsed} />
             <Navigation collapsed={collapsed} user={user} />
           </div>
           <div className="mt-auto">
-            <Button
-              variant="quiet"
-              size={collapsed ? "icon" : "md"}
-              className={collapsed ? "mx-auto flex" : "w-full justify-start"}
-              onClick={() => setCollapsed((value) => !value)}
-              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            >
-              {collapsed ? (
-                <SidebarSimple aria-hidden="true" size={18} />
-              ) : (
-                <>
-                  <SidebarSimple aria-hidden="true" size={18} />
-                  Recolher menu
-                </>
-              )}
-            </Button>
             <button
               className={[
-                "mt-2 flex w-full items-center rounded-[10px] border-t border-[var(--border)] p-2 text-left hover:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+                "flex w-full items-center rounded-[10px] border border-[var(--border)] bg-white/60 p-2 text-left transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
                 collapsed ? "justify-center" : "gap-3",
               ].join(" ")}
               type="button"
