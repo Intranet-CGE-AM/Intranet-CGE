@@ -49,8 +49,10 @@ export function PeoplePage() {
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
-  const [personDialog, setPersonDialog] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [personDialog, setPersonDialog] = useState<Person | "new" | null>(null);
   const [importDialog, setImportDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
   const [supervisorPerson, setSupervisorPerson] = useState<Person | null>(null);
@@ -96,13 +98,16 @@ export function PeoplePage() {
     );
   }, [people, query]);
 
-  async function createPerson(event: FormEvent<HTMLFormElement>) {
+  async function savePerson(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const current = personDialog === "new" ? null : personDialog;
     try {
       setError("");
-      await api("/api/people", {
-        method: "POST",
+      setSuccess("");
+      setBusy(true);
+      await api(current ? `/api/people/${current.id}` : "/api/people", {
+        method: current ? "PATCH" : "POST",
         body: json({
           fullName: data.get("fullName"),
           preferredName: data.get("preferredName") || null,
@@ -117,10 +122,15 @@ export function PeoplePage() {
           },
         }),
       });
-      setPersonDialog(false);
+      setPersonDialog(null);
       await load();
+      setSuccess(
+        current ? "Colaborador atualizado." : "Colaborador cadastrado.",
+      );
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível criar o colaborador."));
+      setError(messageFor(cause, "Não foi possível salvar o colaborador."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -129,6 +139,7 @@ export function PeoplePage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      setBusy(true);
       await api("/api/employment-categories", {
         method: "POST",
         body: json({
@@ -138,8 +149,11 @@ export function PeoplePage() {
       });
       form.reset();
       await load();
+      setSuccess("Categoria adicionada.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível criar a categoria."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -148,6 +162,7 @@ export function PeoplePage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      setBusy(true);
       await api("/api/organization-units", {
         method: "POST",
         body: json({
@@ -158,8 +173,11 @@ export function PeoplePage() {
       });
       form.reset();
       await load();
+      setSuccess("Unidade adicionada.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível criar a unidade."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -167,6 +185,8 @@ export function PeoplePage() {
     if (!importFile) return;
     try {
       setError("");
+      setSuccess("");
+      setBusy(true);
       const result = await api<PeopleImportResult>("/api/imports/people", {
         method: "POST",
         body: json({
@@ -178,9 +198,12 @@ export function PeoplePage() {
       setImportResult(result);
       if (mode === "apply") {
         await load();
+        setSuccess("Importação aplicada.");
       }
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível processar o CSV."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -193,13 +216,17 @@ export function PeoplePage() {
       return;
     }
     try {
+      setBusy(true);
       await api(`/api/people/${person.id}/deactivate`, {
         method: "POST",
         body: json({ endDate: manausToday() }),
       });
       await load();
+      setSuccess("Vínculo e conta desativados.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível desativar o colaborador."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -208,6 +235,7 @@ export function PeoplePage() {
     if (!supervisorPerson) return;
     const data = new FormData(event.currentTarget);
     try {
+      setBusy(true);
       await api(`/api/people/${supervisorPerson.id}`, {
         method: "PATCH",
         body: json({
@@ -218,8 +246,11 @@ export function PeoplePage() {
       });
       setSupervisorPerson(null);
       await load();
+      setSuccess("Chefia direta atualizada.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível definir a chefia."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -251,7 +282,7 @@ export function PeoplePage() {
             </Button>
           ) : null}
           {managesPeople ? (
-            <Button onClick={() => setPersonDialog(true)}>
+            <Button onClick={() => setPersonDialog("new")}>
               <Plus aria-hidden="true" size={16} />
               Novo colaborador
             </Button>
@@ -260,7 +291,14 @@ export function PeoplePage() {
       </div>
 
       {error ? (
-        <Alert title="A operação não foi concluída">{error}</Alert>
+        <Alert title="A operação não foi concluída" tone="danger">
+          {error}
+        </Alert>
+      ) : null}
+      {success ? (
+        <Alert title="Operação concluída" tone="success">
+          {success}
+        </Alert>
       ) : null}
 
       <Card>
@@ -274,7 +312,9 @@ export function PeoplePage() {
             <Input
               type="search"
               aria-label="Buscar colaboradores"
-              placeholder="Nome, unidade ou categoria"
+              autoComplete="off"
+              name="peopleSearch"
+              placeholder="Nome, unidade ou categoria…"
               className="pl-9"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -330,6 +370,14 @@ export function PeoplePage() {
                             <Button
                               variant="quiet"
                               size="sm"
+                              onClick={() => setPersonDialog(person)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="quiet"
+                              size="sm"
+                              disabled={busy}
                               onClick={() => setSupervisorPerson(person)}
                             >
                               Definir chefia
@@ -337,6 +385,7 @@ export function PeoplePage() {
                             <Button
                               variant="quiet"
                               size="sm"
+                              disabled={busy}
                               onClick={() => void deactivate(person)}
                             >
                               Desativar
@@ -366,35 +415,86 @@ export function PeoplePage() {
         )}
       </Card>
 
-      <Dialog open={personDialog} onOpenChange={setPersonDialog}>
+      <Dialog
+        open={Boolean(personDialog)}
+        onOpenChange={(open) => !open && setPersonDialog(null)}
+      >
         <DialogContent
-          title="Novo colaborador"
-          description="Cadastre a pessoa e seu primeiro vínculo ativo."
-          className="max-h-[90vh] overflow-y-auto"
+          title={
+            personDialog === "new" ? "Novo colaborador" : "Editar colaborador"
+          }
+          description={
+            personDialog === "new"
+              ? "Cadastre a pessoa e seu primeiro vínculo ativo."
+              : "Atualize os dados pessoais e do vínculo ativo."
+          }
         >
-          <form className="grid gap-4 sm:grid-cols-2" onSubmit={createPerson}>
+          <form
+            className="grid gap-4 sm:grid-cols-2"
+            key={personDialog === "new" ? "new" : personDialog?.id}
+            onSubmit={savePerson}
+          >
             <FormField
               htmlFor="fullName"
               label="Nome completo"
               className="sm:col-span-2"
             >
-              <Input id="fullName" name="fullName" required minLength={2} />
+              <Input
+                autoComplete="off"
+                defaultValue={
+                  personDialog === "new" ? "" : personDialog?.fullName
+                }
+                id="fullName"
+                name="fullName"
+                required
+                minLength={2}
+              />
             </FormField>
             <FormField htmlFor="preferredName" label="Nome social ou preferido">
-              <Input id="preferredName" name="preferredName" />
+              <Input
+                autoComplete="off"
+                defaultValue={
+                  personDialog === "new"
+                    ? ""
+                    : (personDialog?.preferredName ?? "")
+                }
+                id="preferredName"
+                name="preferredName"
+              />
             </FormField>
             <FormField htmlFor="birthDate" label="Data de nascimento">
-              <Input id="birthDate" name="birthDate" type="date" />
+              <Input
+                defaultValue={
+                  personDialog === "new" ? "" : (personDialog?.birthDate ?? "")
+                }
+                id="birthDate"
+                name="birthDate"
+                type="date"
+              />
             </FormField>
             <FormField htmlFor="employeeNumber" label="Matrícula">
-              <Input id="employeeNumber" name="employeeNumber" required />
+              <Input
+                autoComplete="off"
+                defaultValue={
+                  personDialog === "new"
+                    ? ""
+                    : (personDialog?.employment?.employeeNumber ?? "")
+                }
+                id="employeeNumber"
+                name="employeeNumber"
+                required
+              />
             </FormField>
             <FormField htmlFor="startDate" label="Data de início">
               <Input
                 id="startDate"
                 name="startDate"
                 type="date"
-                defaultValue={manausToday()}
+                defaultValue={
+                  personDialog === "new"
+                    ? manausToday()
+                    : personDialog?.employment?.startDate
+                }
                 required
               />
             </FormField>
@@ -403,7 +503,11 @@ export function PeoplePage() {
                 id="categoryId"
                 name="categoryId"
                 required
-                defaultValue=""
+                defaultValue={
+                  personDialog === "new"
+                    ? ""
+                    : personDialog?.employment?.categoryId
+                }
               >
                 <option value="" disabled>
                   Selecione
@@ -416,7 +520,14 @@ export function PeoplePage() {
               </Select>
             </FormField>
             <FormField htmlFor="unitId" label="Unidade">
-              <Select id="unitId" name="unitId" required defaultValue="">
+              <Select
+                id="unitId"
+                name="unitId"
+                required
+                defaultValue={
+                  personDialog === "new" ? "" : personDialog?.employment?.unitId
+                }
+              >
                 <option value="" disabled>
                   Selecione
                 </option>
@@ -432,21 +543,43 @@ export function PeoplePage() {
               label="Cargo"
               className="sm:col-span-2"
             >
-              <Input id="jobTitle" name="jobTitle" />
+              <Input
+                autoComplete="off"
+                defaultValue={
+                  personDialog === "new"
+                    ? ""
+                    : (personDialog?.employment?.jobTitle ?? "")
+                }
+                id="jobTitle"
+                name="jobTitle"
+              />
             </FormField>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input name="birthdayVisible" type="checkbox" />
+              <input
+                className="size-4"
+                defaultChecked={
+                  personDialog === "new" ? false : personDialog?.birthdayVisible
+                }
+                name="birthdayVisible"
+                type="checkbox"
+              />
               Autoriza exibição do aniversário (somente dia e mês)
             </label>
             <div className="flex justify-end gap-2 sm:col-span-2">
               <Button
                 type="button"
                 variant="quiet"
-                onClick={() => setPersonDialog(false)}
+                onClick={() => setPersonDialog(null)}
               >
                 Cancelar
               </Button>
-              <Button type="submit">Cadastrar</Button>
+              <Button disabled={busy} type="submit">
+                {busy
+                  ? "Salvando…"
+                  : personDialog === "new"
+                    ? "Cadastrar"
+                    : "Salvar alterações"}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -487,8 +620,8 @@ export function PeoplePage() {
                   ))}
               </Select>
             </FormField>
-            <Button className="w-full" type="submit">
-              Salvar chefia
+            <Button className="w-full" disabled={busy} type="submit">
+              {busy ? "Salvando…" : "Salvar chefia"}
             </Button>
           </form>
         </DialogContent>
@@ -510,14 +643,24 @@ export function PeoplePage() {
               </p>
               <form className="mt-4 space-y-3" onSubmit={createCategory}>
                 <FormField htmlFor="categoryName" label="Nome">
-                  <Input id="categoryName" name="name" required minLength={2} />
+                  <Input
+                    autoComplete="off"
+                    id="categoryName"
+                    name="name"
+                    required
+                    minLength={2}
+                  />
                 </FormField>
                 <label className="flex items-center gap-2 text-sm">
-                  <input name="vacationEligible" type="checkbox" />
+                  <input
+                    className="size-4"
+                    name="vacationEligible"
+                    type="checkbox"
+                  />
                   Elegível ao fluxo de férias
                 </label>
-                <Button type="submit" size="sm">
-                  Adicionar categoria
+                <Button disabled={busy} type="submit" size="sm">
+                  {busy ? "Adicionando…" : "Adicionar categoria"}
                 </Button>
               </form>
             </section>
@@ -530,13 +673,24 @@ export function PeoplePage() {
               </p>
               <form className="mt-4 space-y-3" onSubmit={createUnit}>
                 <FormField htmlFor="unitCode" label="Sigla">
-                  <Input id="unitCode" name="code" required />
+                  <Input
+                    autoComplete="off"
+                    id="unitCode"
+                    name="code"
+                    required
+                  />
                 </FormField>
                 <FormField htmlFor="unitName" label="Nome">
-                  <Input id="unitName" name="name" required minLength={2} />
+                  <Input
+                    autoComplete="off"
+                    id="unitName"
+                    name="name"
+                    required
+                    minLength={2}
+                  />
                 </FormField>
-                <Button type="submit" size="sm">
-                  Adicionar unidade
+                <Button disabled={busy} type="submit" size="sm">
+                  {busy ? "Adicionando…" : "Adicionar unidade"}
                 </Button>
               </form>
             </section>
@@ -553,6 +707,7 @@ export function PeoplePage() {
             <FormField htmlFor="peopleCsv" label="Arquivo CSV">
               <Input
                 id="peopleCsv"
+                name="peopleCsv"
                 type="file"
                 accept=".csv,text/csv"
                 onChange={(event) => {
@@ -586,16 +741,16 @@ export function PeoplePage() {
             <div className="flex justify-end gap-2">
               <Button
                 variant="secondary"
-                disabled={!importFile}
+                disabled={!importFile || busy}
                 onClick={() => void runImport("preview")}
               >
-                Validar
+                {busy ? "Validando…" : "Validar"}
               </Button>
               <Button
-                disabled={!importFile || !importResult}
+                disabled={!importFile || !importResult || busy}
                 onClick={() => void runImport("apply")}
               >
-                Aplicar importação
+                {busy ? "Aplicando…" : "Aplicar importação"}
               </Button>
             </div>
           </div>

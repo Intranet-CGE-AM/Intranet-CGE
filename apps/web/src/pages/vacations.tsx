@@ -63,9 +63,12 @@ export function VacationsPage() {
   const [supervisor, setSupervisor] = useState<VacationRequest[]>([]);
   const [finalReview, setFinalReview] = useState<VacationRequest[]>([]);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [createDialog, setCreateDialog] = useState(false);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [history, setHistory] = useState<VacationRequest | null>(null);
   const creates = Boolean(user && can(user, "vacations.create"));
   const reviewsSupervisor = Boolean(
     user && can(user, "vacations.review.supervisor"),
@@ -109,19 +112,31 @@ export function VacationsPage() {
   async function createRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const startDate = String(data.get("startDate"));
+    const endDate = String(data.get("endDate"));
+    if (endDate < startDate) {
+      setError("A data final deve ser igual ou posterior à data inicial.");
+      return;
+    }
     try {
+      setBusy(true);
+      setError("");
+      setSuccess("");
       await api("/api/vacation-requests", {
         method: "POST",
         body: json({
-          startDate: data.get("startDate"),
-          endDate: data.get("endDate"),
+          startDate,
+          endDate,
           submit: true,
         }),
       });
       setCreateDialog(false);
       await load();
+      setSuccess("Solicitação enviada para a chefia.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível enviar a solicitação."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -129,34 +144,52 @@ export function VacationsPage() {
     event.preventDefault();
     if (!decision) return;
     const data = new FormData(event.currentTarget);
+    const decisionValue = String(data.get("decision"));
+    const comment = String(data.get("comment") ?? "").trim();
+    if (decisionValue === "reject" && comment.length < 2) {
+      setError("Informe o motivo da rejeição para manter o histórico claro.");
+      return;
+    }
     const route =
       decision.stage === "supervisor" ? "supervisor-decision" : "hr-decision";
     try {
+      setBusy(true);
+      setError("");
+      setSuccess("");
       await api(`/api/vacation-requests/${decision.request.id}/${route}`, {
         method: "POST",
         body: json({
           version: decision.request.version,
-          decision: data.get("decision"),
-          comment: data.get("comment") || null,
+          decision: decisionValue,
+          comment: comment || null,
         }),
       });
       setDecision(null);
       await load();
+      setSuccess("Decisão registrada no histórico.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível registrar a decisão."));
+    } finally {
+      setBusy(false);
     }
   }
 
   async function cancel(request: VacationRequest) {
     if (!window.confirm("Cancelar esta solicitação de férias?")) return;
     try {
+      setBusy(true);
+      setError("");
+      setSuccess("");
       await api(`/api/vacation-requests/${request.id}/cancel`, {
         method: "POST",
         body: json({ version: request.version }),
       });
       await load();
+      setSuccess("Solicitação cancelada.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível cancelar a solicitação."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -183,10 +216,17 @@ export function VacationsPage() {
       </div>
 
       {error ? (
-        <Alert title="A operação não foi concluída">{error}</Alert>
+        <Alert title="A operação não foi concluída" tone="danger">
+          {error}
+        </Alert>
+      ) : null}
+      {success ? (
+        <Alert title="Operação concluída" tone="success">
+          {success}
+        </Alert>
       ) : null}
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--brand-soft)] p-4 text-sm text-[var(--brand-strong)]">
+      <div className="border-l-2 border-[var(--brand)] py-1 pl-4 text-sm text-[var(--text-muted)]">
         <div className="flex gap-3">
           <Info aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
           <p>
@@ -210,7 +250,9 @@ export function VacationsPage() {
               title="Minhas solicitações"
               description="Histórico do seu vínculo funcional ativo"
               requests={mine}
+              busy={busy}
               empty="Você ainda não possui solicitações."
+              onHistory={setHistory}
               action={(request) =>
                 ["draft", "submitted", "supervisor_approved"].includes(
                   request.status,
@@ -231,7 +273,9 @@ export function VacationsPage() {
               title="Decisões da chefia"
               description="Solicitações atribuídas à chefia registrada"
               requests={supervisor}
+              busy={busy}
               empty="Nenhuma solicitação aguarda decisão da chefia."
+              onHistory={setHistory}
               showRequester
               action={(request) =>
                 request.status === "submitted" ? (
@@ -252,7 +296,9 @@ export function VacationsPage() {
               title="Decisão final"
               description="Validação de elegibilidade pela área responsável"
               requests={finalReview}
+              busy={busy}
               empty="Nenhuma solicitação aguarda decisão final."
+              onHistory={setHistory}
               showRequester
               action={(request) =>
                 request.status === "supervisor_approved" ? (
@@ -279,6 +325,7 @@ export function VacationsPage() {
               <FormField htmlFor="vacationStartDate" label="Data inicial">
                 <Input
                   id="vacationStartDate"
+                  min={manausToday()}
                   name="startDate"
                   type="date"
                   required
@@ -287,6 +334,7 @@ export function VacationsPage() {
               <FormField htmlFor="vacationEndDate" label="Data final">
                 <Input
                   id="vacationEndDate"
+                  min={manausToday()}
                   name="endDate"
                   type="date"
                   required
@@ -301,7 +349,9 @@ export function VacationsPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit">Enviar para chefia</Button>
+              <Button disabled={busy} type="submit">
+                {busy ? "Enviando…" : "Enviar para chefia"}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -335,7 +385,8 @@ export function VacationsPage() {
               <Textarea
                 id="vacationComment"
                 name="comment"
-                placeholder="Contexto para o histórico da solicitação"
+                autoComplete="off"
+                placeholder="Contexto para o histórico da solicitação…"
               />
             </FormField>
             <div className="flex justify-end gap-2">
@@ -346,9 +397,50 @@ export function VacationsPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit">Registrar decisão</Button>
+              <Button disabled={busy} type="submit">
+                {busy ? "Registrando…" : "Registrar decisão"}
+              </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(history)}
+        onOpenChange={(open) => !open && setHistory(null)}
+      >
+        <DialogContent
+          title="Histórico da solicitação"
+          description={history ? formatPeriod(history) : undefined}
+        >
+          {history?.events.length ? (
+            <ol className="border-l border-[var(--border)]">
+              {history.events.map((event) => (
+                <li className="relative pb-5 pl-5 last:pb-0" key={event.id}>
+                  <span className="absolute -left-1 top-1 size-2 rounded-full bg-[var(--brand)]" />
+                  <p className="text-sm font-semibold">
+                    {eventLabels[event.type] ?? event.type}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                    {new Intl.DateTimeFormat("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                      timeZone: "America/Manaus",
+                    }).format(new Date(event.createdAt))}
+                  </p>
+                  {event.comment ? (
+                    <p className="mt-2 text-sm text-[var(--text-muted)]">
+                      {event.comment}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-[var(--text-muted)]">
+              Nenhum evento registrado.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -359,14 +451,18 @@ function RequestTable({
   title,
   description,
   requests,
+  busy,
   empty,
+  onHistory,
   showRequester = false,
   action,
 }: {
   title: string;
   description: string;
   requests: VacationRequest[];
+  busy: boolean;
   empty: string;
+  onHistory: (request: VacationRequest) => void;
   showRequester?: boolean;
   action: (request: VacationRequest) => ReactNode;
 }) {
@@ -418,7 +514,19 @@ function RequestTable({
                       timeZone: "America/Manaus",
                     }).format(new Date(request.updatedAt))}
                   </TableCell>
-                  <TableCell>{action(request)}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
+                      {action(request)}
+                      <Button
+                        disabled={busy}
+                        size="sm"
+                        variant="quiet"
+                        onClick={() => onHistory(request)}
+                      >
+                        Histórico
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -447,4 +555,21 @@ function formatPeriod(request: VacationRequest) {
 
 function messageFor(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback;
+}
+
+const eventLabels: Record<string, string> = {
+  approved: "Solicitação aprovada",
+  cancelled: "Solicitação cancelada",
+  created: "Solicitação criada",
+  rejected: "Solicitação rejeitada",
+  submitted: "Enviada para a chefia",
+};
+
+function manausToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Manaus",
+    year: "numeric",
+  }).format(new Date());
 }

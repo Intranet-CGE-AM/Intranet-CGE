@@ -25,7 +25,7 @@ test("complete HR journey from import through final vacation approval", async ({
 
   await login(page, "invalid@local.invalid", "invalid-password");
   await expect(
-    page.getByRole("status").getByText("E-mail ou senha inválidos."),
+    page.getByRole("alert").getByText("E-mail ou senha inválidos."),
   ).toBeVisible();
 
   await page.getByLabel("E-mail institucional").fill(admin.email);

@@ -155,7 +155,11 @@ export function DashboardPage() {
         </p>
       </div>
 
-      {error ? <Alert title="Painel indisponível">{error}</Alert> : null}
+      {error ? (
+        <Alert title="Painel indisponível" tone="danger">
+          {error}
+        </Alert>
+      ) : null}
 
       <section className="overflow-hidden rounded-[14px] bg-[var(--brand)] text-white">
         <div className="grid min-h-[170px] gap-8 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">

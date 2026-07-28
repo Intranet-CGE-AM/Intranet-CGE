@@ -10,6 +10,7 @@ export function ChangePasswordPage() {
   const { changePassword, user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -28,6 +29,8 @@ export function ChangePasswordPage() {
       return;
     }
     try {
+      setSubmitting(true);
+      setError("");
       await changePassword({
         currentPassword: String(data.get("currentPassword")),
         newPassword,
@@ -39,6 +42,8 @@ export function ChangePasswordPage() {
           ? cause.message
           : "Não foi possível alterar a senha.",
       );
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -49,7 +54,7 @@ export function ChangePasswordPage() {
       description="Substitua a senha temporária antes de acessar os módulos da intranet."
     >
       {error ? (
-        <Alert title="Revise os dados" className="mb-5">
+        <Alert title="Revise os dados" className="mb-5" tone="danger">
           {error}
         </Alert>
       ) : null}
@@ -87,8 +92,8 @@ export function ChangePasswordPage() {
             required
           />
         </FormField>
-        <Button className="min-h-12 w-full" type="submit">
-          Salvar e continuar
+        <Button className="min-h-12 w-full" disabled={submitting} type="submit">
+          {submitting ? "Salvando…" : "Salvar e continuar"}
         </Button>
       </form>
     </AuthLayout>

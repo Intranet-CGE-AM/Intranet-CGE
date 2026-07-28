@@ -90,7 +90,10 @@ export function RequireAuth() {
   const location = useLocation();
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center text-sm text-[var(--text-muted)]">
+      <div
+        className="grid min-h-[100dvh] place-items-center text-sm text-[var(--text-muted)]"
+        role="status"
+      >
         Carregando intranet…
       </div>
     );

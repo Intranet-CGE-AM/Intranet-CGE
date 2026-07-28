@@ -1,14 +1,30 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { AppShell } from "./components/app-shell";
 import { RequireAuth } from "./auth";
-import { AdminPage } from "./pages/admin";
-import { DashboardPage } from "./pages/dashboard";
-import { PeoplePage } from "./pages/people";
-import { UiKitPage } from "./pages/ui-kit";
-import { VacationsPage } from "./pages/vacations";
-import { LoginPage } from "./pages/login";
+import { AppShell } from "./components/app-shell";
 import { ChangePasswordPage } from "./pages/change-password";
+import { LoginPage } from "./pages/login";
+
+const AdminPage = lazy(() =>
+  import("./pages/admin").then((module) => ({ default: module.AdminPage })),
+);
+const DashboardPage = lazy(() =>
+  import("./pages/dashboard").then((module) => ({
+    default: module.DashboardPage,
+  })),
+);
+const PeoplePage = lazy(() =>
+  import("./pages/people").then((module) => ({ default: module.PeoplePage })),
+);
+const UiKitPage = lazy(() =>
+  import("./pages/ui-kit").then((module) => ({ default: module.UiKitPage })),
+);
+const VacationsPage = lazy(() =>
+  import("./pages/vacations").then((module) => ({
+    default: module.VacationsPage,
+  })),
+);
 
 export function App() {
   return (
@@ -17,16 +33,60 @@ export function App() {
       <Route path="alterar-senha" element={<ChangePasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="pessoas" element={<PeoplePage />} />
-          <Route path="ferias" element={<VacationsPage />} />
-          <Route path="administracao" element={<AdminPage />} />
+          <Route
+            index
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <DashboardPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="pessoas"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <PeoplePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="ferias"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <VacationsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="administracao"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <AdminPage />
+              </Suspense>
+            }
+          />
           {import.meta.env.DEV ? (
-            <Route path="dev/ui" element={<UiKitPage />} />
+            <Route
+              path="dev/ui"
+              element={
+                <Suspense fallback={<PageFallback />}>
+                  <UiKitPage />
+                </Suspense>
+              }
+            />
           ) : null}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
     </Routes>
+  );
+}
+
+function PageFallback() {
+  return (
+    <div className="space-y-4" aria-label="Carregando página" role="status">
+      <div className="h-8 w-56 animate-pulse rounded-lg bg-[var(--surface-subtle)]" />
+      <div className="h-48 animate-pulse rounded-[14px] bg-[var(--surface-subtle)]" />
+    </div>
   );
 }

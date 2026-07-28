@@ -52,7 +52,7 @@ export function LoginPage() {
         Autenticação local protegida
       </div>
       {error ? (
-        <Alert title="Não foi possível entrar" className="mb-5">
+        <Alert title="Não foi possível entrar" className="mb-5" tone="danger">
           {error}
         </Alert>
       ) : null}
