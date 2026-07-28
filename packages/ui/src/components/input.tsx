@@ -1,4 +1,5 @@
 import type {
+  HTMLAttributes,
   InputHTMLAttributes,
   LabelHTMLAttributes,
   ReactNode,
@@ -67,6 +68,7 @@ export function Textarea({
 
 export function FormField({
   children,
+  className,
   error,
   hint,
   htmlFor,
@@ -77,9 +79,9 @@ export function FormField({
   hint?: string;
   htmlFor: string;
   label: string;
-}) {
+} & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {error ? (

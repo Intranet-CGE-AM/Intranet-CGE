@@ -116,8 +116,10 @@ export type PersonUpdate = z.infer<typeof personUpdateSchema>;
 export type EmploymentCategoryInput = z.infer<
   typeof employmentCategoryInputSchema
 >;
+export type EmploymentCategory = z.infer<typeof employmentCategorySchema>;
 export type OrganizationUnitInput = z.infer<typeof organizationUnitInputSchema>;
 export type PeopleImportRequest = z.infer<typeof peopleImportRequestSchema>;
+export type PeopleImportResult = z.infer<typeof peopleImportResultSchema>;
 export type Person = z.infer<typeof personSchema>;
 export type OrganizationUnit = z.infer<typeof organizationUnitSchema>;
 export type Birthday = z.infer<typeof birthdaySchema>;
