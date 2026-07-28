@@ -6,16 +6,30 @@ export function Alert({
   className,
   title,
   children,
-}: HTMLAttributes<HTMLDivElement> & { title: string }) {
+  tone = "warning",
+}: HTMLAttributes<HTMLDivElement> & {
+  title: string;
+  tone?: "warning" | "success" | "danger" | "neutral";
+}) {
+  const tones = {
+    warning:
+      "border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-strong)]",
+    success:
+      "border-emerald-200 bg-[var(--success-soft)] text-[var(--success-strong)]",
+    danger: "border-rose-200 bg-[var(--danger-soft)] text-[var(--danger)]",
+    neutral:
+      "border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text)]",
+  };
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm",
+        "rounded-[12px] border p-4 text-sm",
+        tones[tone],
         className,
       )}
-      role="status"
+      role={tone === "danger" ? "alert" : "status"}
     >
-      <p className="font-semibold text-[var(--warning-strong)]">{title}</p>
+      <p className="font-semibold">{title}</p>
       <div className="mt-1 text-[var(--text-muted)]">{children}</div>
     </div>
   );
@@ -35,9 +49,7 @@ export function EmptyState({
   return (
     <div className="grid min-h-56 place-items-center p-8 text-center">
       <div>
-        <div className="mx-auto grid size-11 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">
-          {icon}
-        </div>
+        <div className="mx-auto text-[var(--brand)]">{icon}</div>
         <h3 className="mt-4 font-semibold text-[var(--text)]">{title}</h3>
         <p className="mx-auto mt-1 max-w-sm text-sm text-[var(--text-muted)]">
           {description}
@@ -58,6 +70,7 @@ export function Skeleton({
         "animate-pulse rounded-lg bg-[var(--surface-subtle)]",
         className,
       )}
+      aria-hidden="true"
       {...props}
     />
   );

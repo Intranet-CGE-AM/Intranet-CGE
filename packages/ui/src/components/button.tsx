@@ -5,12 +5,12 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../lib/cn";
 
 const buttonVariants = cva(
-  "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-semibold transition-[background-color,border-color,color,transform,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:translate-y-px disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         primary:
-          "bg-[var(--action)] text-[var(--action-foreground)] hover:bg-[var(--action-hover)]",
+          "border border-transparent bg-[var(--action)] text-[var(--action-foreground)] shadow-[0_1px_2px_rgb(4_75_78/10%)] hover:bg-[var(--action-hover)]",
         secondary:
           "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-subtle)]",
         quiet:
@@ -18,7 +18,7 @@ const buttonVariants = cva(
         danger: "bg-[var(--danger)] text-white hover:bg-[var(--danger-strong)]",
       },
       size: {
-        sm: "min-h-8 rounded-lg px-3 text-xs",
+        sm: "min-h-9 rounded-lg px-3 text-xs",
         md: "min-h-10 px-4",
         icon: "size-10 p-0",
       },

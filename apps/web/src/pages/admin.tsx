@@ -24,7 +24,12 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import { KeyRound, Plus, ShieldCheck, UserRoundCog } from "lucide-react";
+import {
+  Key as KeyRound,
+  Plus,
+  ShieldCheck,
+  UserGear as UserRoundCog,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "../auth";

@@ -4,15 +4,18 @@ import type { HTMLAttributes } from "react";
 import { cn } from "../lib/cn";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
   {
     variants: {
       variant: {
-        neutral: "bg-[var(--surface-subtle)] text-[var(--text-muted)]",
-        success: "bg-[var(--success-soft)] text-[var(--success-strong)]",
-        warning: "bg-[var(--warning-soft)] text-[var(--warning-strong)]",
-        danger: "bg-[var(--danger-soft)] text-[var(--danger)]",
-        brand: "bg-[var(--brand-soft)] text-[var(--brand)]",
+        neutral:
+          "border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--text-muted)]",
+        success:
+          "border-emerald-200 bg-[var(--success-soft)] text-[var(--success-strong)]",
+        warning:
+          "border-[var(--warning-border)] bg-[var(--warning-soft)] text-[var(--warning-strong)]",
+        danger: "border-rose-200 bg-[var(--danger-soft)] text-[var(--danger)]",
+        brand: "border-teal-200 bg-[var(--brand-soft)] text-[var(--brand)]",
       },
     },
     defaultVariants: {

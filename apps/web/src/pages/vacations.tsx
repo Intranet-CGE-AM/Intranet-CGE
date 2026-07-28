@@ -19,7 +19,11 @@ import {
   TableRow,
   Textarea,
 } from "@cge/ui";
-import { CalendarPlus, CalendarX2, Info } from "lucide-react";
+import {
+  CalendarPlus,
+  CalendarX as CalendarX2,
+  Info,
+} from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,

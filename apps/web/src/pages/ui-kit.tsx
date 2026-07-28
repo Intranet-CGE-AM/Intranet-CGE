@@ -12,7 +12,7 @@ import {
   Input,
   Skeleton,
 } from "@cge/ui";
-import { Inbox, Plus } from "lucide-react";
+import { Plus, Tray as Inbox } from "@phosphor-icons/react";
 
 export function UiKitPage() {
   return (

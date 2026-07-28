@@ -14,7 +14,10 @@ export function Table({
   return (
     <div className="w-full overflow-x-auto">
       <table
-        className={cn("w-full border-collapse text-left text-sm", className)}
+        className={cn(
+          "w-full border-collapse text-left text-sm tabular-nums",
+          className,
+        )}
         {...props}
       />
     </div>

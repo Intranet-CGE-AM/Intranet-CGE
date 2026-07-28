@@ -15,6 +15,8 @@
   --action: #08ce83;
   --action-hover: #06ba76;
   --action-foreground: #073c2c;
+  --action-soft: #e5f8f1;
+  --success: #087a54;
   --success-soft: #e2f8ef;
   --success-strong: #087a54;
   --warning-soft: #fff6dd;
@@ -37,22 +39,23 @@ html {
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  background:
-    radial-gradient(circle at 96% 3%, rgb(8 206 131 / 5%), transparent 22rem),
-    var(--canvas);
+  background: var(--canvas);
   color: var(--text);
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 ::selection {

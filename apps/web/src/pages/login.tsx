@@ -1,5 +1,5 @@
 import { Alert, Button, FormField, Input } from "@cge/ui";
-import { LockKeyhole } from "lucide-react";
+import { LockKey } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -47,11 +47,9 @@ export function LoginPage() {
       title="Bem-vindo de volta"
       description="Entre com as credenciais fornecidas pela administração da intranet."
     >
-      <div className="mb-5 flex items-center gap-3 rounded-2xl bg-[var(--brand-soft)] p-3 text-sm font-semibold text-[var(--brand-strong)]">
-        <span className="grid size-9 place-items-center rounded-xl bg-white text-[var(--brand)]">
-          <LockKeyhole aria-hidden="true" size={17} />
-        </span>
-        Acesso local protegido
+      <div className="mb-6 flex items-center gap-2 border-l-2 border-[var(--brand)] pl-3 text-xs font-semibold text-[var(--text-muted)]">
+        <LockKey aria-hidden="true" className="text-[var(--brand)]" size={16} />
+        Autenticação local protegida
       </div>
       {error ? (
         <Alert title="Não foi possível entrar" className="mb-5">
@@ -65,6 +63,7 @@ export function LoginPage() {
             name="email"
             type="email"
             autoComplete="username"
+            spellCheck={false}
             required
           />
         </FormField>

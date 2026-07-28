@@ -23,7 +23,13 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import { FileUp, Plus, Search, Settings2, UsersRound } from "lucide-react";
+import {
+  FileArrowUp as FileUp,
+  GearSix as Settings2,
+  MagnifyingGlass as Search,
+  Plus,
+  UsersThree as UsersRound,
+} from "@phosphor-icons/react";
 import {
   useCallback,
   useEffect,

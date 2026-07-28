@@ -15,12 +15,10 @@ import {
 } from "@cge/ui";
 import {
   ArrowRight,
-  CakeSlice,
-  CalendarCheck2,
-  CalendarClock,
-  CheckCircle2,
-  UsersRound,
-} from "lucide-react";
+  CalendarCheck,
+  CalendarDots,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -159,7 +157,7 @@ export function DashboardPage() {
 
       {error ? <Alert title="Painel indisponível">{error}</Alert> : null}
 
-      <section className="hero-pattern overflow-hidden rounded-2xl bg-[var(--brand)] text-white">
+      <section className="overflow-hidden rounded-[14px] bg-[var(--brand)] text-white">
         <div className="grid min-h-[170px] gap-8 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div>
             <p className="text-sm font-semibold text-white/65">
@@ -185,7 +183,7 @@ export function DashboardPage() {
             {can(user, "vacations.create") ? (
               <Button asChild>
                 <Link to="/ferias">
-                  <CalendarCheck2 aria-hidden="true" size={17} />
+                  <CalendarCheck aria-hidden="true" size={17} />
                   Solicitar férias
                 </Link>
               </Button>
@@ -197,7 +195,7 @@ export function DashboardPage() {
                 variant="secondary"
               >
                 <Link to="/pessoas">
-                  <UsersRound aria-hidden="true" size={17} />
+                  <UsersThree aria-hidden="true" size={17} />
                   Abrir diretório
                 </Link>
               </Button>
@@ -212,32 +210,22 @@ export function DashboardPage() {
             label: "Pessoas ativas visíveis",
             value: people.length,
             detail: "dentro do seu escopo",
-            icon: UsersRound,
           },
           {
             label: "Aniversários em 30 dias",
             value: birthdays.length,
             detail: "com autorização de exibição",
-            icon: CakeSlice,
           },
           {
             label: "Solicitações aprovadas",
             value: approved.length,
             detail: "na sua visão atual",
-            icon: CheckCircle2,
           },
-        ].map(({ label, value, detail, icon: Icon }) => (
+        ].map(({ label, value, detail }) => (
           <div className="p-5" key={label}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-[var(--text-muted)]">
-                {label}
-              </p>
-              <Icon
-                aria-hidden="true"
-                className="text-[var(--brand)]"
-                size={17}
-              />
-            </div>
+            <p className="text-xs font-semibold text-[var(--text-muted)]">
+              {label}
+            </p>
             {loading ? (
               <Skeleton className="mt-3 h-8 w-16" />
             ) : (
@@ -308,7 +296,7 @@ export function DashboardPage() {
             </Table>
           ) : (
             <EmptyState
-              icon={<CalendarClock aria-hidden="true" size={20} />}
+              icon={<CalendarDots aria-hidden="true" size={26} />}
               title="Nenhuma solicitação visível"
               description="Novas solicitações e decisões aparecerão aqui conforme o seu escopo."
             />
@@ -317,14 +305,7 @@ export function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <CakeSlice
-                aria-hidden="true"
-                className="text-[var(--brand)]"
-                size={18}
-              />
-              <h2 className="font-bold">Próximos aniversários</h2>
-            </div>
+            <h2 className="font-bold">Próximos aniversários</h2>
           </CardHeader>
           <CardContent>
             {loading ? (
