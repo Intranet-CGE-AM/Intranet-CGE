@@ -220,6 +220,17 @@ test("administration onboards an employee and supports account operations", asyn
       roleDialog.getByRole("heading", { name: module }),
     ).toBeVisible();
   }
+  await roleDialog
+    .getByRole("button", {
+      name: "Explicar permissão Administrar pessoas",
+    })
+    .focus();
+  await expect(
+    page
+      .getByRole("tooltip")
+      .getByText(/pessoas, vínculos, chefias e lotações/i),
+  ).toBeVisible();
+  await expectAccessiblePage(page, "explicação de permissão", 1280);
   await page
     .getByLabel("Descrição")
     .fill("Acesso de colaborador validado em homologação.");

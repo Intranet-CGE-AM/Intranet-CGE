@@ -12,7 +12,13 @@ import {
   Input,
   Skeleton,
 } from "@cge/ui";
-import { Plus } from "@phosphor-icons/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@cge/ui/tooltip";
+import { Plus, Question } from "@phosphor-icons/react";
 
 export function UiKitPage() {
   return (
@@ -62,6 +68,20 @@ export function UiKitPage() {
               <Button>Confirmar</Button>
             </DialogContent>
           </Dialog>
+          <TooltipProvider delayDuration={350}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="quiet">
+                  <Question aria-hidden="true" size={16} />
+                  Ver explicação
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Tooltips complementam rótulos visíveis sem esconder instruções
+                essenciais.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardContent>
       </Card>
       <div className="grid gap-4 md:grid-cols-2">

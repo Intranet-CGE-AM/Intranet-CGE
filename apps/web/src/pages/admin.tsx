@@ -27,7 +27,13 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import { DownloadSimple, Plus } from "@phosphor-icons/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@cge/ui/tooltip";
+import { DownloadSimple, Plus, Question } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -51,6 +57,25 @@ const permissionLabels: Record<PermissionKey, string> = {
   "vacations.create": "Solicitar férias",
   "vacations.review.supervisor": "Decisão da chefia",
   "vacations.review.final": "Decisão final de férias",
+};
+
+const permissionDescriptions: Record<PermissionKey, string> = {
+  "access.manage":
+    "Cria e altera perfis de acesso, além de concedê-los às pessoas.",
+  "accounts.manage": "Cria, desativa e redefine senhas das contas da intranet.",
+  "audit.read": "Consulta o histórico recente de ações da plataforma.",
+  "audit.export": "Baixa o histórico de auditoria em formato CSV.",
+  "people.read": "Consulta colaboradores dentro das unidades autorizadas.",
+  "people.manage":
+    "Cadastra, altera e desativa pessoas, vínculos, chefias e lotações.",
+  "people.import": "Valida e aplica importações de colaboradores por CSV.",
+  "birthdays.read":
+    "Vê nome, dia e mês de quem autorizou a exibição do aniversário.",
+  "vacations.create": "Cria, envia e cancela solicitações próprias de férias.",
+  "vacations.review.supervisor":
+    "Analisa solicitações das pessoas vinculadas à chefia responsável.",
+  "vacations.review.final":
+    "Registra a decisão final após a aprovação da chefia.",
 };
 
 type PermissionModule = "administration" | "people" | "vacations";
@@ -966,41 +991,59 @@ export function AdminPage() {
               <p className="mt-1 text-xs text-[var(--text-muted)]">
                 Combine acessos de módulos diferentes no mesmo perfil.
               </p>
-              <div className="mt-3 divide-y divide-[var(--border)] border-y border-[var(--border)]">
-                {permissionGroups.map((group) => (
-                  <section
-                    className="grid gap-3 py-4 sm:grid-cols-[180px_minmax(0,1fr)]"
-                    key={group.key}
-                  >
-                    <div>
-                      <h3 className="text-sm font-bold">{group.title}</h3>
-                      <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">
-                        {group.description}
-                      </p>
-                    </div>
-                    <div className="grid gap-1 sm:grid-cols-2">
-                      {group.permissions.map((permission) => (
-                        <label
-                          className="flex min-h-10 items-center gap-3 rounded-lg px-2 text-xs hover:bg-[var(--surface-subtle)]"
-                          key={permission}
-                        >
-                          <input
-                            className="size-4 shrink-0 accent-[var(--brand)]"
-                            defaultChecked={
-                              roleDialog !== "new" &&
-                              roleDialog?.permissions.includes(permission)
-                            }
-                            name="permissions"
-                            type="checkbox"
-                            value={permission}
-                          />
-                          {permissionLabels[permission]}
-                        </label>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <TooltipProvider delayDuration={350}>
+                <div className="mt-3 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+                  {permissionGroups.map((group) => (
+                    <section
+                      className="grid gap-3 py-4 sm:grid-cols-[180px_minmax(0,1fr)]"
+                      key={group.key}
+                    >
+                      <div>
+                        <h3 className="text-sm font-bold">{group.title}</h3>
+                        <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">
+                          {group.description}
+                        </p>
+                      </div>
+                      <div className="grid gap-1 sm:grid-cols-2">
+                        {group.permissions.map((permission) => (
+                          <div
+                            className="flex min-h-10 items-center rounded-lg px-2 text-xs hover:bg-[var(--surface-subtle)]"
+                            key={permission}
+                          >
+                            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                              <input
+                                className="size-4 shrink-0 accent-[var(--brand)]"
+                                defaultChecked={
+                                  roleDialog !== "new" &&
+                                  roleDialog?.permissions.includes(permission)
+                                }
+                                name="permissions"
+                                type="checkbox"
+                                value={permission}
+                              />
+                              <span>{permissionLabels[permission]}</span>
+                            </label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  aria-label={`Explicar permissão ${permissionLabels[permission]}`}
+                                  className="ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--text-faint)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]"
+                                  type="button"
+                                >
+                                  <Question aria-hidden="true" size={15} />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {permissionDescriptions[permission]}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              </TooltipProvider>
             </fieldset>
             <Button className="w-full" disabled={busy} type="submit">
               {busy
