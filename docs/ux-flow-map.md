@@ -67,12 +67,14 @@ Critérios:
 4. “Editar” altera dados pessoais e vínculo ativo.
 5. “Definir chefia” explica o impacto no fluxo de férias.
 6. “Desativar” confirma que vínculo, acesso e sessões serão encerrados.
+7. “Foto” permite enviar ou remover uma imagem com formato e limite claros.
 
 Critérios:
 
 - nenhuma ação depende de reconhecer um ícone;
 - campos de categoria e unidade explicam o significado;
 - ações destrutivas informam a consequência.
+- foto inválida, grande demais ou fora do escopo retorna orientação no diálogo.
 
 ### 4. Configurar categorias e unidades
 
@@ -185,7 +187,7 @@ Critérios:
 
 Todos os fluxos priorizados neste mapa foram implementados em `main`.
 
-- 11 de 11 jornadas Playwright aprovadas;
-- 14 de 14 testes da API aprovados;
+- 16 de 16 cenários Playwright aprovados;
+- 15 de 15 testes da API aprovados;
 - rotas críticas aprovadas pelo Axe em 390 px, 768 px e 1440 px;
 - formatação, lint, tipos e builds de produção aprovados.

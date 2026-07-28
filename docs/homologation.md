@@ -57,5 +57,6 @@ e-mails disponíveis, mas nunca imprime a senha.
 
 Estados transitórios não são persistidos artificialmente no banco. Os testes
 Playwright reproduzem carregamento, validação de formulário, CSV inválido,
-concorrência desatualizada, foco, responsividade e falhas de autorização sobre
-os mesmos dados de homologação.
+concorrência desatualizada, foco, responsividade, upload e remoção de foto e
+falhas de autorização sobre os mesmos dados de homologação. A imagem é criada
+durante o teste e removida ao final; o seed não mantém binários.

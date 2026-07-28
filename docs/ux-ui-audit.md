@@ -71,7 +71,7 @@ crítico ou alto em aberto.
 | UI             |     92 | tokens compartilhados, hierarquia mais firme, menos recipientes, ícones Phosphor sem blocos decorativos repetidos |
 | Acessibilidade |     95 | teclado, foco contido/restaurado, Escape, contraste AA, semântica e rolagem de tabelas acessível                  |
 | Responsividade |     94 | login e quatro rotas críticas sem overflow em 390 × 844, 768 × 1024 e 1440 × 900                                  |
-| Cobertura      |     95 | 10 jornadas Playwright, 15 varreduras Axe, 14 testes de API e seed com todos os estados relevantes                |
+| Cobertura      |     95 | 16 cenários Playwright, 24 varreduras Axe, 15 testes de API e seed com todos os estados relevantes                |
 | **Geral**      | **94** | aprovado                                                                                                          |
 
 Não restou problema crítico ou alto no escopo v1 auditado.
@@ -83,12 +83,14 @@ Não restou problema crítico ou alto no escopo v1 auditado.
   auditoria.
 - Pessoas permite criar, editar, desativar, definir chefia e importar CSV com
   erro exibido dentro do diálogo que originou a operação.
+- Fotos são privadas, normalizadas e exibidas pelo mesmo componente
+  compartilhado no menu, diretório e aniversários.
 - Férias valida datas e elegibilidade, exige motivo na rejeição, mostra o
   histórico imutável e impede ações sem vínculo funcional.
 - O menu móvel contém foco, fecha por Escape e devolve foco ao acionador.
 - Tabelas roláveis recebem foco visível; contraste de textos, estados e ações
   atende ao portão automatizado WCAG 2.2 AA.
-- O seed de homologação cobre 7 pessoas, 6 contas, 4 papéis, escopos distintos,
+- O seed de homologação cobre 10 pessoas, 10 contas, 5 papéis, escopos distintos,
   conta desativada, aniversário com opt-out e os 7 estados de férias.
 
 ## Evidência de validação
@@ -96,8 +98,8 @@ Não restou problema crítico ou alto no escopo v1 auditado.
 Executado em 28 de julho de 2026:
 
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck` e `pnpm build`;
-- `pnpm test`: 14 testes de API aprovados;
-- `pnpm test:e2e`: 10 jornadas aprovadas em conjunto;
+- `pnpm test`: 15 testes de API aprovados;
+- `pnpm test:e2e`: 16 cenários aprovados em conjunto;
 - Axe: login, painel, pessoas, férias e administração nos três tamanhos, sem
   violação AA e sem overflow de página;
 - seed executado duas vezes no mesmo PostgreSQL de homologação, mantendo as

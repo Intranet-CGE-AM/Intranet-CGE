@@ -24,12 +24,12 @@ uma página do web app e permissões explícitas no catálogo compartilhado.
 
 ## Desenvolvimento
 
-Requisitos: Node.js 22, pnpm 10 e Docker.
+Requisitos: Node.js 22.22 ou superior, pnpm 10 e Docker.
 
 ```bash
 cp .env.example .env
 pnpm install
-docker compose up -d postgres
+docker compose up -d postgres minio
 pnpm --filter @cge/api db:migrate
 pnpm dev
 ```
@@ -58,7 +58,8 @@ pnpm test:e2e
 
 `pnpm test:e2e` cria e remove apenas o banco `intranet_cge_e2e`. O fluxo real
 testado importa pessoas, cria contas e papéis, troca senhas temporárias,
-solicita férias, aprova nas duas etapas e confirma o CSV de auditoria.
+solicita férias, aprova nas duas etapas, valida avatares privados no MinIO e
+confirma o CSV de auditoria.
 
 ## Documentação
 
@@ -67,3 +68,4 @@ solicita férias, aprova nas duas etapas e confirma o CSV de auditoria.
 - [Design system](docs/design-system.md)
 - [Homologação e dados de teste](docs/homologation.md)
 - [Implantação, backup e restauração](docs/deployment.md)
+- [Prontidão para UAT e piloto](docs/pilot-readiness.md)

@@ -50,8 +50,8 @@ a verificação de permissão e unidade na API.
 ## Pessoas e férias
 
 Antes de cadastrar vínculos manualmente, crie ao menos uma categoria e uma
-unidade em **Colaboradores → Configurar RH**. Categorias devem ser marcadas como
-elegíveis para habilitar o fluxo de férias.
+unidade em **Colaboradores → Categorias e unidades**. Categorias devem ser
+marcadas como elegíveis para habilitar o fluxo de férias.
 
 Cada trabalhador que solicita férias precisa de uma chefia explícita, definida
 na ação **Definir chefia**. A solicitação guarda essa relação no envio para que
@@ -61,11 +61,18 @@ original.
 A intranet não calcula saldo ou direito de férias. A etapa final registra a
 validação feita no processo de pessoal oficial.
 
+## Fotos de colaboradores
+
+Quem possui `people.manage` pode enviar ou remover a foto de pessoas dentro do
+seu escopo. A API aceita JPEG, PNG e WebP de até 2 MB, remove metadados e
+normaliza o conteúdo para WebP quadrado de 512 px. Os objetos ficam privados e
+só são entregues pela API após verificar sessão e escopo.
+
 ## Desativação e auditoria
 
 Desativar uma pessoa encerra o vínculo ativo, desativa sua conta e revoga as
 sessões. Redefinir uma senha também revoga sessões e exige nova troca no
 primeiro acesso.
 
-Eventos de login, contas, papéis, pessoas, importações e decisões de férias são
-append-only e exportáveis em `/api/audit-events/export`.
+Eventos de login, contas, papéis, pessoas, fotos, importações e decisões de
+férias são append-only e exportáveis em `/api/audit-events/export`.
