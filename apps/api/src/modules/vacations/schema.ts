@@ -32,6 +32,9 @@ export const vacationRequests = pgTable(
     employmentRelationshipId: uuid("employment_relationship_id")
       .notNull()
       .references(() => employmentRelationships.id),
+    supervisorRelationshipId: uuid("supervisor_relationship_id").references(
+      () => employmentRelationships.id,
+    ),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     status: vacationStatusEnum("status").notNull().default("draft"),

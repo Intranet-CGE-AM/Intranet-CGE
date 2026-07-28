@@ -1,0 +1,2 @@
+ALTER TABLE "vacation_requests" ADD COLUMN "supervisor_relationship_id" uuid;--> statement-breakpoint
+ALTER TABLE "vacation_requests" ADD CONSTRAINT "vacation_requests_supervisor_relationship_id_employment_relationships_id_fk" FOREIGN KEY ("supervisor_relationship_id") REFERENCES "public"."employment_relationships"("id") ON DELETE no action ON UPDATE no action;

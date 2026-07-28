@@ -9,11 +9,13 @@ import { AccessService } from "./modules/access/service.js";
 import { recordAudit } from "./modules/audit/service.js";
 import { LocalAuthenticationService } from "./modules/auth/service.js";
 import { PeopleService } from "./modules/people/service.js";
+import { VacationService } from "./modules/vacations/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
 const accessService = new AccessService(db);
 const peopleService = new PeopleService(db);
+const vacationService = new VacationService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
@@ -30,6 +32,7 @@ const app = await buildApp({
   readinessCheck: async () => {
     await db.execute(sql`select 1`);
   },
+  vacationService,
 });
 
 const shutdown = async () => {
