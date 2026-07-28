@@ -1,1 +1,1 @@
-export const uiPackageName = "@cge/ui";
+export * from "./components";
