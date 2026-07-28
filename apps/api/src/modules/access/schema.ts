@@ -8,8 +8,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { userAccounts } from "../auth/schema";
-import { organizationUnits } from "../people/schema";
+import { userAccounts } from "../auth/schema.js";
+import { organizationUnits } from "../people/schema.js";
 
 export const roles = pgTable(
   "roles",

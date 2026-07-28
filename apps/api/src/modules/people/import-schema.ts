@@ -10,7 +10,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { userAccounts } from "../auth/schema";
+import { userAccounts } from "../auth/schema.js";
 
 export const importStatusEnum = pgEnum("import_status", [
   "previewed",

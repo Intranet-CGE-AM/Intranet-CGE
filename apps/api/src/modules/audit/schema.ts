@@ -7,7 +7,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-import { userAccounts } from "../auth/schema";
+import { userAccounts } from "../auth/schema.js";
 
 export const auditEvents = pgTable(
   "audit_events",

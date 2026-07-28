@@ -10,6 +10,11 @@ const configSchema = z.object({
     .string()
     .min(1)
     .default("postgresql://cge:cge@localhost:5432/intranet_cge"),
+  SESSION_SECRET: z
+    .string()
+    .min(32)
+    .default("development-only-session-secret-change-me"),
+  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

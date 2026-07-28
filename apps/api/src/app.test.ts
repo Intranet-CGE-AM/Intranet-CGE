@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { buildApp } from "./app";
-import type { AppConfig } from "./config";
+import { buildApp } from "./app.js";
+import type { AppConfig } from "./config.js";
 
 const config: AppConfig = {
   NODE_ENV: "test",
   API_PORT: 3000,
   WEB_ORIGIN: "http://localhost:5173",
   DATABASE_URL: "postgresql://unused",
+  SESSION_SECRET: "test-session-secret-with-at-least-32-characters",
+  SESSION_TTL_HOURS: 12,
 };
 
 describe("system routes", () => {

@@ -12,8 +12,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { userAccounts } from "../auth/schema";
-import { employmentRelationships } from "../people/schema";
+import { userAccounts } from "../auth/schema.js";
+import { employmentRelationships } from "../people/schema.js";
 
 export const vacationStatusEnum = pgEnum("vacation_status", [
   "draft",
