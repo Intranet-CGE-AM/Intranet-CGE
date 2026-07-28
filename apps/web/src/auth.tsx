@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
           body: json(input),
         });
+        window.sessionStorage.setItem("passwordChanged", "true");
         setUser(null);
       },
     }),

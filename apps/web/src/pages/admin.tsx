@@ -27,9 +27,9 @@ import {
   TableHead,
   TableRow,
 } from "@cge/ui";
-import { DownloadSimple, Key, PencilSimple, Plus } from "@phosphor-icons/react";
+import { DownloadSimple, Plus } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
@@ -40,7 +40,7 @@ import {
 } from "../modules/hr/person-form-fields";
 
 const permissionLabels: Record<PermissionKey, string> = {
-  "access.manage": "Papéis e permissões",
+  "access.manage": "Perfis e permissões",
   "accounts.manage": "Contas de acesso",
   "audit.read": "Consultar auditoria",
   "audit.export": "Exportar auditoria",
@@ -73,7 +73,7 @@ const permissionGroups = [
   {
     key: "administration",
     title: "Administração do sistema",
-    description: "Papéis, contas e auditoria",
+    description: "Perfis, contas e auditoria",
   },
   {
     key: "people",
@@ -105,10 +105,10 @@ const actionLabels: Record<string, string> = {
   "people.deactivated": "Pessoa desativada",
   "people.updated": "Pessoa atualizada",
   "platform-admin.bootstrapped": "Administrador inicial criado",
-  "role-assignment.created": "Papel atribuído",
-  "role-assignment.deleted": "Atribuição removida",
-  "role.created": "Papel criado",
-  "role.updated": "Papel atualizado",
+  "role-assignment.created": "Acesso concedido",
+  "role-assignment.deleted": "Acesso removido",
+  "role.created": "Perfil criado",
+  "role.updated": "Perfil atualizado",
   "vacation.cancelled": "Férias canceladas",
   "vacation.final-approved": "Férias aprovadas",
   "vacation.final-rejected": "Férias rejeitadas",
@@ -116,6 +116,18 @@ const actionLabels: Record<string, string> = {
   "vacation.supervisor-approved": "Chefia aprovou férias",
   "vacation.supervisor-rejected": "Chefia rejeitou férias",
 };
+
+const objectLabels: Record<string, string> = {
+  account: "Conta de acesso",
+  "homolog-fixture": "Cenário de homologação",
+  "import-run": "Importação de pessoas",
+  person: "Pessoa",
+  role: "Perfil de acesso",
+  "role-assignment": "Acesso concedido",
+  "vacation-request": "Solicitação de férias",
+};
+
+type AdminSection = "accounts" | "access" | "audit";
 
 type AuditEvent = {
   action: string;
@@ -128,6 +140,7 @@ type AuditEvent = {
 
 export function AdminPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
@@ -155,6 +168,37 @@ export function AdminPage() {
   const readsAudit = Boolean(user && can(user, "audit.read"));
   const exportsAudit = Boolean(user && can(user, "audit.export"));
   const hrReady = categories.length > 0 && units.length > 0;
+  const sections = [
+    managesAccounts
+      ? {
+          key: "accounts" as const,
+          label: "Contas",
+          count: users.length,
+        }
+      : null,
+    managesAccess
+      ? {
+          key: "access" as const,
+          label: "Perfis e acessos",
+          count: roles.length + assignments.length,
+        }
+      : null,
+    readsAudit
+      ? { key: "audit" as const, label: "Auditoria", count: events.length }
+      : null,
+  ].filter(
+    (
+      section,
+    ): section is {
+      key: AdminSection;
+      label: string;
+      count: number;
+    } => Boolean(section),
+  );
+  const requestedSection = searchParams.get("secao") as AdminSection | null;
+  const section = sections.some((item) => item.key === requestedSection)
+    ? requestedSection
+    : sections[0]?.key;
 
   const load = useCallback(async () => {
     try {
@@ -307,7 +351,7 @@ export function AdminPage() {
         );
         setRoleDialog(null);
       },
-      current ? "Papel atualizado." : "Papel criado.",
+      current ? "Perfil atualizado." : "Perfil criado.",
     );
   }
 
@@ -324,7 +368,7 @@ export function AdminPage() {
         }),
       });
       setAssignmentDialog(false);
-    }, "Papel atribuído à conta.");
+    }, "Acesso concedido.");
   }
 
   async function resetPassword(event: FormEvent<HTMLFormElement>) {
@@ -357,12 +401,12 @@ export function AdminPage() {
   }
 
   async function removeAssignment(assignment: RoleAssignment, label: string) {
-    if (!window.confirm(`Remover a atribuição “${label}”?`)) return;
+    if (!window.confirm(`Remover o acesso “${label}”?`)) return;
     await mutate(async () => {
       await api(`/api/admin/role-assignments/${assignment.id}`, {
         method: "DELETE",
       });
-    }, "Atribuição removida.");
+    }, "Acesso removido.");
   }
 
   if (!managesAccounts && !managesAccess && !readsAudit) {
@@ -383,7 +427,7 @@ export function AdminPage() {
           Administração
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Contas, papéis, escopos e rastreabilidade dos módulos.
+          Pessoas com acesso, perfis por módulo e histórico da plataforma.
         </p>
       </div>
 
@@ -398,24 +442,31 @@ export function AdminPage() {
         </Alert>
       ) : null}
 
-      <dl className="grid divide-y divide-[var(--border)] border-y border-[var(--border)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {[
-          { label: "Contas", value: users.length },
-          { label: "Papéis", value: roles.length },
-          { label: "Atribuições", value: assignments.length },
-        ].map(({ label, value }) => (
-          <div className="px-1 py-4 sm:px-5" key={label}>
-            <dt className="text-xs font-semibold text-[var(--text-muted)]">
-              {label}
-            </dt>
-            <dd className="mt-1 text-2xl font-extrabold tabular-nums">
-              {value}
-            </dd>
-          </div>
+      <nav
+        aria-label="Seções da administração"
+        className="flex gap-1 overflow-x-auto border-b border-[var(--border)]"
+      >
+        {sections.map((item) => (
+          <Link
+            aria-current={section === item.key ? "page" : undefined}
+            className={[
+              "inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+              section === item.key
+                ? "border-[var(--brand)] text-[var(--brand)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]",
+            ].join(" ")}
+            key={item.key}
+            to={`?secao=${item.key}`}
+          >
+            {item.label}
+            <span className="text-xs tabular-nums text-[var(--text-faint)]">
+              {item.count}
+            </span>
+          </Link>
         ))}
-      </dl>
+      </nav>
 
-      {managesAccounts ? (
+      {managesAccounts && section === "accounts" ? (
         <Card>
           <CardHeader>
             <div>
@@ -474,11 +525,11 @@ export function AdminPage() {
                           <Button
                             aria-label={`Redefinir senha de ${account.person.displayName}`}
                             disabled={busy}
-                            size="icon"
+                            size="sm"
                             variant="quiet"
                             onClick={() => setPasswordAccount(account)}
                           >
-                            <Key aria-hidden="true" size={17} />
+                            Redefinir senha
                           </Button>
                         ) : null}
                         {account.status === "active" &&
@@ -507,19 +558,19 @@ export function AdminPage() {
         </Card>
       ) : null}
 
-      {managesAccess ? (
+      {managesAccess && section === "access" ? (
         <div className="grid gap-5 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-bold">Papéis</h2>
+                <h2 className="font-bold">Perfis de acesso</h2>
                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Grupos editáveis do catálogo fixo de permissões.
+                  Combine permissões de um ou mais módulos.
                 </p>
               </div>
               <Button size="sm" onClick={() => setRoleDialog("new")}>
                 <Plus aria-hidden="true" size={15} weight="bold" />
-                Novo papel
+                Novo perfil
               </Button>
             </CardHeader>
             {loading ? (
@@ -536,12 +587,12 @@ export function AdminPage() {
                         </p>
                       </div>
                       <Button
-                        aria-label={`Editar papel ${role.name}`}
-                        size="icon"
+                        aria-label={`Editar perfil ${role.name}`}
+                        size="sm"
                         variant="quiet"
                         onClick={() => setRoleDialog(role)}
                       >
-                        <PencilSimple aria-hidden="true" size={17} />
+                        Editar
                       </Button>
                     </div>
                     <div className="mt-4 space-y-3">
@@ -570,8 +621,8 @@ export function AdminPage() {
               </div>
             ) : (
               <EmptyState
-                title="Nenhum papel"
-                description="Crie um papel com as permissões necessárias."
+                title="Nenhum perfil"
+                description="Crie um perfil com as permissões necessárias."
               />
             )}
           </Card>
@@ -579,14 +630,15 @@ export function AdminPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-bold">Atribuições</h2>
+                <h2 className="font-bold">Acessos concedidos</h2>
                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Uma conta pode acumular papéis globais e por unidade.
+                  Uma pessoa pode acumular perfis em toda a organização ou por
+                  unidade.
                 </p>
               </div>
               <Button size="sm" onClick={() => setAssignmentDialog(true)}>
                 <Plus aria-hidden="true" size={15} weight="bold" />
-                Atribuir
+                Conceder acesso
               </Button>
             </CardHeader>
             {loading ? (
@@ -603,8 +655,8 @@ export function AdminPage() {
                   const unit = units.find(
                     (item) => item.id === assignment.unitId,
                   );
-                  const label = `${role?.name ?? "Papel"} · ${
-                    unit?.name ?? "Escopo global"
+                  const label = `${role?.name ?? "Perfil"} · ${
+                    unit?.name ?? "Toda a organização"
                   }`;
                   return (
                     <div
@@ -633,15 +685,15 @@ export function AdminPage() {
               </div>
             ) : (
               <EmptyState
-                title="Nenhuma atribuição"
-                description="Atribua um papel a uma conta e defina seu escopo."
+                title="Nenhum acesso concedido"
+                description="Escolha uma pessoa, um perfil e onde o acesso deve valer."
               />
             )}
           </Card>
         </div>
       ) : null}
 
-      {readsAudit ? (
+      {readsAudit && section === "audit" ? (
         <Card>
           <CardHeader>
             <div>
@@ -678,7 +730,7 @@ export function AdminPage() {
                       {actionLabels[event.action] ?? event.action}
                     </TableCell>
                     <TableCell className="text-[var(--text-muted)]">
-                      {event.objectType}
+                      {objectLabels[event.objectType] ?? event.objectType}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -873,7 +925,11 @@ export function AdminPage() {
       >
         <DialogContent
           className="max-w-2xl"
-          title={roleDialog === "new" ? "Novo papel" : "Editar papel"}
+          title={
+            roleDialog === "new"
+              ? "Novo perfil de acesso"
+              : "Editar perfil de acesso"
+          }
           description="As alterações passam a valer nas próximas requisições."
         >
           <form
@@ -908,7 +964,7 @@ export function AdminPage() {
             <fieldset>
               <legend className="text-sm font-semibold">Permissões</legend>
               <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Combine acessos de módulos diferentes no mesmo papel.
+                Combine acessos de módulos diferentes no mesmo perfil.
               </p>
               <div className="mt-3 divide-y divide-[var(--border)] border-y border-[var(--border)]">
                 {permissionGroups.map((group) => (
@@ -950,7 +1006,7 @@ export function AdminPage() {
               {busy
                 ? "Salvando…"
                 : roleDialog === "new"
-                  ? "Criar papel"
+                  ? "Criar perfil"
                   : "Salvar alterações"}
             </Button>
           </form>
@@ -964,14 +1020,14 @@ export function AdminPage() {
           if (!open) setDialogError("");
         }}
       >
-        <DialogContent title="Atribuir papel">
+        <DialogContent title="Conceder acesso">
           <form className="space-y-4" onSubmit={createAssignment}>
             {dialogError ? (
               <Alert title="Revise os dados" tone="danger">
                 {dialogError}
               </Alert>
             ) : null}
-            <FormField htmlFor="accountId" label="Conta">
+            <FormField htmlFor="accountId" label="Pessoa">
               <Select
                 autoComplete="off"
                 id="accountId"
@@ -988,7 +1044,7 @@ export function AdminPage() {
                   ))}
               </Select>
             </FormField>
-            <FormField htmlFor="roleId" label="Papel">
+            <FormField htmlFor="roleId" label="Perfil de acesso">
               <Select autoComplete="off" id="roleId" name="roleId" required>
                 <option value="">Selecione</option>
                 {roles.map((role) => (
@@ -1000,11 +1056,11 @@ export function AdminPage() {
             </FormField>
             <FormField
               htmlFor="unitId"
-              label="Escopo"
-              hint="Sem unidade significa acesso global."
+              label="Onde o acesso vale"
+              hint="Escolha toda a organização ou limite o acesso a uma unidade."
             >
               <Select autoComplete="off" id="unitId" name="unitId">
-                <option value="">Global</option>
+                <option value="">Toda a organização</option>
                 {units.map((unit) => (
                   <option key={unit.id} value={unit.id}>
                     {unit.code} · {unit.name}
@@ -1013,7 +1069,7 @@ export function AdminPage() {
               </Select>
             </FormField>
             <Button className="w-full" disabled={busy} type="submit">
-              {busy ? "Atribuindo…" : "Atribuir papel"}
+              {busy ? "Concedendo…" : "Conceder acesso"}
             </Button>
           </form>
         </DialogContent>

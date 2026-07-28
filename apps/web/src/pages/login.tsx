@@ -1,6 +1,6 @@
 import { Alert, Button, FormField, Input } from "@cge/ui";
 import { LockKey } from "@phosphor-icons/react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth";
@@ -15,8 +15,19 @@ export function LoginPage() {
     from?: string;
     passwordChanged?: boolean;
   } | null;
+  const [passwordChanged] = useState(
+    () =>
+      Boolean(state?.passwordChanged) ||
+      window.sessionStorage.getItem("passwordChanged") === "true",
+  );
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (passwordChanged) {
+      window.sessionStorage.removeItem("passwordChanged");
+    }
+  }, [passwordChanged]);
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -54,7 +65,7 @@ export function LoginPage() {
         <LockKey aria-hidden="true" className="text-[var(--brand)]" size={16} />
         Autenticação local protegida
       </div>
-      {state?.passwordChanged ? (
+      {passwordChanged ? (
         <Alert title="Senha alterada" className="mb-5" tone="success">
           Entre novamente usando a nova senha.
         </Alert>

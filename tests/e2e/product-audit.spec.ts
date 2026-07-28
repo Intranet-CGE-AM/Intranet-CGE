@@ -174,7 +174,7 @@ test("administration onboards an employee and supports account operations", asyn
     .getByRole("link", { name: "Administração", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Atividade de auditoria" }),
+    page.getByRole("heading", { name: "Contas de acesso" }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Novo acesso" }).click();
@@ -206,12 +206,15 @@ test("administration onboards an employee and supports account operations", asyn
   ).toBeVisible();
   await expect(page.getByText("Íris", { exact: true })).toBeVisible();
 
+  await page.getByRole("link", { name: /Perfis e acessos/ }).click();
   await page
     .getByRole("button", {
-      name: "Editar papel Colaborador Homologação",
+      name: "Editar perfil Colaborador Homologação",
     })
     .click();
-  const roleDialog = page.getByRole("dialog", { name: "Editar papel" });
+  const roleDialog = page.getByRole("dialog", {
+    name: "Editar perfil de acesso",
+  });
   for (const module of ["Administração do sistema", "Pessoas e RH", "Férias"]) {
     await expect(
       roleDialog.getByRole("heading", { name: module }),
@@ -221,8 +224,9 @@ test("administration onboards an employee and supports account operations", asyn
     .getByLabel("Descrição")
     .fill("Acesso de colaborador validado em homologação.");
   await page.getByRole("button", { name: "Salvar alterações" }).click();
-  await expect(page.getByText("Papel atualizado.")).toBeVisible();
+  await expect(page.getByText("Perfil atualizado.")).toBeVisible();
 
+  await page.getByRole("link", { name: /Contas/ }).click();
   const workerRow = page
     .getByRole("row")
     .filter({ hasText: "account-audit-e2e@local.invalid" });
@@ -323,6 +327,8 @@ test("critical pages pass WCAG AA automation at mobile, tablet, and desktop size
       "/rh/colaboradores",
       "/rh/ferias",
       "/sistema/administracao",
+      "/sistema/administracao?secao=access",
+      "/sistema/administracao?secao=audit",
     ]) {
       await page.goto(path);
       await expect(page.locator("h1")).toBeVisible();
