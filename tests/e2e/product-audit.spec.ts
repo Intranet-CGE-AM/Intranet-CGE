@@ -169,8 +169,8 @@ test("administration onboards an employee and supports account operations", asyn
   await page.getByLabel("Data de nascimento").fill("1992-04-17");
   await page.getByLabel("Matrícula").fill("ADM-E2E-001");
   await page.getByLabel("Data de início").fill("2026-07-28");
-  await page.getByLabel("Categoria").selectOption({ index: 1 });
-  await page.getByLabel("Unidade").selectOption({ index: 1 });
+  await page.getByLabel("Categoria funcional").selectOption({ index: 1 });
+  await page.getByLabel("Unidade de lotação").selectOption({ index: 1 });
   await page.getByLabel("Cargo").fill("Analista de controle");
   await page
     .getByLabel("E-mail institucional")

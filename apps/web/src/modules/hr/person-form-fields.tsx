@@ -74,7 +74,11 @@ export function PersonFormFields({
           type="date"
         />
       </FormField>
-      <FormField htmlFor={fieldId("categoryId")} label="Categoria">
+      <FormField
+        hint="Tipo de vínculo, como servidor efetivo, comissionado ou terceirizado."
+        htmlFor={fieldId("categoryId")}
+        label="Categoria funcional"
+      >
         <Select
           defaultValue={person?.employment?.categoryId ?? ""}
           id={fieldId("categoryId")}
@@ -91,7 +95,11 @@ export function PersonFormFields({
           ))}
         </Select>
       </FormField>
-      <FormField htmlFor={fieldId("unitId")} label="Unidade">
+      <FormField
+        hint="Área da CGE em que a pessoa ficará lotada."
+        htmlFor={fieldId("unitId")}
+        label="Unidade de lotação"
+      >
         <Select
           defaultValue={person?.employment?.unitId ?? ""}
           id={fieldId("unitId")}
