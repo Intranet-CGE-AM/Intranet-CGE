@@ -30,6 +30,21 @@ services:
       timeout: 5s
       retries: 10
 
+  object-client:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    profiles: [tools]
+    entrypoint: ["/bin/sh", "-c"]
+    environment:
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
+      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
+      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-intranet-cge}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backup
+    depends_on:
+      minio:
+        condition: service_healthy
+
   api:
     build:
       context: .
