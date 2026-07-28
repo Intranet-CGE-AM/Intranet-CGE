@@ -220,7 +220,7 @@ export function AppShell() {
 
         <aside
           className={[
-            "sticky top-0 hidden h-[100dvh] border-r border-[var(--border)] bg-[#f7f8f8] p-3 transition-[width] duration-200 lg:flex lg:flex-col",
+            "sticky top-0 z-50 hidden h-[100dvh] border-r border-[var(--border)] bg-[#f7f8f8] p-3 transition-[width] duration-200 lg:flex lg:flex-col",
             collapsed ? "w-[76px]" : "w-[248px]",
           ].join(" ")}
         >

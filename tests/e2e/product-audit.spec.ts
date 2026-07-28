@@ -239,6 +239,28 @@ test("mobile navigation traps focus, closes with Escape, and restores focus", as
     .toBe(true);
 });
 
+test("desktop collapse control remains fully visible and interactive", async ({
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  const control = page.getByRole("button", {
+    name: "Recolher barra lateral",
+  });
+  await expect(control).toBeVisible();
+  expect(
+    await control.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      return [0.2, 0.5, 0.8].map((position) => {
+        const target = document.elementFromPoint(
+          bounds.left + bounds.width * position,
+          bounds.top + bounds.height / 2,
+        );
+        return target === button || button.contains(target);
+      });
+    }),
+  ).toEqual([true, true, true]);
+});
+
 test("critical pages pass WCAG AA automation at mobile, tablet, and desktop sizes", async ({
   page,
 }) => {
