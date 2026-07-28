@@ -650,13 +650,13 @@ function eventsFor(
   const supervisorRejected = status === "supervisor_rejected";
   events.push({
     actorAccountId: accounts.supervisor.id,
-    type: supervisorRejected ? "rejected" : "approved",
+    type: supervisorRejected ? "supervisor-rejected" : "supervisor-approved",
     vacationRequestId,
   });
   if (supervisorRejected || status === "supervisor_approved") return events;
   events.push({
     actorAccountId: accounts.hr.id,
-    type: status === "final_approved" ? "approved" : "rejected",
+    type: status === "final_approved" ? "final-approved" : "final-rejected",
     vacationRequestId,
   });
   return events;

@@ -36,6 +36,24 @@ test("homolog worker sees every vacation state and immutable history", async ({
     page.getByRole("dialog", { name: "Histórico da solicitação" }),
   ).toBeVisible();
   await expect(page.getByText("Solicitação criada")).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  const approvedBySupervisor = page
+    .getByRole("row")
+    .filter({ hasText: "Aguardando decisão final" });
+  await approvedBySupervisor.getByRole("button", { name: "Histórico" }).click();
+  await expect(page.getByText("Aprovada pela chefia")).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await page.getByRole("button", { name: "Nova solicitação" }).click();
+  await page.getByLabel("Data inicial").fill("2027-05-01");
+  await page.getByLabel("Data final").fill("2027-05-10");
+  await page.getByRole("button", { name: "Salvar rascunho" }).click();
+  await expect(page.getByText(/Rascunho salvo/)).toBeVisible();
+  const newDraft = page.getByRole("row").filter({ hasText: "01 de mai." });
+  await expect(
+    newDraft.getByRole("button", { name: "Enviar para chefia" }),
+  ).toBeVisible();
 });
 
 test("unit scopes suppress unrelated people and modules", async ({ page }) => {

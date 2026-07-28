@@ -109,6 +109,11 @@ export function VacationsPage() {
 
   async function createRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const submit =
+      submitter instanceof HTMLButtonElement
+        ? submitter.value === "submit"
+        : true;
     const data = new FormData(event.currentTarget);
     const startDate = String(data.get("startDate"));
     const endDate = String(data.get("endDate"));
@@ -127,16 +132,38 @@ export function VacationsPage() {
         body: json({
           startDate,
           endDate,
-          submit: true,
+          submit,
         }),
       });
       setCreateDialog(false);
       await load();
-      setSuccess("Solicitação enviada para a chefia.");
+      setSuccess(
+        submit
+          ? "Solicitação enviada para a chefia."
+          : "Rascunho salvo. Envie quando estiver pronto.",
+      );
     } catch (cause) {
       setDialogError(
         messageFor(cause, "Não foi possível enviar a solicitação."),
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitDraft(request: VacationRequest) {
+    try {
+      setBusy(true);
+      setError("");
+      setSuccess("");
+      await api(`/api/vacation-requests/${request.id}/submit`, {
+        method: "POST",
+        body: json({ version: request.version }),
+      });
+      await load();
+      setSuccess("Solicitação enviada para a chefia.");
+    } catch (cause) {
+      setError(messageFor(cause, "Não foi possível enviar a solicitação."));
     } finally {
       setBusy(false);
     }
@@ -232,14 +259,16 @@ export function VacationsPage() {
         </Alert>
       ) : null}
 
-      <div className="border-l-2 border-[var(--brand)] py-1 pl-4 text-sm text-[var(--text-muted)]">
-        <div className="flex gap-3">
-          <Info aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
-          <p>
-            A intranet organiza solicitações e decisões. O registro funcional e
-            o saldo oficial permanecem no sistema de pessoal competente.
-          </p>
-        </div>
+      <div className="flex gap-3 py-1 text-sm text-[var(--text-muted)]">
+        <Info
+          aria-hidden="true"
+          className="mt-0.5 shrink-0 text-[var(--brand)]"
+          size={18}
+        />
+        <p>
+          A intranet organiza solicitações e decisões. O registro funcional e o
+          saldo oficial permanecem no sistema de pessoal competente.
+        </p>
       </div>
 
       {loading ? (
@@ -259,19 +288,30 @@ export function VacationsPage() {
               busy={busy}
               empty="Você ainda não possui solicitações."
               onHistory={setHistory}
-              action={(request) =>
-                ["draft", "submitted", "supervisor_approved"].includes(
-                  request.status,
-                ) ? (
-                  <Button
-                    variant="quiet"
-                    size="sm"
-                    onClick={() => void cancel(request)}
-                  >
-                    Cancelar
-                  </Button>
-                ) : null
-              }
+              action={(request) => (
+                <>
+                  {request.status === "draft" ? (
+                    <Button
+                      disabled={busy}
+                      size="sm"
+                      onClick={() => void submitDraft(request)}
+                    >
+                      Enviar para chefia
+                    </Button>
+                  ) : null}
+                  {["draft", "submitted", "supervisor_approved"].includes(
+                    request.status,
+                  ) ? (
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      onClick={() => void cancel(request)}
+                    >
+                      Cancelar
+                    </Button>
+                  ) : null}
+                </>
+              )}
             />
           ) : null}
           {reviewsSupervisor ? (
@@ -291,7 +331,7 @@ export function VacationsPage() {
                       setDecision({ request, stage: "supervisor" })
                     }
                   >
-                    Decidir
+                    Analisar
                   </Button>
                 ) : null
               }
@@ -312,7 +352,7 @@ export function VacationsPage() {
                     size="sm"
                     onClick={() => setDecision({ request, stage: "final" })}
                   >
-                    Decidir
+                    Analisar
                   </Button>
                 ) : null
               }
@@ -330,7 +370,7 @@ export function VacationsPage() {
       >
         <DialogContent
           title="Nova solicitação"
-          description="O período será enviado diretamente para sua chefia."
+          description="Salve como rascunho ou envie o período para análise da chefia."
         >
           <form className="space-y-4" onSubmit={createRequest}>
             {dialogError ? (
@@ -366,7 +406,21 @@ export function VacationsPage() {
               >
                 Cancelar
               </Button>
-              <Button disabled={busy} type="submit">
+              <Button
+                disabled={busy}
+                name="intent"
+                type="submit"
+                value="draft"
+                variant="secondary"
+              >
+                {busy ? "Salvando…" : "Salvar rascunho"}
+              </Button>
+              <Button
+                disabled={busy}
+                name="intent"
+                type="submit"
+                value="submit"
+              >
                 {busy ? "Enviando…" : "Enviar para chefia"}
               </Button>
             </div>
@@ -382,14 +436,10 @@ export function VacationsPage() {
         }}
       >
         <DialogContent
-          title={
-            decision?.stage === "supervisor"
-              ? "Decisão da chefia"
-              : "Decisão final"
-          }
+          title="Analisar solicitação"
           description={
             decision
-              ? `${decision.request.requester.displayName} · ${formatPeriod(decision.request)}`
+              ? `${decision.stage === "supervisor" ? "Análise da chefia" : "Análise final"} · ${decision.request.requester.displayName} · ${formatPeriod(decision.request)}`
               : undefined
           }
         >
@@ -403,13 +453,21 @@ export function VacationsPage() {
               <Select
                 id="vacationDecision"
                 name="decision"
-                defaultValue="approve"
+                defaultValue=""
+                required
               >
+                <option value="" disabled>
+                  Selecione uma decisão
+                </option>
                 <option value="approve">Aprovar</option>
                 <option value="reject">Rejeitar</option>
               </Select>
             </FormField>
-            <FormField htmlFor="vacationComment" label="Comentário">
+            <FormField
+              htmlFor="vacationComment"
+              label="Comentário"
+              hint="Obrigatório ao rejeitar."
+            >
               <Textarea
                 id="vacationComment"
                 name="comment"
@@ -426,7 +484,7 @@ export function VacationsPage() {
                 Cancelar
               </Button>
               <Button disabled={busy} type="submit">
-                {busy ? "Registrando…" : "Registrar decisão"}
+                {busy ? "Registrando…" : "Confirmar decisão"}
               </Button>
             </div>
           </form>
@@ -585,6 +643,10 @@ const eventLabels: Record<string, string> = {
   approved: "Solicitação aprovada",
   cancelled: "Solicitação cancelada",
   created: "Solicitação criada",
+  "final-approved": "Aprovada pela área responsável",
+  "final-rejected": "Rejeitada pela área responsável",
   rejected: "Solicitação rejeitada",
+  "supervisor-approved": "Aprovada pela chefia",
+  "supervisor-rejected": "Rejeitada pela chefia",
   submitted: "Enviada para a chefia",
 };

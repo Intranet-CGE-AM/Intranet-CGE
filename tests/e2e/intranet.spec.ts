@@ -115,12 +115,13 @@ test("complete HR journey from import through final vacation approval", async ({
   });
   await expect(supervisorQueue).toBeVisible();
   await page
-    .getByRole("row", { name: /Trabalhador.*Decidir/ })
-    .getByRole("button", { name: "Decidir" })
+    .getByRole("row", { name: /Trabalhador.*Analisar/ })
+    .getByRole("button", { name: "Analisar" })
     .click();
+  await expect(page.getByLabel("Decisão", { exact: true })).toHaveValue("");
   await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
   await page.getByLabel("Comentário").fill("Período validado pela chefia.");
-  await page.getByRole("button", { name: "Registrar decisão" }).click();
+  await page.getByRole("button", { name: "Confirmar decisão" }).click();
   await expect(
     page.getByText("Nenhuma solicitação aguarda decisão da chefia."),
   ).toBeVisible();
@@ -128,18 +129,18 @@ test("complete HR journey from import through final vacation approval", async ({
   await logout(page, "Supervisora");
   await login(page, admin.email, admin.password);
   await openHrRoute(page, "Férias");
-  const finalRow = page.getByRole("row", { name: /Trabalhador.*Decidir/ });
-  await finalRow.getByRole("button", { name: "Decidir" }).click();
+  const finalRow = page.getByRole("row", { name: /Trabalhador.*Analisar/ });
+  await finalRow.getByRole("button", { name: "Analisar" }).click();
   await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
   await page
     .getByLabel("Comentário")
     .fill("Elegibilidade conferida pela área de RH.");
-  await page.getByRole("button", { name: "Registrar decisão" }).click();
+  await page.getByRole("button", { name: "Confirmar decisão" }).click();
   await expect(
     page.getByText("Decisão registrada no histórico."),
   ).toBeVisible();
   await expect(
-    page.getByRole("row", { name: /Trabalhador.*Decidir/ }),
+    page.getByRole("row", { name: /Trabalhador.*Analisar/ }),
   ).toHaveCount(0);
 
   const audit = await page.request.get("/api/audit-events/export");
