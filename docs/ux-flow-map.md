@@ -180,3 +180,12 @@ Critérios:
 - ações destrutivas confirmadas;
 - nenhum controle depende apenas de ícone, cor ou conhecimento técnico;
 - formatação, lint, tipos, testes e build aprovados antes de cada push.
+
+## Resultado da implementação
+
+Todos os fluxos priorizados neste mapa foram implementados em `main`.
+
+- 11 de 11 jornadas Playwright aprovadas;
+- 14 de 14 testes da API aprovados;
+- rotas críticas aprovadas pelo Axe em 390 px, 768 px e 1440 px;
+- formatação, lint, tipos e builds de produção aprovados.
