@@ -31,6 +31,9 @@ const user: AuthenticatedUser = {
 };
 
 const authenticationService: AuthenticationService = {
+  async createAccount() {
+    return { id: user.account.id, email: user.account.email };
+  },
   async authenticate(token: string) {
     return token === "valid-token" ? user : null;
   },
@@ -43,6 +46,13 @@ const authenticationService: AuthenticationService = {
       : null;
   },
   async logout() {},
+  async resetPassword() {
+    return true;
+  },
+  async deactivateAccount() {
+    return true;
+  },
+  async deactivateAccountForPerson() {},
 };
 
 describe("access routes", () => {

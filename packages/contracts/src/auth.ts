@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { permissionKeySchema } from "./access.js";
+
 export const loginRequestSchema = z.object({
   email: z.email().max(254),
   password: z.string().min(1).max(128),
@@ -16,7 +18,7 @@ export const changePasswordRequestSchema = z
   });
 
 export const effectivePermissionSchema = z.object({
-  key: z.string(),
+  key: permissionKeySchema,
   unitId: z.uuid().nullable(),
 });
 

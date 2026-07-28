@@ -39,3 +39,35 @@ export async function requirePermission(
   }
   return user;
 }
+
+export async function requireAnyPermission(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  authenticationService: AuthenticationService,
+  permission: PermissionKey,
+) {
+  const token = readSessionToken(request);
+  const user = token ? await authenticationService.authenticate(token) : null;
+  if (!user) {
+    await reply.status(401).send({
+      code: "UNAUTHENTICATED",
+      message: "Sua sessão não é válida.",
+    });
+    return null;
+  }
+  if (user.account.mustChangePassword) {
+    await reply.status(403).send({
+      code: "PASSWORD_CHANGE_REQUIRED",
+      message: "Altere sua senha antes de continuar.",
+    });
+    return null;
+  }
+  if (!user.permissions.some((grant) => grant.key === permission)) {
+    await reply.status(403).send({
+      code: "FORBIDDEN",
+      message: "Você não possui permissão para esta ação.",
+    });
+    return null;
+  }
+  return user;
+}

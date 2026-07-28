@@ -1,8 +1,10 @@
 import type {
+  AccountCreate,
   AuthenticatedUser,
   ChangePasswordRequest,
-  PermissionKey,
   LoginRequest,
+  PasswordReset,
+  PermissionKey,
 } from "@cge/contracts";
 import { argon2id, hash, verify } from "argon2";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
@@ -20,6 +22,11 @@ import { createSessionToken, hashSessionToken } from "./token.js";
 
 export interface AuthenticationService {
   authenticate(token: string): Promise<AuthenticatedUser | null>;
+  createAccount(
+    personId: string,
+    input: AccountCreate,
+    actorAccountId: string,
+  ): Promise<{ id: string; email: string }>;
   changePassword(
     accountId: string,
     input: ChangePasswordRequest,
@@ -28,6 +35,19 @@ export interface AuthenticationService {
     input: LoginRequest,
   ): Promise<{ token: string; user: AuthenticatedUser } | null>;
   logout(token: string): Promise<void>;
+  resetPassword(
+    accountId: string,
+    input: PasswordReset,
+    actorAccountId: string,
+  ): Promise<boolean>;
+  deactivateAccount(
+    accountId: string,
+    actorAccountId: string,
+  ): Promise<boolean>;
+  deactivateAccountForPerson(
+    personId: string,
+    actorAccountId: string,
+  ): Promise<void>;
 }
 
 export class LocalAuthenticationService implements AuthenticationService {
@@ -97,6 +117,34 @@ export class LocalAuthenticationService implements AuthenticationService {
       ...this.toAuthenticatedUser(record),
       permissions: await this.resolvePermissions(record.accountId),
     };
+  }
+
+  async createAccount(
+    personId: string,
+    input: AccountCreate,
+    actorAccountId: string,
+  ) {
+    const [account] = await this.db
+      .insert(userAccounts)
+      .values({
+        personId,
+        email: input.email.trim().toLowerCase(),
+        passwordHash: await this.hashPassword(input.temporaryPassword),
+        forcePasswordChangeAt: new Date(),
+      })
+      .returning({ id: userAccounts.id, email: userAccounts.email });
+    if (!account) {
+      throw new Error("Account was not created");
+    }
+    await this.recordEvent({
+      actorAccountId,
+      action: "account.created",
+      objectType: "account",
+      objectId: account.id,
+      outcome: "success",
+      metadata: { personId },
+    });
+    return account;
   }
 
   async login(input: LoginRequest) {
@@ -191,12 +239,7 @@ export class LocalAuthenticationService implements AuthenticationService {
       return "invalid-current-password" as const;
     }
 
-    const passwordHash = await hash(input.newPassword, {
-      memoryCost: 65_536,
-      parallelism: 1,
-      timeCost: 3,
-      type: argon2id,
-    });
+    const passwordHash = await this.hashPassword(input.newPassword);
 
     await this.db.transaction(async (transaction) => {
       await transaction
@@ -221,6 +264,74 @@ export class LocalAuthenticationService implements AuthenticationService {
     });
 
     return "changed" as const;
+  }
+
+  async resetPassword(
+    accountId: string,
+    input: PasswordReset,
+    actorAccountId: string,
+  ) {
+    const [account] = await this.db
+      .update(userAccounts)
+      .set({
+        passwordHash: await this.hashPassword(input.temporaryPassword),
+        forcePasswordChangeAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(userAccounts.id, accountId))
+      .returning({ id: userAccounts.id });
+    if (!account) {
+      return false;
+    }
+    await this.db.delete(sessions).where(eq(sessions.accountId, accountId));
+    await this.recordEvent({
+      actorAccountId,
+      action: "account.password-reset",
+      objectType: "account",
+      objectId: accountId,
+      outcome: "success",
+    });
+    return true;
+  }
+
+  async deactivateAccount(accountId: string, actorAccountId: string) {
+    const [account] = await this.db
+      .update(userAccounts)
+      .set({ status: "disabled", updatedAt: new Date() })
+      .where(eq(userAccounts.id, accountId))
+      .returning({ id: userAccounts.id });
+    if (!account) {
+      return false;
+    }
+    await this.db.delete(sessions).where(eq(sessions.accountId, accountId));
+    await this.recordEvent({
+      actorAccountId,
+      action: "account.deactivated",
+      objectType: "account",
+      objectId: accountId,
+      outcome: "success",
+    });
+    return true;
+  }
+
+  async deactivateAccountForPerson(personId: string, actorAccountId: string) {
+    const [account] = await this.db
+      .select({ id: userAccounts.id })
+      .from(userAccounts)
+      .where(eq(userAccounts.personId, personId))
+      .limit(1);
+    if (account) {
+      await this.deactivateAccount(account.id, actorAccountId);
+    }
+  }
+
+  private hashPassword(password: string) {
+    return hash(password, {
+      memoryCost: 65_536,
+      parallelism: 1,
+      timeCost: 3,
+      type: argon2id,
+    });
   }
 
   private toAuthenticatedUser(record: {

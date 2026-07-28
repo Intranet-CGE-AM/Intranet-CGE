@@ -18,6 +18,8 @@ import type { AccessService } from "./modules/access/service.js";
 import { auditRoutes } from "./modules/audit/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
+import { peopleRoutes } from "./modules/people/routes.js";
+import type { PeopleService } from "./modules/people/service.js";
 import { systemRoutes } from "./modules/system/routes.js";
 
 export async function buildApp({
@@ -25,6 +27,7 @@ export async function buildApp({
   authenticationService,
   accessService,
   db,
+  peopleService,
   readinessCheck,
   logger = false,
 }: {
@@ -32,6 +35,7 @@ export async function buildApp({
   authenticationService?: AuthenticationService;
   accessService?: AccessService;
   db?: Database;
+  peopleService?: PeopleService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
@@ -93,6 +97,14 @@ export async function buildApp({
       authenticationService,
       db,
     });
+    if (peopleService) {
+      await app.register(peopleRoutes, {
+        accessService,
+        authenticationService,
+        db,
+        peopleService,
+      });
+    }
   }
 
   return app;

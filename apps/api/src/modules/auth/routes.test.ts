@@ -29,6 +29,10 @@ const user: AuthenticatedUser = {
 };
 
 class FakeAuthenticationService implements AuthenticationService {
+  async createAccount() {
+    return { id: user.account.id, email: user.account.email };
+  }
+
   async authenticate(token: string) {
     return token === "valid-token" ? user : null;
   }
@@ -44,6 +48,16 @@ class FakeAuthenticationService implements AuthenticationService {
   }
 
   async logout() {}
+
+  async resetPassword() {
+    return true;
+  }
+
+  async deactivateAccount() {
+    return true;
+  }
+
+  async deactivateAccountForPerson() {}
 }
 
 describe("authentication routes", () => {

@@ -8,10 +8,12 @@ import { createDatabase } from "./db/client.js";
 import { AccessService } from "./modules/access/service.js";
 import { recordAudit } from "./modules/audit/service.js";
 import { LocalAuthenticationService } from "./modules/auth/service.js";
+import { PeopleService } from "./modules/people/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
 const accessService = new AccessService(db);
+const peopleService = new PeopleService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
@@ -24,6 +26,7 @@ const app = await buildApp({
   config,
   db,
   logger: true,
+  peopleService,
   readinessCheck: async () => {
     await db.execute(sql`select 1`);
   },

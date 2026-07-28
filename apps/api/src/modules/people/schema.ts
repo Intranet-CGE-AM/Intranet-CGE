@@ -75,6 +75,7 @@ export const employmentRelationships = pgTable(
     supervisorRelationshipId: uuid("supervisor_relationship_id").references(
       (): AnyPgColumn => employmentRelationships.id,
     ),
+    employeeNumber: varchar("employee_number", { length: 50 }),
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
     jobTitle: varchar("job_title", { length: 160 }),
@@ -92,6 +93,9 @@ export const employmentRelationships = pgTable(
     index("employment_relationships_supervisor_idx").on(
       table.supervisorRelationshipId,
     ),
+    uniqueIndex("employment_relationships_employee_number_unique")
+      .on(table.employeeNumber)
+      .where(sql`${table.employeeNumber} is not null`),
     uniqueIndex("employment_relationships_one_active_per_person")
       .on(table.personId)
       .where(sql`${table.endDate} is null`),
