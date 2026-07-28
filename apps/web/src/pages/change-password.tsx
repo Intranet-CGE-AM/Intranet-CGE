@@ -1,6 +1,6 @@
 import { Alert, Button, FormField, Input } from "@cge/ui";
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router";
 
 import { useAuth } from "../auth";
 import { AuthLayout } from "../components/auth-layout";

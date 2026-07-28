@@ -1,5 +1,5 @@
 import { ArrowRight } from "@phosphor-icons/react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useAuth } from "../auth";
 import { availableModules, availableSystemNavigation } from "../navigation";

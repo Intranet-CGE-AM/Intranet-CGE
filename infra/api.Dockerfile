@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:22.22-alpine AS build
 
 WORKDIR /app
 RUN corepack enable
@@ -14,7 +14,7 @@ COPY apps/api apps/api
 COPY packages/contracts packages/contracts
 RUN pnpm --filter @cge/contracts build && pnpm --filter @cge/api build
 
-FROM node:22-alpine
+FROM node:22.22-alpine
 
 ENV NODE_ENV=production
 WORKDIR /app

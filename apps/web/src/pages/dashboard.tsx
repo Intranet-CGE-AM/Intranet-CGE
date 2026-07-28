@@ -16,7 +16,7 @@ import {
 } from "@cge/ui";
 import { ArrowRight, CalendarCheck, UsersThree } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useAuth } from "../auth";
 import { api, ApiError } from "../lib/api";

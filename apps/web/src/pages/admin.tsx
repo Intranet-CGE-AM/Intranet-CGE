@@ -35,7 +35,7 @@ import {
 } from "@cge/ui/tooltip";
 import { DownloadSimple, Plus, Question } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";

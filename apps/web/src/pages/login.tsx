@@ -1,7 +1,7 @@
 import { Alert, Button, FormField, Input } from "@cge/ui";
 import { LockKey } from "@phosphor-icons/react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router";
 
 import { useAuth } from "../auth";
 import { AuthLayout } from "../components/auth-layout";
