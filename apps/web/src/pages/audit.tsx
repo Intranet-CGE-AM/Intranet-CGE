@@ -91,6 +91,14 @@ export function AuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const canExport = Boolean(user && canGlobally(user, "audit.export"));
+  const hasFilters = Boolean(
+    query.trim() ||
+    outcomes.length ||
+    actions.length ||
+    objectTypes.length ||
+    from ||
+    to,
+  );
 
   const filters = new URLSearchParams({
     page: String(page),
@@ -288,18 +296,16 @@ export function AuditPage() {
               Os filtros também são aplicados ao arquivo exportado.
             </p>
           </div>
-          <Button onClick={clearFilters} size="sm" variant="quiet">
-            <SlidersHorizontal aria-hidden="true" size={16} />
-            Limpar filtros
-          </Button>
+          {hasFilters ? (
+            <Button onClick={clearFilters} size="sm" variant="quiet">
+              <SlidersHorizontal aria-hidden="true" size={16} />
+              Limpar filtros
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent className="border-b border-[var(--border)] py-4">
-          <div className="grid gap-3 md:grid-cols-2 min-[1400px]:grid-cols-[minmax(18rem,1.7fr)_repeat(3,minmax(9rem,0.8fr))_minmax(14rem,1.15fr)]">
-            <FormField
-              className="md:col-span-2 min-[1400px]:col-span-1"
-              htmlFor="auditSearch"
-              label="Buscar nos registros"
-            >
+          <div className="space-y-3">
+            <FormField htmlFor="auditSearch" label="Buscar nos registros">
               <div className="relative">
                 <MagnifyingGlass
                   aria-hidden="true"
@@ -317,75 +323,75 @@ export function AuditPage() {
                 />
               </div>
             </FormField>
-            <FormField htmlFor="auditOutcome" label="Resultado">
-              <SearchableMultiSelect
-                id="auditOutcome"
-                name="auditOutcome"
-                onValuesChange={(values) => {
-                  setPage(1);
-                  setOutcomes(values as AuditOutcome[]);
-                }}
-                options={[
-                  { label: "Sucesso", value: "success" },
-                  { label: "Falha", value: "failure" },
-                  { label: "Negado", value: "denied" },
-                ]}
-                placeholder="Todos"
-                searchPlaceholder="Pesquisar resultado…"
-                values={outcomes}
-              />
-            </FormField>
-            <FormField htmlFor="auditObject" label="Área">
-              <SearchableMultiSelect
-                id="auditObject"
-                name="auditObject"
-                onValuesChange={(values) => {
-                  setPage(1);
-                  setObjectTypes(values);
-                }}
-                options={Object.entries(objectLabels).map(([value, label]) => ({
-                  label,
-                  value,
-                }))}
-                placeholder="Todas"
-                searchPlaceholder="Pesquisar área…"
-                values={objectTypes}
-              />
-            </FormField>
-            <FormField htmlFor="auditAction" label="Evento">
-              <SearchableMultiSelect
-                id="auditAction"
-                name="auditAction"
-                onValuesChange={(values) => {
-                  setPage(1);
-                  setActions(values);
-                }}
-                options={Object.entries(actionLabels)
-                  .sort(([, left], [, right]) =>
-                    left.localeCompare(right, "pt-BR"),
-                  )
-                  .map(([value, label]) => ({ label, value }))}
-                placeholder="Todos"
-                searchPlaceholder="Pesquisar evento…"
-                values={actions}
-              />
-            </FormField>
-            <FormField
-              className="md:col-span-2 min-[1400px]:col-span-1"
-              htmlFor="auditRange"
-              label="Período"
-            >
-              <DateRangePicker
-                id="auditRange"
-                onChange={(range) => {
-                  setPage(1);
-                  setFrom(range.from);
-                  setTo(range.to);
-                }}
-                placeholder="Todas as datas"
-                value={{ from, to }}
-              />
-            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(13rem,1.25fr)]">
+              <FormField htmlFor="auditOutcome" label="Resultado">
+                <SearchableMultiSelect
+                  id="auditOutcome"
+                  name="auditOutcome"
+                  onValuesChange={(values) => {
+                    setPage(1);
+                    setOutcomes(values as AuditOutcome[]);
+                  }}
+                  options={[
+                    { label: "Sucesso", value: "success" },
+                    { label: "Falha", value: "failure" },
+                    { label: "Negado", value: "denied" },
+                  ]}
+                  placeholder="Todos"
+                  searchPlaceholder="Pesquisar resultado…"
+                  values={outcomes}
+                />
+              </FormField>
+              <FormField htmlFor="auditObject" label="Área">
+                <SearchableMultiSelect
+                  id="auditObject"
+                  name="auditObject"
+                  onValuesChange={(values) => {
+                    setPage(1);
+                    setObjectTypes(values);
+                  }}
+                  options={Object.entries(objectLabels).map(
+                    ([value, label]) => ({
+                      label,
+                      value,
+                    }),
+                  )}
+                  placeholder="Todas"
+                  searchPlaceholder="Pesquisar área…"
+                  values={objectTypes}
+                />
+              </FormField>
+              <FormField htmlFor="auditAction" label="Evento">
+                <SearchableMultiSelect
+                  id="auditAction"
+                  name="auditAction"
+                  onValuesChange={(values) => {
+                    setPage(1);
+                    setActions(values);
+                  }}
+                  options={Object.entries(actionLabels)
+                    .sort(([, left], [, right]) =>
+                      left.localeCompare(right, "pt-BR"),
+                    )
+                    .map(([value, label]) => ({ label, value }))}
+                  placeholder="Todos"
+                  searchPlaceholder="Pesquisar evento…"
+                  values={actions}
+                />
+              </FormField>
+              <FormField htmlFor="auditRange" label="Período">
+                <DateRangePicker
+                  id="auditRange"
+                  onChange={(range) => {
+                    setPage(1);
+                    setFrom(range.from);
+                    setTo(range.to);
+                  }}
+                  placeholder="Todas as datas"
+                  value={{ from, to }}
+                />
+              </FormField>
+            </div>
           </div>
         </CardContent>
         {loading ? (

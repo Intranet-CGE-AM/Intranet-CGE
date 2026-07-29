@@ -760,6 +760,9 @@ test("audit filters keep the current results stable while refreshing", async ({
     await route.continue();
   });
 
+  await expect(
+    page.getByRole("button", { name: "Limpar filtros" }),
+  ).toHaveCount(0);
   const area = page.getByRole("button", { name: "Área", exact: true });
   await area.click();
   const dialog = page.getByRole("dialog");
@@ -767,6 +770,9 @@ test("audit filters keep the current results stable while refreshing", async ({
 
   try {
     await person.click();
+    await expect(
+      page.getByRole("button", { name: "Limpar filtros" }),
+    ).toBeVisible();
     await requestStarted;
     expect(
       await page
