@@ -267,7 +267,7 @@ async function createAccount(
 }
 
 async function createRole(page: Page, name: string, permission: string) {
-  await page.getByRole("link", { name: /Perfis e acessos/ }).click();
+  await page.getByRole("link", { name: /^Perfis/ }).click();
   await page.getByRole("button", { name: "Novo perfil" }).click();
   await page.getByLabel("Nome").fill(name);
   await page.getByRole("checkbox", { name: permission, exact: true }).check();
@@ -281,17 +281,18 @@ async function assignRole(
   role: string,
   unitLabel: string,
 ) {
-  await page.getByRole("button", { name: "Conceder acesso" }).click();
-  const dialog = page.getByRole("dialog");
-  await chooseOption(page, "Pessoa", account);
-  await chooseOption(page, "Perfil de acesso", role);
-  await chooseOption(page, "Onde o acesso vale", unitLabel);
-  await dialog.getByRole("button", { name: "Conceder acesso" }).click();
-  await expect(
-    page.getByText(`${role} · ${unitLabel.split(" · ")[1] ?? unitLabel}`, {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: /Pessoas e acessos/ }).click();
+  await page
+    .getByRole("button", { name: `Gerenciar acessos de ${account}` })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: `Acessos de ${account}`,
+  });
+  await chooseOption(page, "Adicionar perfil", role);
+  await chooseOption(page, "Escopo do perfil", unitLabel);
+  await dialog.getByRole("button", { name: "Adicionar" }).click();
+  await expect(dialog.locator("p").filter({ hasText: role })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
 }
 
 async function chooseOption(page: Page, field: string, option: string) {

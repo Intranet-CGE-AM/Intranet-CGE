@@ -260,6 +260,7 @@ test("direct routes and controls remain unavailable without their permissions", 
     "/rh/colaboradores",
     "/rh/ferias",
     "/sistema/administracao",
+    "/sistema/auditoria",
   ]) {
     await page.goto(path);
     await expect(page).toHaveURL("/");
@@ -353,41 +354,22 @@ test("backend rejects cross-unit writes and scoped platform permissions", async 
   expect(platformRoleResponse.status()).toBe(201);
   const platformRole = (await platformRoleResponse.json()) as { id: string };
 
-  await adminPage.goto("/sistema/administracao?secao=access");
-  await adminPage.getByRole("button", { name: "Conceder acesso" }).click();
-  await chooseOption(adminPage, "Perfil de acesso", "Contas da plataforma E2E");
-  const accountPicker = adminPage.getByLabel("Pessoa", { exact: true });
+  await adminPage.goto("/sistema/administracao");
   await adminPage
-    .getByRole("dialog")
-    .getByRole("button", { name: "Conceder acesso" })
+    .getByRole("button", { name: "Gerenciar acessos de Leonardo Araújo" })
     .click();
-  await expect(accountPicker).toHaveAttribute("aria-invalid", "true");
-  await expect(accountPicker).toBeFocused();
-  await expect(adminPage.getByLabel("Onde o acesso vale")).toBeDisabled();
-  await accountPicker.click();
-  const accountSearch = adminPage.getByRole("combobox", {
-    name: "Pesquisar opções",
-  });
-  await accountSearch.fill("Leonardo");
+  await chooseOption(adminPage, "Adicionar perfil", "Contas da plataforma E2E");
+  await expect(adminPage.getByLabel("Escopo do perfil")).toBeDisabled();
   await expect(
-    adminPage.getByRole("option", { name: "Leonardo Araújo" }),
-  ).toBeVisible();
-  await expectAccessiblePage(adminPage, "pesquisa de pessoa", 1280);
-  await accountSearch.press("ArrowDown");
-  await accountSearch.press("Enter");
-  await expect(accountPicker).toHaveText("Leonardo Araújo");
-  await expect(accountPicker).toHaveAttribute("aria-invalid", "false");
-  await expect(
-    adminPage.getByText(
-      "Este perfil contém permissões que só podem valer para toda a organização.",
-    ),
+    adminPage.getByText("Este perfil exige escopo organizacional."),
   ).toBeVisible();
   await chooseOption(
     adminPage,
-    "Perfil de acesso",
+    "Adicionar perfil",
     "Gestão de pessoas com escopo E2E",
   );
-  await expect(adminPage.getByLabel("Onde o acesso vale")).toBeEnabled();
+  await expect(adminPage.getByLabel("Escopo do perfil")).toBeEnabled();
+  await expectAccessiblePage(adminPage, "acessos da pessoa", 1280);
 
   const invalidAssignment = await adminPage.request.post(
     "/api/admin/role-assignments",
@@ -432,6 +414,148 @@ test("backend rejects cross-unit writes and scoped platform permissions", async 
   );
   expect(forbiddenVacation.status()).toBe(403);
   await viewerContext.close();
+});
+
+test("individual access overrides and audit module work end to end", async ({
+  browser,
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  const [usersResponse, unitsResponse] = await Promise.all([
+    page.request.get("/api/admin/users"),
+    page.request.get("/api/admin/organization-units"),
+  ]);
+  const users = (await usersResponse.json()).users as Array<{
+    id: string;
+    email: string;
+  }>;
+  const units = (await unitsResponse.json()).units as Array<{
+    id: string;
+    code: string;
+  }>;
+  const noAccess = users.find(
+    (account) => account.email === accounts.noAccess,
+  )!;
+  const viewer = users.find((account) => account.email === accounts.viewer)!;
+  const controlUnit = units.find((unit) => unit.code === "CCI")!;
+
+  await page.goto("/sistema/administracao");
+  await page
+    .getByRole("button", {
+      name: "Gerenciar acessos de Ana Beatriz Vasconcelos",
+    })
+    .click();
+  await chooseOption(
+    page,
+    "Permissão específica",
+    "Pessoas e RH · Consultar pessoas",
+  );
+  await chooseOption(page, "Escopo do ajuste", "CCI · Controle Interno");
+  await page.getByRole("button", { name: "Aplicar ajuste" }).click();
+  await expect(page.getByText("Ajuste individual aplicado.")).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Acessos de Ana Beatriz Vasconcelos" })
+      .getByText("Conceder", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await page
+    .getByRole("button", {
+      name: "Gerenciar acessos de Leonardo Araújo",
+    })
+    .click();
+  await chooseOption(
+    page,
+    "Permissão específica",
+    "Pessoas e RH · Consultar pessoas",
+  );
+  await chooseOption(page, "Tratamento", "Bloquear acesso");
+  await expect(page.getByLabel("Escopo do ajuste")).toBeDisabled();
+  await page.getByRole("button", { name: "Aplicar ajuste" }).click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Acessos de Leonardo Araújo" })
+      .getByText("Bloquear", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  const allowedContext = await browser.newContext();
+  const allowedPage = await allowedContext.newPage();
+  await login(allowedPage, accounts.noAccess, password);
+  const allowedResponse = await allowedPage.request.get("/api/people");
+  expect(allowedResponse.status()).toBe(200);
+  const allowedPeople = (await allowedResponse.json()).people as Person[];
+  expect(allowedPeople.length).toBeGreaterThan(0);
+  expect(
+    allowedPeople.every(
+      (person) => person.employment?.unitId === controlUnit.id,
+    ),
+  ).toBe(true);
+  await allowedContext.close();
+
+  const deniedContext = await browser.newContext();
+  const deniedPage = await deniedContext.newPage();
+  await login(deniedPage, accounts.viewer, password);
+  const deniedResponse = await deniedPage.request.get("/api/people");
+  expect(deniedResponse.status()).toBe(403);
+  await deniedContext.close();
+
+  await page.getByRole("link", { name: "Auditoria", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Auditoria" })).toBeVisible();
+  await chooseOption(page, "Itens por página", "10");
+  await expect(
+    page.getByRole("button", { name: "Próxima página" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Próxima página" }).click();
+  await expect(page.getByText("Página 2 de", { exact: false })).toBeVisible();
+  await page
+    .getByRole("searchbox", { name: "Buscar nos registros" })
+    .fill("permission-override.created");
+  await expect(page.getByText("Página 1 de 1")).toBeVisible();
+  await chooseOption(page, "Resultado", "Sucesso");
+  await expect(
+    page.getByText("Ajuste individual aplicado", { exact: true }),
+  ).toHaveCount(2);
+  await page
+    .getByRole("button", {
+      name: "Ver detalhes de Ajuste individual aplicado",
+    })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Ajuste individual aplicado" }),
+  ).toContainText("permission-override.created");
+  await page.getByRole("button", { name: "Fechar" }).click();
+  await expectAccessiblePage(page, "/sistema/auditoria filtrada", 1280);
+
+  const exportResponse = await page.request.get(
+    "/api/audit-events/export?action=permission-override.created",
+  );
+  expect(exportResponse.status()).toBe(200);
+  const exportCsv = await exportResponse.text();
+  expect(exportCsv).toContain("actor_name");
+  expect(exportCsv).toContain("permission-override.created");
+
+  const overrideResponse = await page.request.get(
+    "/api/admin/permission-overrides",
+  );
+  const overrides = (await overrideResponse.json()).overrides as Array<{
+    id: string;
+    accountId: string;
+  }>;
+  for (const override of overrides.filter((item) =>
+    [noAccess.id, viewer.id].includes(item.accountId),
+  )) {
+    expect(
+      (
+        await page.request.delete(
+          `/api/admin/permission-overrides/${override.id}`,
+          { headers: { origin: "http://127.0.0.1:4173" } },
+        )
+      ).status(),
+    ).toBe(204);
+  }
 });
 
 test("supervisor and HR receive only their decision stages", async ({
@@ -523,8 +647,11 @@ test("first access exposes multiple modules and explains a missing supervisor", 
     navigation.getByRole("link", { name: "Recursos Humanos", exact: true }),
   ).toBeVisible();
   await expect(
-    navigation.getByRole("link", { name: "Administração", exact: true }),
+    navigation.getByRole("link", { name: "Auditoria", exact: true }),
   ).toBeVisible();
+  await expect(
+    navigation.getByRole("link", { name: "Administração", exact: true }),
+  ).toHaveCount(0);
 
   await openHrRoute(page, "Férias");
   await expect(
@@ -738,7 +865,7 @@ test("administration onboards an employee and supports account operations", asyn
   ).toBeVisible();
   await expect(page.getByText("Íris", { exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: /Perfis e acessos/ }).click();
+  await page.getByRole("link", { name: /^Perfis/ }).click();
   await page
     .getByRole("button", {
       name: "Editar perfil Colaborador Homologação",
@@ -747,7 +874,12 @@ test("administration onboards an employee and supports account operations", asyn
   const roleDialog = page.getByRole("dialog", {
     name: "Editar perfil de acesso",
   });
-  for (const module of ["Administração do sistema", "Pessoas e RH", "Férias"]) {
+  for (const module of [
+    "Administração do sistema",
+    "Auditoria",
+    "Pessoas e RH",
+    "Férias",
+  ]) {
     await expect(
       roleDialog.getByRole("heading", { name: module }),
     ).toBeVisible();
@@ -772,7 +904,7 @@ test("administration onboards an employee and supports account operations", asyn
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(page.getByText("Perfil atualizado.")).toBeVisible();
 
-  await page.getByRole("link", { name: /Contas/ }).click();
+  await page.getByRole("link", { name: /Pessoas e acessos/ }).click();
   const workerRow = page
     .getByRole("row")
     .filter({ hasText: "account-audit-e2e@local.invalid" });
@@ -899,7 +1031,7 @@ test("critical pages pass WCAG AA automation at mobile, tablet, and desktop size
       "/rh/ferias",
       "/sistema/administracao",
       "/sistema/administracao?secao=access",
-      "/sistema/administracao?secao=audit",
+      "/sistema/auditoria",
     ]) {
       await page.goto(path);
       await expect(page.locator("h1")).toBeVisible();

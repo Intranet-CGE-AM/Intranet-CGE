@@ -1,5 +1,7 @@
 import {
   authErrorSchema,
+  permissionOverrideInputSchema,
+  permissionOverrideSchema,
   roleAssignmentInputSchema,
   roleAssignmentSchema,
   roleInputSchema,
@@ -13,7 +15,12 @@ import type { Database } from "../../db/client.js";
 import { recordAudit } from "../audit/service.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { requirePermission } from "./authorize.js";
-import { RoleScopeError, type AccessService } from "./service.js";
+import {
+  PermissionOverrideConflictError,
+  PermissionScopeError,
+  RoleScopeError,
+  type AccessService,
+} from "./service.js";
 
 const idParamsSchema = z.object({ id: z.uuid() });
 
@@ -268,6 +275,141 @@ export const accessRoutes: FastifyPluginAsync<{
         action: "role-assignment.deleted",
         objectType: "role-assignment",
         objectId: assignment.id,
+        outcome: "success",
+      });
+      return reply.status(204).send(null);
+    },
+  );
+
+  typedApp.get(
+    "/api/admin/permission-overrides",
+    {
+      schema: {
+        querystring: z.object({ accountId: z.uuid().optional() }),
+        response: {
+          200: z.object({
+            overrides: z.array(permissionOverrideSchema),
+          }),
+          401: authErrorSchema,
+          403: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (
+        !(await requirePermission(
+          request,
+          reply,
+          options.authenticationService,
+          options.accessService,
+          "access.manage",
+        ))
+      ) {
+        return;
+      }
+      return {
+        overrides: await options.accessService.listOverrides(
+          request.query.accountId,
+        ),
+      };
+    },
+  );
+
+  typedApp.post(
+    "/api/admin/permission-overrides",
+    {
+      schema: {
+        body: permissionOverrideInputSchema,
+        response: {
+          201: permissionOverrideSchema,
+          400: authErrorSchema,
+          401: authErrorSchema,
+          403: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await requirePermission(
+        request,
+        reply,
+        options.authenticationService,
+        options.accessService,
+        "access.manage",
+      );
+      if (!user) return;
+      if (
+        request.body.accountId === user.account.id &&
+        request.body.permission === "access.manage" &&
+        request.body.effect === "deny"
+      ) {
+        return reply.status(400).send({
+          code: "SELF_LOCKOUT_NOT_ALLOWED",
+          message: "Você não pode bloquear seu próprio acesso administrativo.",
+        });
+      }
+      let override;
+      try {
+        override = await options.accessService.createOverride(request.body);
+      } catch (error) {
+        if (
+          error instanceof PermissionScopeError ||
+          error instanceof PermissionOverrideConflictError
+        ) {
+          return reply.status(400).send({
+            code: error.code,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+      await recordAudit(options.db, {
+        actorAccountId: user.account.id,
+        action: "permission-override.created",
+        objectType: "permission-override",
+        objectId: override.id,
+        outcome: "success",
+        metadata: request.body,
+      });
+      return reply.status(201).send(override);
+    },
+  );
+
+  typedApp.delete(
+    "/api/admin/permission-overrides/:id",
+    {
+      schema: {
+        params: idParamsSchema,
+        response: {
+          204: z.null(),
+          401: authErrorSchema,
+          403: authErrorSchema,
+          404: authErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await requirePermission(
+        request,
+        reply,
+        options.authenticationService,
+        options.accessService,
+        "access.manage",
+      );
+      if (!user) return;
+      const override = await options.accessService.deleteOverride(
+        request.params.id,
+      );
+      if (!override) {
+        return reply.status(404).send({
+          code: "OVERRIDE_NOT_FOUND",
+          message: "Ajuste individual não encontrado.",
+        });
+      }
+      await recordAudit(options.db, {
+        actorAccountId: user.account.id,
+        action: "permission-override.deleted",
+        objectType: "permission-override",
+        objectId: override.id,
         outcome: "success",
       });
       return reply.status(204).send(null);

@@ -1,6 +1,7 @@
 import type { AuthenticatedUser } from "@cge/contracts";
 import {
   CalendarDots,
+  ClipboardText,
   GearSix,
   IdentificationCard,
   SquaresFour,
@@ -34,7 +35,11 @@ export const homeNavigation: NavigationItem = {
 
 export const accessRules = {
   administration: {
-    anyOf: ["accounts.manage", "access.manage", "audit.read"],
+    anyOf: ["accounts.manage", "access.manage"],
+    global: true,
+  },
+  audit: {
+    anyOf: ["audit.read"],
     global: true,
   },
   hr: {
@@ -93,6 +98,12 @@ export const systemNavigation: NavigationItem[] = [
     label: "Administração",
     href: "/sistema/administracao",
     icon: GearSix,
+  },
+  {
+    access: accessRules.audit,
+    label: "Auditoria",
+    href: "/sistema/auditoria",
+    icon: ClipboardText,
   },
 ];
 

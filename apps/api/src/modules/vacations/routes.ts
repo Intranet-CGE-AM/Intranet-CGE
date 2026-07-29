@@ -1,5 +1,6 @@
 import {
   authErrorSchema,
+  permissionUnitIds,
   vacationDecisionInputSchema,
   vacationRequestInputSchema,
   vacationRequestSchema,
@@ -86,10 +87,9 @@ export const vacationRoutes: FastifyPluginAsync<{
         (grant) => grant.key === permission,
       );
       const unitIds =
-        request.query.scope === "mine" ||
-        grants.some((grant) => grant.unitId === null)
+        request.query.scope === "mine"
           ? null
-          : [...new Set(grants.flatMap((grant) => grant.unitId ?? []))];
+          : permissionUnitIds(grants, permission);
       return {
         requests: await options.vacationService.list(
           user.account.id,

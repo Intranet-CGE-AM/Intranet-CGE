@@ -283,16 +283,21 @@ export function AppShell() {
       pathname === module.href || pathname.startsWith(`${module.href}/`),
   );
   const inSystem = pathname.startsWith("/sistema/");
+  const inAudit = pathname.startsWith("/sistema/auditoria");
   const contextTitle = activeModule
     ? activeModule.label
-    : inSystem
-      ? "Administração da plataforma"
-      : "Intranet CGE";
+    : inAudit
+      ? "Auditoria da plataforma"
+      : inSystem
+        ? "Administração da plataforma"
+        : "Intranet CGE";
   const contextDescription = activeModule
     ? "Módulo da Intranet CGE"
-    : inSystem
-      ? "Configurações compartilhadas"
-      : "Página inicial da intranet";
+    : inAudit
+      ? "Rastreabilidade e segurança"
+      : inSystem
+        ? "Configurações compartilhadas"
+        : "Página inicial da intranet";
 
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

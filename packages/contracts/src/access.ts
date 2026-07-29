@@ -15,8 +15,10 @@ export const permissionKeys = [
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
+export const permissionEffectSchema = z.enum(["allow", "deny"]);
 
 export type PermissionKey = z.infer<typeof permissionKeySchema>;
+export type PermissionEffect = z.infer<typeof permissionEffectSchema>;
 export type PermissionScope = "global" | "global-or-unit";
 
 export const permissionScopes: Record<PermissionKey, PermissionScope> = {
@@ -34,6 +36,7 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
 };
 
 export type PermissionGrant = {
+  effect?: PermissionEffect;
   key: PermissionKey;
   unitId: string | null;
 };
@@ -43,9 +46,18 @@ export function permissionAllows(
   permission: PermissionKey,
   unitId?: string,
 ) {
+  const denied = grants.some(
+    (grant) =>
+      grant.key === permission &&
+      grant.effect === "deny" &&
+      (grant.unitId === null ||
+        (unitId !== undefined && grant.unitId === unitId)),
+  );
+  if (denied) return false;
   return grants.some(
     (grant) =>
       grant.key === permission &&
+      grant.effect !== "deny" &&
       (unitId === undefined ||
         grant.unitId === null ||
         grant.unitId === unitId),
@@ -56,8 +68,16 @@ export function permissionAllowsGlobally(
   grants: readonly PermissionGrant[],
   permission: PermissionKey,
 ) {
+  if (
+    grants.some((grant) => grant.key === permission && grant.effect === "deny")
+  ) {
+    return false;
+  }
   return grants.some(
-    (grant) => grant.key === permission && grant.unitId === null,
+    (grant) =>
+      grant.key === permission &&
+      grant.effect !== "deny" &&
+      grant.unitId === null,
   );
 }
 
@@ -75,6 +95,26 @@ export function anyPermissionAllows(
 
 export function permissionSupportsUnitScope(permission: PermissionKey) {
   return permissionScopes[permission] === "global-or-unit";
+}
+
+export function permissionUnitIds(
+  grants: readonly PermissionGrant[],
+  permission: PermissionKey,
+) {
+  if (permissionAllowsGlobally(grants, permission)) return null;
+  return [
+    ...new Set(
+      grants
+        .filter(
+          (grant) =>
+            grant.key === permission &&
+            grant.effect !== "deny" &&
+            grant.unitId !== null &&
+            permissionAllows(grants, permission, grant.unitId),
+        )
+        .map((grant) => grant.unitId as string),
+    ),
+  ];
 }
 
 export const roleInputSchema = z.object({
@@ -103,7 +143,22 @@ export const roleAssignmentSchema = z.object({
   unitId: z.uuid().nullable(),
 });
 
+export const permissionOverrideInputSchema = z.object({
+  accountId: z.uuid(),
+  permission: permissionKeySchema,
+  effect: permissionEffectSchema,
+  unitId: z.uuid().nullable().default(null),
+});
+
+export const permissionOverrideSchema = permissionOverrideInputSchema.extend({
+  id: z.uuid(),
+});
+
 export type RoleInput = z.infer<typeof roleInputSchema>;
 export type RoleAssignmentInput = z.infer<typeof roleAssignmentInputSchema>;
 export type Role = z.infer<typeof roleSchema>;
 export type RoleAssignment = z.infer<typeof roleAssignmentSchema>;
+export type PermissionOverrideInput = z.infer<
+  typeof permissionOverrideInputSchema
+>;
+export type PermissionOverride = z.infer<typeof permissionOverrideSchema>;

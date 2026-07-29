@@ -29,6 +29,13 @@
       "when": 1785280858689,
       "tag": "0003_kind_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785292056411,
+      "tag": "0004_swift_the_captain",
+      "breakpoints": true
     }
   ]
 }

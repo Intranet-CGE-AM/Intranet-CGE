@@ -2,7 +2,9 @@ import type {
   AdminUser,
   EmploymentCategory,
   OrganizationUnit,
+  PermissionEffect,
   PermissionKey,
+  PermissionOverride,
   Person,
   Role,
   RoleAssignment,
@@ -35,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@cge/ui/tooltip";
-import { DownloadSimple, Plus, Question } from "@phosphor-icons/react";
+import { Plus, Question } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 
@@ -80,13 +82,13 @@ const permissionDescriptions: Record<PermissionKey, string> = {
     "Registra a decisão final após a aprovação da chefia.",
 };
 
-type PermissionModule = "administration" | "people" | "vacations";
+type PermissionModule = "administration" | "audit" | "people" | "vacations";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "access.manage": "administration",
   "accounts.manage": "administration",
-  "audit.read": "administration",
-  "audit.export": "administration",
+  "audit.read": "audit",
+  "audit.export": "audit",
   "people.read": "people",
   "people.manage": "people",
   "people.import": "people",
@@ -100,7 +102,12 @@ const permissionGroups = [
   {
     key: "administration",
     title: "Administração do sistema",
-    description: "Perfis, contas e auditoria",
+    description: "Perfis e contas da plataforma",
+  },
+  {
+    key: "audit",
+    title: "Auditoria",
+    description: "Consulta e exportação dos registros",
   },
   {
     key: "people",
@@ -119,55 +126,9 @@ const permissionGroups = [
   ),
 }));
 
-const actionLabels: Record<string, string> = {
-  "account.created": "Conta criada",
-  "account.deactivated": "Conta desativada",
-  "account.password-reset": "Senha redefinida",
-  "auth.login": "Entrada na intranet",
-  "auth.logout": "Saída da intranet",
-  "auth.password-change": "Senha alterada",
-  "people-import.apply": "Importação aplicada",
-  "people-import.preview": "Importação validada",
-  "people.created": "Pessoa cadastrada",
-  "people.deactivated": "Pessoa desativada",
-  "people.updated": "Pessoa atualizada",
-  "person.avatar-deleted": "Foto removida",
-  "person.avatar-updated": "Foto atualizada",
-  "platform-admin.bootstrapped": "Administrador inicial criado",
-  "role-assignment.created": "Acesso concedido",
-  "role-assignment.deleted": "Acesso removido",
-  "role.created": "Perfil criado",
-  "role.updated": "Perfil atualizado",
-  "vacation.cancelled": "Férias canceladas",
-  "vacation.final-approved": "Férias aprovadas",
-  "vacation.final-rejected": "Férias rejeitadas",
-  "vacation.submitted": "Férias solicitadas",
-  "vacation.supervisor-approved": "Chefia aprovou férias",
-  "vacation.supervisor-rejected": "Chefia rejeitou férias",
-};
-
 const organizationScope = "organization";
 
-const objectLabels: Record<string, string> = {
-  account: "Conta de acesso",
-  "homolog-fixture": "Cenário de homologação",
-  "import-run": "Importação de pessoas",
-  person: "Pessoa",
-  role: "Perfil de acesso",
-  "role-assignment": "Acesso concedido",
-  "vacation-request": "Solicitação de férias",
-};
-
-type AdminSection = "accounts" | "access" | "audit";
-
-type AuditEvent = {
-  action: string;
-  actorAccountId: string | null;
-  createdAt: string;
-  id: string;
-  objectType: string;
-  outcome: string;
-};
+type AdminSection = "accounts" | "access";
 
 export function AdminPage() {
   const { refresh, user } = useAuth();
@@ -177,8 +138,8 @@ export function AdminPage() {
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [assignments, setAssignments] = useState<RoleAssignment[]>([]);
+  const [overrides, setOverrides] = useState<PermissionOverride[]>([]);
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
-  const [events, setEvents] = useState<AuditEvent[]>([]);
   const [error, setError] = useState("");
   const [dialogError, setDialogError] = useState("");
   const [success, setSuccess] = useState("");
@@ -187,8 +148,13 @@ export function AdminPage() {
   const [userDialog, setUserDialog] = useState(false);
   const [userMode, setUserMode] = useState<"new" | "existing">("existing");
   const [roleDialog, setRoleDialog] = useState<Role | "new" | null>(null);
-  const [assignmentDialog, setAssignmentDialog] = useState(false);
+  const [accessAccount, setAccessAccount] = useState<AdminUser | null>(null);
   const [assignmentRoleId, setAssignmentRoleId] = useState("");
+  const [overridePermission, setOverridePermission] = useState<
+    PermissionKey | ""
+  >("");
+  const [overrideEffect, setOverrideEffect] =
+    useState<PermissionEffect>("allow");
   const [passwordAccount, setPasswordAccount] = useState<AdminUser | null>(
     null,
   );
@@ -197,33 +163,34 @@ export function AdminPage() {
     user && can(user, "people.manage") && can(user, "people.read"),
   );
   const managesAccess = Boolean(user && canGlobally(user, "access.manage"));
-  const readsAudit = Boolean(user && canGlobally(user, "audit.read"));
-  const exportsAudit = Boolean(user && canGlobally(user, "audit.export"));
   const assignmentRole = roles.find((role) => role.id === assignmentRoleId);
   const assignmentCanBeScoped = Boolean(
     assignmentRole?.permissions.every(permissionSupportsUnitScope),
   );
+  const overrideCanBeScoped =
+    overrideEffect === "allow" &&
+    Boolean(
+      overridePermission &&
+      permissionSupportsUnitScope(overridePermission as PermissionKey),
+    );
   const manageableUnits = units.filter(
     (unit) => user && can(user, "people.manage", unit.id),
   );
   const hrReady = categories.length > 0 && manageableUnits.length > 0;
   const sections = [
-    managesAccounts
+    managesAccounts || managesAccess
       ? {
           key: "accounts" as const,
-          label: "Contas",
+          label: "Pessoas e acessos",
           count: users.length,
         }
       : null,
     managesAccess
       ? {
           key: "access" as const,
-          label: "Perfis e acessos",
-          count: roles.length + assignments.length,
+          label: "Perfis",
+          count: roles.length,
         }
-      : null,
-    readsAudit
-      ? { key: "audit" as const, label: "Auditoria", count: events.length }
       : null,
   ].filter(
     (
@@ -248,8 +215,8 @@ export function AdminPage() {
         categoriesResult,
         rolesResult,
         assignmentsResult,
+        overridesResult,
         unitsResult,
-        auditResult,
       ] = await Promise.all([
         managesAccounts || managesAccess
           ? api<{ users: AdminUser[] }>("/api/admin/users")
@@ -270,26 +237,28 @@ export function AdminPage() {
               "/api/admin/role-assignments",
             )
           : Promise.resolve({ assignments: [] }),
+        managesAccess
+          ? api<{ overrides: PermissionOverride[] }>(
+              "/api/admin/permission-overrides",
+            )
+          : Promise.resolve({ overrides: [] }),
         managesAccounts || managesAccess
           ? api<{ units: OrganizationUnit[] }>("/api/admin/organization-units")
           : Promise.resolve({ units: [] }),
-        readsAudit
-          ? api<{ events: AuditEvent[] }>("/api/audit-events?limit=20")
-          : Promise.resolve({ events: [] }),
       ]);
       setUsers(usersResult.users);
       setPeople(peopleResult.people);
       setCategories(categoriesResult.categories);
       setRoles(rolesResult.roles);
       setAssignments(assignmentsResult.assignments);
+      setOverrides(overridesResult.overrides);
       setUnits(unitsResult.units);
-      setEvents(auditResult.events);
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível carregar a administração."));
     } finally {
       setLoading(false);
     }
-  }, [managesAccess, managesAccounts, managesPeople, readsAudit]);
+  }, [managesAccess, managesAccounts, managesPeople]);
 
   useEffect(() => {
     void load();
@@ -313,7 +282,7 @@ export function AdminPage() {
         cause,
         "Não foi possível concluir a operação.",
       );
-      if (userDialog || roleDialog || assignmentDialog || passwordAccount) {
+      if (userDialog || roleDialog || accessAccount || passwordAccount) {
         setDialogError(message);
       } else {
         setError(message);
@@ -400,12 +369,13 @@ export function AdminPage() {
 
   async function createAssignment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!accessAccount) return;
     const data = new FormData(event.currentTarget);
     await mutate(async () => {
       await api("/api/admin/role-assignments", {
         method: "POST",
         body: json({
-          accountId: data.get("accountId"),
+          accountId: accessAccount.id,
           roleId: data.get("roleId"),
           unitId:
             data.get("unitId") === organizationScope
@@ -413,8 +383,30 @@ export function AdminPage() {
               : data.get("unitId") || null,
         }),
       });
-      setAssignmentDialog(false);
+      setAssignmentRoleId("");
     }, "Acesso concedido.");
+  }
+
+  async function createOverride(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessAccount || !overridePermission) return;
+    const data = new FormData(event.currentTarget);
+    await mutate(async () => {
+      await api("/api/admin/permission-overrides", {
+        method: "POST",
+        body: json({
+          accountId: accessAccount.id,
+          permission: overridePermission,
+          effect: overrideEffect,
+          unitId:
+            data.get("overrideUnitId") === organizationScope
+              ? null
+              : data.get("overrideUnitId") || null,
+        }),
+      });
+      setOverridePermission("");
+      setOverrideEffect("allow");
+    }, "Ajuste individual aplicado.");
   }
 
   async function resetPassword(event: FormEvent<HTMLFormElement>) {
@@ -447,7 +439,15 @@ export function AdminPage() {
     }, "Acesso removido.");
   }
 
-  if (!managesAccounts && !managesAccess && !readsAudit) {
+  async function removeOverride(override: PermissionOverride) {
+    await mutate(async () => {
+      await api(`/api/admin/permission-overrides/${override.id}`, {
+        method: "DELETE",
+      });
+    }, "Ajuste individual removido.");
+  }
+
+  if (!managesAccounts && !managesAccess) {
     return (
       <Alert title="Acesso restrito" tone="danger">
         Sua conta não possui permissão de administração da plataforma.
@@ -465,7 +465,7 @@ export function AdminPage() {
           Administração
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Pessoas com acesso, perfis por módulo e histórico da plataforma.
+          Contas, perfis reutilizáveis e ajustes individuais de acesso.
         </p>
       </div>
 
@@ -504,25 +504,27 @@ export function AdminPage() {
         ))}
       </nav>
 
-      {managesAccounts && section === "accounts" ? (
+      {(managesAccounts || managesAccess) && section === "accounts" ? (
         <Card>
           <CardHeader>
             <div>
               <h2 className="font-bold">Contas de acesso</h2>
               <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                Cadastre o colaborador e o acesso no mesmo fluxo.
+                Cada pessoa pode receber perfis e ajustes individuais.
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                setUserMode(managesPeople ? "new" : "existing");
-                setUserDialog(true);
-              }}
-            >
-              <Plus aria-hidden="true" size={15} weight="bold" />
-              Novo acesso
-            </Button>
+            {managesAccounts ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setUserMode(managesPeople ? "new" : "existing");
+                  setUserDialog(true);
+                }}
+              >
+                <Plus aria-hidden="true" size={15} weight="bold" />
+                Novo acesso
+              </Button>
+            ) : null}
           </CardHeader>
           {loading ? (
             <LoadingRows />
@@ -559,7 +561,23 @@ export function AdminPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
-                        {account.status === "active" ? (
+                        {managesAccess && account.status === "active" ? (
+                          <Button
+                            aria-label={`Gerenciar acessos de ${account.person.displayName}`}
+                            disabled={busy}
+                            size="sm"
+                            variant="quiet"
+                            onClick={() => {
+                              setAssignmentRoleId("");
+                              setOverridePermission("");
+                              setOverrideEffect("allow");
+                              setAccessAccount(account);
+                            }}
+                          >
+                            Acessos
+                          </Button>
+                        ) : null}
+                        {managesAccounts && account.status === "active" ? (
                           <Button
                             aria-label={`Redefinir senha de ${account.person.displayName}`}
                             disabled={busy}
@@ -570,7 +588,8 @@ export function AdminPage() {
                             Redefinir senha
                           </Button>
                         ) : null}
-                        {account.status === "active" &&
+                        {managesAccounts &&
+                        account.status === "active" &&
                         account.id !== user?.account.id ? (
                           <ConfirmDialog
                             confirmLabel="Desativar conta"
@@ -599,205 +618,70 @@ export function AdminPage() {
       ) : null}
 
       {managesAccess && section === "access" ? (
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-bold">Perfis de acesso</h2>
-                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Combine permissões de um ou mais módulos.
-                </p>
-              </div>
-              <Button size="sm" onClick={() => setRoleDialog("new")}>
-                <Plus aria-hidden="true" size={15} weight="bold" />
-                Novo perfil
-              </Button>
-            </CardHeader>
-            {loading ? (
-              <LoadingRows />
-            ) : roles.length ? (
-              <div className="divide-y divide-[var(--border)]">
-                {roles.map((role) => (
-                  <div className="p-5" key={role.id}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="truncate font-bold">{role.name}</p>
-                        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                          {role.description ?? "Sem descrição"}
-                        </p>
-                      </div>
-                      <Button
-                        aria-label={`Editar perfil ${role.name}`}
-                        size="sm"
-                        variant="quiet"
-                        onClick={() => setRoleDialog(role)}
-                      >
-                        Editar
-                      </Button>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {permissionGroups.map((group) => {
-                        const permissions = group.permissions.filter(
-                          (permission) => role.permissions.includes(permission),
-                        );
-                        return permissions.length ? (
-                          <div key={group.key}>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-faint)]">
-                              {group.title}
-                            </p>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {permissions.map((permission) => (
-                                <Badge key={permission}>
-                                  {permissionLabels[permission]}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="Nenhum perfil"
-                description="Crie um perfil com as permissões necessárias."
-              />
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-bold">Acessos concedidos</h2>
-                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Uma pessoa pode acumular perfis em toda a organização ou por
-                  unidade.
-                </p>
-              </div>
-              <Button size="sm" onClick={() => setAssignmentDialog(true)}>
-                <Plus aria-hidden="true" size={15} weight="bold" />
-                Conceder acesso
-              </Button>
-            </CardHeader>
-            {loading ? (
-              <LoadingRows />
-            ) : assignments.length ? (
-              <div className="divide-y divide-[var(--border)]">
-                {assignments.map((assignment) => {
-                  const account = users.find(
-                    (item) => item.id === assignment.accountId,
-                  );
-                  const role = roles.find(
-                    (item) => item.id === assignment.roleId,
-                  );
-                  const unit = units.find(
-                    (item) => item.id === assignment.unitId,
-                  );
-                  const label = `${role?.name ?? "Perfil"} · ${
-                    unit?.name ?? "Toda a organização"
-                  }`;
-                  return (
-                    <div
-                      className="flex items-center gap-3 p-5"
-                      key={assignment.id}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold">
-                          {account?.person.displayName ?? assignment.accountId}
-                        </p>
-                        <p className="truncate text-xs text-[var(--text-muted)]">
-                          {label}
-                        </p>
-                      </div>
-                      <ConfirmDialog
-                        confirmLabel="Remover acesso"
-                        description={`O acesso “${label}” será removido desta pessoa. Outras permissões concedidas permanecerão ativas.`}
-                        onConfirm={() => removeAssignment(assignment)}
-                        title="Remover acesso?"
-                      >
-                        <Button disabled={busy} size="sm" variant="quiet">
-                          Remover
-                        </Button>
-                      </ConfirmDialog>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <EmptyState
-                title="Nenhum acesso concedido"
-                description="Escolha uma pessoa, um perfil e onde o acesso deve valer."
-              />
-            )}
-          </Card>
-        </div>
-      ) : null}
-
-      {readsAudit && section === "audit" ? (
         <Card>
           <CardHeader>
             <div>
-              <h2 className="font-bold">Atividade de auditoria</h2>
+              <h2 className="font-bold">Perfis de acesso</h2>
               <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                Últimos 20 eventos registrados pela plataforma.
+                Crie conjuntos reutilizáveis. A atribuição é feita na conta de
+                cada pessoa.
               </p>
             </div>
-            {exportsAudit ? (
-              <Button asChild size="sm" variant="secondary">
-                <a href="/api/audit-events/export" download>
-                  <DownloadSimple aria-hidden="true" size={16} />
-                  Exportar CSV
-                </a>
-              </Button>
-            ) : null}
+            <Button size="sm" onClick={() => setRoleDialog("new")}>
+              <Plus aria-hidden="true" size={15} weight="bold" />
+              Novo perfil
+            </Button>
           </CardHeader>
           {loading ? (
             <LoadingRows />
-          ) : events.length ? (
-            <Table>
-              <thead>
-                <tr>
-                  <TableHead>Evento</TableHead>
-                  <TableHead>Objeto</TableHead>
-                  <TableHead>Resultado</TableHead>
-                  <TableHead>Data</TableHead>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="font-semibold">
-                      {actionLabels[event.action] ?? event.action}
-                    </TableCell>
-                    <TableCell className="text-[var(--text-muted)]">
-                      {objectLabels[event.objectType] ?? event.objectType}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          event.outcome === "success" ? "success" : "danger"
-                        }
-                      >
-                        {event.outcome === "success" ? "Sucesso" : "Falha"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-[var(--text-muted)]">
-                      {new Intl.DateTimeFormat("pt-BR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                        timeZone: "America/Manaus",
-                      }).format(new Date(event.createdAt))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </tbody>
-            </Table>
+          ) : roles.length ? (
+            <div className="divide-y divide-[var(--border)]">
+              {roles.map((role) => (
+                <div className="p-5" key={role.id}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{role.name}</p>
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                        {role.description ?? "Sem descrição"}
+                      </p>
+                    </div>
+                    <Button
+                      aria-label={`Editar perfil ${role.name}`}
+                      size="sm"
+                      variant="quiet"
+                      onClick={() => setRoleDialog(role)}
+                    >
+                      Editar
+                    </Button>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {permissionGroups.map((group) => {
+                      const permissions = group.permissions.filter(
+                        (permission) => role.permissions.includes(permission),
+                      );
+                      return permissions.length ? (
+                        <div key={group.key}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-faint)]">
+                            {group.title}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {permissions.map((permission) => (
+                              <Badge key={permission}>
+                                {permissionLabels[permission]}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <EmptyState
-              title="Sem atividade registrada"
-              description="Eventos de autenticação e administração aparecerão aqui."
+              title="Nenhum perfil"
+              description="Crie um perfil com as permissões necessárias."
             />
           )}
         </Card>
@@ -1090,82 +974,277 @@ export function AdminPage() {
       </Dialog>
 
       <Dialog
-        open={assignmentDialog}
+        open={Boolean(accessAccount)}
         onOpenChange={(open) => {
-          setAssignmentDialog(open);
           if (!open) {
+            setAccessAccount(null);
             setAssignmentRoleId("");
+            setOverridePermission("");
+            setOverrideEffect("allow");
             setDialogError("");
           }
         }}
       >
-        <DialogContent title="Conceder acesso">
-          <form className="space-y-4" onSubmit={createAssignment}>
-            {dialogError ? (
-              <Alert title="Revise os dados" tone="danger">
-                {dialogError}
-              </Alert>
-            ) : null}
-            <FormField htmlFor="accountId" label="Pessoa">
-              <SearchableSelect
-                defaultValue=""
-                id="accountId"
-                name="accountId"
-                options={users
-                  .filter((account) => account.status === "active")
-                  .map((account) => ({
-                    keywords: [account.email],
-                    label: account.person.displayName,
-                    value: account.id,
-                  }))}
-                placeholder="Pesquise por nome ou e-mail"
-                required
-              />
-            </FormField>
-            <FormField htmlFor="roleId" label="Perfil de acesso">
-              <Select
-                id="roleId"
-                name="roleId"
-                onValueChange={setAssignmentRoleId}
-                options={roles.map((role) => ({
-                  label: role.name,
-                  value: role.id,
-                }))}
-                placeholder="Selecione o perfil"
-                required
-                value={assignmentRoleId}
-              />
-            </FormField>
-            <FormField
-              htmlFor="unitId"
-              label="Onde o acesso vale"
-              hint={
-                assignmentRole && !assignmentCanBeScoped
-                  ? "Este perfil contém permissões que só podem valer para toda a organização."
-                  : "Escolha toda a organização ou limite o acesso a uma unidade."
-              }
-            >
-              <Select
-                disabled={Boolean(assignmentRole && !assignmentCanBeScoped)}
-                id="unitId"
-                name="unitId"
-                options={[
-                  {
-                    label: "Toda a organização",
-                    value: organizationScope,
-                  },
-                  ...units.map((unit) => ({
-                    label: `${unit.code} · ${unit.name}`,
-                    value: unit.id,
-                  })),
-                ]}
-                placeholder="Toda a organização"
-              />
-            </FormField>
-            <Button className="w-full" disabled={busy} type="submit">
-              {busy ? "Concedendo…" : "Conceder acesso"}
-            </Button>
-          </form>
+        <DialogContent
+          className="max-w-3xl"
+          title={
+            accessAccount
+              ? `Acessos de ${accessAccount.person.displayName}`
+              : "Gerenciar acessos"
+          }
+          description="Perfis são a base reutilizável. Ajustes individuais concedem ou bloqueiam exceções para esta conta."
+        >
+          {dialogError ? (
+            <Alert title="Revise os acessos" tone="danger">
+              {dialogError}
+            </Alert>
+          ) : null}
+          <div className="mt-5 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+            <section className="py-5">
+              <div>
+                <h3 className="text-sm font-extrabold">Perfis atribuídos</h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Use perfis para acessos que devem ser consistentes entre
+                  várias pessoas.
+                </p>
+              </div>
+              <div className="mt-3 divide-y divide-[var(--border)]">
+                {assignments
+                  .filter(
+                    (assignment) => assignment.accountId === accessAccount?.id,
+                  )
+                  .map((assignment) => {
+                    const role = roles.find(
+                      (item) => item.id === assignment.roleId,
+                    );
+                    const unit = units.find(
+                      (item) => item.id === assignment.unitId,
+                    );
+                    const label = `${role?.name ?? "Perfil"} · ${
+                      unit?.name ?? "Toda a organização"
+                    }`;
+                    return (
+                      <div
+                        className="flex min-h-12 items-center gap-3 py-2"
+                        key={assignment.id}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">
+                            {role?.name ?? "Perfil removido"}
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {unit?.name ?? "Toda a organização"}
+                          </p>
+                        </div>
+                        <ConfirmDialog
+                          confirmLabel="Remover perfil"
+                          description={`O acesso “${label}” será removido desta pessoa. Ajustes individuais permanecerão ativos.`}
+                          onConfirm={() => removeAssignment(assignment)}
+                          title="Remover perfil?"
+                        >
+                          <Button disabled={busy} size="sm" variant="quiet">
+                            Remover
+                          </Button>
+                        </ConfirmDialog>
+                      </div>
+                    );
+                  })}
+                {assignments.every(
+                  (assignment) => assignment.accountId !== accessAccount?.id,
+                ) ? (
+                  <p className="py-3 text-xs text-[var(--text-muted)]">
+                    Nenhum perfil atribuído.
+                  </p>
+                ) : null}
+              </div>
+              <form
+                className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+                onSubmit={createAssignment}
+              >
+                <FormField htmlFor="accessRoleId" label="Adicionar perfil">
+                  <Select
+                    id="accessRoleId"
+                    name="roleId"
+                    onValueChange={setAssignmentRoleId}
+                    options={roles.map((role) => ({
+                      label: role.name,
+                      value: role.id,
+                    }))}
+                    placeholder="Selecione o perfil"
+                    required
+                    value={assignmentRoleId}
+                  />
+                </FormField>
+                <FormField
+                  htmlFor="accessUnitId"
+                  label="Escopo do perfil"
+                  hint={
+                    assignmentRole && !assignmentCanBeScoped
+                      ? "Este perfil exige escopo organizacional."
+                      : undefined
+                  }
+                >
+                  <Select
+                    defaultValue={organizationScope}
+                    disabled={Boolean(assignmentRole && !assignmentCanBeScoped)}
+                    id="accessUnitId"
+                    name="unitId"
+                    options={[
+                      {
+                        label: "Toda a organização",
+                        value: organizationScope,
+                      },
+                      ...units.map((unit) => ({
+                        label: `${unit.code} · ${unit.name}`,
+                        value: unit.id,
+                      })),
+                    ]}
+                  />
+                </FormField>
+                <Button disabled={busy} size="sm" type="submit">
+                  Adicionar
+                </Button>
+              </form>
+            </section>
+
+            <section className="py-5">
+              <div>
+                <h3 className="text-sm font-extrabold">Ajustes individuais</h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Exceções têm prioridade sobre os perfis. Bloqueios valem para
+                  toda a organização.
+                </p>
+              </div>
+              <div className="mt-3 divide-y divide-[var(--border)]">
+                {overrides
+                  .filter(
+                    (override) => override.accountId === accessAccount?.id,
+                  )
+                  .map((override) => {
+                    const unit = units.find(
+                      (item) => item.id === override.unitId,
+                    );
+                    return (
+                      <div
+                        className="flex min-h-12 items-center gap-3 py-2"
+                        key={override.id}
+                      >
+                        <Badge
+                          variant={
+                            override.effect === "allow" ? "success" : "danger"
+                          }
+                        >
+                          {override.effect === "allow"
+                            ? "Conceder"
+                            : "Bloquear"}
+                        </Badge>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">
+                            {permissionLabels[override.permission]}
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {unit?.name ?? "Toda a organização"}
+                          </p>
+                        </div>
+                        <Button
+                          disabled={busy}
+                          onClick={() => void removeOverride(override)}
+                          size="sm"
+                          type="button"
+                          variant="quiet"
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    );
+                  })}
+                {overrides.every(
+                  (override) => override.accountId !== accessAccount?.id,
+                ) ? (
+                  <p className="py-3 text-xs text-[var(--text-muted)]">
+                    Nenhum ajuste individual.
+                  </p>
+                ) : null}
+              </div>
+              <form
+                className="mt-4 grid gap-3 sm:grid-cols-2"
+                onSubmit={createOverride}
+              >
+                <FormField
+                  htmlFor="overridePermission"
+                  label="Permissão específica"
+                >
+                  <Select
+                    id="overridePermission"
+                    name="overridePermission"
+                    onValueChange={(value) =>
+                      setOverridePermission(value as PermissionKey)
+                    }
+                    options={permissionGroups.flatMap((group) =>
+                      group.permissions.map((permission) => ({
+                        label: `${group.title} · ${permissionLabels[permission]}`,
+                        value: permission,
+                      })),
+                    )}
+                    placeholder="Selecione a permissão"
+                    required
+                    value={overridePermission}
+                  />
+                </FormField>
+                <FormField htmlFor="overrideEffect" label="Tratamento">
+                  <Select
+                    id="overrideEffect"
+                    name="overrideEffect"
+                    onValueChange={(value) =>
+                      setOverrideEffect(value as PermissionEffect)
+                    }
+                    options={[
+                      { label: "Conceder acesso", value: "allow" },
+                      { label: "Bloquear acesso", value: "deny" },
+                    ]}
+                    value={overrideEffect}
+                  />
+                </FormField>
+                <FormField
+                  htmlFor="overrideUnitId"
+                  label="Escopo do ajuste"
+                  hint={
+                    overrideEffect === "deny"
+                      ? "Bloqueios individuais valem em toda a organização."
+                      : overridePermission && !overrideCanBeScoped
+                        ? "Esta permissão exige escopo organizacional."
+                        : undefined
+                  }
+                >
+                  <Select
+                    defaultValue={organizationScope}
+                    disabled={!overrideCanBeScoped}
+                    id="overrideUnitId"
+                    name="overrideUnitId"
+                    options={[
+                      {
+                        label: "Toda a organização",
+                        value: organizationScope,
+                      },
+                      ...units.map((unit) => ({
+                        label: `${unit.code} · ${unit.name}`,
+                        value: unit.id,
+                      })),
+                    ]}
+                  />
+                </FormField>
+                <div className="flex items-end">
+                  <Button
+                    className="w-full"
+                    disabled={busy || !overridePermission}
+                    type="submit"
+                  >
+                    Aplicar ajuste
+                  </Button>
+                </div>
+              </form>
+            </section>
+          </div>
         </DialogContent>
       </Dialog>
 

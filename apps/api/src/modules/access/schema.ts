@@ -55,3 +55,25 @@ export const roleAssignments = pgTable(
       .where(sql`${table.unitId} is not null`),
   ],
 );
+
+export const permissionOverrides = pgTable(
+  "permission_overrides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => userAccounts.id, { onDelete: "cascade" }),
+    permission: varchar("permission", { length: 100 }).notNull(),
+    effect: varchar("effect", { length: 10 }).notNull(),
+    unitId: uuid("unit_id").references(() => organizationUnits.id),
+  },
+  (table) => [
+    index("permission_overrides_account_idx").on(table.accountId),
+    uniqueIndex("permission_overrides_global_unique")
+      .on(table.accountId, table.permission)
+      .where(sql`${table.unitId} is null`),
+    uniqueIndex("permission_overrides_unit_unique")
+      .on(table.accountId, table.permission, table.unitId)
+      .where(sql`${table.unitId} is not null`),
+  ],
+);

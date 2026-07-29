@@ -14,6 +14,9 @@ const AccountPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("./pages/admin").then((module) => ({ default: module.AdminPage })),
 );
+const AuditPage = lazy(() =>
+  import("./pages/audit").then((module) => ({ default: module.AuditPage })),
+);
 const DashboardPage = lazy(() =>
   import("./pages/dashboard").then((module) => ({
     default: module.DashboardPage,
@@ -85,6 +88,16 @@ export function App() {
               <RequireAccess rule={accessRules.administration}>
                 <Suspense fallback={<PageFallback />}>
                   <AdminPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="sistema/auditoria"
+            element={
+              <RequireAccess rule={accessRules.audit}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditPage />
                 </Suspense>
               </RequireAccess>
             }

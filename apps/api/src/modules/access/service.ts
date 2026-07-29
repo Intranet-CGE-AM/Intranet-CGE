@@ -1,14 +1,21 @@
 import type {
   PermissionGrant,
   PermissionKey,
+  PermissionOverride,
+  PermissionOverrideInput,
   RoleAssignmentInput,
   RoleInput,
 } from "@cge/contracts";
 import { permissionAllows, permissionSupportsUnitScope } from "@cge/contracts";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
-import { roleAssignments, rolePermissions, roles } from "./schema.js";
+import {
+  permissionOverrides,
+  roleAssignments,
+  rolePermissions,
+  roles,
+} from "./schema.js";
 
 export class RoleScopeError extends Error {
   readonly code = "ROLE_REQUIRES_GLOBAL_SCOPE";
@@ -20,26 +27,57 @@ export class RoleScopeError extends Error {
   }
 }
 
+export class PermissionScopeError extends Error {
+  readonly code = "PERMISSION_REQUIRES_GLOBAL_SCOPE";
+
+  constructor() {
+    super("Esta combinação de permissão, efeito e escopo não é válida.");
+  }
+}
+
+export class PermissionOverrideConflictError extends Error {
+  readonly code = "PERMISSION_OVERRIDE_ALREADY_EXISTS";
+
+  constructor() {
+    super("Já existe um ajuste individual para esta permissão e escopo.");
+  }
+}
+
 export class AccessService {
   constructor(private readonly db: Database) {}
 
   async resolvePermissions(accountId: string): Promise<PermissionGrant[]> {
-    const grants = await this.db
-      .select({
-        key: rolePermissions.permission,
-        unitId: roleAssignments.unitId,
-      })
-      .from(roleAssignments)
-      .innerJoin(
-        rolePermissions,
-        eq(roleAssignments.roleId, rolePermissions.roleId),
-      )
-      .where(eq(roleAssignments.accountId, accountId));
+    const [roleGrants, overrides] = await Promise.all([
+      this.db
+        .select({
+          key: rolePermissions.permission,
+          unitId: roleAssignments.unitId,
+        })
+        .from(roleAssignments)
+        .innerJoin(
+          rolePermissions,
+          eq(roleAssignments.roleId, rolePermissions.roleId),
+        )
+        .where(eq(roleAssignments.accountId, accountId)),
+      this.db
+        .select({
+          effect: permissionOverrides.effect,
+          key: permissionOverrides.permission,
+          unitId: permissionOverrides.unitId,
+        })
+        .from(permissionOverrides)
+        .where(eq(permissionOverrides.accountId, accountId)),
+    ]);
 
-    return (grants as PermissionGrant[]).filter(
-      (grant) =>
-        grant.unitId === null || permissionSupportsUnitScope(grant.key),
-    );
+    return [
+      ...(roleGrants as PermissionGrant[])
+        .filter(
+          (grant) =>
+            grant.unitId === null || permissionSupportsUnitScope(grant.key),
+        )
+        .map((grant) => ({ ...grant, effect: "allow" as const })),
+      ...(overrides as PermissionGrant[]),
+    ];
   }
 
   async allows(accountId: string, permission: PermissionKey, unitId?: string) {
@@ -187,5 +225,55 @@ export class AccessService {
       .where(eq(roleAssignments.id, id))
       .returning();
     return assignment ?? null;
+  }
+
+  async listOverrides(accountId?: string): Promise<PermissionOverride[]> {
+    const rows = await this.db
+      .select()
+      .from(permissionOverrides)
+      .where(
+        accountId ? eq(permissionOverrides.accountId, accountId) : undefined,
+      );
+    return rows as PermissionOverride[];
+  }
+
+  async createOverride(input: PermissionOverrideInput) {
+    if (
+      input.unitId &&
+      (input.effect === "deny" ||
+        !permissionSupportsUnitScope(input.permission))
+    ) {
+      throw new PermissionScopeError();
+    }
+    const [existing] = await this.db
+      .select({ id: permissionOverrides.id })
+      .from(permissionOverrides)
+      .where(
+        and(
+          eq(permissionOverrides.accountId, input.accountId),
+          eq(permissionOverrides.permission, input.permission),
+          input.unitId
+            ? eq(permissionOverrides.unitId, input.unitId)
+            : isNull(permissionOverrides.unitId),
+        ),
+      )
+      .limit(1);
+    if (existing) throw new PermissionOverrideConflictError();
+    const [override] = await this.db
+      .insert(permissionOverrides)
+      .values(input)
+      .returning();
+    if (!override) {
+      throw new Error("Permission override was not created");
+    }
+    return override as PermissionOverride;
+  }
+
+  async deleteOverride(id: string) {
+    const [override] = await this.db
+      .delete(permissionOverrides)
+      .where(eq(permissionOverrides.id, id))
+      .returning();
+    return (override as PermissionOverride | undefined) ?? null;
   }
 }

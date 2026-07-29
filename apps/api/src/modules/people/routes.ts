@@ -11,7 +11,11 @@ import {
   personInputSchema,
   personUpdateSchema,
 } from "@cge/contracts";
-import { permissionAllows, type PermissionKey } from "@cge/contracts";
+import {
+  permissionAllows,
+  permissionUnitIds,
+  type PermissionKey,
+} from "@cge/contracts";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -289,9 +293,7 @@ export const peopleRoutes: FastifyPluginAsync<{
       }
       const unitIds = request.query.unitId
         ? [request.query.unitId]
-        : readGrants.some((grant) => grant.unitId === null)
-          ? null
-          : [...new Set(readGrants.flatMap((grant) => grant.unitId ?? []))];
+        : permissionUnitIds(readGrants, "people.read");
       const includeSensitive = permissionAllows(
         user.permissions,
         "people.manage",
@@ -357,9 +359,7 @@ export const peopleRoutes: FastifyPluginAsync<{
       }
       const unitIds = request.query.unitId
         ? [request.query.unitId]
-        : grants.some((grant) => grant.unitId === null)
-          ? null
-          : [...new Set(grants.flatMap((grant) => grant.unitId ?? []))];
+        : permissionUnitIds(grants, "birthdays.read");
       return {
         birthdays: await listBirthdays(options.db, unitIds, request.query.days),
       };
