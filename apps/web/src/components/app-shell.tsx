@@ -88,9 +88,9 @@ function Navigation({
   }, [activeModuleId]);
 
   return (
-    <nav aria-label="Navegação principal" className="mt-8 space-y-1">
+    <nav aria-label="Navegação principal" className="mt-7">
       {!collapsed ? (
-        <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        <p className="mb-2 px-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-faint)]">
           Intranet
         </p>
       ) : null}
@@ -101,13 +101,13 @@ function Navigation({
       />
 
       {modules.length ? (
-        <div className={collapsed ? "pt-3" : "pt-5"}>
+        <div className={collapsed ? "pt-3" : "pt-4"}>
           {!collapsed ? (
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            <p className="mb-2 px-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-faint)]">
               Módulos
             </p>
           ) : null}
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {modules.map((module) => {
               const Icon = module.icon;
               const active =
@@ -120,11 +120,13 @@ function Navigation({
                     aria-expanded={!collapsed && expanded}
                     aria-label={collapsed ? module.label : undefined}
                     className={[
-                      "flex min-h-10 w-full items-center rounded-[10px] text-sm font-semibold transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.99]",
-                      collapsed ? "justify-center px-2" : "gap-3 px-3",
+                      "flex min-h-9 w-full items-center rounded-[9px] text-[13px] font-semibold transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.99]",
+                      collapsed ? "justify-center px-2" : "gap-2.5 px-2.5",
                       active
-                        ? "text-[var(--brand-strong)]"
-                        : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
+                        ? collapsed
+                          ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                          : "text-[var(--brand-strong)]"
+                        : "text-[var(--text-muted)] hover:bg-white/80 hover:text-[var(--text)]",
                     ].join(" ")}
                     onClick={() => {
                       if (collapsed) {
@@ -143,8 +145,12 @@ function Navigation({
                     title={collapsed ? module.label : undefined}
                     type="button"
                   >
-                    <Icon aria-hidden="true" size={18} />
-                    {!collapsed ? <span>{module.label}</span> : null}
+                    <Icon aria-hidden="true" size={17} />
+                    {!collapsed ? (
+                      <span className="min-w-0 flex-1 truncate text-left">
+                        {module.label}
+                      </span>
+                    ) : null}
                     {!collapsed ? (
                       <CaretDown
                         aria-hidden="true"
@@ -158,7 +164,7 @@ function Navigation({
                     ) : null}
                   </button>
                   {expanded && !collapsed ? (
-                    <div className="ml-[21px] mt-1 space-y-1 border-l border-[var(--border)] pl-3">
+                    <div className="ml-[17px] mt-0.5 space-y-0.5 border-l border-[var(--border)] pl-[18px]">
                       {module.routes
                         .filter((route) => canNavigate(user, route))
                         .map((route) => (
@@ -179,20 +185,28 @@ function Navigation({
       ) : null}
 
       {systemItems.length ? (
-        <div className={collapsed ? "pt-3" : "pt-5"}>
+        <div
+          className={
+            collapsed
+              ? "mt-3 border-t border-dashed border-[var(--border)] pt-3"
+              : "mt-4 border-t border-dashed border-[var(--border)] pt-4"
+          }
+        >
           {!collapsed ? (
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            <p className="mb-2 px-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-faint)]">
               Sistema
             </p>
           ) : null}
-          {systemItems.map((item) => (
-            <NavigationLink
-              collapsed={collapsed}
-              item={item}
-              key={item.href}
-              onNavigate={onNavigate}
-            />
-          ))}
+          <div className="space-y-0.5">
+            {systemItems.map((item) => (
+              <NavigationLink
+                collapsed={collapsed}
+                item={item}
+                key={item.href}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
         </div>
       ) : null}
     </nav>
@@ -216,15 +230,17 @@ function NavigationLink({
       aria-label={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         [
-          "flex items-center rounded-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+          "relative flex items-center rounded-[9px] transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.99]",
           nested
-            ? "min-h-9 gap-2.5 px-3 text-xs"
+            ? "min-h-9 gap-2.5 px-2.5 text-[13px] font-medium"
             : collapsed
-              ? "min-h-10 justify-center px-2 text-sm"
-              : "min-h-10 gap-3 px-3 text-sm",
+              ? "min-h-9 justify-center px-2 text-[13px] font-semibold"
+              : "min-h-9 gap-2.5 px-2.5 text-[13px] font-semibold",
           isActive
             ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-            : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
+            : nested
+              ? "text-[var(--text-faint)] hover:bg-white/80 hover:text-[var(--text)]"
+              : "text-[var(--text-muted)] hover:bg-white/80 hover:text-[var(--text)]",
         ].join(" ")
       }
       end={item.end}
@@ -232,8 +248,14 @@ function NavigationLink({
       title={collapsed ? item.label : undefined}
       to={item.href}
     >
-      <Icon aria-hidden="true" size={nested ? 16 : 18} />
-      {!collapsed ? <span>{item.label}</span> : null}
+      {nested ? (
+        <span
+          aria-hidden="true"
+          className="absolute -left-[19px] top-1/2 h-px w-[14px] bg-[var(--border)]"
+        />
+      ) : null}
+      <Icon aria-hidden="true" size={nested ? 16 : 17} />
+      {!collapsed ? <span className="truncate">{item.label}</span> : null}
     </NavLink>
   );
 }
@@ -356,8 +378,8 @@ export function AppShell() {
 
         <aside
           className={[
-            "sticky top-0 z-50 hidden h-[100dvh] border-r border-[var(--border)] bg-[#f7f8f8] p-3 transition-[width] duration-200 lg:flex lg:flex-col",
-            collapsed ? "w-[76px]" : "w-[248px]",
+            "sticky top-0 z-50 hidden h-[100dvh] border-r border-[var(--border)] bg-[#fafbfb] p-3 transition-[width] duration-200 lg:flex lg:flex-col",
+            collapsed ? "w-[72px]" : "w-[272px]",
           ].join(" ")}
         >
           <button
@@ -391,7 +413,7 @@ export function AppShell() {
         </aside>
 
         <SheetContent
-          className="flex flex-col bg-[#f7f8f8] lg:hidden"
+          className="flex flex-col bg-[#fafbfb] lg:hidden"
           title="Navegação principal"
           description="Acesse os módulos permitidos para sua conta."
         >
