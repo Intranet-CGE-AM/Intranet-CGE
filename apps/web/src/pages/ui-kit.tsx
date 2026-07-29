@@ -9,7 +9,10 @@ import {
   DialogContent,
   DialogTrigger,
   EmptyState,
+  FormField,
   Input,
+  SearchableSelect,
+  Select,
   Skeleton,
 } from "@cge/ui";
 import {
@@ -43,6 +46,41 @@ export function UiKitPage() {
             <Button variant="danger">Destrutivo</Button>
           </div>
           <Input aria-label="Campo de exemplo" placeholder="Campo de texto" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField htmlFor="example-select" label="Lista de opções">
+              <Select
+                id="example-select"
+                name="example-select"
+                options={[
+                  { label: "Toda a organização", value: "organization" },
+                  { label: "Gestão de Pessoas", value: "people" },
+                ]}
+                placeholder="Selecione o escopo"
+              />
+            </FormField>
+            <FormField
+              htmlFor="example-searchable-select"
+              label="Lista pesquisável"
+            >
+              <SearchableSelect
+                id="example-searchable-select"
+                name="example-searchable-select"
+                options={[
+                  {
+                    keywords: ["Tecnologia da Informação"],
+                    label: "Helena Monteiro",
+                    value: "helena",
+                  },
+                  {
+                    keywords: ["Gestão de Pessoas"],
+                    label: "Marina Rocha",
+                    value: "marina",
+                  },
+                ]}
+                placeholder="Pesquise uma pessoa"
+              />
+            </FormField>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="neutral">Neutro</Badge>
             <Badge variant="brand">Em análise</Badge>

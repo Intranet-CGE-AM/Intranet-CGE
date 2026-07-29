@@ -18,7 +18,7 @@ import {
   EmptyState,
   FormField,
   Input,
-  Select,
+  SearchableSelect,
   Skeleton,
   Table,
   TableCell,
@@ -645,26 +645,26 @@ export function PeoplePage() {
               </Alert>
             ) : null}
             <FormField htmlFor="supervisorRelationshipId" label="Chefia direta">
-              <Select
+              <SearchableSelect
+                defaultValue=""
                 id="supervisorRelationshipId"
                 name="supervisorRelationshipId"
-                required
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {people
+                options={people
                   .filter(
                     (person) =>
                       person.id !== supervisorPerson?.id && person.employment,
                   )
-                  .map((person) => (
-                    <option key={person.id} value={person.employment?.id ?? ""}>
-                      {person.preferredName ?? person.fullName}
-                    </option>
-                  ))}
-              </Select>
+                  .map((person) => ({
+                    keywords: [
+                      person.fullName,
+                      person.employment?.unitName ?? "",
+                    ],
+                    label: person.preferredName ?? person.fullName,
+                    value: person.employment?.id ?? "",
+                  }))}
+                placeholder="Pesquise por nome ou unidade"
+                required
+              />
             </FormField>
             <Button className="w-full" disabled={busy} type="submit">
               {busy ? "Salvando…" : "Salvar chefia"}

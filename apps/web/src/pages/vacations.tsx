@@ -481,17 +481,16 @@ export function VacationsPage() {
             ) : null}
             <FormField htmlFor="vacationDecision" label="Decisão">
               <Select
+                defaultValue=""
                 id="vacationDecision"
                 name="decision"
-                defaultValue=""
+                options={[
+                  { label: "Aprovar", value: "approve" },
+                  { label: "Rejeitar", value: "reject" },
+                ]}
+                placeholder="Selecione uma decisão"
                 required
-              >
-                <option value="" disabled>
-                  Selecione uma decisão
-                </option>
-                <option value="approve">Aprovar</option>
-                <option value="reject">Rejeitar</option>
-              </Select>
+              />
             </FormField>
             <FormField
               htmlFor="vacationComment"

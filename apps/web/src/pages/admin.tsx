@@ -20,6 +20,7 @@ import {
   EmptyState,
   FormField,
   Input,
+  SearchableSelect,
   Select,
   Skeleton,
   Table,
@@ -143,6 +144,8 @@ const actionLabels: Record<string, string> = {
   "vacation.supervisor-approved": "Chefia aprovou férias",
   "vacation.supervisor-rejected": "Chefia rejeitou férias",
 };
+
+const organizationScope = "organization";
 
 const objectLabels: Record<string, string> = {
   account: "Conta de acesso",
@@ -403,7 +406,10 @@ export function AdminPage() {
         body: json({
           accountId: data.get("accountId"),
           roleId: data.get("roleId"),
-          unitId: data.get("unitId") || null,
+          unitId:
+            data.get("unitId") === organizationScope
+              ? null
+              : data.get("unitId") || null,
         }),
       });
       setAssignmentDialog(false);
@@ -883,26 +889,28 @@ export function AdminPage() {
                 htmlFor="personId"
                 label="Pessoa"
               >
-                <Select
-                  autoComplete="off"
+                <SearchableSelect
+                  defaultValue=""
                   id="personId"
                   name="personId"
-                  required
-                >
-                  <option value="">Selecione</option>
-                  {people
+                  options={people
                     .filter(
                       (person) =>
                         !users.some(
                           (account) => account.person.id === person.id,
                         ),
                     )
-                    .map((person) => (
-                      <option key={person.id} value={person.id}>
-                        {person.preferredName ?? person.fullName}
-                      </option>
-                    ))}
-                </Select>
+                    .map((person) => ({
+                      keywords: [
+                        person.fullName,
+                        person.employment?.unitName ?? "",
+                      ],
+                      label: person.preferredName ?? person.fullName,
+                      value: person.id,
+                    }))}
+                  placeholder="Pesquise por nome ou unidade"
+                  required
+                />
               </FormField>
             )}
 
@@ -1102,38 +1110,34 @@ export function AdminPage() {
               </Alert>
             ) : null}
             <FormField htmlFor="accountId" label="Pessoa">
-              <Select
-                autoComplete="off"
+              <SearchableSelect
+                defaultValue=""
                 id="accountId"
                 name="accountId"
-                required
-              >
-                <option value="">Selecione</option>
-                {users
+                options={users
                   .filter((account) => account.status === "active")
-                  .map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.person.displayName}
-                    </option>
-                  ))}
-              </Select>
+                  .map((account) => ({
+                    keywords: [account.email],
+                    label: account.person.displayName,
+                    value: account.id,
+                  }))}
+                placeholder="Pesquise por nome ou e-mail"
+                required
+              />
             </FormField>
             <FormField htmlFor="roleId" label="Perfil de acesso">
               <Select
-                autoComplete="off"
                 id="roleId"
                 name="roleId"
-                onChange={(event) => setAssignmentRoleId(event.target.value)}
+                onValueChange={setAssignmentRoleId}
+                options={roles.map((role) => ({
+                  label: role.name,
+                  value: role.id,
+                }))}
+                placeholder="Selecione o perfil"
                 required
                 value={assignmentRoleId}
-              >
-                <option value="">Selecione</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </Select>
+              />
             </FormField>
             <FormField
               htmlFor="unitId"
@@ -1145,18 +1149,21 @@ export function AdminPage() {
               }
             >
               <Select
-                autoComplete="off"
                 disabled={Boolean(assignmentRole && !assignmentCanBeScoped)}
                 id="unitId"
                 name="unitId"
-              >
-                <option value="">Toda a organização</option>
-                {units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.code} · {unit.name}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  {
+                    label: "Toda a organização",
+                    value: organizationScope,
+                  },
+                  ...units.map((unit) => ({
+                    label: `${unit.code} · ${unit.name}`,
+                    value: unit.id,
+                  })),
+                ]}
+                placeholder="Toda a organização"
+              />
             </FormField>
             <Button className="w-full" disabled={busy} type="submit">
               {busy ? "Concedendo…" : "Conceder acesso"}

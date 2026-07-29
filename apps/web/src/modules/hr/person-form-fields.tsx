@@ -83,17 +83,13 @@ export function PersonFormFields({
           defaultValue={person?.employment?.categoryId ?? ""}
           id={fieldId("categoryId")}
           name="categoryId"
+          options={categories.map((category) => ({
+            label: category.name,
+            value: category.id,
+          }))}
+          placeholder="Selecione a categoria"
           required
-        >
-          <option value="" disabled>
-            Selecione
-          </option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </Select>
+        />
       </FormField>
       <FormField
         hint="Área da CGE em que a pessoa ficará lotada."
@@ -104,17 +100,13 @@ export function PersonFormFields({
           defaultValue={person?.employment?.unitId ?? ""}
           id={fieldId("unitId")}
           name="unitId"
+          options={units.map((unit) => ({
+            label: `${unit.code} — ${unit.name}`,
+            value: unit.id,
+          }))}
+          placeholder="Selecione a unidade"
           required
-        >
-          <option value="" disabled>
-            Selecione
-          </option>
-          {units.map((unit) => (
-            <option key={unit.id} value={unit.id}>
-              {unit.code} — {unit.name}
-            </option>
-          ))}
-        </Select>
+        />
       </FormField>
       <FormField
         className="sm:col-span-2"

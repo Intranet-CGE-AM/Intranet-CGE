@@ -304,14 +304,38 @@ test("backend rejects cross-unit writes and scoped platform permissions", async 
 
   await adminPage.goto("/sistema/administracao?secao=access");
   await adminPage.getByRole("button", { name: "Conceder acesso" }).click();
-  await adminPage.getByLabel("Perfil de acesso").selectOption(platformRole.id);
+  await chooseOption(adminPage, "Perfil de acesso", "Contas da plataforma E2E");
+  const accountPicker = adminPage.getByLabel("Pessoa", { exact: true });
+  await adminPage
+    .getByRole("dialog")
+    .getByRole("button", { name: "Conceder acesso" })
+    .click();
+  await expect(accountPicker).toHaveAttribute("aria-invalid", "true");
+  await expect(accountPicker).toBeFocused();
   await expect(adminPage.getByLabel("Onde o acesso vale")).toBeDisabled();
+  await accountPicker.click();
+  const accountSearch = adminPage.getByRole("combobox", {
+    name: "Pesquisar opções",
+  });
+  await accountSearch.fill("Leonardo");
+  await expect(
+    adminPage.getByRole("option", { name: "Leonardo Araújo" }),
+  ).toBeVisible();
+  await expectAccessiblePage(adminPage, "pesquisa de pessoa", 1280);
+  await accountSearch.press("ArrowDown");
+  await accountSearch.press("Enter");
+  await expect(accountPicker).toHaveText("Leonardo Araújo");
+  await expect(accountPicker).toHaveAttribute("aria-invalid", "false");
   await expect(
     adminPage.getByText(
       "Este perfil contém permissões que só podem valer para toda a organização.",
     ),
   ).toBeVisible();
-  await adminPage.getByLabel("Perfil de acesso").selectOption(scopedRole.id);
+  await chooseOption(
+    adminPage,
+    "Perfil de acesso",
+    "Gestão de pessoas com escopo E2E",
+  );
   await expect(adminPage.getByLabel("Onde o acesso vale")).toBeEnabled();
 
   const invalidAssignment = await adminPage.request.post(
@@ -641,8 +665,8 @@ test("administration onboards an employee and supports account operations", asyn
   await page.getByLabel("Data de nascimento").fill("1992-04-17");
   await page.getByLabel("Matrícula").fill("ADM-E2E-001");
   await page.getByLabel("Data de início").fill("2026-07-28");
-  await page.getByLabel("Categoria funcional").selectOption({ index: 1 });
-  await page.getByLabel("Unidade de lotação").selectOption({ index: 1 });
+  await chooseFirstOption(page, "Categoria funcional");
+  await chooseFirstOption(page, "Unidade de lotação");
   await page.getByLabel("Cargo").fill("Analista de controle");
   await page
     .getByLabel("E-mail institucional")
@@ -837,4 +861,16 @@ async function openHrRoute(page: Page, route: "Colaboradores" | "Férias") {
     .getByRole("link", { name: "Recursos Humanos", exact: true })
     .click();
   await page.getByRole("link", { name: route, exact: true }).click();
+}
+
+async function chooseOption(page: Page, field: string, option: string) {
+  await page.getByRole("combobox", { name: field, exact: true }).click();
+  const search = page.getByRole("combobox", { name: "Pesquisar opções" });
+  if (await search.isVisible()) await search.fill(option);
+  await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+async function chooseFirstOption(page: Page, field: string) {
+  await page.getByRole("combobox", { name: field, exact: true }).click();
+  await page.getByRole("option").first().click();
 }

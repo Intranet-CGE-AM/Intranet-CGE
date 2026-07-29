@@ -6,5 +6,6 @@ export * from "./dialog";
 export * from "./dropdown-menu";
 export * from "./feedback";
 export * from "./input";
+export * from "./select";
 export * from "./sheet";
 export * from "./table";

@@ -72,7 +72,7 @@ test("complete HR journey from import through final vacation approval", async ({
 
   const workerRow = page.getByRole("row", { name: /Trabalhador E2E/ });
   await workerRow.getByRole("button", { name: "Definir chefia" }).click();
-  await page.getByLabel("Chefia direta").selectOption({ label: "Supervisora" });
+  await chooseOption(page, "Chefia direta", "Supervisora");
   await page.getByRole("button", { name: "Salvar chefia" }).click();
 
   await page.getByRole("link", { name: "Administração" }).click();
@@ -118,8 +118,10 @@ test("complete HR journey from import through final vacation approval", async ({
     .getByRole("row", { name: /Trabalhador.*Analisar/ })
     .getByRole("button", { name: "Analisar" })
     .click();
-  await expect(page.getByLabel("Decisão", { exact: true })).toHaveValue("");
-  await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
+  await expect(page.getByLabel("Decisão", { exact: true })).toHaveText(
+    "Selecione uma decisão",
+  );
+  await chooseOption(page, "Decisão", "Aprovar");
   await page.getByLabel("Comentário").fill("Período validado pela chefia.");
   await page.getByRole("button", { name: "Confirmar decisão" }).click();
   await expect(
@@ -131,7 +133,7 @@ test("complete HR journey from import through final vacation approval", async ({
   await openHrRoute(page, "Férias");
   const finalRow = page.getByRole("row", { name: /Trabalhador.*Analisar/ });
   await finalRow.getByRole("button", { name: "Analisar" }).click();
-  await page.getByLabel("Decisão", { exact: true }).selectOption("approve");
+  await chooseOption(page, "Decisão", "Aprovar");
   await page
     .getByLabel("Comentário")
     .fill("Elegibilidade conferida pela área de RH.");
@@ -254,7 +256,7 @@ async function createAccount(
 ) {
   await page.getByRole("button", { name: "Novo acesso" }).click();
   await page.getByRole("button", { name: "Pessoa já cadastrada" }).click();
-  await page.getByLabel("Pessoa").selectOption({ label: person });
+  await chooseOption(page, "Pessoa", person);
   await page.getByLabel("E-mail institucional").fill(email);
   await page.getByLabel("Senha temporária").fill(password);
   await page.getByRole("button", { name: "Criar conta de acesso" }).click();
@@ -278,17 +280,20 @@ async function assignRole(
 ) {
   await page.getByRole("button", { name: "Conceder acesso" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Pessoa", { exact: true }).selectOption({
-    label: account,
-  });
-  await dialog.getByLabel("Perfil de acesso").selectOption({ label: role });
-  await dialog.getByLabel("Onde o acesso vale").selectOption({
-    label: unitLabel,
-  });
+  await chooseOption(page, "Pessoa", account);
+  await chooseOption(page, "Perfil de acesso", role);
+  await chooseOption(page, "Onde o acesso vale", unitLabel);
   await dialog.getByRole("button", { name: "Conceder acesso" }).click();
   await expect(
     page.getByText(`${role} · ${unitLabel.split(" · ")[1] ?? unitLabel}`, {
       exact: true,
     }),
   ).toBeVisible();
+}
+
+async function chooseOption(page: Page, field: string, option: string) {
+  await page.getByRole("combobox", { name: field, exact: true }).click();
+  const search = page.getByRole("combobox", { name: "Pesquisar opções" });
+  if (await search.isVisible()) await search.fill(option);
+  await page.getByRole("option", { name: option, exact: true }).click();
 }
