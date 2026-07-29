@@ -88,6 +88,13 @@ Cada ambiente roda a própria instância, separada por escopo
 Só `api` e `web` têm o rótulo. **`postgres` e `minio` nunca são reiniciados
 pelo Watchtower** — serviços com estado ficam fora, de propósito.
 
+`WATCHTOWER_ROLLING_RESTART` não pode ser usado aqui. O Watchtower valida a
+compatibilidade na subida e sai com erro quando um container em escopo declara
+`depends_on` — que é o caso de `api` e `web`. O sintoma é traiçoeiro: se o
+Watchtower subir antes dos dependentes existirem, ele passa na validação e roda
+normalmente até o primeiro restart, quando morre calado e o ambiente para de
+receber atualizações sem aviso.
+
 O Watchtower consulta o GHCR por polling. A máquina só precisa de saída HTTPS;
 nenhuma porta de entrada é aberta para o GitHub, e nada depende de a VPN estar
 alcançável de fora.
@@ -99,6 +106,29 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u <usuario> --password-stdin
 ```
 
 O token precisa apenas de `read:packages`.
+
+## TLS em produção
+
+O Caddy termina o TLS na frente do `web` e emite o certificado com a própria CA
+local (`tls internal`). Não há ACME público: o endereço é RFC1918 e nenhuma
+autoridade pública emite certificado para endereço privado.
+
+O navegador mostra aviso de certificado até que a raiz do Caddy seja instalada
+nas estações. Ela fica no volume `caddy-data`, em
+`/data/caddy/pki/authorities/local/root.crt`. O volume existe justamente para
+que a raiz sobreviva a reinícios — sem ele o Caddy gera uma nova a cada subida
+e o aviso reaparece para todos.
+
+### `default_sni` é obrigatório enquanto o endereço for um IP
+
+Nenhum cliente envia SNI quando o destino é um endereço IP; a RFC só admite
+hostname nesse campo. Sem `default_sni` o Caddy não tem como escolher qual
+certificado apresentar e derruba o handshake com
+`tlsv1 alert internal error` — o sintoma é a conexão morrer antes de qualquer
+resposta HTTP, o que parece firewall mas não é.
+
+Quando existir um nome real no DNS interno, basta trocar `TLS_SITE_HOST`; a
+diretiva deixa de ser necessária.
 
 ## Homologação sem TLS
 

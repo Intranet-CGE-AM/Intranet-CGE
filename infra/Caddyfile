@@ -1,0 +1,33 @@
+# TLS interno para a intranet.
+#
+# Não há ACME público aqui: o endereço é RFC1918 e nenhuma autoridade pública
+# emite certificado para endereço privado. `tls internal` faz o Caddy assinar
+# com a própria CA local, o que entrega HTTPS de verdade — suficiente para o
+# cookie de sessão `Secure` — ao custo de um aviso no navegador até que a raiz
+# do Caddy seja instalada nas estações.
+#
+# Para trocar por um nome real ou por certificado da CA da PRODAM, ajuste
+# TLS_SITE_HOST e substitua a diretiva `tls`.
+{
+	# O nginx do host é dono da porta 80. Sem isto o Caddy tentaria publicar
+	# redirecionamentos HTTP e disputaria a porta.
+	auto_https disable_redirects
+
+	# Cliente nenhum envia SNI quando o endereço é um IP — a RFC só admite
+	# hostname ali. Sem este padrão o Caddy não tem como escolher o
+	# certificado e derruba o handshake com "internal error". Deixa de ser
+	# necessário no dia em que existir um nome de verdade.
+	default_sni {$TLS_SITE_HOST:10.0.0.9}
+}
+
+https://{$TLS_SITE_HOST:10.0.0.9} {
+	tls internal
+
+	encode gzip
+
+	# O `web` já serve os arquivos e encaminha /api para a API. O Caddy só
+	# termina o TLS na frente dele.
+	reverse_proxy web:8080 {
+		header_up X-Forwarded-Proto https
+	}
+}

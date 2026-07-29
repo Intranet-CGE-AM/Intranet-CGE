@@ -83,6 +83,25 @@ services:
       timeout: 5s
       retries: 10
 
+  # Termina o TLS na frente do web. Os cookies de sessão são `Secure`, então
+  # sem HTTPS o navegador nunca devolve a sessão e o login não completa.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${TLS_BIND_ADDRESS:-0.0.0.0}:${TLS_PORT:-443}:443"
+    environment:
+      TLS_SITE_HOST: ${TLS_SITE_HOST:-10.0.0.9}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Preserva a CA e os certificados entre reinícios: sem isto o Caddy gera
+      # uma raiz nova a cada subida e as estações voltam a ver aviso.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
   web:
     image: ${WEB_IMAGE:-ghcr.io/intranet-cge-am/intranet-cge-web}:${IMAGE_TAG:-production}
     restart: unless-stopped
@@ -112,9 +131,10 @@ services:
       WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-300}
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_INCLUDE_RESTARTING: "true"
-      WATCHTOWER_ROLLING_RESTART: "true"
       TZ: ${TZ:-America/Manaus}
 
 volumes:
   postgres-data:
   minio-data:
+  caddy-data:
+  caddy-config:
