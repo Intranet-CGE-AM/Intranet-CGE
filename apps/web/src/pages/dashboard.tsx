@@ -1,4 +1,8 @@
-import type { Birthday, Person, VacationRequest } from "@cge/contracts";
+import type {
+  Birthday,
+  PeoplePageResult,
+  VacationRequest,
+} from "@cge/contracts";
 import {
   Alert,
   Avatar,
@@ -46,7 +50,7 @@ const date = new Intl.DateTimeFormat("pt-BR", {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [people, setPeople] = useState<Person[]>([]);
+  const [peopleCount, setPeopleCount] = useState(0);
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,8 +65,11 @@ export function DashboardPage() {
       try {
         const results = await Promise.all([
           can(user!, "people.read")
-            ? api<{ people: Person[] }>("/api/people")
-            : Promise.resolve({ people: [] }),
+            ? api<PeoplePageResult>("/api/people?pageSize=1")
+            : Promise.resolve({
+                people: [],
+                pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0 },
+              }),
           can(user!, "birthdays.read")
             ? api<{ birthdays: Birthday[] }>("/api/birthdays?days=30")
             : Promise.resolve({ birthdays: [] }),
@@ -86,7 +93,7 @@ export function DashboardPage() {
         if (!active) {
           return;
         }
-        setPeople(results[0].people);
+        setPeopleCount(results[0].pagination.total);
         setBirthdays(results[1].birthdays);
         setRequests([
           ...new Map(
@@ -244,7 +251,7 @@ export function DashboardPage() {
         {[
           {
             label: "Pessoas ativas visíveis",
-            value: people.length,
+            value: peopleCount,
             detail: "dentro do seu escopo",
           },
           {

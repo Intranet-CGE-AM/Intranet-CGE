@@ -50,6 +50,16 @@ export const personSchema = z.object({
     .nullable(),
 });
 
+export const peoplePageSchema = z.object({
+  people: z.array(personSchema),
+  pagination: z.object({
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+  }),
+});
+
 export const employmentCategoryInputSchema = z.object({
   name: z.string().trim().min(2).max(120),
   vacationEligible: z.boolean().default(false),
@@ -123,5 +133,6 @@ export type OrganizationUnitInput = z.infer<typeof organizationUnitInputSchema>;
 export type PeopleImportRequest = z.infer<typeof peopleImportRequestSchema>;
 export type PeopleImportResult = z.infer<typeof peopleImportResultSchema>;
 export type Person = z.infer<typeof personSchema>;
+export type PeoplePageResult = z.infer<typeof peoplePageSchema>;
 export type OrganizationUnit = z.infer<typeof organizationUnitSchema>;
 export type Birthday = z.infer<typeof birthdaySchema>;

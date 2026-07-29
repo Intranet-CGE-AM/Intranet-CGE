@@ -4,7 +4,7 @@ import type {
   PersonInput,
   PersonUpdate,
 } from "@cge/contracts";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
 import {
@@ -18,8 +18,30 @@ import { avatarUrl } from "./avatar.js";
 export class PeopleService {
   constructor(private readonly db: Database) {}
 
-  async listPeople(unitIds: string[] | null, includeSensitive: boolean) {
-    const rows = await this.db
+  async listPeople(
+    unitIds: string[] | null,
+    includeSensitive: boolean,
+    options: { limit?: number; offset?: number; query?: string } = {},
+  ) {
+    const scope =
+      unitIds === null
+        ? undefined
+        : unitIds.length
+          ? inArray(employmentRelationships.unitId, unitIds)
+          : sql`false`;
+    const term = options.query?.trim();
+    const search = term
+      ? or(
+          ilike(people.fullName, `%${term}%`),
+          ilike(people.preferredName, `%${term}%`),
+          ilike(organizationUnits.name, `%${term}%`),
+          ilike(organizationUnits.code, `%${term}%`),
+          ilike(employmentCategories.name, `%${term}%`),
+          ilike(employmentRelationships.employeeNumber, `%${term}%`),
+        )
+      : undefined;
+    const where = and(scope, search);
+    const rowsQuery = this.db
       .select({
         id: people.id,
         fullName: people.fullName,
@@ -57,47 +79,68 @@ export class PeopleService {
         organizationUnits,
         eq(employmentRelationships.unitId, organizationUnits.id),
       )
-      .where(
-        unitIds === null
-          ? undefined
-          : unitIds.length
-            ? inArray(employmentRelationships.unitId, unitIds)
-            : sql`false`,
-      )
+      .where(where)
       .orderBy(people.fullName);
+    const [rows, totals] = await Promise.all([
+      options.limit === undefined
+        ? rowsQuery
+        : rowsQuery.limit(options.limit).offset(options.offset ?? 0),
+      this.db
+        .select({ total: count() })
+        .from(people)
+        .innerJoin(
+          employmentRelationships,
+          and(
+            eq(employmentRelationships.personId, people.id),
+            isNull(employmentRelationships.endDate),
+          ),
+        )
+        .leftJoin(
+          employmentCategories,
+          eq(employmentRelationships.categoryId, employmentCategories.id),
+        )
+        .leftJoin(
+          organizationUnits,
+          eq(employmentRelationships.unitId, organizationUnits.id),
+        )
+        .where(where),
+    ]);
 
-    return rows.map((row) => ({
-      id: row.id,
-      fullName: row.fullName,
-      preferredName: row.preferredName,
-      avatarUrl: row.avatarObjectKey
-        ? avatarUrl(row.id, row.avatarUpdatedAt)
-        : null,
-      ...(includeSensitive ? { birthDate: row.birthDate } : {}),
-      ...(includeSensitive ? { birthdayVisible: row.birthdayVisible } : {}),
-      employment:
-        row.employmentId &&
-        row.categoryId &&
-        row.categoryName &&
-        row.unitId &&
-        row.unitCode &&
-        row.unitName &&
-        row.startDate
-          ? {
-              id: row.employmentId,
-              employeeNumber: row.employeeNumber,
-              categoryId: row.categoryId,
-              categoryName: row.categoryName,
-              unitId: row.unitId,
-              unitCode: row.unitCode,
-              unitName: row.unitName,
-              supervisorRelationshipId: row.supervisorRelationshipId,
-              startDate: row.startDate,
-              endDate: row.endDate,
-              jobTitle: row.jobTitle,
-            }
+    return {
+      people: rows.map((row) => ({
+        id: row.id,
+        fullName: row.fullName,
+        preferredName: row.preferredName,
+        avatarUrl: row.avatarObjectKey
+          ? avatarUrl(row.id, row.avatarUpdatedAt)
           : null,
-    }));
+        ...(includeSensitive ? { birthDate: row.birthDate } : {}),
+        ...(includeSensitive ? { birthdayVisible: row.birthdayVisible } : {}),
+        employment:
+          row.employmentId &&
+          row.categoryId &&
+          row.categoryName &&
+          row.unitId &&
+          row.unitCode &&
+          row.unitName &&
+          row.startDate
+            ? {
+                id: row.employmentId,
+                employeeNumber: row.employeeNumber,
+                categoryId: row.categoryId,
+                categoryName: row.categoryName,
+                unitId: row.unitId,
+                unitCode: row.unitCode,
+                unitName: row.unitName,
+                supervisorRelationshipId: row.supervisorRelationshipId,
+                startDate: row.startDate,
+                endDate: row.endDate,
+                jobTitle: row.jobTitle,
+              }
+            : null,
+      })),
+      total: totals[0]?.total ?? 0,
+    };
   }
 
   async createPerson(input: PersonInput) {

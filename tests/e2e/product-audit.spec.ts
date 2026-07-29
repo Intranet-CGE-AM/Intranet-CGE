@@ -204,6 +204,41 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
   await expect(page.locator('[data-slot="empty-state"] svg')).toHaveCount(0);
 });
 
+test("employee directory paginates and searches on the server", async ({
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  await openHrRoute(page, "Colaboradores");
+
+  const response = await page.request.get("/api/people?pageSize=1");
+  const total = (await response.json()).pagination.total as number;
+  const table = page.getByRole("table", {
+    name: "Diretório de colaboradores",
+  });
+  await expect(table.getByRole("row")).toHaveCount(Math.min(10, total) + 1);
+  await expect(
+    page.getByText(`1–${Math.min(10, total)} de ${total} colaboradores`),
+  ).toBeVisible();
+
+  await chooseOption(page, "Itens por página", "5");
+  await expect(table.getByRole("row")).toHaveCount(6);
+  await expect(page.getByText(`1–5 de ${total} colaboradores`)).toBeVisible();
+  await page.getByRole("button", { name: "Próxima página" }).click();
+  await expect(
+    page.getByText(`6–${Math.min(10, total)} de ${total} colaboradores`),
+  ).toBeVisible();
+
+  await page
+    .getByRole("searchbox", { name: "Buscar colaboradores" })
+    .fill("Ana Beatriz");
+  await expect(page.getByText("1–1 de 1 colaboradores")).toBeVisible();
+  await expect(page.getByText("Página 1 de 1")).toBeVisible();
+  await expect(
+    table.getByText("Ana Beatriz Vasconcelos", { exact: true }),
+  ).toBeVisible();
+  await expectAccessiblePage(page, "/rh/colaboradores paginado", 1280);
+});
+
 test("direct routes and controls remain unavailable without their permissions", async ({
   page,
 }) => {
@@ -751,6 +786,9 @@ test("administration onboards an employee and supports account operations", asyn
   await expect(page.getByText(/sessões revogadas/)).toBeVisible();
 
   await openHrRoute(page, "Colaboradores");
+  await page
+    .getByRole("searchbox", { name: "Buscar colaboradores" })
+    .fill("Íris Fernandes");
   const irisRow = page.getByRole("row").filter({ hasText: "Íris Fernandes" });
   const deactivateIris = irisRow.getByRole("button", {
     name: "Desativar Íris",

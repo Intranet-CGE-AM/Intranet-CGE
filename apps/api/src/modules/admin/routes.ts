@@ -76,8 +76,9 @@ export const adminRoutes: FastifyPluginAsync<{
       ) {
         return;
       }
+      const result = await options.peopleService.listPeople(null, false);
       return {
-        people: await options.peopleService.listPeople(null, false),
+        people: result.people,
       };
     },
   );

@@ -1,6 +1,7 @@
 import type {
   EmploymentCategory,
   OrganizationUnit,
+  PeoplePageResult,
   PeopleImportResult,
   Person,
 } from "@cge/contracts";
@@ -14,6 +15,7 @@ import {
   CardContent,
   CardHeader,
   ConfirmDialog,
+  DataTable,
   Dialog,
   DialogContent,
   EmptyState,
@@ -21,10 +23,7 @@ import {
   Input,
   SearchableSelect,
   Skeleton,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
+  type ColumnDef,
 } from "@cge/ui";
 import {
   FileArrowUp as FileUp,
@@ -33,13 +32,7 @@ import {
   MagnifyingGlass as Search,
   Plus,
 } from "@phosphor-icons/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
@@ -55,7 +48,14 @@ export function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
+  const [supervisorCandidates, setSupervisorCandidates] = useState<Person[]>(
+    [],
+  );
   const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [dialogError, setDialogError] = useState("");
   const [success, setSuccess] = useState("");
@@ -79,48 +79,64 @@ export function PeoplePage() {
   const manageableUnits = units.filter(
     (unit) => user && can(user, "people.manage", unit.id),
   );
-  const showsActions = people.some(
-    (person) =>
-      person.employment &&
-      user &&
-      can(user, "people.manage", person.employment.unitId),
-  );
+  const showsActions = managesPeople;
 
-  const load = useCallback(async () => {
+  const loadPeople = useCallback(async () => {
     try {
       setError("");
       setDialogError("");
-      const [peopleResult, categoriesResult, unitsResult] = await Promise.all([
-        api<{ people: Person[] }>("/api/people"),
-        api<{ categories: EmploymentCategory[] }>("/api/employment-categories"),
-        api<{ units: OrganizationUnit[] }>("/api/organization-units"),
-      ]);
-      setPeople(peopleResult.people);
-      setCategories(categoriesResult.categories);
-      setUnits(unitsResult.units);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (search) params.set("query", search);
+      const result = await api<PeoplePageResult>(`/api/people?${params}`);
+      if (result.pagination.totalPages && page > result.pagination.totalPages) {
+        setPage(result.pagination.totalPages);
+        return;
+      }
+      setPeople(result.people);
+      setTotal(result.pagination.total);
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível carregar o diretório."));
     } finally {
       setLoading(false);
     }
+  }, [page, pageSize, search]);
+
+  const loadReferenceData = useCallback(async () => {
+    try {
+      const [categoriesResult, unitsResult, peopleResult] = await Promise.all([
+        api<{ categories: EmploymentCategory[] }>("/api/employment-categories"),
+        api<{ units: OrganizationUnit[] }>("/api/organization-units"),
+        // ponytail: use the first 100 until this combobox needs server search.
+        api<PeoplePageResult>("/api/people?pageSize=100"),
+      ]);
+      setCategories(categoriesResult.categories);
+      setUnits(unitsResult.units);
+      setSupervisorCandidates(peopleResult.people);
+    } catch (cause) {
+      setError(
+        messageFor(cause, "Não foi possível carregar categorias e unidades."),
+      );
+    }
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadPeople();
+  }, [loadPeople]);
 
-  const filtered = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase("pt-BR");
-    if (!term) return people;
-    return people.filter((person) =>
-      [
-        person.preferredName,
-        person.fullName,
-        person.employment?.unitName,
-        person.employment?.categoryName,
-      ].some((value) => value?.toLocaleLowerCase("pt-BR").includes(term)),
-    );
-  }, [people, query]);
+  useEffect(() => {
+    void loadReferenceData();
+  }, [loadReferenceData]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setPage(1);
+      setSearch(query.trim());
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
 
   async function savePerson(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,7 +151,7 @@ export function PeoplePage() {
         body: json(personInputFromForm(data)),
       });
       setPersonDialog(null);
-      await load();
+      await loadPeople();
       setSuccess(
         current ? "Colaborador atualizado." : "Colaborador cadastrado.",
       );
@@ -163,7 +179,7 @@ export function PeoplePage() {
         }),
       });
       form.reset();
-      await load();
+      await loadReferenceData();
       setSuccess("Categoria adicionada.");
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível criar a categoria."));
@@ -188,7 +204,7 @@ export function PeoplePage() {
         }),
       });
       form.reset();
-      await load();
+      await loadReferenceData();
       setSuccess("Unidade adicionada.");
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível criar a unidade."));
@@ -214,7 +230,7 @@ export function PeoplePage() {
       });
       setImportResult(result);
       if (mode === "apply") {
-        await load();
+        await Promise.all([loadPeople(), loadReferenceData()]);
         setSuccess("Importação aplicada.");
       }
     } catch (cause) {
@@ -232,7 +248,7 @@ export function PeoplePage() {
         method: "POST",
         body: json({ endDate: manausToday() }),
       });
-      await load();
+      await loadPeople();
       setSuccess("Vínculo e conta desativados.");
     } catch (cause) {
       setError(messageFor(cause, "Não foi possível desativar o colaborador."));
@@ -256,7 +272,7 @@ export function PeoplePage() {
         }),
       });
       setSupervisorPerson(null);
-      await load();
+      await loadPeople();
       setSuccess("Chefia direta atualizada.");
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível definir a chefia."));
@@ -279,7 +295,7 @@ export function PeoplePage() {
       });
       setAvatarPerson(null);
       setAvatarFile(null);
-      await load();
+      await loadPeople();
       setSuccess("Foto do colaborador atualizada.");
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível salvar a foto."));
@@ -296,7 +312,7 @@ export function PeoplePage() {
       await api(`/api/people/${avatarPerson.id}/avatar`, { method: "DELETE" });
       setAvatarPerson(null);
       setAvatarFile(null);
-      await load();
+      await loadPeople();
       setSuccess("Foto do colaborador removida.");
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível remover a foto."));
@@ -304,6 +320,121 @@ export function PeoplePage() {
       setBusy(false);
     }
   }
+
+  const columns: ColumnDef<Person>[] = [
+    {
+      header: "Nome",
+      cell: ({ row }) => {
+        const person = row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar
+              name={person.preferredName ?? person.fullName}
+              src={person.avatarUrl}
+            />
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {person.preferredName ?? person.fullName}
+              </p>
+              {person.preferredName ? (
+                <p className="text-xs text-[var(--text-faint)]">
+                  {person.fullName}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      header: "Unidade de lotação",
+      cell: ({ row }) =>
+        row.original.employment?.unitName ?? "Sem vínculo ativo",
+    },
+    {
+      header: "Categoria funcional",
+      cell: ({ row }) => (
+        <span className="text-[var(--text-muted)]">
+          {row.original.employment?.categoryName ?? "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Matrícula",
+      cell: ({ row }) => (
+        <Badge variant="neutral">
+          {row.original.employment?.employeeNumber ?? "—"}
+        </Badge>
+      ),
+    },
+    ...(showsActions
+      ? [
+          {
+            id: "actions",
+            header: "Ações",
+            cell: ({ row }) => {
+              const person = row.original;
+              if (
+                !person.employment ||
+                !user ||
+                !can(user, "people.manage", person.employment.unitId)
+              ) {
+                return null;
+              }
+              const name = person.preferredName ?? person.fullName;
+              return (
+                <div className="flex whitespace-nowrap">
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={`Alterar foto de ${name}`}
+                    onClick={() => {
+                      setAvatarFile(null);
+                      setAvatarPerson(person);
+                    }}
+                  >
+                    <ImageSquare aria-hidden="true" size={15} />
+                    Foto
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={`Editar ${name}`}
+                    onClick={() => setPersonDialog(person)}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={`Definir chefia de ${name}`}
+                    disabled={busy}
+                    onClick={() => setSupervisorPerson(person)}
+                  >
+                    Definir chefia
+                  </Button>
+                  <ConfirmDialog
+                    confirmLabel="Desativar colaborador"
+                    description={`O vínculo e a conta de ${name} serão desativados. As sessões abertas serão encerradas.`}
+                    onConfirm={() => deactivate(person)}
+                    title="Desativar colaborador?"
+                  >
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      aria-label={`Desativar ${name}`}
+                      disabled={busy}
+                    >
+                      Desativar
+                    </Button>
+                  </ConfirmDialog>
+                </div>
+              );
+            },
+          } satisfies ColumnDef<Person>,
+        ]
+      : []),
+  ];
 
   return (
     <div className="page-enter space-y-4">
@@ -378,112 +509,22 @@ export function PeoplePage() {
             <Skeleton className="h-12" />
             <Skeleton className="h-12" />
           </CardContent>
-        ) : filtered.length ? (
-          <>
-            <Table>
-              <thead>
-                <tr>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Unidade de lotação</TableHead>
-                  <TableHead>Categoria funcional</TableHead>
-                  <TableHead>Matrícula</TableHead>
-                  {showsActions ? <TableHead>Ações</TableHead> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((person) => (
-                  <TableRow key={person.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          name={person.preferredName ?? person.fullName}
-                          src={person.avatarUrl}
-                        />
-                        <div className="min-w-0">
-                          <p className="font-semibold">
-                            {person.preferredName ?? person.fullName}
-                          </p>
-                          {person.preferredName ? (
-                            <p className="text-xs text-[var(--text-faint)]">
-                              {person.fullName}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {person.employment?.unitName ?? "Sem vínculo ativo"}
-                    </TableCell>
-                    <TableCell className="text-[var(--text-muted)]">
-                      {person.employment?.categoryName ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="neutral">
-                        {person.employment?.employeeNumber ?? "—"}
-                      </Badge>
-                    </TableCell>
-                    {showsActions ? (
-                      <TableCell className="whitespace-nowrap">
-                        {person.employment &&
-                        user &&
-                        can(user, "people.manage", person.employment.unitId) ? (
-                          <div className="flex gap-1">
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              aria-label={`Alterar foto de ${person.preferredName ?? person.fullName}`}
-                              onClick={() => {
-                                setAvatarFile(null);
-                                setAvatarPerson(person);
-                              }}
-                            >
-                              <ImageSquare aria-hidden="true" size={15} />
-                              Foto
-                            </Button>
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              aria-label={`Editar ${person.preferredName ?? person.fullName}`}
-                              onClick={() => setPersonDialog(person)}
-                            >
-                              Editar
-                            </Button>
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              aria-label={`Definir chefia de ${person.preferredName ?? person.fullName}`}
-                              disabled={busy}
-                              onClick={() => setSupervisorPerson(person)}
-                            >
-                              Definir chefia
-                            </Button>
-                            <ConfirmDialog
-                              confirmLabel="Desativar colaborador"
-                              description={`O vínculo e a conta de ${person.preferredName ?? person.fullName} serão desativados. As sessões abertas serão encerradas.`}
-                              onConfirm={() => deactivate(person)}
-                              title="Desativar colaborador?"
-                            >
-                              <Button
-                                variant="quiet"
-                                size="sm"
-                                aria-label={`Desativar ${person.preferredName ?? person.fullName}`}
-                                disabled={busy}
-                              >
-                                Desativar
-                              </Button>
-                            </ConfirmDialog>
-                          </div>
-                        ) : null}
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))}
-              </tbody>
-            </Table>
-            <CardContent className="border-t border-[var(--border)] py-3 text-xs text-[var(--text-faint)]">
-              {filtered.length} de {people.length} colaboradores visíveis
-            </CardContent>
-          </>
+        ) : total ? (
+          <DataTable
+            ariaLabel="Diretório de colaboradores"
+            columns={columns}
+            data={people}
+            getRowId={(person) => person.id}
+            itemLabel="colaboradores"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPage(1);
+              setPageSize(size);
+            }}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+          />
         ) : (
           <EmptyState
             title={query ? "Nenhum resultado" : "Diretório vazio"}
@@ -644,7 +685,7 @@ export function PeoplePage() {
                 defaultValue=""
                 id="supervisorRelationshipId"
                 name="supervisorRelationshipId"
-                options={people
+                options={supervisorCandidates
                   .filter(
                     (person) =>
                       person.id !== supervisorPerson?.id && person.employment,

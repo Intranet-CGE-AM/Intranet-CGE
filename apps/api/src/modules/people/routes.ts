@@ -5,10 +5,10 @@ import {
   employmentCategorySchema,
   organizationUnitInputSchema,
   organizationUnitSchema,
+  peoplePageSchema,
   peopleImportRequestSchema,
   peopleImportResultSchema,
   personInputSchema,
-  personSchema,
   personUpdateSchema,
 } from "@cge/contracts";
 import { permissionAllows, type PermissionKey } from "@cge/contracts";
@@ -252,9 +252,14 @@ export const peopleRoutes: FastifyPluginAsync<{
     "/api/people",
     {
       schema: {
-        querystring: z.object({ unitId: z.uuid().optional() }),
+        querystring: z.object({
+          unitId: z.uuid().optional(),
+          page: z.coerce.number().int().positive().default(1),
+          pageSize: z.coerce.number().int().min(1).max(100).default(10),
+          query: z.string().trim().max(120).optional(),
+        }),
         response: {
-          200: z.object({ people: z.array(personSchema) }),
+          200: peoplePageSchema,
           401: authErrorSchema,
           403: authErrorSchema,
         },
@@ -292,11 +297,23 @@ export const peopleRoutes: FastifyPluginAsync<{
         "people.manage",
         request.query.unitId,
       );
+      const result = await options.peopleService.listPeople(
+        unitIds,
+        includeSensitive,
+        {
+          limit: request.query.pageSize,
+          offset: (request.query.page - 1) * request.query.pageSize,
+          query: request.query.query,
+        },
+      );
       return {
-        people: await options.peopleService.listPeople(
-          unitIds,
-          includeSensitive,
-        ),
+        people: result.people,
+        pagination: {
+          page: request.query.page,
+          pageSize: request.query.pageSize,
+          total: result.total,
+          totalPages: Math.ceil(result.total / request.query.pageSize),
+        },
       };
     },
   );

@@ -68,6 +68,9 @@ test("complete HR journey from import through final vacation approval", async ({
   await expect(page.getByText(/2 válidas · 0 com erro/)).toBeVisible();
   await page.getByRole("button", { name: "Aplicar 2 linhas válidas" }).click();
   await page.getByRole("button", { name: "Fechar" }).click();
+  await page
+    .getByRole("searchbox", { name: "Buscar colaboradores" })
+    .fill("Trabalhador");
   await expect(page.getByText("Trabalhador", { exact: true })).toBeVisible();
 
   const workerRow = page.getByRole("row", { name: /Trabalhador E2E/ });
