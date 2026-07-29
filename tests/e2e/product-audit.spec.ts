@@ -525,11 +525,21 @@ test("individual access overrides and audit module work end to end", async ({
       name: "Gerenciar acessos de Ana Beatriz Vasconcelos",
     })
     .click();
-  await chooseOption(
-    page,
-    "Permissão específica",
-    "Pessoas e RH · Consultar pessoas",
-  );
+  await page.getByRole("button", { name: /Exceções individuais/ }).click();
+  await page
+    .getByRole("combobox", { name: "Permissão específica", exact: true })
+    .click();
+  await expect(
+    page.getByText("Administração do sistema", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Pessoas e RH", { exact: true })).toBeVisible();
+  await expectAccessiblePage(page, "seletor de permissões", 1280);
+  await page
+    .getByRole("combobox", { name: "Pesquisar opções" })
+    .fill("Consultar pessoas");
+  await page
+    .getByRole("option", { name: "Consultar pessoas", exact: true })
+    .click();
   await chooseOption(page, "Escopo do ajuste", "CCI · Controle Interno");
   await page.getByRole("button", { name: "Aplicar ajuste" }).click();
   await expect(page.getByText("Ajuste individual aplicado.")).toBeVisible();
@@ -545,11 +555,8 @@ test("individual access overrides and audit module work end to end", async ({
       name: "Gerenciar acessos de Leonardo Araújo",
     })
     .click();
-  await chooseOption(
-    page,
-    "Permissão específica",
-    "Pessoas e RH · Consultar pessoas",
-  );
+  await page.getByRole("button", { name: /Exceções individuais/ }).click();
+  await chooseOption(page, "Permissão específica", "Consultar pessoas");
   await chooseOption(page, "Tratamento", "Bloquear acesso");
   await expect(page.getByLabel("Escopo do ajuste")).toBeDisabled();
   await page.getByRole("button", { name: "Aplicar ajuste" }).click();

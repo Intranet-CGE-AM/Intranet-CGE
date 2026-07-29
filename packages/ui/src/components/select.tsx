@@ -13,6 +13,7 @@ import { cn } from "../lib/cn";
 
 export type SelectOption = {
   disabled?: boolean;
+  group?: string;
   keywords?: string[];
   label: string;
   value: string;
@@ -34,7 +35,9 @@ type CommonSelectProps = {
 };
 
 type SearchableSelectProps = CommonSelectProps & {
+  listClassName?: string;
   onSearchChange?: (query: string) => void;
+  searchPlaceholder?: string;
   searching?: boolean;
 };
 
@@ -122,12 +125,14 @@ export function SearchableSelect({
   defaultValue = "",
   disabled,
   id,
+  listClassName,
   name,
   onSearchChange,
   onValueChange,
   options,
   placeholder = "Selecione",
   required,
+  searchPlaceholder = "Pesquisar…",
   searching = false,
   value,
   ...ariaProps
@@ -138,6 +143,13 @@ export function SearchableSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const selectedValue = value ?? internalValue;
   const selected = options.find((option) => option.value === selectedValue);
+  const optionGroups = Array.from(
+    options.reduce((groups, option) => {
+      const group = option.group ?? "";
+      groups.set(group, [...(groups.get(group) ?? []), option]);
+      return groups;
+    }, new Map<string, SelectOption[]>()),
+  );
 
   useEffect(() => {
     const form = triggerRef.current?.form;
@@ -209,33 +221,47 @@ export function SearchableSelect({
                   autoFocus
                   className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-faint)]"
                   onValueChange={onSearchChange}
-                  placeholder="Pesquisar…"
+                  placeholder={searchPlaceholder}
                 />
               </div>
-              <Command.List className="max-h-64 overflow-y-auto py-1">
+              <Command.List
+                className={cn("max-h-64 overflow-y-auto py-1", listClassName)}
+              >
                 <Command.Empty className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
                   {searching ? "Buscando…" : "Nenhum resultado encontrado."}
                 </Command.Empty>
-                {options.map((option) => (
-                  <Command.Item
-                    className="flex min-h-10 cursor-default select-none items-center gap-3 rounded-[9px] px-3 py-2 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-45 data-[selected=true]:bg-[var(--surface-subtle)]"
-                    disabled={option.disabled}
-                    key={option.value}
-                    onSelect={() => select(option.value)}
-                    value={[option.label, ...(option.keywords ?? [])].join(" ")}
+                {optionGroups.map(([group, groupOptions]) => (
+                  <Command.Group
+                    className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:text-[var(--text-faint)]"
+                    heading={group || undefined}
+                    key={group}
                   >
-                    <span className="min-w-0 flex-1 truncate">
-                      {option.label}
-                    </span>
-                    {selectedValue === option.value ? (
-                      <Check
-                        aria-hidden="true"
-                        className="shrink-0"
-                        size={16}
-                        weight="bold"
-                      />
-                    ) : null}
-                  </Command.Item>
+                    {groupOptions.map((option) => (
+                      <Command.Item
+                        className="flex min-h-10 cursor-default select-none items-center gap-3 rounded-[9px] px-3 py-2 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-45 data-[selected=true]:bg-[var(--surface-subtle)]"
+                        disabled={option.disabled}
+                        key={option.value}
+                        onSelect={() => select(option.value)}
+                        value={[
+                          option.group ?? "",
+                          option.label,
+                          ...(option.keywords ?? []),
+                        ].join(" ")}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {option.label}
+                        </span>
+                        {selectedValue === option.value ? (
+                          <Check
+                            aria-hidden="true"
+                            className="shrink-0"
+                            size={16}
+                            weight="bold"
+                          />
+                        ) : null}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
                 ))}
               </Command.List>
             </Command>

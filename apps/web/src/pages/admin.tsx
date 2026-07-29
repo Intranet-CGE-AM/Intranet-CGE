@@ -130,6 +130,7 @@ const permissionGroups = [
 const organizationScope = "organization";
 
 type AdminSection = "accounts" | "access";
+type AccessView = "roles" | "overrides";
 
 export function AdminPage() {
   const { refresh, user } = useAuth();
@@ -155,6 +156,7 @@ export function AdminPage() {
   const [userMode, setUserMode] = useState<"new" | "existing">("existing");
   const [roleDialog, setRoleDialog] = useState<Role | "new" | null>(null);
   const [accessAccount, setAccessAccount] = useState<AdminUser | null>(null);
+  const [accessView, setAccessView] = useState<AccessView>("roles");
   const [assignmentRoleId, setAssignmentRoleId] = useState("");
   const [overridePermission, setOverridePermission] = useState<
     PermissionKey | ""
@@ -183,6 +185,12 @@ export function AdminPage() {
     (unit) => user && can(user, "people.manage", unit.id),
   );
   const hrReady = categories.length > 0 && manageableUnits.length > 0;
+  const accountAssignments = assignments.filter(
+    (assignment) => assignment.accountId === accessAccount?.id,
+  );
+  const accountOverrides = overrides.filter(
+    (override) => override.accountId === accessAccount?.id,
+  );
   const sections = [
     managesAccounts || managesAccess
       ? {
@@ -607,6 +615,7 @@ export function AdminPage() {
                               setAssignmentRoleId("");
                               setOverridePermission("");
                               setOverrideEffect("allow");
+                              setAccessView("roles");
                               setAccessAccount(account);
                             }}
                           >
@@ -1020,12 +1029,13 @@ export function AdminPage() {
             setAssignmentRoleId("");
             setOverridePermission("");
             setOverrideEffect("allow");
+            setAccessView("roles");
             setDialogError("");
           }
         }}
       >
         <DialogContent
-          className="max-w-3xl"
+          className="max-w-4xl"
           title={
             accessAccount
               ? `Acessos de ${accessAccount.person.displayName}`
@@ -1038,8 +1048,49 @@ export function AdminPage() {
               {dialogError}
             </Alert>
           ) : null}
-          <div className="mt-5 divide-y divide-[var(--border)] border-y border-[var(--border)]">
-            <section className="py-5">
+          <div
+            aria-label="Seção de acesso"
+            className="mt-4 grid grid-cols-2 rounded-[11px] bg-[var(--surface-subtle)] p-1"
+            role="group"
+          >
+            {[
+              {
+                count: accountAssignments.length,
+                label: "Perfis",
+                value: "roles" as const,
+              },
+              {
+                count: accountOverrides.length,
+                label: "Exceções individuais",
+                value: "overrides" as const,
+              },
+            ].map((item) => (
+              <button
+                aria-pressed={accessView === item.value}
+                className={[
+                  "flex min-h-10 items-center justify-center gap-2 rounded-[8px] px-3 text-sm font-semibold transition-[background-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.98]",
+                  accessView === item.value
+                    ? "bg-white text-[var(--text)] shadow-[0_1px_2px_rgb(16_35_38/8%)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]",
+                ].join(" ")}
+                key={item.value}
+                onClick={() => setAccessView(item.value)}
+                type="button"
+              >
+                {item.label}
+                <span className="text-xs tabular-nums text-[var(--text-faint)]">
+                  {item.count}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4">
+            <section
+              className={[
+                "rounded-[12px] border border-[var(--border)] p-5",
+                accessView === "roles" ? "" : "hidden",
+              ].join(" ")}
+            >
               <div>
                 <h3 className="text-sm font-extrabold">Perfis atribuídos</h3>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -1047,57 +1098,51 @@ export function AdminPage() {
                   várias pessoas.
                 </p>
               </div>
-              <div className="mt-3 divide-y divide-[var(--border)]">
-                {assignments
-                  .filter(
-                    (assignment) => assignment.accountId === accessAccount?.id,
-                  )
-                  .map((assignment) => {
-                    const role = roles.find(
-                      (item) => item.id === assignment.roleId,
-                    );
-                    const unit = units.find(
-                      (item) => item.id === assignment.unitId,
-                    );
-                    const label = `${role?.name ?? "Perfil"} · ${
-                      unit?.name ?? "Toda a organização"
-                    }`;
-                    return (
-                      <div
-                        className="flex min-h-12 items-center gap-3 py-2"
-                        key={assignment.id}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold">
-                            {role?.name ?? "Perfil removido"}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)]">
-                            {unit?.name ?? "Toda a organização"}
-                          </p>
-                        </div>
-                        <ConfirmDialog
-                          confirmLabel="Remover perfil"
-                          description={`O acesso “${label}” será removido desta pessoa. Ajustes individuais permanecerão ativos.`}
-                          onConfirm={() => removeAssignment(assignment)}
-                          title="Remover perfil?"
-                        >
-                          <Button disabled={busy} size="sm" variant="quiet">
-                            Remover
-                          </Button>
-                        </ConfirmDialog>
+              <div className="mt-4 max-h-48 divide-y divide-[var(--border)] overflow-y-auto rounded-[10px] border border-[var(--border)] px-4">
+                {accountAssignments.map((assignment) => {
+                  const role = roles.find(
+                    (item) => item.id === assignment.roleId,
+                  );
+                  const unit = units.find(
+                    (item) => item.id === assignment.unitId,
+                  );
+                  const label = `${role?.name ?? "Perfil"} · ${
+                    unit?.name ?? "Toda a organização"
+                  }`;
+                  return (
+                    <div
+                      className="flex min-h-12 items-center gap-3 py-2"
+                      key={assignment.id}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">
+                          {role?.name ?? "Perfil removido"}
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {unit?.name ?? "Toda a organização"}
+                        </p>
                       </div>
-                    );
-                  })}
-                {assignments.every(
-                  (assignment) => assignment.accountId !== accessAccount?.id,
-                ) ? (
+                      <ConfirmDialog
+                        confirmLabel="Remover perfil"
+                        description={`O acesso “${label}” será removido desta pessoa. Ajustes individuais permanecerão ativos.`}
+                        onConfirm={() => removeAssignment(assignment)}
+                        title="Remover perfil?"
+                      >
+                        <Button disabled={busy} size="sm" variant="quiet">
+                          Remover
+                        </Button>
+                      </ConfirmDialog>
+                    </div>
+                  );
+                })}
+                {!accountAssignments.length ? (
                   <p className="py-3 text-xs text-[var(--text-muted)]">
                     Nenhum perfil atribuído.
                   </p>
                 ) : null}
               </div>
               <form
-                className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+                className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
                 onSubmit={createAssignment}
               >
                 <FormField htmlFor="accessRoleId" label="Adicionar perfil">
@@ -1146,7 +1191,12 @@ export function AdminPage() {
               </form>
             </section>
 
-            <section className="py-5">
+            <section
+              className={[
+                "rounded-[12px] border border-[var(--border)] p-5",
+                accessView === "overrides" ? "" : "hidden",
+              ].join(" ")}
+            >
               <div>
                 <h3 className="text-sm font-extrabold">Ajustes individuais</h3>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -1154,79 +1204,75 @@ export function AdminPage() {
                   toda a organização.
                 </p>
               </div>
-              <div className="mt-3 divide-y divide-[var(--border)]">
-                {overrides
-                  .filter(
-                    (override) => override.accountId === accessAccount?.id,
-                  )
-                  .map((override) => {
-                    const unit = units.find(
-                      (item) => item.id === override.unitId,
-                    );
-                    return (
-                      <div
-                        className="flex min-h-12 items-center gap-3 py-2"
-                        key={override.id}
+              <div className="mt-4 max-h-48 divide-y divide-[var(--border)] overflow-y-auto rounded-[10px] border border-[var(--border)] px-4">
+                {accountOverrides.map((override) => {
+                  const unit = units.find(
+                    (item) => item.id === override.unitId,
+                  );
+                  return (
+                    <div
+                      className="flex min-h-12 items-center gap-3 py-2"
+                      key={override.id}
+                    >
+                      <Badge
+                        variant={
+                          override.effect === "allow" ? "success" : "danger"
+                        }
                       >
-                        <Badge
-                          variant={
-                            override.effect === "allow" ? "success" : "danger"
-                          }
-                        >
-                          {override.effect === "allow"
-                            ? "Conceder"
-                            : "Bloquear"}
-                        </Badge>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold">
-                            {permissionLabels[override.permission]}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)]">
-                            {unit?.name ?? "Toda a organização"}
-                          </p>
-                        </div>
-                        <Button
-                          disabled={busy}
-                          onClick={() => void removeOverride(override)}
-                          size="sm"
-                          type="button"
-                          variant="quiet"
-                        >
-                          Remover
-                        </Button>
+                        {override.effect === "allow" ? "Conceder" : "Bloquear"}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">
+                          {permissionLabels[override.permission]}
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {unit?.name ?? "Toda a organização"}
+                        </p>
                       </div>
-                    );
-                  })}
-                {overrides.every(
-                  (override) => override.accountId !== accessAccount?.id,
-                ) ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => void removeOverride(override)}
+                        size="sm"
+                        type="button"
+                        variant="quiet"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  );
+                })}
+                {!accountOverrides.length ? (
                   <p className="py-3 text-xs text-[var(--text-muted)]">
                     Nenhum ajuste individual.
                   </p>
                 ) : null}
               </div>
               <form
-                className="mt-4 grid gap-3 sm:grid-cols-2"
+                className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4 sm:grid-cols-2"
                 onSubmit={createOverride}
               >
                 <FormField
                   htmlFor="overridePermission"
                   label="Permissão específica"
                 >
-                  <Select
+                  <SearchableSelect
                     id="overridePermission"
+                    listClassName="max-h-48"
                     name="overridePermission"
                     onValueChange={(value) =>
                       setOverridePermission(value as PermissionKey)
                     }
                     options={permissionGroups.flatMap((group) =>
                       group.permissions.map((permission) => ({
-                        label: `${group.title} · ${permissionLabels[permission]}`,
+                        group: group.title,
+                        keywords: [permissionDescriptions[permission]],
+                        label: permissionLabels[permission],
                         value: permission,
                       })),
                     )}
-                    placeholder="Selecione a permissão"
+                    placeholder="Pesquise uma permissão"
                     required
+                    searchPlaceholder="Pesquisar permissão…"
                     value={overridePermission}
                   />
                 </FormField>
@@ -1272,9 +1318,9 @@ export function AdminPage() {
                     ]}
                   />
                 </FormField>
-                <div className="flex items-end">
+                <div className="flex items-end justify-end sm:col-span-2">
                   <Button
-                    className="w-full"
+                    className="w-full sm:w-auto"
                     disabled={busy || !overridePermission}
                     type="submit"
                   >
