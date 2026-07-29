@@ -1,0 +1,147 @@
+name: Deploy
+
+# dev  -> constrói e publica a tag `homolog`; o Watchtower de homologação puxa.
+# main -> não reconstrói nada: reaponta a tag `production` para o digest que já
+#         passou por homologação. O Watchtower de produção puxa.
+#
+# A promoção usa o hash da árvore do Git, não o hash do commit. Um merge de dev
+# para main sem alterações produz a mesma árvore, então o digest encontrado é
+# literalmente a imagem validada. Se a árvore de main nunca passou por dev, o
+# job falha em vez de publicar algo não homologado.
+on:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publicar homologação
+    if: github.ref == 'refs/heads/dev'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Identificar imagens e árvore
+        id: meta
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "api=ghcr.io/$owner/intranet-cge-api" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/intranet-cge-web" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir e publicar api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/api.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.api }}:homolog
+            ${{ steps.meta.outputs.api }}:tree-${{ steps.meta.outputs.tree }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Construir e publicar web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/web.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.web }}:homolog
+            ${{ steps.meta.outputs.web }}:tree-${{ steps.meta.outputs.tree }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Resumo
+        run: |
+          {
+            echo "### Homologação publicada"
+            echo ""
+            echo "Árvore \`${{ steps.meta.outputs.tree }}\`"
+            echo ""
+            echo "O Watchtower de homologação aplica em até 2 minutos."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: Promover para produção
+    if: github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Identificar imagens e árvore
+        id: meta
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "api=ghcr.io/$owner/intranet-cge-api" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/intranet-cge-web" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Exigir imagem já homologada
+        run: |
+          tree='${{ steps.meta.outputs.tree }}'
+          missing=0
+          for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
+            if docker buildx imagetools inspect "$image:tree-$tree" >/dev/null 2>&1; then
+              echo "ok: $image:tree-$tree"
+            else
+              echo "ausente: $image:tree-$tree" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "" >&2
+            echo "Produção só recebe imagem que passou por homologação." >&2
+            echo "Esta árvore nunca foi publicada a partir da branch dev." >&2
+            echo "" >&2
+            echo "Leve a mudança para dev, deixe o Watchtower aplicar, valide," >&2
+            echo "e só então mergeie dev em main." >&2
+            exit 1
+          fi
+
+      - name: Reapontar tag de produção
+        run: |
+          tree='${{ steps.meta.outputs.tree }}'
+          for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
+            docker buildx imagetools create -t "$image:production" "$image:tree-$tree"
+          done
+
+      - name: Resumo
+        run: |
+          {
+            echo "### Produção promovida"
+            echo ""
+            echo "Árvore \`${{ steps.meta.outputs.tree }}\` — mesmo digest validado em homologação."
+            echo ""
+            echo "Produção **não** aplica migrações ao subir."
+            echo "Se esta versão exigir schema novo, rode a migração explícita antes."
+          } >> "$GITHUB_STEP_SUMMARY"

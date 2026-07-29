@@ -10,6 +10,7 @@ const config: AppConfig = {
   DATABASE_URL: "postgresql://unused",
   SESSION_SECRET: "test-session-secret-with-at-least-32-characters",
   SESSION_TTL_HOURS: 12,
+  SECURE_COOKIES: false,
   OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
   OBJECT_STORAGE_ACCESS_KEY: "test-key",
   OBJECT_STORAGE_SECRET_KEY: "test-secret",

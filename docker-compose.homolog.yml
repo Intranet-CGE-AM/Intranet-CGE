@@ -1,7 +1,11 @@
-# Produção — convive com o projeto de homologação na mesma máquina.
+# Homologação (dev) — roda ao lado da produção na mesma máquina.
 #
-#   docker compose --env-file .env.production -f docker-compose.production.yml up -d
-name: intranet-prod
+# Isolamento vem de três lugares: o nome do projeto (`name:` abaixo) separa
+# volumes e rede, a tag da imagem separa o que cada ambiente recebe, e o escopo
+# do Watchtower impede que uma atualização de homologação toque em produção.
+#
+#   docker compose --env-file .env.homolog -f docker-compose.homolog.yml up -d
+name: intranet-homolog
 
 services:
   postgres:
@@ -35,32 +39,19 @@ services:
       timeout: 5s
       retries: 10
 
-  object-client:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-    profiles: [tools]
-    entrypoint: ["/bin/sh", "-c"]
-    environment:
-      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
-      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
-      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
-      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-intranet-cge}
-    volumes:
-      - ${BACKUP_DIR:-./backups}:/backup
-    depends_on:
-      minio:
-        condition: service_healthy
-
   api:
-    image: ${API_IMAGE:-ghcr.io/intranet-cge-am/intranet-cge-api}:${IMAGE_TAG:-production}
+    image: ${API_IMAGE:-ghcr.io/intranet-cge-am/intranet-cge-api}:${IMAGE_TAG:-homolog}
     restart: unless-stopped
     labels:
-      com.centurylinklabs.watchtower.scope: production
+      com.centurylinklabs.watchtower.scope: homolog
     environment:
-      NODE_ENV: production
-      # Produção nunca migra ao subir. Para avançar o schema, rode a migração
-      # como comando avulso com RUN_MIGRATIONS=true e MIGRATION_CONFIRM.
-      RUN_MIGRATIONS: "false"
-      SECURE_COOKIES: "true"
+      # Homologação aplica migrações sozinha; produção nunca faz isso.
+      RUN_MIGRATIONS: "true"
+      # Acesso por IP e porta, sem TLS. O cookie de sessão não pode exigir
+      # HTTPS aqui ou o login não completa. Produção mantém true.
+      SECURE_COOKIES: "false"
+      # development libera `homolog:seed` e dispensa MIGRATION_CONFIRM.
+      NODE_ENV: development
       API_PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
@@ -84,12 +75,12 @@ services:
       retries: 10
 
   web:
-    image: ${WEB_IMAGE:-ghcr.io/intranet-cge-am/intranet-cge-web}:${IMAGE_TAG:-production}
+    image: ${WEB_IMAGE:-ghcr.io/intranet-cge-am/intranet-cge-web}:${IMAGE_TAG:-homolog}
     restart: unless-stopped
     labels:
-      com.centurylinklabs.watchtower.scope: production
+      com.centurylinklabs.watchtower.scope: homolog
     ports:
-      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8080}:8080"
+      - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8081}:8080"
     depends_on:
       api:
         condition: service_healthy
@@ -99,8 +90,9 @@ services:
       timeout: 5s
       retries: 10
 
-  # Só enxerga containers com o rótulo de escopo `production`. A tag de
-  # produção só muda quando a promoção reaponta o digest já homologado.
+  # Observa o GHCR e reaplica a tag de homologação quando o digest muda.
+  # O escopo garante que ele só enxerga api e web deste projeto: postgres e
+  # minio não têm o rótulo e nunca são reiniciados por ele.
   watchtower:
     image: nickfedor/watchtower:latest
     restart: unless-stopped
@@ -108,8 +100,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER_CONFIG_FILE:-/home/thalison/.docker/config.json}:/config.json:ro
     environment:
-      WATCHTOWER_SCOPE: production
-      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-300}
+      WATCHTOWER_SCOPE: homolog
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-120}
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_INCLUDE_RESTARTING: "true"
       WATCHTOWER_ROLLING_RESTART: "true"

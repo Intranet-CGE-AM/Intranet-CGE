@@ -2,12 +2,21 @@
 
 ## Topologia
 
-O Compose de produção executa quatro serviços na mesma máquina:
+O Compose de produção executa cinco serviços na mesma máquina:
 
 - `web`: arquivos Vite e proxy reverso interno;
-- `api`: Fastify, migrações e logs JSON estruturados;
+- `api`: Fastify e logs JSON estruturados;
 - `postgres`: PostgreSQL 17 sem porta publicada.
 - `minio`: objetos privados, hoje usados pelas fotos, sem porta publicada.
+- `watchtower`: aplica a tag `production` quando o digest muda.
+
+Homologação roda o mesmo desenho em paralelo, pelo
+`docker-compose.homolog.yml`, com nome de projeto, volumes, rede, porta e
+escopo de Watchtower próprios. Os dois ambientes convivem na mesma máquina sem
+compartilhar estado. Ver [CI/CD](cicd.md).
+
+Produção **não aplica migrações ao subir**. Um restart do Watchtower nunca
+altera o schema; a migração é operação deliberada, descrita em [CI/CD](cicd.md).
 
 O perfil `tools` adiciona o cliente de object storage somente durante backup ou
 restauração. Somente o web é publicado, por padrão em `127.0.0.1:8080`. Um proxy
@@ -33,9 +42,16 @@ Nenhum CDN ou serviço público é necessário em runtime.
 
 ## Subida e verificação
 
+As imagens vêm do GHCR; nada é construído na máquina. Autentique uma vez para
+que o Watchtower e o `pull` enxerguem o pacote privado:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <usuario> --password-stdin
+```
+
 ```bash
 docker compose --env-file .env.production \
-  -f docker-compose.production.yml up -d --build
+  -f docker-compose.production.yml up -d
 
 docker compose --env-file .env.production \
   -f docker-compose.production.yml ps
@@ -114,7 +130,20 @@ troca não altera as rotas ou telas de RH.
 
 ## Atualização e retorno
 
-Antes de atualizar, gere e verifique um backup. Faça checkout do commit
-aprovado e execute `up -d --build`. Para retornar, restaure o commit anterior,
-reconstrua as imagens e, se a migração não for retrocompatível, restaure também
-o backup correspondente. Nunca faça downgrade de schema sem backup validado.
+A atualização é automática: o merge em `main` reaponta a tag `production` para
+o digest já validado em homologação e o Watchtower aplica. Ver
+[CI/CD](cicd.md).
+
+Para retornar a uma versão anterior, reaponte a tag para o digest antigo — a
+imagem continua publicada:
+
+```bash
+docker buildx imagetools create \
+  -t ghcr.io/intranet-cge-am/intranet-cge-api:production \
+  ghcr.io/intranet-cge-am/intranet-cge-api:tree-<árvore-anterior>
+```
+
+O Watchtower aplica o retorno no ciclo seguinte. Como produção não migra ao
+subir, voltar a imagem não desfaz schema já aplicado: se a versão anterior for
+incompatível com o schema atual, restaure também o backup correspondente.
+Nunca faça downgrade de schema sem backup validado.
