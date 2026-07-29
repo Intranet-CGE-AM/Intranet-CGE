@@ -88,6 +88,13 @@ Cada ambiente roda a própria instância, separada por escopo
 Só `api` e `web` têm o rótulo. **`postgres` e `minio` nunca são reiniciados
 pelo Watchtower** — serviços com estado ficam fora, de propósito.
 
+`WATCHTOWER_ROLLING_RESTART` não pode ser usado aqui. O Watchtower valida a
+compatibilidade na subida e sai com erro quando um container em escopo declara
+`depends_on` — que é o caso de `api` e `web`. O sintoma é traiçoeiro: se o
+Watchtower subir antes dos dependentes existirem, ele passa na validação e roda
+normalmente até o primeiro restart, quando morre calado e o ambiente para de
+receber atualizações sem aviso.
+
 O Watchtower consulta o GHCR por polling. A máquina só precisa de saída HTTPS;
 nenhuma porta de entrada é aberta para o GitHub, e nada depende de a VPN estar
 alcançável de fora.
