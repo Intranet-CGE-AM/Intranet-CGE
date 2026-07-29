@@ -1,11 +1,11 @@
 import type {
+  AccountCandidate,
   AdminUser,
   EmploymentCategory,
   OrganizationUnit,
   PermissionEffect,
   PermissionKey,
   PermissionOverride,
-  Person,
   Role,
   RoleAssignment,
 } from "@cge/contracts";
@@ -30,6 +30,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 import {
   Tooltip,
@@ -134,7 +135,12 @@ export function AdminPage() {
   const { refresh, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [people, setPeople] = useState<Person[]>([]);
+  const [accountCandidates, setAccountCandidates] = useState<
+    AccountCandidate[]
+  >([]);
+  const [candidateQuery, setCandidateQuery] = useState("");
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateLoading, setCandidateLoading] = useState(false);
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [assignments, setAssignments] = useState<RoleAssignment[]>([]);
@@ -211,7 +217,6 @@ export function AdminPage() {
       setError("");
       const [
         usersResult,
-        peopleResult,
         categoriesResult,
         rolesResult,
         assignmentsResult,
@@ -221,9 +226,6 @@ export function AdminPage() {
         managesAccounts || managesAccess
           ? api<{ users: AdminUser[] }>("/api/admin/users")
           : Promise.resolve({ users: [] }),
-        managesAccounts
-          ? api<{ people: Person[] }>("/api/admin/people")
-          : Promise.resolve({ people: [] }),
         managesPeople
           ? api<{ categories: EmploymentCategory[] }>(
               "/api/employment-categories",
@@ -247,7 +249,6 @@ export function AdminPage() {
           : Promise.resolve({ units: [] }),
       ]);
       setUsers(usersResult.users);
-      setPeople(peopleResult.people);
       setCategories(categoriesResult.categories);
       setRoles(rolesResult.roles);
       setAssignments(assignmentsResult.assignments);
@@ -263,6 +264,37 @@ export function AdminPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setCandidateSearch(candidateQuery.trim());
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [candidateQuery]);
+
+  useEffect(() => {
+    if (!userDialog || userMode !== "existing" || !managesAccounts) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ pageSize: "20" });
+    if (candidateSearch) params.set("query", candidateSearch);
+    setCandidateLoading(true);
+    setAccountCandidates([]);
+    void api<{ people: AccountCandidate[] }>(`/api/admin/people?${params}`, {
+      signal: controller.signal,
+    })
+      .then((result) => setAccountCandidates(result.people))
+      .catch((cause) => {
+        if (!isAbortError(cause)) {
+          setDialogError(
+            messageFor(cause, "Não foi possível pesquisar as pessoas."),
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCandidateLoading(false);
+      });
+    return () => controller.abort();
+  }, [candidateSearch, managesAccounts, userDialog, userMode]);
 
   async function mutate(action: () => Promise<void>, message: string) {
     setBusy(true);
@@ -527,7 +559,11 @@ export function AdminPage() {
             ) : null}
           </CardHeader>
           {loading ? (
-            <LoadingRows />
+            <TableSkeleton
+              ariaLabel="Carregando contas de acesso"
+              headers={["Pessoa", "E-mail", "Situação", "Ações"]}
+              rows={6}
+            />
           ) : users.length ? (
             <Table>
               <thead>
@@ -691,7 +727,12 @@ export function AdminPage() {
         open={userDialog}
         onOpenChange={(open) => {
           setUserDialog(open);
-          if (!open) setDialogError("");
+          if (!open) {
+            setAccountCandidates([]);
+            setCandidateQuery("");
+            setCandidateSearch("");
+            setDialogError("");
+          }
         }}
       >
         <DialogContent
@@ -774,23 +815,21 @@ export function AdminPage() {
                   defaultValue=""
                   id="personId"
                   name="personId"
-                  options={people
-                    .filter(
-                      (person) =>
-                        !users.some(
-                          (account) => account.person.id === person.id,
-                        ),
-                    )
-                    .map((person) => ({
-                      keywords: [
-                        person.fullName,
-                        person.employment?.unitName ?? "",
-                      ],
-                      label: person.preferredName ?? person.fullName,
-                      value: person.id,
-                    }))}
+                  onSearchChange={(value) => {
+                    setCandidateLoading(true);
+                    setAccountCandidates([]);
+                    setCandidateQuery(value);
+                  }}
+                  options={accountCandidates.map((person) => ({
+                    keywords: [person.displayName, person.unitName ?? ""],
+                    label: person.unitName
+                      ? `${person.displayName} · ${person.unitName}`
+                      : person.displayName,
+                    value: person.id,
+                  }))}
                   placeholder="Pesquise por nome ou unidade"
                   required
+                  searching={candidateLoading}
                 />
               </FormField>
             )}
@@ -1307,4 +1346,8 @@ function LoadingRows() {
 
 function messageFor(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback;
+}
+
+function isAbortError(cause: unknown) {
+  return cause instanceof DOMException && cause.name === "AbortError";
 }

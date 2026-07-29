@@ -29,6 +29,13 @@ export const adminUserSchema = z.object({
     .nullable(),
 });
 
+export const accountCandidateSchema = z.object({
+  id: z.uuid(),
+  displayName: z.string(),
+  unitName: z.string().nullable(),
+});
+
 export type AccountCreate = z.infer<typeof accountCreateSchema>;
+export type AccountCandidate = z.infer<typeof accountCandidateSchema>;
 export type PasswordReset = z.infer<typeof passwordResetSchema>;
 export type AdminUser = z.infer<typeof adminUserSchema>;

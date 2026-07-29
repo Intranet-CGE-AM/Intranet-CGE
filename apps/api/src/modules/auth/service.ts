@@ -1,4 +1,5 @@
 import type {
+  AccountCandidate,
   AccountCreate,
   AuthenticatedUser,
   ChangePasswordRequest,
@@ -7,7 +8,7 @@ import type {
   PermissionKey,
 } from "@cge/contracts";
 import { argon2id, hash, verify } from "argon2";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, ilike, isNull, notExists, or, sql } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
 import {
@@ -35,6 +36,10 @@ export interface AuthenticationService {
   login(
     input: LoginRequest,
   ): Promise<{ token: string; user: AuthenticatedUser } | null>;
+  listAccountCandidates(
+    query?: string,
+    limit?: number,
+  ): Promise<AccountCandidate[]>;
   listAccounts(): Promise<
     Array<{
       id: string;
@@ -250,6 +255,57 @@ export class LocalAuthenticationService implements AuthenticationService {
         account.unitId && account.unitName
           ? { unitId: account.unitId, unitName: account.unitName }
           : null,
+    }));
+  }
+
+  async listAccountCandidates(query?: string, limit = 20) {
+    const term = query?.trim();
+    const search = term
+      ? or(
+          ilike(people.fullName, `%${term}%`),
+          ilike(people.preferredName, `%${term}%`),
+          ilike(organizationUnits.name, `%${term}%`),
+          ilike(organizationUnits.code, `%${term}%`),
+          ilike(employmentRelationships.employeeNumber, `%${term}%`),
+        )
+      : undefined;
+    const rows = await this.db
+      .select({
+        id: people.id,
+        fullName: people.fullName,
+        preferredName: people.preferredName,
+        unitName: organizationUnits.name,
+      })
+      .from(people)
+      .leftJoin(
+        employmentRelationships,
+        and(
+          eq(employmentRelationships.personId, people.id),
+          isNull(employmentRelationships.endDate),
+        ),
+      )
+      .leftJoin(
+        organizationUnits,
+        eq(employmentRelationships.unitId, organizationUnits.id),
+      )
+      .where(
+        and(
+          notExists(
+            this.db
+              .select({ id: userAccounts.id })
+              .from(userAccounts)
+              .where(eq(userAccounts.personId, people.id)),
+          ),
+          search,
+        ),
+      )
+      .orderBy(people.fullName)
+      .limit(limit);
+
+    return rows.map((person) => ({
+      id: person.id,
+      displayName: person.preferredName ?? person.fullName,
+      unitName: person.unitName,
     }));
   }
 

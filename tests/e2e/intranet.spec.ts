@@ -299,5 +299,7 @@ async function chooseOption(page: Page, field: string, option: string) {
   await page.getByRole("combobox", { name: field, exact: true }).click();
   const search = page.getByRole("combobox", { name: "Pesquisar opções" });
   if (await search.isVisible()) await search.fill(option);
-  await page.getByRole("option", { name: option, exact: true }).click();
+  await page
+    .getByRole("option", { name: new RegExp(`^${option}(?: ·|$)`) })
+    .click();
 }

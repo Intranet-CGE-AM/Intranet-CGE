@@ -12,7 +12,6 @@ import {
   Badge,
   Button,
   Card,
-  CardContent,
   CardHeader,
   ConfirmDialog,
   DataTable,
@@ -22,7 +21,7 @@ import {
   FormField,
   Input,
   SearchableSelect,
-  Skeleton,
+  TableSkeleton,
   type ColumnDef,
 } from "@cge/ui";
 import {
@@ -51,6 +50,9 @@ export function PeoplePage() {
   const [supervisorCandidates, setSupervisorCandidates] = useState<Person[]>(
     [],
   );
+  const [supervisorQuery, setSupervisorQuery] = useState("");
+  const [supervisorSearch, setSupervisorSearch] = useState("");
+  const [supervisorLoading, setSupervisorLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -81,40 +83,47 @@ export function PeoplePage() {
   );
   const showsActions = managesPeople;
 
-  const loadPeople = useCallback(async () => {
-    try {
-      setError("");
-      setDialogError("");
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize),
-      });
-      if (search) params.set("query", search);
-      const result = await api<PeoplePageResult>(`/api/people?${params}`);
-      if (result.pagination.totalPages && page > result.pagination.totalPages) {
-        setPage(result.pagination.totalPages);
-        return;
+  const loadPeople = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        setError("");
+        setDialogError("");
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+        });
+        if (search) params.set("query", search);
+        const result = await api<PeoplePageResult>(`/api/people?${params}`, {
+          signal,
+        });
+        if (
+          result.pagination.totalPages &&
+          page > result.pagination.totalPages
+        ) {
+          setPage(result.pagination.totalPages);
+          return;
+        }
+        setPeople(result.people);
+        setTotal(result.pagination.total);
+      } catch (cause) {
+        if (isAbortError(cause)) return;
+        setError(messageFor(cause, "Não foi possível carregar o diretório."));
+      } finally {
+        if (!signal?.aborted) setLoading(false);
       }
-      setPeople(result.people);
-      setTotal(result.pagination.total);
-    } catch (cause) {
-      setError(messageFor(cause, "Não foi possível carregar o diretório."));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search]);
+    },
+    [page, pageSize, search],
+  );
 
   const loadReferenceData = useCallback(async () => {
     try {
-      const [categoriesResult, unitsResult, peopleResult] = await Promise.all([
+      const [categoriesResult, unitsResult] = await Promise.all([
         api<{ categories: EmploymentCategory[] }>("/api/employment-categories"),
         api<{ units: OrganizationUnit[] }>("/api/organization-units"),
-        // ponytail: use the first 100 until this combobox needs server search.
-        api<PeoplePageResult>("/api/people?pageSize=100"),
       ]);
       setCategories(categoriesResult.categories);
       setUnits(unitsResult.units);
-      setSupervisorCandidates(peopleResult.people);
     } catch (cause) {
       setError(
         messageFor(cause, "Não foi possível carregar categorias e unidades."),
@@ -123,7 +132,9 @@ export function PeoplePage() {
   }, []);
 
   useEffect(() => {
-    void loadPeople();
+    const controller = new AbortController();
+    void loadPeople(controller.signal);
+    return () => controller.abort();
   }, [loadPeople]);
 
   useEffect(() => {
@@ -131,12 +142,44 @@ export function PeoplePage() {
   }, [loadReferenceData]);
 
   useEffect(() => {
+    if (query.trim() === search) return;
     const timeout = window.setTimeout(() => {
       setPage(1);
       setSearch(query.trim());
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [query]);
+  }, [query, search]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSupervisorSearch(supervisorQuery.trim());
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [supervisorQuery]);
+
+  useEffect(() => {
+    if (!supervisorPerson) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ pageSize: "20" });
+    if (supervisorSearch) params.set("query", supervisorSearch);
+    setSupervisorLoading(true);
+    setSupervisorCandidates([]);
+    void api<PeoplePageResult>(`/api/people?${params}`, {
+      signal: controller.signal,
+    })
+      .then((result) => setSupervisorCandidates(result.people))
+      .catch((cause) => {
+        if (!isAbortError(cause)) {
+          setDialogError(
+            messageFor(cause, "Não foi possível pesquisar as chefias."),
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSupervisorLoading(false);
+      });
+    return () => controller.abort();
+  }, [supervisorPerson, supervisorSearch]);
 
   async function savePerson(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -409,7 +452,11 @@ export function PeoplePage() {
                     size="sm"
                     aria-label={`Definir chefia de ${name}`}
                     disabled={busy}
-                    onClick={() => setSupervisorPerson(person)}
+                    onClick={() => {
+                      setSupervisorQuery("");
+                      setSupervisorSearch("");
+                      setSupervisorPerson(person);
+                    }}
                   >
                     Definir chefia
                   </Button>
@@ -504,11 +551,17 @@ export function PeoplePage() {
           </div>
         </CardHeader>
         {loading ? (
-          <CardContent className="space-y-3 py-6">
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
-          </CardContent>
+          <TableSkeleton
+            ariaLabel="Carregando diretório de colaboradores"
+            headers={[
+              "Nome",
+              "Unidade de lotação",
+              "Categoria funcional",
+              "Matrícula",
+              ...(showsActions ? ["Ações"] : []),
+            ]}
+            rows={Math.min(pageSize, 8)}
+          />
         ) : total ? (
           <DataTable
             ariaLabel="Diretório de colaboradores"
@@ -663,6 +716,9 @@ export function PeoplePage() {
         open={Boolean(supervisorPerson)}
         onOpenChange={() => {
           setSupervisorPerson(null);
+          setSupervisorCandidates([]);
+          setSupervisorQuery("");
+          setSupervisorSearch("");
           setDialogError("");
         }}
       >
@@ -685,6 +741,11 @@ export function PeoplePage() {
                 defaultValue=""
                 id="supervisorRelationshipId"
                 name="supervisorRelationshipId"
+                onSearchChange={(value) => {
+                  setSupervisorLoading(true);
+                  setSupervisorCandidates([]);
+                  setSupervisorQuery(value);
+                }}
                 options={supervisorCandidates
                   .filter(
                     (person) =>
@@ -695,11 +756,12 @@ export function PeoplePage() {
                       person.fullName,
                       person.employment?.unitName ?? "",
                     ],
-                    label: person.preferredName ?? person.fullName,
+                    label: `${person.preferredName ?? person.fullName} · ${person.employment?.unitName ?? "Sem unidade"}`,
                     value: person.employment?.id ?? "",
                   }))}
                 placeholder="Pesquise por nome ou unidade"
                 required
+                searching={supervisorLoading}
               />
             </FormField>
             <Button className="w-full" disabled={busy} type="submit">
@@ -925,4 +987,8 @@ export function PeoplePage() {
 
 function messageFor(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback;
+}
+
+function isAbortError(cause: unknown) {
+  return cause instanceof DOMException && cause.name === "AbortError";
 }

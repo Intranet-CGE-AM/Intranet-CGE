@@ -1,10 +1,10 @@
 import {
+  accountCandidateSchema,
   adminUserCreateSchema,
   adminUserSchema,
   authErrorSchema,
   organizationUnitSchema,
   passwordResetSchema,
-  personSchema,
 } from "@cge/contracts";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -57,8 +57,14 @@ export const adminRoutes: FastifyPluginAsync<{
     "/api/admin/people",
     {
       schema: {
+        querystring: z.object({
+          pageSize: z.coerce.number().int().min(1).max(50).default(20),
+          query: z.string().trim().max(120).optional(),
+        }),
         response: {
-          200: z.object({ people: z.array(personSchema) }),
+          200: z.object({
+            people: z.array(accountCandidateSchema),
+          }),
           401: authErrorSchema,
           403: authErrorSchema,
         },
@@ -76,9 +82,11 @@ export const adminRoutes: FastifyPluginAsync<{
       ) {
         return;
       }
-      const result = await options.peopleService.listPeople(null, false);
       return {
-        people: result.people,
+        people: await options.authenticationService.listAccountCandidates(
+          request.query.query,
+          request.query.pageSize,
+        ),
       };
     },
   );

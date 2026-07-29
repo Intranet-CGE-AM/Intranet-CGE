@@ -228,9 +228,29 @@ test("employee directory paginates and searches on the server", async ({
     page.getByText(`6–${Math.min(10, total)} de ${total} colaboradores`),
   ).toBeVisible();
 
+  await page.route("**/api/people?*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (requestUrl.searchParams.get("query") === "Ana Beatriz") {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    await route.continue();
+  });
+  const serverSearch = page.waitForRequest((request) => {
+    const requestUrl = new URL(request.url());
+    return (
+      requestUrl.pathname === "/api/people" &&
+      requestUrl.searchParams.get("query") === "Ana Beatriz"
+    );
+  });
   await page
     .getByRole("searchbox", { name: "Buscar colaboradores" })
     .fill("Ana Beatriz");
+  await serverSearch;
+  await expect(
+    page.getByRole("status", {
+      name: "Carregando diretório de colaboradores",
+    }),
+  ).toBeVisible();
   await expect(page.getByText("1–1 de 1 colaboradores")).toBeVisible();
   await expect(page.getByText("Página 1 de 1")).toBeVisible();
   await expect(
@@ -296,7 +316,7 @@ test("backend rejects cross-unit writes and scoped platform permissions", async 
 
   const [usersResponse, peopleResponse, unitsResponse] = await Promise.all([
     adminPage.request.get("/api/admin/users"),
-    adminPage.request.get("/api/admin/people"),
+    adminPage.request.get("/api/people?query=Caio%20Nascimento&pageSize=1"),
     adminPage.request.get("/api/admin/organization-units"),
   ]);
   expect(usersResponse.status()).toBe(200);
@@ -312,9 +332,7 @@ test("backend rejects cross-unit writes and scoped platform permissions", async 
     code: string;
   }>;
   const viewer = users.find((account) => account.email === accounts.viewer)!;
-  const caio = people.find(
-    (person) => person.preferredName === "Caio Nascimento",
-  )!;
+  const caio = people[0]!;
   const controlUnit = units.find((unit) => unit.code === "CCI")!;
 
   const scopedRoleResponse = await adminPage.request.post("/api/admin/roles", {
@@ -1078,7 +1096,9 @@ async function chooseOption(page: Page, field: string, option: string) {
   await page.getByRole("combobox", { name: field, exact: true }).click();
   const search = page.getByRole("combobox", { name: "Pesquisar opções" });
   if (await search.isVisible()) await search.fill(option);
-  await page.getByRole("option", { name: option, exact: true }).click();
+  await page
+    .getByRole("option", { name: new RegExp(`^${option}(?: ·|$)`) })
+    .click();
 }
 
 async function chooseFirstOption(page: Page, field: string) {

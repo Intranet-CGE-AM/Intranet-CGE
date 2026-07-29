@@ -14,6 +14,7 @@ import {
 
 import { cn } from "../lib/cn";
 import { Button } from "./button";
+import { Skeleton } from "./feedback";
 import { Select } from "./select";
 
 export type { ColumnDef } from "@tanstack/react-table";
@@ -73,6 +74,50 @@ export function TableCell({
   ...props
 }: TdHTMLAttributes<HTMLTableCellElement>) {
   return <td className={cn("px-5 py-4", className)} {...props} />;
+}
+
+export function TableSkeleton({
+  ariaLabel,
+  headers,
+  rows = 5,
+}: {
+  ariaLabel: string;
+  headers: string[];
+  rows?: number;
+}) {
+  return (
+    <div aria-label={ariaLabel} role="status">
+      <Table aria-label={`${ariaLabel} — carregando`}>
+        <thead>
+          <tr>
+            {headers.map((header) => (
+              <TableHead key={header}>{header}</TableHead>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rows }, (_, row) => (
+            <TableRow key={row}>
+              {headers.map((header, column) => (
+                <TableCell key={header}>
+                  <Skeleton
+                    className={cn(
+                      "h-4",
+                      column === 0
+                        ? "w-4/5"
+                        : column === headers.length - 1
+                          ? "w-3/5"
+                          : "w-2/3",
+                    )}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  );
 }
 
 type DataTableProps<TData> = {

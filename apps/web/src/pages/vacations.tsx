@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Card,
-  CardContent,
   CardHeader,
   ConfirmDialog,
   Dialog,
@@ -13,11 +12,11 @@ import {
   FormField,
   Input,
   Select,
-  Skeleton,
   Table,
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
   Textarea,
 } from "@cge/ui";
 import { ArrowRight, CalendarPlus, Info } from "@phosphor-icons/react";
@@ -303,10 +302,11 @@ export function VacationsPage() {
 
       {loading ? (
         <Card>
-          <CardContent className="space-y-3 py-6">
-            <Skeleton className="h-14" />
-            <Skeleton className="h-14" />
-          </CardContent>
+          <TableSkeleton
+            ariaLabel="Carregando solicitações de férias"
+            headers={["Período", "Etapa atual", "Atualização", "Ação"]}
+            rows={4}
+          />
         </Card>
       ) : (
         <>

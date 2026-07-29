@@ -55,6 +55,9 @@ const authenticationService: AuthenticationService = {
   async listAccounts() {
     return [];
   },
+  async listAccountCandidates() {
+    return [];
+  },
   async resetPassword() {
     return true;
   },

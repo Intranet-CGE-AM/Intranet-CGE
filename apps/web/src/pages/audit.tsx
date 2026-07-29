@@ -13,7 +13,7 @@ import {
   FormField,
   Input,
   Select,
-  Skeleton,
+  TableSkeleton,
   type ColumnDef,
 } from "@cge/ui";
 import {
@@ -104,38 +104,51 @@ export function AuditPage() {
   if (from) filters.set("from", from);
   if (to) filters.set("to", to);
 
-  const load = useCallback(async () => {
-    try {
-      setError("");
-      const result = await api<AuditPage>(`/api/audit-events?${filters}`);
-      if (result.pagination.totalPages && page > result.pagination.totalPages) {
-        setPage(result.pagination.totalPages);
-        return;
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        setError("");
+        const result = await api<AuditPage>(`/api/audit-events?${filters}`, {
+          signal,
+        });
+        if (
+          result.pagination.totalPages &&
+          page > result.pagination.totalPages
+        ) {
+          setPage(result.pagination.totalPages);
+          return;
+        }
+        setEvents(result.events);
+        setTotal(result.pagination.total);
+      } catch (cause) {
+        if (isAbortError(cause)) return;
+        setError(
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível consultar os eventos de auditoria.",
+        );
+      } finally {
+        if (!signal?.aborted) setLoading(false);
       }
-      setEvents(result.events);
-      setTotal(result.pagination.total);
-    } catch (cause) {
-      setError(
-        cause instanceof ApiError
-          ? cause.message
-          : "Não foi possível consultar os eventos de auditoria.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [action, from, objectType, outcome, page, pageSize, search, to]);
+    },
+    [action, from, objectType, outcome, page, pageSize, search, to],
+  );
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   useEffect(() => {
+    if (query.trim() === search) return;
     const timeout = window.setTimeout(() => {
       setPage(1);
       setSearch(query.trim());
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [query]);
+  }, [query, search]);
 
   const columns: ColumnDef<AuditEvent>[] = [
     {
@@ -387,14 +400,18 @@ export function AuditPage() {
           </div>
         </CardContent>
         {loading ? (
-          <CardContent
-            aria-label="Carregando eventos de auditoria"
-            className="space-y-3 py-6"
-          >
-            <Skeleton className="h-14" />
-            <Skeleton className="h-14" />
-            <Skeleton className="h-14" />
-          </CardContent>
+          <TableSkeleton
+            ariaLabel="Carregando eventos de auditoria"
+            headers={[
+              "Evento",
+              "Responsável",
+              "Objeto",
+              "Resultado",
+              "Data",
+              "Detalhes",
+            ]}
+            rows={Math.min(pageSize, 8)}
+          />
         ) : total ? (
           <DataTable
             ariaLabel="Eventos de auditoria"
@@ -475,6 +492,10 @@ export function AuditPage() {
       </Dialog>
     </div>
   );
+}
+
+function isAbortError(cause: unknown) {
+  return cause instanceof DOMException && cause.name === "AbortError";
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

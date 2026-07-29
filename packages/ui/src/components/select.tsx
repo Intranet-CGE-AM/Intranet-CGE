@@ -33,6 +33,11 @@ type CommonSelectProps = {
   value?: string;
 };
 
+type SearchableSelectProps = CommonSelectProps & {
+  onSearchChange?: (query: string) => void;
+  searching?: boolean;
+};
+
 const triggerClassName =
   "flex min-h-10 w-full items-center justify-between gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,background-color,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] aria-invalid:border-[var(--danger)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-faint)] data-[placeholder]:text-[var(--text-faint)] active:scale-[0.995]";
 
@@ -104,13 +109,15 @@ export function SearchableSelect({
   disabled,
   id,
   name,
+  onSearchChange,
   onValueChange,
   options,
   placeholder = "Selecione",
   required,
+  searching = false,
   value,
   ...ariaProps
-}: CommonSelectProps) {
+}: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [invalid, setInvalid] = useState(false);
@@ -176,7 +183,7 @@ export function SearchableSelect({
             className="z-50 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-1.5 text-[var(--text)] shadow-[0_14px_38px_rgb(16_35_38/14%)]"
             sideOffset={6}
           >
-            <Command loop>
+            <Command loop shouldFilter={!onSearchChange}>
               <div className="flex items-center gap-2 border-b border-[var(--border)] px-2">
                 <MagnifyingGlass
                   aria-hidden="true"
@@ -187,12 +194,13 @@ export function SearchableSelect({
                   aria-label="Pesquisar opções"
                   autoFocus
                   className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-faint)]"
+                  onValueChange={onSearchChange}
                   placeholder="Pesquisar…"
                 />
               </div>
               <Command.List className="max-h-64 overflow-y-auto py-1">
                 <Command.Empty className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
-                  Nenhum resultado encontrado.
+                  {searching ? "Buscando…" : "Nenhum resultado encontrado."}
                 </Command.Empty>
                 {options.map((option) => (
                   <Command.Item
