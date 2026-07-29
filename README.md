@@ -67,5 +67,6 @@ confirma o CSV de auditoria.
 - [Contrato da importação CSV](docs/csv-import.md)
 - [Design system](docs/design-system.md)
 - [Homologação e dados de teste](docs/homologation.md)
+- [CI/CD e ambientes](docs/cicd.md)
 - [Implantação, backup e restauração](docs/deployment.md)
 - [Prontidão para UAT e piloto](docs/pilot-readiness.md)

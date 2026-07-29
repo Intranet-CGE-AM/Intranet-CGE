@@ -113,7 +113,7 @@ export async function buildApp({
   if (authenticationService) {
     await app.register(authRoutes, {
       authenticationService,
-      secureCookies: config.NODE_ENV === "production",
+      secureCookies: config.SECURE_COOKIES,
       sessionTtlHours: config.SESSION_TTL_HOURS,
     });
   }

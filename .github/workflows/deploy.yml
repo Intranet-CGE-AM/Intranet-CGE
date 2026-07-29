@@ -1,0 +1,147 @@
+name: Deploy
+
+# dev  -> constrói e publica a tag `homolog`; o Watchtower de homologação puxa.
+# main -> não reconstrói nada: reaponta a tag `production` para o digest que já
+#         passou por homologação. O Watchtower de produção puxa.
+#
+# A promoção usa o hash da árvore do Git, não o hash do commit. Um merge de dev
+# para main sem alterações produz a mesma árvore, então o digest encontrado é
+# literalmente a imagem validada. Se a árvore de main nunca passou por dev, o
+# job falha em vez de publicar algo não homologado.
+on:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish staging
+    if: github.ref == 'refs/heads/dev'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve images and tree
+        id: meta
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "api=ghcr.io/$owner/intranet-cge-api" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/intranet-cge-web" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/api.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.api }}:homolog
+            ${{ steps.meta.outputs.api }}:tree-${{ steps.meta.outputs.tree }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Build and publish web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/web.Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.web }}:homolog
+            ${{ steps.meta.outputs.web }}:tree-${{ steps.meta.outputs.tree }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Summary
+        run: |
+          {
+            echo "### Staging published"
+            echo ""
+            echo "Tree \`${{ steps.meta.outputs.tree }}\`"
+            echo ""
+            echo "The staging Watchtower rolls it out within 2 minutes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: Promote to production
+    if: github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve images and tree
+        id: meta
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "api=ghcr.io/$owner/intranet-cge-api" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/$owner/intranet-cge-web" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require a staged image
+        run: |
+          tree='${{ steps.meta.outputs.tree }}'
+          missing=0
+          for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
+            if docker buildx imagetools inspect "$image:tree-$tree" >/dev/null 2>&1; then
+              echo "found: $image:tree-$tree"
+            else
+              echo "missing: $image:tree-$tree" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "" >&2
+            echo "Production only accepts an image that went through staging." >&2
+            echo "This tree was never published from the dev branch." >&2
+            echo "" >&2
+            echo "Land the change on dev, let Watchtower roll it out, validate," >&2
+            echo "and only then merge dev into main." >&2
+            exit 1
+          fi
+
+      - name: Retag production
+        run: |
+          tree='${{ steps.meta.outputs.tree }}'
+          for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
+            docker buildx imagetools create -t "$image:production" "$image:tree-$tree"
+          done
+
+      - name: Summary
+        run: |
+          {
+            echo "### Production promoted"
+            echo ""
+            echo "Tree \`${{ steps.meta.outputs.tree }}\` — the same digest validated in staging."
+            echo ""
+            echo "Production does **not** apply migrations on startup."
+            echo "If this release needs a new schema, run the explicit migration first."
+          } >> "$GITHUB_STEP_SUMMARY"
