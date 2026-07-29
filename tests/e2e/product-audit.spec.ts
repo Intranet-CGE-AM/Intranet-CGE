@@ -1003,6 +1003,12 @@ test("desktop collapse control remains fully visible and interactive", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
+  await expect(page.getByRole("banner")).toBeHidden();
+  expect(
+    await page.getByRole("main").evaluate((main) => {
+      return main.getBoundingClientRect().top;
+    }),
+  ).toBeLessThan(40);
   const control = page.getByRole("button", {
     name: "Recolher barra lateral",
   });

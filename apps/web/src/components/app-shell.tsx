@@ -354,7 +354,7 @@ export function AppShell() {
         </SheetContent>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white/90 px-4 backdrop-blur-md md:px-6">
+          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white/90 px-4 backdrop-blur-md md:px-6 lg:hidden">
             <SheetTrigger asChild>
               <Button
                 variant="quiet"
