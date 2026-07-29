@@ -999,6 +999,13 @@ test("administration onboards an employee and supports account operations", asyn
   await expect(
     page.getByRole("link", { name: "Solicitar férias" }),
   ).toHaveCount(0);
+  await openHrRoute(page, "Colaboradores");
+  await page
+    .getByRole("button", { name: "Novo colaborador", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/sistema\/administracao\?secao=accounts/);
+  await expect(page.getByRole("dialog", { name: "Novo acesso" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page
     .getByRole("navigation", { name: "Navegação principal" })
     .getByRole("link", { name: "Administração", exact: true })
@@ -1028,12 +1035,39 @@ test("administration onboards an employee and supports account operations", asyn
     .fill("Account-Audit-E2E-Password-123");
   await page
     .getByRole("button", {
-      name: "Cadastrar colaborador e criar acesso",
+      name: "Criar conta e continuar",
     })
     .click();
+  const accessStep = page.getByRole("dialog", {
+    name: "Acessos de Íris",
+  });
   await expect(
-    page.getByText("Colaborador e conta de acesso criados."),
+    accessStep.getByText("2. Acessos", { exact: true }),
+  ).toHaveAttribute("aria-current", "step");
+  await accessStep.getByLabel("Perfis iniciais").click();
+  const rolesPicker = page.getByRole("dialog", {
+    name: "Selecionar nenhum perfil",
+  });
+  await rolesPicker
+    .getByText("Colaborador Homologação", { exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+  await accessStep.getByLabel("Permissões adicionais").click();
+  const permissionsPicker = page.getByRole("dialog", {
+    name: "Selecionar nenhuma permissão",
+  });
+  await expect(
+    permissionsPicker.getByText("Auditoria", { exact: true }),
   ).toBeVisible();
+  await permissionsPicker
+    .getByText("Consultar auditoria", { exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(accessStep.getByLabel("Escopo inicial")).toContainText(
+    "Unidade de lotação",
+  );
+  await accessStep.getByRole("button", { name: "Concluir cadastro" }).click();
+  await expect(page.getByText("Cadastro de Íris concluído.")).toBeVisible();
   await expect(page.getByText("Íris", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: /^Perfis/ }).click();
@@ -1122,6 +1156,8 @@ test("administration onboards an employee and supports account operations", asyn
   const auditText = await audit.text();
   expect(auditText).toContain("person.created");
   expect(auditText).toContain("account.created");
+  expect(auditText).toContain("role-assignment.created");
+  expect(auditText).toContain("permission-override.created");
   expect(auditText).toContain("role.updated");
   expect(auditText).toContain("person.deactivated");
 

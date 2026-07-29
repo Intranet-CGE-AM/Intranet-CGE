@@ -23,6 +23,7 @@ import {
   EmptyState,
   FormField,
   Input,
+  SearchableMultiSelect,
   SearchableSelect,
   Select,
   Skeleton,
@@ -131,10 +132,11 @@ const organizationScope = "organization";
 
 type AdminSection = "accounts" | "access";
 type AccessView = "roles" | "overrides";
+type UserStep = "details" | "access";
 
 export function AdminPage() {
   const { refresh, user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [accountCandidates, setAccountCandidates] = useState<
     AccountCandidate[]
@@ -154,6 +156,19 @@ export function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [userDialog, setUserDialog] = useState(false);
   const [userMode, setUserMode] = useState<"new" | "existing">("existing");
+  const [userStep, setUserStep] = useState<UserStep>("details");
+  const [onboardingAccount, setOnboardingAccount] = useState<{
+    id: string;
+    name: string;
+    unitId: string | null;
+  } | null>(null);
+  const [onboardingRoleIds, setOnboardingRoleIds] = useState<string[]>([]);
+  const [onboardingPermissions, setOnboardingPermissions] = useState<
+    PermissionKey[]
+  >([]);
+  const [onboardingScope, setOnboardingScope] = useState<
+    "unit" | typeof organizationScope
+  >("unit");
   const [roleDialog, setRoleDialog] = useState<Role | "new" | null>(null);
   const [accessAccount, setAccessAccount] = useState<AdminUser | null>(null);
   const [accessView, setAccessView] = useState<AccessView>("roles");
@@ -274,6 +289,20 @@ export function AdminPage() {
   }, [load]);
 
   useEffect(() => {
+    if (searchParams.get("novo") !== "1" || !managesAccounts) return;
+    setUserMode(managesPeople ? "new" : "existing");
+    setUserStep("details");
+    setOnboardingAccount(null);
+    setOnboardingRoleIds([]);
+    setOnboardingPermissions([]);
+    setOnboardingScope("unit");
+    setUserDialog(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("novo");
+    setSearchParams(next, { replace: true });
+  }, [managesAccounts, managesPeople, searchParams, setSearchParams]);
+
+  useEffect(() => {
     const timeout = window.setTimeout(() => {
       setCandidateSearch(candidateQuery.trim());
     }, 250);
@@ -347,23 +376,47 @@ export function AdminPage() {
         }
 
         let personId = String(data.get("personId") ?? "");
+        let displayName =
+          accountCandidates.find((person) => person.id === personId)
+            ?.displayName ?? "Nova pessoa";
+        let unitId =
+          accountCandidates.find((person) => person.id === personId)?.unitId ??
+          null;
         if (userMode === "new") {
           const created = await api<{ personId: string }>("/api/people", {
             method: "POST",
             body: json(personInputFromForm(data)),
           });
           personId = created.personId;
+          displayName =
+            String(data.get("preferredName") || data.get("fullName")) ||
+            "Nova pessoa";
+          unitId = String(data.get("unitId") || "") || null;
         }
 
         try {
-          await api("/api/admin/users", {
-            method: "POST",
-            body: json({
-              personId,
-              email,
-              temporaryPassword: data.get("temporaryPassword"),
-            }),
-          });
+          const account = await api<{ id: string; email: string }>(
+            "/api/admin/users",
+            {
+              method: "POST",
+              body: json({
+                personId,
+                email,
+                temporaryPassword: data.get("temporaryPassword"),
+              }),
+            },
+          );
+          if (managesAccess) {
+            setOnboardingAccount({
+              id: account.id,
+              name: displayName,
+              unitId,
+            });
+            setOnboardingScope(unitId ? "unit" : organizationScope);
+            setUserStep("access");
+          } else {
+            setUserDialog(false);
+          }
         } catch (cause) {
           if (userMode === "new") {
             await load();
@@ -376,12 +429,68 @@ export function AdminPage() {
           }
           throw cause;
         }
-        setUserDialog(false);
       },
-      userMode === "new"
-        ? "Colaborador e conta de acesso criados."
-        : "Conta criada. A senha deverá ser alterada no primeiro acesso.",
+      managesAccess
+        ? ""
+        : userMode === "new"
+          ? "Colaborador e conta de acesso criados."
+          : "Conta criada. A senha deverá ser alterada no primeiro acesso.",
     );
+  }
+
+  async function completeOnboarding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!onboardingAccount) return;
+    const unitScope =
+      onboardingScope === "unit" ? onboardingAccount.unitId : null;
+
+    await mutate(async () => {
+      for (const roleId of [...onboardingRoleIds]) {
+        const role = roles.find((item) => item.id === roleId);
+        if (!role) {
+          setOnboardingRoleIds((current) =>
+            current.filter((value) => value !== roleId),
+          );
+          continue;
+        }
+        await api("/api/admin/role-assignments", {
+          method: "POST",
+          body: json({
+            accountId: onboardingAccount.id,
+            roleId,
+            unitId:
+              unitScope && role.permissions.every(permissionSupportsUnitScope)
+                ? unitScope
+                : null,
+          }),
+        });
+        setOnboardingRoleIds((current) =>
+          current.filter((value) => value !== roleId),
+        );
+      }
+
+      for (const permission of [...onboardingPermissions]) {
+        await api("/api/admin/permission-overrides", {
+          method: "POST",
+          body: json({
+            accountId: onboardingAccount.id,
+            permission,
+            effect: "allow",
+            unitId:
+              unitScope && permissionSupportsUnitScope(permission)
+                ? unitScope
+                : null,
+          }),
+        });
+        setOnboardingPermissions((current) =>
+          current.filter((value) => value !== permission),
+        );
+      }
+
+      setUserDialog(false);
+      setOnboardingAccount(null);
+      setUserStep("details");
+    }, `Cadastro de ${onboardingAccount.name} concluído.`);
   }
 
   async function saveRole(event: FormEvent<HTMLFormElement>) {
@@ -558,6 +667,11 @@ export function AdminPage() {
                 size="sm"
                 onClick={() => {
                   setUserMode(managesPeople ? "new" : "existing");
+                  setUserStep("details");
+                  setOnboardingAccount(null);
+                  setOnboardingRoleIds([]);
+                  setOnboardingPermissions([]);
+                  setOnboardingScope("unit");
                   setUserDialog(true);
                 }}
               >
@@ -741,152 +855,298 @@ export function AdminPage() {
             setCandidateQuery("");
             setCandidateSearch("");
             setDialogError("");
+            setUserStep("details");
+            setOnboardingAccount(null);
+            setOnboardingRoleIds([]);
+            setOnboardingPermissions([]);
+            setOnboardingScope("unit");
           }
         }}
       >
         <DialogContent
           className="max-w-2xl"
-          title="Novo acesso"
-          description="Cadastre um colaborador ou vincule uma pessoa já existente."
+          title={
+            userStep === "details"
+              ? "Novo acesso"
+              : `Acessos de ${onboardingAccount?.name ?? "colaborador"}`
+          }
+          description={
+            userStep === "details"
+              ? "Cadastre um colaborador ou vincule uma pessoa já existente."
+              : "A conta foi criada. Defina os acessos iniciais para concluir."
+          }
         >
-          <form className="space-y-6" onSubmit={createUser}>
-            {dialogError ? (
-              <Alert title="Revise os dados" tone="danger">
-                {dialogError}
-              </Alert>
-            ) : null}
-
-            {managesPeople ? (
-              <div
-                aria-label="Tipo de cadastro"
-                className="grid grid-cols-2 rounded-[11px] bg-[var(--surface-subtle)] p-1"
-                role="group"
+          <ol
+            aria-label="Etapas do cadastro"
+            className="grid grid-cols-2 border-b border-[var(--border)] text-sm font-semibold"
+          >
+            {[
+              { label: "1. Cadastro", step: "details" as const },
+              { label: "2. Acessos", step: "access" as const },
+            ].map((item) => (
+              <li
+                aria-current={userStep === item.step ? "step" : undefined}
+                className={[
+                  "border-b-2 px-3 pb-3",
+                  userStep === item.step
+                    ? "border-[var(--brand)] text-[var(--brand)]"
+                    : "border-transparent text-[var(--text-faint)]",
+                ].join(" ")}
+                key={item.step}
               >
-                {[
-                  { label: "Novo colaborador", value: "new" as const },
-                  { label: "Pessoa já cadastrada", value: "existing" as const },
-                ].map((option) => (
-                  <button
-                    aria-pressed={userMode === option.value}
-                    className={[
-                      "min-h-10 rounded-[8px] px-3 text-sm font-semibold transition-[background-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.98]",
-                      userMode === option.value
-                        ? "bg-white text-[var(--text)] shadow-[0_1px_2px_rgb(16_35_38/8%)]"
-                        : "text-[var(--text-muted)] hover:text-[var(--text)]",
-                    ].join(" ")}
-                    key={option.value}
-                    onClick={() => setUserMode(option.value)}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                {item.label}
+              </li>
+            ))}
+          </ol>
 
-            {userMode === "new" ? (
-              <section>
-                <h3 className="text-sm font-bold">Dados funcionais</h3>
-                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Informações usadas pelo módulo de Recursos Humanos.
-                </p>
-                {!hrReady ? (
-                  <Alert
-                    className="mt-4"
-                    title="Configuração de RH necessária"
-                    tone="warning"
-                  >
-                    Cadastre ao menos uma categoria e uma unidade antes de
-                    adicionar colaboradores.{" "}
-                    <Link
-                      className="font-semibold underline underline-offset-2"
-                      to="/rh/colaboradores"
+          {userStep === "details" ? (
+            <form className="space-y-6" onSubmit={createUser}>
+              {dialogError ? (
+                <Alert title="Revise os dados" tone="danger">
+                  {dialogError}
+                </Alert>
+              ) : null}
+
+              {managesPeople ? (
+                <div
+                  aria-label="Tipo de cadastro"
+                  className="grid grid-cols-2 rounded-[11px] bg-[var(--surface-subtle)] p-1"
+                  role="group"
+                >
+                  {[
+                    { label: "Novo colaborador", value: "new" as const },
+                    {
+                      label: "Pessoa já cadastrada",
+                      value: "existing" as const,
+                    },
+                  ].map((option) => (
+                    <button
+                      aria-pressed={userMode === option.value}
+                      className={[
+                        "min-h-10 rounded-[8px] px-3 text-sm font-semibold transition-[background-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.98]",
+                        userMode === option.value
+                          ? "bg-white text-[var(--text)] shadow-[0_1px_2px_rgb(16_35_38/8%)]"
+                          : "text-[var(--text-muted)] hover:text-[var(--text)]",
+                      ].join(" ")}
+                      key={option.value}
+                      onClick={() => setUserMode(option.value)}
+                      type="button"
                     >
-                      Abrir configuração de RH
-                    </Link>
-                  </Alert>
-                ) : null}
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <PersonFormFields
-                    categories={categories}
-                    idPrefix="onboarding"
-                    units={manageableUnits}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {userMode === "new" ? (
+                <section>
+                  <h3 className="text-sm font-bold">Dados funcionais</h3>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    Informações usadas pelo módulo de Recursos Humanos.
+                  </p>
+                  {!hrReady ? (
+                    <Alert
+                      className="mt-4"
+                      title="Configuração de RH necessária"
+                      tone="warning"
+                    >
+                      Cadastre ao menos uma categoria e uma unidade antes de
+                      adicionar colaboradores.{" "}
+                      <Link
+                        className="font-semibold underline underline-offset-2"
+                        to="/rh/colaboradores"
+                      >
+                        Abrir configuração de RH
+                      </Link>
+                    </Alert>
+                  ) : null}
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <PersonFormFields
+                      categories={categories}
+                      idPrefix="onboarding"
+                      units={manageableUnits}
+                    />
+                  </div>
+                </section>
+              ) : (
+                <FormField
+                  hint="Somente pessoas ainda sem conta de acesso."
+                  htmlFor="personId"
+                  label="Pessoa"
+                >
+                  <SearchableSelect
+                    defaultValue=""
+                    id="personId"
+                    name="personId"
+                    onSearchChange={(value) => {
+                      setCandidateLoading(true);
+                      setAccountCandidates([]);
+                      setCandidateQuery(value);
+                    }}
+                    options={accountCandidates.map((person) => ({
+                      keywords: [person.displayName, person.unitName ?? ""],
+                      label: person.unitName
+                        ? `${person.displayName} · ${person.unitName}`
+                        : person.displayName,
+                      value: person.id,
+                    }))}
+                    placeholder="Pesquise por nome ou unidade"
+                    required
+                    searching={candidateLoading}
                   />
+                </FormField>
+              )}
+
+              <section className="border-t border-[var(--border)] pt-5">
+                <h3 className="text-sm font-bold">Conta de acesso</h3>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                  A senha deverá ser alterada no primeiro acesso.
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    htmlFor="accountEmail"
+                    label="E-mail institucional"
+                  >
+                    <Input
+                      autoComplete="off"
+                      id="accountEmail"
+                      name="email"
+                      spellCheck={false}
+                      type="email"
+                      required
+                    />
+                  </FormField>
+                  <FormField
+                    hint="Mínimo de 12 caracteres."
+                    htmlFor="temporaryPassword"
+                    label="Senha temporária"
+                  >
+                    <Input
+                      autoComplete="new-password"
+                      id="temporaryPassword"
+                      minLength={12}
+                      name="temporaryPassword"
+                      type="password"
+                      required
+                    />
+                  </FormField>
                 </div>
               </section>
-            ) : (
-              <FormField
-                hint="Somente pessoas ainda sem conta de acesso."
-                htmlFor="personId"
-                label="Pessoa"
+              <Button
+                className="w-full"
+                disabled={busy || (userMode === "new" && !hrReady)}
+                type="submit"
               >
-                <SearchableSelect
-                  defaultValue=""
-                  id="personId"
-                  name="personId"
-                  onSearchChange={(value) => {
-                    setCandidateLoading(true);
-                    setAccountCandidates([]);
-                    setCandidateQuery(value);
-                  }}
-                  options={accountCandidates.map((person) => ({
-                    keywords: [person.displayName, person.unitName ?? ""],
-                    label: person.unitName
-                      ? `${person.displayName} · ${person.unitName}`
-                      : person.displayName,
-                    value: person.id,
-                  }))}
-                  placeholder="Pesquise por nome ou unidade"
-                  required
-                  searching={candidateLoading}
-                />
-              </FormField>
-            )}
+                {busy
+                  ? "Criando acesso…"
+                  : managesAccess
+                    ? "Criar conta e continuar"
+                    : userMode === "new"
+                      ? "Cadastrar colaborador e criar acesso"
+                      : "Criar conta de acesso"}
+              </Button>
+            </form>
+          ) : (
+            <form className="space-y-5" onSubmit={completeOnboarding}>
+              {dialogError ? (
+                <Alert title="Revise os acessos" tone="danger">
+                  {dialogError}
+                </Alert>
+              ) : null}
 
-            <section className="border-t border-[var(--border)] pt-5">
-              <h3 className="text-sm font-bold">Conta de acesso</h3>
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                A senha deverá ser alterada no primeiro acesso.
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <FormField htmlFor="accountEmail" label="E-mail institucional">
-                  <Input
-                    autoComplete="off"
-                    id="accountEmail"
-                    name="email"
-                    spellCheck={false}
-                    type="email"
-                    required
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  hint="Use perfis para acessos que se repetem entre pessoas."
+                  htmlFor="onboardingRoles"
+                  label="Perfis iniciais"
+                >
+                  <SearchableMultiSelect
+                    id="onboardingRoles"
+                    name="onboardingRoles"
+                    onValuesChange={setOnboardingRoleIds}
+                    options={roles.map((role) => ({
+                      keywords: [
+                        role.description ?? "",
+                        ...role.permissions.map(
+                          (permission) => permissionLabels[permission],
+                        ),
+                      ],
+                      label: role.name,
+                      value: role.id,
+                    }))}
+                    placeholder="Nenhum perfil"
+                    searchPlaceholder="Pesquisar perfis…"
+                    values={onboardingRoleIds}
                   />
                 </FormField>
                 <FormField
-                  hint="Mínimo de 12 caracteres."
-                  htmlFor="temporaryPassword"
-                  label="Senha temporária"
+                  hint="Use apenas para exceções desta conta."
+                  htmlFor="onboardingPermissions"
+                  label="Permissões adicionais"
                 >
-                  <Input
-                    autoComplete="new-password"
-                    id="temporaryPassword"
-                    minLength={12}
-                    name="temporaryPassword"
-                    type="password"
-                    required
+                  <SearchableMultiSelect
+                    id="onboardingPermissions"
+                    name="onboardingPermissions"
+                    onValuesChange={(values) =>
+                      setOnboardingPermissions(values as PermissionKey[])
+                    }
+                    options={permissionGroups.flatMap((group) =>
+                      group.permissions.map((permission) => ({
+                        group: group.title,
+                        keywords: [permissionDescriptions[permission]],
+                        label: permissionLabels[permission],
+                        value: permission,
+                      })),
+                    )}
+                    placeholder="Nenhuma permissão"
+                    searchPlaceholder="Pesquisar permissões…"
+                    values={onboardingPermissions}
                   />
                 </FormField>
               </div>
-            </section>
-            <Button
-              className="w-full"
-              disabled={busy || (userMode === "new" && !hrReady)}
-              type="submit"
-            >
-              {busy
-                ? "Criando acesso…"
-                : userMode === "new"
-                  ? "Cadastrar colaborador e criar acesso"
-                  : "Criar conta de acesso"}
-            </Button>
-          </form>
+
+              <FormField
+                hint="Permissões que não aceitam escopo por unidade serão aplicadas à organização."
+                htmlFor="onboardingScope"
+                label="Escopo inicial"
+              >
+                <Select
+                  id="onboardingScope"
+                  name="onboardingScope"
+                  onValueChange={(value) =>
+                    setOnboardingScope(
+                      value as "unit" | typeof organizationScope,
+                    )
+                  }
+                  options={[
+                    ...(onboardingAccount?.unitId
+                      ? [
+                          {
+                            label: `Unidade de lotação — ${
+                              units.find(
+                                (unit) => unit.id === onboardingAccount.unitId,
+                              )?.name ?? "unidade atual"
+                            }`,
+                            value: "unit",
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "Toda a organização",
+                      value: organizationScope,
+                    },
+                  ]}
+                  value={onboardingScope}
+                />
+              </FormField>
+
+              <div className="flex justify-end">
+                <Button disabled={busy} type="submit">
+                  {busy ? "Aplicando acessos…" : "Concluir cadastro"}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

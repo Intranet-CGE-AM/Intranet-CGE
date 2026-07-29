@@ -32,6 +32,7 @@ export const adminUserSchema = z.object({
 export const accountCandidateSchema = z.object({
   id: z.uuid(),
   displayName: z.string(),
+  unitId: z.uuid().nullable(),
   unitName: z.string().nullable(),
 });
 

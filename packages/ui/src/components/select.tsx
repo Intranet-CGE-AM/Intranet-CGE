@@ -302,10 +302,19 @@ export function SearchableMultiSelect({
   const filteredOptions = normalizedQuery
     ? options.filter((option) =>
         normalizeSearch(
-          [option.label, ...(option.keywords ?? [])].join(" "),
+          [option.group ?? "", option.label, ...(option.keywords ?? [])].join(
+            " ",
+          ),
         ).includes(normalizedQuery),
       )
     : options;
+  const filteredGroups = Array.from(
+    filteredOptions.reduce((groups, option) => {
+      const group = option.group ?? "";
+      groups.set(group, [...(groups.get(group) ?? []), option]);
+      return groups;
+    }, new Map<string, SelectOption[]>()),
+  );
   const summary =
     selectedOptions.length === 1
       ? selectedOptions[0]!.label
@@ -381,44 +390,57 @@ export function SearchableMultiSelect({
               className="max-h-64 overflow-y-auto py-1"
               role="group"
             >
-              {filteredOptions.length ? (
-                filteredOptions.map((option) => {
-                  const checked = values.includes(option.value);
-                  return (
-                    <label
-                      className={cn(
-                        "flex min-h-10 cursor-pointer select-none items-center gap-3 rounded-[9px] px-3 py-2 text-sm hover:bg-[var(--surface-subtle)] has-[input:focus-visible]:outline-none has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[var(--focus)]",
-                        option.disabled &&
-                          "pointer-events-none cursor-not-allowed opacity-45",
-                      )}
-                      key={option.value}
-                    >
-                      <input
-                        checked={checked}
-                        className="sr-only"
-                        disabled={option.disabled}
-                        onChange={() => toggle(option.value)}
-                        type="checkbox"
-                      />
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "grid size-4 shrink-0 place-items-center rounded-[4px] border",
-                          checked
-                            ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                            : "border-[var(--border)] bg-white",
-                        )}
-                      >
-                        {checked ? (
-                          <Check aria-hidden="true" size={11} weight="bold" />
-                        ) : null}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">
-                        {option.label}
-                      </span>
-                    </label>
-                  );
-                })
+              {filteredGroups.length ? (
+                filteredGroups.map(([group, groupOptions]) => (
+                  <div key={group}>
+                    {group ? (
+                      <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-faint)]">
+                        {group}
+                      </p>
+                    ) : null}
+                    {groupOptions.map((option) => {
+                      const checked = values.includes(option.value);
+                      return (
+                        <label
+                          className={cn(
+                            "flex min-h-10 cursor-pointer select-none items-center gap-3 rounded-[9px] px-3 py-2 text-sm hover:bg-[var(--surface-subtle)] has-[input:focus-visible]:outline-none has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[var(--focus)]",
+                            option.disabled &&
+                              "pointer-events-none cursor-not-allowed opacity-45",
+                          )}
+                          key={option.value}
+                        >
+                          <input
+                            checked={checked}
+                            className="sr-only"
+                            disabled={option.disabled}
+                            onChange={() => toggle(option.value)}
+                            type="checkbox"
+                          />
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "grid size-4 shrink-0 place-items-center rounded-[4px] border",
+                              checked
+                                ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                                : "border-[var(--border)] bg-white",
+                            )}
+                          >
+                            {checked ? (
+                              <Check
+                                aria-hidden="true"
+                                size={11}
+                                weight="bold"
+                              />
+                            ) : null}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {option.label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))
               ) : (
                 <p className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
                   {emptyText}

@@ -32,6 +32,7 @@ import {
   Plus,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
@@ -44,6 +45,7 @@ import {
 
 export function PeoplePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
@@ -81,6 +83,9 @@ export function PeoplePage() {
     user && canGlobally(user, "people.manage"),
   );
   const importsPeople = Boolean(user && canGlobally(user, "people.import"));
+  const canOnboardAccounts = Boolean(
+    user && canGlobally(user, "accounts.manage"),
+  );
   const manageableUnits = units.filter(
     (unit) => user && can(user, "people.manage", unit.id),
   );
@@ -511,7 +516,15 @@ export function PeoplePage() {
             </Button>
           ) : null}
           {managesPeople ? (
-            <Button onClick={() => setPersonDialog("new")}>
+            <Button
+              onClick={() => {
+                if (canOnboardAccounts) {
+                  navigate("/sistema/administracao?secao=accounts&novo=1");
+                  return;
+                }
+                setPersonDialog("new");
+              }}
+            >
               <Plus aria-hidden="true" size={16} />
               Novo colaborador
             </Button>

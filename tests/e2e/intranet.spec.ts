@@ -272,7 +272,8 @@ async function createAccount(
   await chooseOption(page, "Pessoa", person);
   await page.getByLabel("E-mail institucional").fill(email);
   await page.getByLabel("Senha temporária").fill(password);
-  await page.getByRole("button", { name: "Criar conta de acesso" }).click();
+  await page.getByRole("button", { name: "Criar conta e continuar" }).click();
+  await page.getByRole("button", { name: "Concluir cadastro" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
 }
 

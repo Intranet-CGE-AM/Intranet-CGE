@@ -274,6 +274,7 @@ export class LocalAuthenticationService implements AuthenticationService {
         id: people.id,
         fullName: people.fullName,
         preferredName: people.preferredName,
+        unitId: organizationUnits.id,
         unitName: organizationUnits.name,
       })
       .from(people)
@@ -305,6 +306,7 @@ export class LocalAuthenticationService implements AuthenticationService {
     return rows.map((person) => ({
       id: person.id,
       displayName: person.preferredName ?? person.fullName,
+      unitId: person.unitId,
       unitName: person.unitName,
     }));
   }
