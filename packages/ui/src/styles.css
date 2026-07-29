@@ -45,11 +45,14 @@ body {
   color: var(--text);
 }
 
-button,
 input,
 select,
 textarea {
   font: inherit;
+}
+
+button {
+  font-family: inherit;
 }
 
 button,

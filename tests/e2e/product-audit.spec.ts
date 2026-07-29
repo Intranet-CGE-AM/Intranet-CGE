@@ -24,19 +24,29 @@ test("default home exposes permitted destinations and account context", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
-  await expect(page.getByRole("heading", { name: "Olá, Caio." })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Bom dia, Caio" }),
+  ).toBeVisible();
 
   const hrModule = page.getByRole("region", { name: "Recursos Humanos" });
   await expect(
     hrModule.getByRole("link", { name: "Entrar no módulo" }),
   ).toHaveAttribute("href", "/rh");
+  const routine = page.getByRole("region", {
+    name: /Minha rotina/,
+  });
   await expect(
-    hrModule.getByRole("link", { name: "Colaboradores" }),
+    routine.getByText("Colaboradores", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    routine.getByRole("link", { name: "Abrir" }).nth(0),
   ).toHaveAttribute("href", "/rh/colaboradores");
-  await expect(hrModule.getByRole("link", { name: "Férias" })).toHaveAttribute(
-    "href",
-    "/rh/ferias",
-  );
+  await expect(
+    routine.getByRole("link", { name: "Abrir" }).nth(1),
+  ).toHaveAttribute("href", "/rh/ferias");
+  await expect(
+    page.getByText("Mural e comunicados", { exact: true }),
+  ).toBeVisible();
   await expect(
     page
       .getByRole("main")
@@ -111,7 +121,7 @@ test("default home exposes permitted destinations and account context", async ({
 test("module headers toggle their routes without navigating", async ({
   page,
 }) => {
-  await login(page, accounts.worker, password);
+  await login(page, accounts.hr, password);
   const navigation = page.getByRole("navigation", {
     name: "Navegação principal",
   });
@@ -143,6 +153,15 @@ test("module headers toggle their routes without navigating", async ({
   await page.reload();
   await expect(hrModule).toHaveAttribute("aria-expanded", "true");
   await expect(overview).toBeVisible();
+
+  const collaborators = navigation.getByRole("link", {
+    name: "Colaboradores",
+    exact: true,
+  });
+  await collaborators.click();
+  await expect(page).toHaveURL(/\/rh\/colaboradores$/);
+  await expect(collaborators).toHaveAttribute("aria-current", "page");
+  await expect(overview).not.toHaveAttribute("aria-current", "page");
 });
 
 test("homolog worker sees every vacation state and immutable history", async ({
@@ -1149,7 +1168,9 @@ async function login(page: Page, email: string, loginPassword: string) {
   await page.getByLabel("Senha").fill(loginPassword);
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   if (email !== accounts.disabled) {
-    await expect(page.getByRole("heading", { name: /^Olá,/ })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^(Olá|Bom dia),/ }),
+    ).toBeVisible();
   }
 }
 

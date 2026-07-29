@@ -32,7 +32,7 @@ test("complete HR journey from import through final vacation approval", async ({
   await page.getByLabel("Senha").fill(admin.password);
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   await expect(
-    page.getByRole("heading", { name: /Olá, Administrador/ }),
+    page.getByRole("heading", { name: /Bom dia, Administrador/ }),
   ).toBeVisible();
 
   await openHrRoute(page, "Colaboradores");

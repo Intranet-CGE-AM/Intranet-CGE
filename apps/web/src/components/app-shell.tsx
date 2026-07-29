@@ -156,7 +156,7 @@ function Navigation({
                         aria-hidden="true"
                         className={[
                           "ml-auto text-[var(--text-faint)] transition-transform duration-200",
-                          expanded ? "rotate-0" : "-rotate-90",
+                          expanded ? "rotate-180" : "rotate-0",
                         ].join(" ")}
                         size={14}
                         weight="bold"
@@ -164,7 +164,7 @@ function Navigation({
                     ) : null}
                   </button>
                   {expanded && !collapsed ? (
-                    <div className="ml-[17px] mt-0.5 space-y-0.5 border-l border-[var(--border)] pl-[18px]">
+                    <div className="relative ml-[17px] mt-0.5 space-y-0.5 pl-[18px] before:absolute before:bottom-[18px] before:left-0 before:top-0 before:border-l before:border-[var(--border)]">
                       {module.routes
                         .filter((route) => canNavigate(user, route))
                         .map((route) => (
@@ -230,9 +230,9 @@ function NavigationLink({
       aria-label={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         [
-          "relative flex items-center rounded-[9px] transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.99]",
+          "relative flex items-center rounded-[9px] transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus)] active:scale-[0.99]",
           nested
-            ? "min-h-9 gap-2.5 px-2.5 text-[13px] font-medium"
+            ? "min-h-9 px-2.5 text-[13px] font-medium"
             : collapsed
               ? "min-h-9 justify-center px-2 text-[13px] font-semibold"
               : "min-h-9 gap-2.5 px-2.5 text-[13px] font-semibold",
@@ -251,10 +251,10 @@ function NavigationLink({
       {nested ? (
         <span
           aria-hidden="true"
-          className="absolute -left-[19px] top-1/2 h-px w-[14px] bg-[var(--border)]"
+          className="absolute -left-[18px] top-1/2 w-3 border-t border-[var(--border)]"
         />
       ) : null}
-      <Icon aria-hidden="true" size={nested ? 16 : 17} />
+      {!nested ? <Icon aria-hidden="true" size={17} /> : null}
       {!collapsed ? <span className="truncate">{item.label}</span> : null}
     </NavLink>
   );
