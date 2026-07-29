@@ -108,12 +108,55 @@ test("default home exposes permitted destinations and account context", async ({
   await expect(page.getByText("Foto de perfil removida.")).toBeVisible();
 });
 
+test("module headers toggle their routes without navigating", async ({
+  page,
+}) => {
+  await login(page, accounts.worker, password);
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  const hrModule = navigation.getByRole("button", {
+    name: "Recursos Humanos",
+    exact: true,
+  });
+  const overview = navigation.getByRole("link", {
+    name: "Visão geral",
+    exact: true,
+  });
+
+  await expect(hrModule).toHaveAttribute("aria-expanded", "false");
+  await expect(overview).toHaveCount(0);
+  await hrModule.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(hrModule).toHaveAttribute("aria-expanded", "true");
+  await expect(overview).toBeVisible();
+
+  await hrModule.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(hrModule).toHaveAttribute("aria-expanded", "false");
+  await expect(overview).toHaveCount(0);
+
+  await hrModule.click();
+  await overview.click();
+  await expect(page).toHaveURL(/\/rh$/);
+  await expect(hrModule).toHaveAttribute("aria-expanded", "true");
+  await page.reload();
+  await expect(hrModule).toHaveAttribute("aria-expanded", "true");
+  await expect(overview).toBeVisible();
+});
+
 test("homolog worker sees every vacation state and immutable history", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
-  await page
-    .getByRole("link", { name: "Recursos Humanos", exact: true })
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  await navigation
+    .getByRole("button", { name: "Recursos Humanos", exact: true })
+    .click();
+  await navigation
+    .getByRole("link", { name: "Visão geral", exact: true })
     .click();
   await expect(page.getByText(/solicitações em andamento/)).toBeVisible();
   await expect(page.getByText(/ações pendentes/)).toHaveCount(0);
@@ -163,7 +206,7 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
     name: "Navegação principal",
   });
   await expect(
-    navigation.getByRole("link", { name: "Recursos Humanos", exact: true }),
+    navigation.getByRole("button", { name: "Recursos Humanos", exact: true }),
   ).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Férias", exact: true }),
@@ -175,7 +218,7 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
     }),
   ).toHaveCount(0);
   await navigation
-    .getByRole("link", { name: "Recursos Humanos", exact: true })
+    .getByRole("button", { name: "Recursos Humanos", exact: true })
     .click();
   await expect(
     navigation.getByRole("link", { name: "Colaboradores", exact: true }),
@@ -186,13 +229,14 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
   await navigation
     .getByRole("link", { name: "Colaboradores", exact: true })
     .click();
+  const main = page.getByRole("main");
   await expect(
-    page.getByText("Leonardo Araújo", { exact: true }),
+    main.getByText("Leonardo Araújo", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("Ana Beatriz Vasconcelos", { exact: true }),
+    main.getByText("Ana Beatriz Vasconcelos", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Caio Nascimento", { exact: true })).toHaveCount(
+  await expect(main.getByText("Caio Nascimento", { exact: true })).toHaveCount(
     0,
   );
   await page
@@ -662,7 +706,7 @@ test("first access exposes multiple modules and explains a missing supervisor", 
     name: "Navegação principal",
   });
   await expect(
-    navigation.getByRole("link", { name: "Recursos Humanos", exact: true }),
+    navigation.getByRole("button", { name: "Recursos Humanos", exact: true }),
   ).toBeVisible();
   await expect(
     navigation.getByRole("link", { name: "Auditoria", exact: true }),
@@ -973,9 +1017,15 @@ test("administration onboards an employee and supports account operations", asyn
   await expect(
     page.getByRole("button", { name: "Expandir barra lateral" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Expandir barra lateral" }).click();
+  await page
+    .getByRole("navigation", { name: "Navegação principal" })
+    .getByRole("button", { name: "Recursos Humanos", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "Recolher barra lateral" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Visão geral", exact: true }),
   ).toBeVisible();
 });
 
@@ -988,6 +1038,17 @@ test("mobile navigation traps focus, closes with Escape, and restores focus", as
   await trigger.click();
   const menu = page.getByRole("dialog", { name: "Navegação principal" });
   await expect(menu).toBeVisible();
+  const hrModule = menu.getByRole("button", {
+    name: "Recursos Humanos",
+    exact: true,
+  });
+  await expect(hrModule).toHaveAttribute("aria-expanded", "false");
+  await hrModule.click();
+  await expect(menu).toBeVisible();
+  await expect(hrModule).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    menu.getByRole("link", { name: "Visão geral", exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
@@ -1093,10 +1154,19 @@ async function login(page: Page, email: string, loginPassword: string) {
 }
 
 async function openHrRoute(page: Page, route: "Colaboradores" | "Férias") {
-  await page
-    .getByRole("link", { name: "Recursos Humanos", exact: true })
-    .click();
-  await page.getByRole("link", { name: route, exact: true }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  const routeLink = navigation.getByRole("link", {
+    name: route,
+    exact: true,
+  });
+  if (!(await routeLink.isVisible())) {
+    await navigation
+      .getByRole("button", { name: "Recursos Humanos", exact: true })
+      .click();
+  }
+  await routeLink.click();
 }
 
 async function chooseOption(page: Page, field: string, option: string) {

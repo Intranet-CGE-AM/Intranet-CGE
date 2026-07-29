@@ -204,10 +204,19 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function openHrRoute(page: Page, route: "Colaboradores" | "Férias") {
-  await page
-    .getByRole("link", { name: "Recursos Humanos", exact: true })
-    .click();
-  await page.getByRole("link", { name: route, exact: true }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Navegação principal",
+  });
+  const routeLink = navigation.getByRole("link", {
+    name: route,
+    exact: true,
+  });
+  if (!(await routeLink.isVisible())) {
+    await navigation
+      .getByRole("button", { name: "Recursos Humanos", exact: true })
+      .click();
+  }
+  await routeLink.click();
 }
 
 async function firstLogin(

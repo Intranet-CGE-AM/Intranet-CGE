@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@cge/ui";
 import {
+  CaretDown,
   CaretLeft,
   CaretRight,
   CaretUpDown,
@@ -20,7 +21,7 @@ import {
   SignOut,
   UserCircle,
 } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { useAuth } from "../auth";
@@ -57,16 +58,34 @@ function Logo({ collapsed = false }: { collapsed?: boolean }) {
 
 function Navigation({
   collapsed = false,
+  onExpandSidebar,
   onNavigate,
   user,
 }: {
   collapsed?: boolean;
+  onExpandSidebar?: () => void;
   onNavigate?: () => void;
   user: NonNullable<ReturnType<typeof useAuth>["user"]>;
 }) {
   const { pathname } = useLocation();
   const modules = availableModules(user);
   const systemItems = availableSystemNavigation(user);
+  const activeModuleId = modules.find(
+    (module) =>
+      pathname === module.href || pathname.startsWith(`${module.href}/`),
+  )?.id;
+  const [expandedModules, setExpandedModules] = useState<
+    Record<string, boolean>
+  >(() => (activeModuleId ? { [activeModuleId]: true } : {}));
+
+  useEffect(() => {
+    if (!activeModuleId) return;
+    setExpandedModules((current) =>
+      current[activeModuleId]
+        ? current
+        : { ...current, [activeModuleId]: true },
+    );
+  }, [activeModuleId]);
 
   return (
     <nav aria-label="Navegação principal" className="mt-8 space-y-1">
@@ -94,25 +113,51 @@ function Navigation({
               const active =
                 pathname === module.href ||
                 pathname.startsWith(`${module.href}/`);
+              const expanded = Boolean(expandedModules[module.id]);
               return (
                 <div key={module.id}>
-                  <Link
+                  <button
+                    aria-expanded={!collapsed && expanded}
                     aria-label={collapsed ? module.label : undefined}
                     className={[
-                      "flex min-h-10 items-center rounded-[10px] text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
+                      "flex min-h-10 w-full items-center rounded-[10px] text-sm font-semibold transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] active:scale-[0.99]",
                       collapsed ? "justify-center px-2" : "gap-3 px-3",
                       active
                         ? "text-[var(--brand-strong)]"
                         : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--text)]",
                     ].join(" ")}
-                    onClick={onNavigate}
+                    onClick={() => {
+                      if (collapsed) {
+                        onExpandSidebar?.();
+                        setExpandedModules((current) => ({
+                          ...current,
+                          [module.id]: true,
+                        }));
+                        return;
+                      }
+                      setExpandedModules((current) => ({
+                        ...current,
+                        [module.id]: !current[module.id],
+                      }));
+                    }}
                     title={collapsed ? module.label : undefined}
-                    to={module.href}
+                    type="button"
                   >
                     <Icon aria-hidden="true" size={18} />
                     {!collapsed ? <span>{module.label}</span> : null}
-                  </Link>
-                  {active && !collapsed ? (
+                    {!collapsed ? (
+                      <CaretDown
+                        aria-hidden="true"
+                        className={[
+                          "ml-auto text-[var(--text-faint)] transition-transform duration-200",
+                          expanded ? "rotate-0" : "-rotate-90",
+                        ].join(" ")}
+                        size={14}
+                        weight="bold"
+                      />
+                    ) : null}
+                  </button>
+                  {expanded && !collapsed ? (
                     <div className="ml-[21px] mt-1 space-y-1 border-l border-[var(--border)] pl-3">
                       {module.routes
                         .filter((route) => canNavigate(user, route))
@@ -334,7 +379,11 @@ export function AppShell() {
           </button>
           <div className={collapsed ? "px-1 pt-1" : "px-2 pt-1"}>
             <Logo collapsed={collapsed} />
-            <Navigation collapsed={collapsed} user={user} />
+            <Navigation
+              collapsed={collapsed}
+              onExpandSidebar={() => setCollapsed(false)}
+              user={user}
+            />
           </div>
           <div className="mt-auto">
             <AccountMenu collapsed={collapsed} />
