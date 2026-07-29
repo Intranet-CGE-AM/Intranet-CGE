@@ -25,14 +25,14 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish:
-    name: Publicar homologação
+    name: Publish staging
     if: github.ref == 'refs/heads/dev'
     needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Identificar imagens e árvore
+      - name: Resolve images and tree
         id: meta
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -48,7 +48,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Construir e publicar api
+      - name: Build and publish api
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -60,7 +60,7 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
 
-      - name: Construir e publicar web
+      - name: Build and publish web
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -72,25 +72,25 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
-      - name: Resumo
+      - name: Summary
         run: |
           {
-            echo "### Homologação publicada"
+            echo "### Staging published"
             echo ""
-            echo "Árvore \`${{ steps.meta.outputs.tree }}\`"
+            echo "Tree \`${{ steps.meta.outputs.tree }}\`"
             echo ""
-            echo "O Watchtower de homologação aplica em até 2 minutos."
+            echo "The staging Watchtower rolls it out within 2 minutes."
           } >> "$GITHUB_STEP_SUMMARY"
 
   promote:
-    name: Promover para produção
+    name: Promote to production
     if: github.ref == 'refs/heads/main'
     needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Identificar imagens e árvore
+      - name: Resolve images and tree
         id: meta
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -106,42 +106,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Exigir imagem já homologada
+      - name: Require a staged image
         run: |
           tree='${{ steps.meta.outputs.tree }}'
           missing=0
           for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
             if docker buildx imagetools inspect "$image:tree-$tree" >/dev/null 2>&1; then
-              echo "ok: $image:tree-$tree"
+              echo "found: $image:tree-$tree"
             else
-              echo "ausente: $image:tree-$tree" >&2
+              echo "missing: $image:tree-$tree" >&2
               missing=1
             fi
           done
           if [ "$missing" -ne 0 ]; then
             echo "" >&2
-            echo "Produção só recebe imagem que passou por homologação." >&2
-            echo "Esta árvore nunca foi publicada a partir da branch dev." >&2
+            echo "Production only accepts an image that went through staging." >&2
+            echo "This tree was never published from the dev branch." >&2
             echo "" >&2
-            echo "Leve a mudança para dev, deixe o Watchtower aplicar, valide," >&2
-            echo "e só então mergeie dev em main." >&2
+            echo "Land the change on dev, let Watchtower roll it out, validate," >&2
+            echo "and only then merge dev into main." >&2
             exit 1
           fi
 
-      - name: Reapontar tag de produção
+      - name: Retag production
         run: |
           tree='${{ steps.meta.outputs.tree }}'
           for image in '${{ steps.meta.outputs.api }}' '${{ steps.meta.outputs.web }}'; do
             docker buildx imagetools create -t "$image:production" "$image:tree-$tree"
           done
 
-      - name: Resumo
+      - name: Summary
         run: |
           {
-            echo "### Produção promovida"
+            echo "### Production promoted"
             echo ""
-            echo "Árvore \`${{ steps.meta.outputs.tree }}\` — mesmo digest validado em homologação."
+            echo "Tree \`${{ steps.meta.outputs.tree }}\` — the same digest validated in staging."
             echo ""
-            echo "Produção **não** aplica migrações ao subir."
-            echo "Se esta versão exigir schema novo, rode a migração explícita antes."
+            echo "Production does **not** apply migrations on startup."
+            echo "If this release needs a new schema, run the explicit migration first."
           } >> "$GITHUB_STEP_SUMMARY"

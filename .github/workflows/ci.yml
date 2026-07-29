@@ -15,14 +15,14 @@ env:
 
 jobs:
   migrations:
-    name: Migrações não destrutivas
+    name: Non-destructive migrations
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - run: ./infra/scripts/check-migrations.sh
 
   quality:
-    name: Formato, lint, tipos, testes e build
+    name: Format, lint, types, tests and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -46,7 +46,7 @@ jobs:
       - run: pnpm build
 
   e2e:
-    name: Playwright ponta a ponta
+    name: End-to-end (Playwright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
