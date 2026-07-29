@@ -66,7 +66,12 @@ test("default home exposes permitted destinations and account context", async ({
   await expect(page.getByText(accounts.worker, { exact: true })).toBeVisible();
   await expectAccessiblePage(page, "/conta", 1280);
 
-  await page.getByLabel("Foto de perfil").setInputFiles({
+  const accountAvatarPicker = page.getByLabel(
+    "Selecionar nova foto de Caio Nascimento",
+  );
+  await accountAvatarPicker.hover();
+  await expect(page.getByText("Adicionar", { exact: true })).toBeVisible();
+  await accountAvatarPicker.setInputFiles({
     name: "avatar.png",
     mimeType: "image/png",
     buffer: Buffer.from(
@@ -74,6 +79,9 @@ test("default home exposes permitted destinations and account context", async ({
       "base64",
     ),
   });
+  const profile = page.getByRole("region", { name: "Perfil" });
+  await expect(profile.locator('[data-slot="avatar"] img')).toBeVisible();
+  await expect(profile.getByText("avatar.png", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Salvar foto" }).click();
   await expect(page.getByText("Foto de perfil atualizada.")).toBeVisible();
   await expect(
@@ -522,7 +530,10 @@ test("avatar upload normalizes images and respects unit scope", async ({
     .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
     .click();
 
-  await page.getByLabel("Nova foto").setInputFiles({
+  const personAvatarPicker = page.getByLabel(
+    "Selecionar nova foto de Caio Nascimento",
+  );
+  await personAvatarPicker.setInputFiles({
     name: "avatar-falso.png",
     mimeType: "image/png",
     buffer: Buffer.from("isto não é uma imagem"),
@@ -532,7 +543,7 @@ test("avatar upload normalizes images and respects unit scope", async ({
     page.getByRole("alert").getByText(/JPEG, PNG ou WebP válida/i),
   ).toBeVisible();
 
-  await page.getByLabel("Nova foto").setInputFiles({
+  await personAvatarPicker.setInputFiles({
     name: "avatar.png",
     mimeType: "image/png",
     buffer: Buffer.from(
@@ -540,6 +551,10 @@ test("avatar upload normalizes images and respects unit scope", async ({
       "base64",
     ),
   });
+  const avatarDialog = page.getByRole("dialog", {
+    name: "Foto do colaborador",
+  });
+  await expect(avatarDialog.locator('[data-slot="avatar"] img')).toBeVisible();
   await page.getByRole("button", { name: "Salvar foto" }).click();
   await expect(page.getByText("Foto do colaborador atualizada.")).toBeVisible();
   const avatar = personRow.locator('[data-slot="avatar"] img');

@@ -7,6 +7,7 @@ import type {
 import {
   Alert,
   Avatar,
+  AvatarPicker,
   Badge,
   Button,
   Card,
@@ -586,50 +587,15 @@ export function PeoplePage() {
               </Alert>
             ) : null}
             {avatarPerson ? (
-              <div className="flex items-center gap-4">
-                <Avatar
-                  name={avatarPerson.preferredName ?? avatarPerson.fullName}
-                  size="lg"
-                  src={avatarPerson.avatarUrl}
-                />
-                <div>
-                  <p className="text-sm font-bold">
-                    {avatarPerson.preferredName ?? avatarPerson.fullName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    JPEG, PNG ou WebP · máximo de 2 MB
-                  </p>
-                </div>
-              </div>
+              <AvatarPicker
+                disabled={busy}
+                file={avatarFile}
+                id="personAvatar"
+                name={avatarPerson.preferredName ?? avatarPerson.fullName}
+                onFileChange={setAvatarFile}
+                src={avatarPerson.avatarUrl}
+              />
             ) : null}
-            <FormField htmlFor="personAvatar" label="Nova foto">
-              <div className="relative rounded-[10px] focus-within:ring-3 focus-within:ring-[var(--focus)]">
-                <Input
-                  accept="image/jpeg,image/png,image/webp"
-                  className="absolute inset-0 z-10 h-full cursor-pointer opacity-0"
-                  id="personAvatar"
-                  name="avatar"
-                  onChange={(event) =>
-                    setAvatarFile(event.target.files?.[0] ?? null)
-                  }
-                  type="file"
-                />
-                <div
-                  aria-hidden="true"
-                  className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                >
-                  <ImageSquare aria-hidden="true" size={18} />
-                  <span className="font-semibold">
-                    {avatarFile ? "Imagem selecionada" : "Selecionar imagem"}
-                  </span>
-                  {avatarFile ? (
-                    <span className="min-w-0 truncate text-[var(--text-muted)]">
-                      {avatarFile.name}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </FormField>
             <div className="flex flex-wrap justify-end gap-2">
               {avatarPerson?.avatarUrl ? (
                 <Button

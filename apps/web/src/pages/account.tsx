@@ -1,5 +1,5 @@
-import { Alert, Avatar, Button, FormField, Input } from "@cge/ui";
-import { Camera, Key, Trash, UploadSimple } from "@phosphor-icons/react";
+import { Alert, AvatarPicker, Button, FormField, Input } from "@cge/ui";
+import { Camera, Key, Trash } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
@@ -132,23 +132,16 @@ export function AccountPage() {
           </p>
         </div>
 
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-4">
-            <Avatar
-              className="bg-white"
-              name={currentUser.person.displayName}
-              size="lg"
-              src={currentUser.person.avatarUrl}
-            />
-            <div className="min-w-0">
-              <p className="truncate font-extrabold">
-                {currentUser.person.displayName}
-              </p>
-              <p className="mt-1 break-all text-sm text-[var(--text-muted)]">
-                {currentUser.account.email}
-              </p>
-            </div>
-          </div>
+        <form className="max-w-2xl" onSubmit={uploadAvatar}>
+          <AvatarPicker
+            description={currentUser.account.email}
+            disabled={avatarBusy}
+            file={avatarFile}
+            id="accountAvatar"
+            name={currentUser.person.displayName}
+            onFileChange={setAvatarFile}
+            src={currentUser.person.avatarUrl}
+          />
 
           <dl className="mt-6 grid gap-x-6 gap-y-4 border-y border-[var(--border)] py-5 sm:grid-cols-2">
             <div>
@@ -184,54 +177,24 @@ export function AccountPage() {
             </Alert>
           ) : null}
 
-          <form className="mt-5 space-y-4" onSubmit={uploadAvatar}>
-            <FormField
-              htmlFor="accountAvatar"
-              label="Foto de perfil"
-              hint="JPEG, PNG ou WebP; até 2 MB. A imagem será recortada em formato quadrado."
-            >
-              <div className="flex min-h-10 items-center gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-1.5">
-                <input
-                  accept="image/jpeg,image/png,image/webp"
-                  className="peer sr-only"
-                  id="accountAvatar"
-                  name="avatar"
-                  onChange={(event) =>
-                    setAvatarFile(event.currentTarget.files?.[0] ?? null)
-                  }
-                  type="file"
-                />
-                <label
-                  className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg bg-[var(--surface-subtle)] px-3 text-xs font-bold transition-colors hover:bg-[var(--brand-soft)] peer-focus-visible:ring-3 peer-focus-visible:ring-[var(--focus)]"
-                  htmlFor="accountAvatar"
-                >
-                  <UploadSimple aria-hidden="true" size={17} />
-                  Selecionar imagem
-                </label>
-                <span className="min-w-0 truncate text-xs text-[var(--text-muted)]">
-                  {avatarFile?.name ?? "Nenhum arquivo selecionado"}
-                </span>
-              </div>
-            </FormField>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={!avatarFile || avatarBusy} type="submit">
-                <Camera aria-hidden="true" size={18} />
-                {avatarBusy ? "Salvando…" : "Salvar foto"}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button disabled={!avatarFile || avatarBusy} type="submit">
+              <Camera aria-hidden="true" size={18} />
+              {avatarBusy ? "Salvando…" : "Salvar foto"}
+            </Button>
+            {currentUser.person.avatarUrl ? (
+              <Button
+                disabled={avatarBusy}
+                onClick={() => void removeAvatar()}
+                type="button"
+                variant="quiet"
+              >
+                <Trash aria-hidden="true" size={18} />
+                Remover foto
               </Button>
-              {currentUser.person.avatarUrl ? (
-                <Button
-                  disabled={avatarBusy}
-                  onClick={() => void removeAvatar()}
-                  type="button"
-                  variant="quiet"
-                >
-                  <Trash aria-hidden="true" size={18} />
-                  Remover foto
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        </div>
+            ) : null}
+          </div>
+        </form>
       </section>
 
       <section
