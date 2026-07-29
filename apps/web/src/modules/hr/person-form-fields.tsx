@@ -4,7 +4,7 @@ import type {
   Person,
   PersonInput,
 } from "@cge/contracts";
-import { FormField, Input, Select } from "@cge/ui";
+import { DatePicker, FormField, Input, Select } from "@cge/ui";
 
 import { manausToday } from "../../lib/dates";
 
@@ -49,11 +49,11 @@ export function PersonFormFields({
         />
       </FormField>
       <FormField htmlFor={fieldId("birthDate")} label="Data de nascimento">
-        <Input
+        <DatePicker
           defaultValue={person?.birthDate ?? ""}
           id={fieldId("birthDate")}
+          max={manausToday()}
           name="birthDate"
-          type="date"
         />
       </FormField>
       <FormField htmlFor={fieldId("employeeNumber")} label="Matrícula">
@@ -66,12 +66,11 @@ export function PersonFormFields({
         />
       </FormField>
       <FormField htmlFor={fieldId("startDate")} label="Data de início">
-        <Input
+        <DatePicker
           defaultValue={person?.employment?.startDate ?? manausToday()}
           id={fieldId("startDate")}
           name="startDate"
           required
-          type="date"
         />
       </FormField>
       <FormField

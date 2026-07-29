@@ -32,6 +32,13 @@ export default tseslint.config(
           property,
         })),
       ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='type'][value.value='date']",
+          message: "Use DatePicker or DateRangePicker from @cge/ui.",
+        },
+      ],
     },
   },
 );

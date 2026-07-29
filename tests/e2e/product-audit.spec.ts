@@ -999,9 +999,9 @@ test("administration onboards an employee and supports account operations", asyn
   await expectAccessiblePage(page, "novo acesso", 1280);
   await page.getByLabel("Nome completo").fill("Íris Fernandes E2E");
   await page.getByLabel("Nome social ou preferido").fill("Íris");
-  await page.getByLabel("Data de nascimento").fill("1992-04-17");
+  await chooseDate(page, "Data de nascimento", "1992-04-17");
   await page.getByLabel("Matrícula").fill("ADM-E2E-001");
-  await page.getByLabel("Data de início").fill("2026-07-28");
+  await chooseDate(page, "Data de início", "2026-07-28");
   await chooseFirstOption(page, "Categoria funcional");
   await chooseFirstOption(page, "Unidade de lotação");
   await page.getByLabel("Cargo").fill("Analista de controle");
@@ -1319,4 +1319,17 @@ async function chooseDateRange(
     }
     await dateButton.click();
   }
+}
+
+async function chooseDate(page: Page, field: string, date: string) {
+  const [year, month] = date.split("-");
+  await page.getByRole("button", { name: field, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Selecionar data" });
+  await dialog.getByRole("combobox", { name: "Ano" }).selectOption(year);
+  await dialog
+    .getByRole("combobox", { name: "Mês" })
+    .selectOption({ index: Number(month) - 1 });
+  await dialog
+    .getByRole("button", { name: `Selecionar ${date}`, exact: true })
+    .click();
 }

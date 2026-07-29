@@ -97,6 +97,30 @@ a {
   font-weight: 750;
 }
 
+.cge-calendar-single .rdp-month,
+.cge-calendar-single .rdp-month_grid {
+  width: 100%;
+}
+
+.cge-calendar .rdp-dropdowns {
+  gap: 4px;
+}
+
+.cge-calendar .rdp-dropdown_root {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cge-calendar .rdp-caption_label {
+  padding: 0 28px 0 10px;
+}
+
+.cge-calendar .rdp-dropdown_root:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
 .cge-calendar .rdp-nav {
   gap: 4px;
 }
