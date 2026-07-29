@@ -1,28 +1,23 @@
 import type {
+  PermissionGrant,
   PermissionKey,
   RoleAssignmentInput,
   RoleInput,
 } from "@cge/contracts";
-import { eq, inArray } from "drizzle-orm";
+import { permissionAllows, permissionSupportsUnitScope } from "@cge/contracts";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
 import { roleAssignments, rolePermissions, roles } from "./schema.js";
 
-export type PermissionGrant = {
-  key: PermissionKey;
-  unitId: string | null;
-};
+export class RoleScopeError extends Error {
+  readonly code = "ROLE_REQUIRES_GLOBAL_SCOPE";
 
-export function permissionAllows(
-  grants: PermissionGrant[],
-  permission: PermissionKey,
-  unitId?: string,
-) {
-  return grants.some(
-    (grant) =>
-      grant.key === permission &&
-      (grant.unitId === null || grant.unitId === unitId),
-  );
+  constructor() {
+    super(
+      "Este perfil contém permissões que só podem valer para toda a organização.",
+    );
+  }
 }
 
 export class AccessService {
@@ -41,7 +36,10 @@ export class AccessService {
       )
       .where(eq(roleAssignments.accountId, accountId));
 
-    return grants as PermissionGrant[];
+    return (grants as PermissionGrant[]).filter(
+      (grant) =>
+        grant.unitId === null || permissionSupportsUnitScope(grant.key),
+    );
   }
 
   async allows(accountId: string, permission: PermissionKey, unitId?: string) {
@@ -103,6 +101,25 @@ export class AccessService {
 
   async updateRole(id: string, input: RoleInput) {
     return this.db.transaction(async (transaction) => {
+      if (
+        input.permissions.some(
+          (permission) => !permissionSupportsUnitScope(permission),
+        )
+      ) {
+        const [scopedAssignment] = await transaction
+          .select({ id: roleAssignments.id })
+          .from(roleAssignments)
+          .where(
+            and(
+              eq(roleAssignments.roleId, id),
+              isNotNull(roleAssignments.unitId),
+            ),
+          )
+          .limit(1);
+        if (scopedAssignment) {
+          throw new RoleScopeError();
+        }
+      }
       const [role] = await transaction
         .update(roles)
         .set({
@@ -133,6 +150,20 @@ export class AccessService {
   }
 
   async createAssignment(input: RoleAssignmentInput) {
+    if (input.unitId) {
+      const permissions = await this.db
+        .select({ permission: rolePermissions.permission })
+        .from(rolePermissions)
+        .where(eq(rolePermissions.roleId, input.roleId));
+      if (
+        permissions.some(
+          ({ permission }) =>
+            !permissionSupportsUnitScope(permission as PermissionKey),
+        )
+      ) {
+        throw new RoleScopeError();
+      }
+    }
     const [assignment] = await this.db
       .insert(roleAssignments)
       .values(input)

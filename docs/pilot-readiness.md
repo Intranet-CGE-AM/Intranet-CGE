@@ -10,7 +10,7 @@ decisão ou aceite da CGE. Campo sem assinatura não é aprovação.
 - build, migrações, saúde e prontidão aprovados em Compose isolado;
 - backup e restauração destrutiva aprovados para PostgreSQL e objetos;
 - login do administrador aprovado depois da restauração;
-- 15 testes da API e 16 cenários Playwright aprovados;
+- 16 testes da API, 3 testes de contratos e 19 cenários Playwright aprovados;
 - auditoria das dependências de produção sem vulnerabilidade conhecida;
 - seed de homologação reproduz 10 contas, 10 pessoas, 5 papéis e 7 estados de
   férias;

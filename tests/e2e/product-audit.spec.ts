@@ -1,4 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
+import type { Person } from "@cge/contracts";
 import { expect, test, type Page } from "@playwright/test";
 
 const password = "Homolog-Password-2026";
@@ -51,6 +52,36 @@ test("default home exposes permitted destinations and account context", async ({
   await expect(
     accountContext.getByText(accounts.worker, { exact: true }),
   ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Abrir menu da conta de Caio Nascimento" })
+    .click();
+  await expect(
+    page.getByRole("menuitem", { name: "Alterar senha" }),
+  ).toBeVisible();
+  await page.getByRole("menuitem", { name: "Minha conta" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Minha conta" }),
+  ).toBeVisible();
+  await expect(page.getByText(accounts.worker, { exact: true })).toBeVisible();
+  await expectAccessiblePage(page, "/conta", 1280);
+
+  await page.getByLabel("Foto de perfil").setInputFiles({
+    name: "avatar.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await page.getByRole("button", { name: "Salvar foto" }).click();
+  await expect(page.getByText("Foto de perfil atualizada.")).toBeVisible();
+  await expect(
+    page.locator('main [data-slot="avatar"] img').first(),
+  ).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Remover foto" }).click();
+  await expect(page.getByText("Foto de perfil removida.")).toBeVisible();
 });
 
 test("homolog worker sees every vacation state and immutable history", async ({
@@ -147,6 +178,177 @@ test("unit scopes suppress unrelated people and modules", async ({ page }) => {
     page.getByRole("heading", { name: "Nenhum resultado" }),
   ).toBeVisible();
   await expect(page.locator('[data-slot="empty-state"] svg')).toHaveCount(0);
+});
+
+test("direct routes and controls remain unavailable without their permissions", async ({
+  page,
+}) => {
+  await login(page, accounts.noAccess, password);
+  for (const endpoint of [
+    "/api/people",
+    "/api/birthdays",
+    "/api/vacation-requests?scope=mine",
+    "/api/admin/users",
+    "/api/admin/roles",
+    "/api/audit-events",
+  ]) {
+    const response = await page.request.get(endpoint);
+    expect(response.status(), endpoint).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "FORBIDDEN" });
+  }
+  for (const path of [
+    "/rh",
+    "/rh/colaboradores",
+    "/rh/ferias",
+    "/sistema/administracao",
+  ]) {
+    await page.goto(path);
+    await expect(page).toHaveURL("/");
+    await expect(
+      page.getByRole("heading", { name: "Nenhum módulo está disponível" }),
+    ).toBeVisible();
+  }
+
+  await page.context().clearCookies();
+  await login(page, accounts.viewer, password);
+  await page.goto("/rh/ferias");
+  await expect(page).toHaveURL("/");
+  await page.goto("/sistema/administracao");
+  await expect(page).toHaveURL("/");
+  await page.goto("/rh/colaboradores");
+  await expect(
+    page.getByRole("button", { name: "Novo colaborador" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Importar CSV" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("columnheader", { name: "Ações" })).toHaveCount(
+    0,
+  );
+});
+
+test("backend rejects cross-unit writes and scoped platform permissions", async ({
+  browser,
+}) => {
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await login(adminPage, admin.email, admin.password);
+
+  const [usersResponse, peopleResponse, unitsResponse] = await Promise.all([
+    adminPage.request.get("/api/admin/users"),
+    adminPage.request.get("/api/admin/people"),
+    adminPage.request.get("/api/admin/organization-units"),
+  ]);
+  expect(usersResponse.status()).toBe(200);
+  expect(peopleResponse.status()).toBe(200);
+  expect(unitsResponse.status()).toBe(200);
+  const users = (await usersResponse.json()).users as Array<{
+    id: string;
+    email: string;
+  }>;
+  const people = (await peopleResponse.json()).people as Person[];
+  const units = (await unitsResponse.json()).units as Array<{
+    id: string;
+    code: string;
+  }>;
+  const viewer = users.find((account) => account.email === accounts.viewer)!;
+  const caio = people.find(
+    (person) => person.preferredName === "Caio Nascimento",
+  )!;
+  const controlUnit = units.find((unit) => unit.code === "CCI")!;
+
+  const scopedRoleResponse = await adminPage.request.post("/api/admin/roles", {
+    data: {
+      name: "Gestão de pessoas com escopo E2E",
+      description: null,
+      permissions: ["people.manage"],
+    },
+    headers: { origin: "http://127.0.0.1:4173" },
+  });
+  expect(scopedRoleResponse.status()).toBe(201);
+  const scopedRole = (await scopedRoleResponse.json()) as { id: string };
+  const scopedAssignment = await adminPage.request.post(
+    "/api/admin/role-assignments",
+    {
+      data: {
+        accountId: viewer.id,
+        roleId: scopedRole.id,
+        unitId: controlUnit.id,
+      },
+      headers: { origin: "http://127.0.0.1:4173" },
+    },
+  );
+  expect(scopedAssignment.status()).toBe(201);
+
+  const platformRoleResponse = await adminPage.request.post(
+    "/api/admin/roles",
+    {
+      data: {
+        name: "Contas da plataforma E2E",
+        description: null,
+        permissions: ["accounts.manage"],
+      },
+      headers: { origin: "http://127.0.0.1:4173" },
+    },
+  );
+  expect(platformRoleResponse.status()).toBe(201);
+  const platformRole = (await platformRoleResponse.json()) as { id: string };
+
+  await adminPage.goto("/sistema/administracao?secao=access");
+  await adminPage.getByRole("button", { name: "Conceder acesso" }).click();
+  await adminPage.getByLabel("Perfil de acesso").selectOption(platformRole.id);
+  await expect(adminPage.getByLabel("Onde o acesso vale")).toBeDisabled();
+  await expect(
+    adminPage.getByText(
+      "Este perfil contém permissões que só podem valer para toda a organização.",
+    ),
+  ).toBeVisible();
+  await adminPage.getByLabel("Perfil de acesso").selectOption(scopedRole.id);
+  await expect(adminPage.getByLabel("Onde o acesso vale")).toBeEnabled();
+
+  const invalidAssignment = await adminPage.request.post(
+    "/api/admin/role-assignments",
+    {
+      data: {
+        accountId: viewer.id,
+        roleId: platformRole.id,
+        unitId: controlUnit.id,
+      },
+      headers: { origin: "http://127.0.0.1:4173" },
+    },
+  );
+  expect(invalidAssignment.status()).toBe(400);
+  expect(await invalidAssignment.json()).toMatchObject({
+    code: "ROLE_REQUIRES_GLOBAL_SCOPE",
+  });
+  await adminContext.close();
+
+  const viewerContext = await browser.newContext();
+  const viewerPage = await viewerContext.newPage();
+  await login(viewerPage, accounts.viewer, password);
+  const crossUnitUpdate = await viewerPage.request.patch(
+    `/api/people/${caio.id}`,
+    {
+      data: { employment: { unitId: controlUnit.id } },
+      headers: { origin: "http://127.0.0.1:4173" },
+    },
+  );
+  expect(crossUnitUpdate.status()).toBe(403);
+  expect(await crossUnitUpdate.json()).toMatchObject({ code: "FORBIDDEN" });
+
+  const forbiddenVacation = await viewerPage.request.post(
+    "/api/vacation-requests",
+    {
+      data: {
+        startDate: "2027-06-01",
+        endDate: "2027-06-10",
+        submit: false,
+      },
+      headers: { origin: "http://127.0.0.1:4173" },
+    },
+  );
+  expect(forbiddenVacation.status()).toBe(403);
+  await viewerContext.close();
 });
 
 test("supervisor and HR receive only their decision stages", async ({

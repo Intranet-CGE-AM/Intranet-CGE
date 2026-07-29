@@ -7,6 +7,7 @@ admin_email=admin-e2e@local.invalid
 admin_password=Admin-E2E-Password-123
 
 cd "$repo_dir"
+pnpm --filter @cge/contracts build
 docker compose up -d --wait postgres minio
 
 cleanup() {

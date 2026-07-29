@@ -1,10 +1,25 @@
-import { Avatar, Button, Sheet, SheetContent, SheetTrigger } from "@cge/ui";
+import {
+  Avatar,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@cge/ui";
 import {
   CaretLeft,
   CaretRight,
+  CaretUpDown,
+  Key,
   List,
   ShieldCheck,
   SignOut,
+  UserCircle,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
@@ -13,6 +28,7 @@ import { useAuth } from "../auth";
 import {
   availableModules,
   availableSystemNavigation,
+  canNavigate,
   homeNavigation,
   type NavigationItem,
 } from "../navigation";
@@ -100,7 +116,7 @@ function Navigation({
                   {active && !collapsed ? (
                     <div className="ml-[21px] mt-1 space-y-1 border-l border-[var(--border)] pl-3">
                       {module.routes
-                        .filter((route) => route.visible(user))
+                        .filter((route) => canNavigate(user, route))
                         .map((route) => (
                           <NavigationLink
                             item={route}
@@ -178,8 +194,91 @@ function NavigationLink({
   );
 }
 
-export function AppShell() {
+function AccountMenu({
+  collapsed = false,
+  onNavigate,
+}: {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
   const { logout, user } = useAuth();
+  if (!user) return null;
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label={`Abrir menu da conta de ${user.person.displayName}`}
+          className={[
+            "flex w-full items-center rounded-[10px] border border-[var(--border)] bg-white/60 p-2 text-left transition-[background-color,border-color] hover:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] data-[state=open]:border-[var(--brand)] data-[state=open]:bg-white",
+            collapsed ? "justify-center" : "gap-3",
+          ].join(" ")}
+          type="button"
+        >
+          <Avatar
+            className="bg-white"
+            name={user.person.displayName}
+            src={user.person.avatarUrl}
+          />
+          {!collapsed ? (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-bold">
+                  {user.person.displayName}
+                </span>
+                <span className="block truncate text-[10px] text-[var(--text-faint)]">
+                  {user.employment?.unit.name ?? "Sem vínculo ativo"}
+                </span>
+              </span>
+              <CaretUpDown
+                aria-hidden="true"
+                className="text-[var(--text-faint)]"
+                size={15}
+              />
+            </>
+          ) : null}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align={collapsed ? "end" : "start"}
+        side={collapsed ? "right" : "top"}
+      >
+        <DropdownMenuLabel>
+          <span className="block truncate text-xs font-bold">
+            {user.person.displayName}
+          </span>
+          <span className="mt-0.5 block truncate text-[10px] font-medium text-[var(--text-faint)]">
+            {user.account.email}
+          </span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link onClick={onNavigate} to="/conta">
+            <UserCircle aria-hidden="true" size={18} />
+            Minha conta
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link onClick={onNavigate} to="/conta#seguranca">
+            <Key aria-hidden="true" size={18} />
+            Alterar senha
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-[var(--danger)] data-[highlighted]:bg-[var(--danger-soft)] data-[highlighted]:text-[var(--danger-strong)]"
+          onSelect={() => void logout()}
+        >
+          <SignOut aria-hidden="true" size={18} />
+          Sair da intranet
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function AppShell() {
+  const { user } = useAuth();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -240,48 +339,20 @@ export function AppShell() {
             <Navigation collapsed={collapsed} user={user} />
           </div>
           <div className="mt-auto">
-            <button
-              className={[
-                "flex w-full items-center rounded-[10px] border border-[var(--border)] bg-white/60 p-2 text-left transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]",
-                collapsed ? "justify-center" : "gap-3",
-              ].join(" ")}
-              type="button"
-              onClick={() => void logout()}
-              aria-label={`Sair da conta de ${user.person.displayName}`}
-            >
-              <Avatar
-                className="bg-white"
-                name={user.person.displayName}
-                src={user.person.avatarUrl}
-              />
-              {!collapsed ? (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-bold">
-                      {user.person.displayName}
-                    </span>
-                    <span className="block truncate text-[10px] text-[var(--text-faint)]">
-                      {user.employment?.unit.name ?? "Sem vínculo ativo"}
-                    </span>
-                  </span>
-                  <SignOut
-                    aria-hidden="true"
-                    className="text-[var(--text-faint)]"
-                    size={16}
-                  />
-                </>
-              ) : null}
-            </button>
+            <AccountMenu collapsed={collapsed} />
           </div>
         </aside>
 
         <SheetContent
-          className="bg-[#f7f8f8] lg:hidden"
+          className="flex flex-col bg-[#f7f8f8] lg:hidden"
           title="Navegação principal"
           description="Acesse os módulos permitidos para sua conta."
         >
           <Logo />
           <Navigation user={user} onNavigate={() => setMobileOpen(false)} />
+          <div className="mt-auto pt-6">
+            <AccountMenu onNavigate={() => setMobileOpen(false)} />
+          </div>
         </SheetContent>
 
         <div className="min-w-0">

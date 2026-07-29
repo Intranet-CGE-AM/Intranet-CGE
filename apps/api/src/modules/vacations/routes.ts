@@ -68,6 +68,20 @@ export const vacationRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
+      if (
+        request.query.scope === "mine" &&
+        (!user.employment ||
+          !(await options.accessService.allows(
+            user.account.id,
+            permission,
+            user.employment.unit.id,
+          )))
+      ) {
+        return reply.status(403).send({
+          code: "FORBIDDEN",
+          message: "Você não possui permissão para este vínculo funcional.",
+        });
+      }
       const grants = user.permissions.filter(
         (grant) => grant.key === permission,
       );

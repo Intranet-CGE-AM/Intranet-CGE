@@ -68,7 +68,9 @@ export function VacationsPage() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [history, setHistory] = useState<VacationRequest | null>(null);
   const hasCreatePermission = Boolean(user && can(user, "vacations.create"));
-  const creates = Boolean(user?.employment && can(user, "vacations.create"));
+  const creates = Boolean(
+    user?.employment && can(user, "vacations.create", user.employment.unit.id),
+  );
   const reviewsSupervisor = Boolean(
     user && can(user, "vacations.review.supervisor"),
   );

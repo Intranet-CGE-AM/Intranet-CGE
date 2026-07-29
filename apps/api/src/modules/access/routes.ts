@@ -13,7 +13,7 @@ import type { Database } from "../../db/client.js";
 import { recordAudit } from "../audit/service.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { requirePermission } from "./authorize.js";
-import type { AccessService } from "./service.js";
+import { RoleScopeError, type AccessService } from "./service.js";
 
 const idParamsSchema = z.object({ id: z.uuid() });
 
@@ -94,6 +94,7 @@ export const accessRoutes: FastifyPluginAsync<{
         params: idParamsSchema,
         response: {
           200: roleSchema,
+          400: authErrorSchema,
           401: authErrorSchema,
           403: authErrorSchema,
           404: authErrorSchema,
@@ -111,10 +112,21 @@ export const accessRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
-      const role = await options.accessService.updateRole(
-        request.params.id,
-        request.body,
-      );
+      let role;
+      try {
+        role = await options.accessService.updateRole(
+          request.params.id,
+          request.body,
+        );
+      } catch (error) {
+        if (error instanceof RoleScopeError) {
+          return reply.status(400).send({
+            code: error.code,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
       if (!role) {
         return reply.status(404).send({
           code: "ROLE_NOT_FOUND",
@@ -139,6 +151,7 @@ export const accessRoutes: FastifyPluginAsync<{
         body: roleAssignmentInputSchema,
         response: {
           201: roleAssignmentSchema,
+          400: authErrorSchema,
           401: authErrorSchema,
           403: authErrorSchema,
         },
@@ -155,9 +168,18 @@ export const accessRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
-      const assignment = await options.accessService.createAssignment(
-        request.body,
-      );
+      let assignment;
+      try {
+        assignment = await options.accessService.createAssignment(request.body);
+      } catch (error) {
+        if (error instanceof RoleScopeError) {
+          return reply.status(400).send({
+            code: error.code,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
       await recordAudit(options.db, {
         actorAccountId: user.account.id,
         action: "role-assignment.created",

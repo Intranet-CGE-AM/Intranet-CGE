@@ -55,6 +55,23 @@ export async function buildApp({
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode =
+      typeof error === "object" &&
+      error !== null &&
+      "statusCode" in error &&
+      typeof error.statusCode === "number"
+        ? error.statusCode
+        : 500;
+    if (statusCode < 500) {
+      return reply.send(error);
+    }
+    request.log.error({ err: error }, "Unhandled request error");
+    return reply.status(500).send({
+      code: "INTERNAL_ERROR",
+      message: "Não foi possível concluir a solicitação.",
+    });
+  });
 
   await app.register(cookie, {
     secret: config.SESSION_SECRET,

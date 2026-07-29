@@ -102,6 +102,60 @@ describe("access routes", () => {
     await app.close();
   });
 
+  it("does not treat a unit-scoped platform permission as global access", async () => {
+    const scopedUser: AuthenticatedUser = {
+      ...user,
+      permissions: [
+        {
+          key: "accounts.manage",
+          unitId: "00000000-0000-4000-8000-000000000099",
+        },
+      ],
+    };
+    const scopedAuthenticationService = {
+      ...authenticationService,
+      async authenticate(token: string) {
+        return token === "valid-token" ? scopedUser : null;
+      },
+      async login(input: LoginRequest) {
+        return input.password === "correct-password"
+          ? { token: "valid-token", user: scopedUser }
+          : null;
+      },
+    } as AuthenticationService;
+    const app = await buildApp({
+      accessService: {} as AccessService,
+      authenticationService: scopedAuthenticationService,
+      config,
+      db: {} as Database,
+      peopleService: {} as PeopleService,
+      readinessCheck: async () => undefined,
+    });
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: { origin: config.WEB_ORIGIN },
+      payload: {
+        email: scopedUser.account.email,
+        password: "correct-password",
+      },
+    });
+    const setCookie = login.headers["set-cookie"];
+    const cookie = (Array.isArray(setCookie) ? setCookie[0] : setCookie)!.split(
+      ";",
+    )[0];
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/users",
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "FORBIDDEN" });
+    await app.close();
+  });
+
   it("does not let a platform administrator deactivate their own account", async () => {
     const accessService = {
       allows: async () => true,

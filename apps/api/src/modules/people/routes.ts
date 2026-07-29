@@ -11,17 +11,18 @@ import {
   personSchema,
   personUpdateSchema,
 } from "@cge/contracts";
-import type { PermissionKey } from "@cge/contracts";
-import type { FastifyPluginAsync } from "fastify";
+import { permissionAllows, type PermissionKey } from "@cge/contracts";
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
 import type { Database } from "../../db/client.js";
 import {
+  requireAuthenticatedUser,
   requireAnyPermission,
   requirePermission,
 } from "../access/authorize.js";
-import { permissionAllows, type AccessService } from "../access/service.js";
+import type { AccessService } from "../access/service.js";
 import { recordAudit } from "../audit/service.js";
 import { readSessionToken } from "../auth/routes.js";
 import type { AuthenticationService } from "../auth/service.js";
@@ -48,6 +49,35 @@ export const peopleRoutes: FastifyPluginAsync<{
   peopleService: PeopleService;
 }> = async (app, options) => {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+  const authorizeAvatarChange = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    personId: string,
+  ) => {
+    const user = await requireAuthenticatedUser(
+      request,
+      reply,
+      options.authenticationService,
+    );
+    if (!user || user.person.id === personId) return user;
+
+    const unitId = await options.peopleService.getActiveUnitId(personId);
+    if (!unitId) {
+      await reply.status(404).send({
+        code: "PERSON_NOT_FOUND",
+        message: "Colaborador ativo não encontrado.",
+      });
+      return null;
+    }
+    if (!permissionAllows(user.permissions, "people.manage", unitId)) {
+      await reply.status(403).send({
+        code: "FORBIDDEN",
+        message: "Você não possui permissão para esta ação.",
+      });
+      return null;
+    }
+    return user;
+  };
 
   typedApp.get(
     "/api/people/:id/avatar",
@@ -117,22 +147,10 @@ export const peopleRoutes: FastifyPluginAsync<{
       },
     },
     async (request, reply) => {
-      const unitId = await options.peopleService.getActiveUnitId(
-        request.params.id,
-      );
-      if (!unitId) {
-        return reply.status(404).send({
-          code: "PERSON_NOT_FOUND",
-          message: "Colaborador ativo não encontrado.",
-        });
-      }
-      const user = await requirePermission(
+      const user = await authorizeAvatarChange(
         request,
         reply,
-        options.authenticationService,
-        options.accessService,
-        "people.manage",
-        unitId,
+        request.params.id,
       );
       if (!user) return;
 
@@ -208,22 +226,10 @@ export const peopleRoutes: FastifyPluginAsync<{
       },
     },
     async (request, reply) => {
-      const unitId = await options.peopleService.getActiveUnitId(
-        request.params.id,
-      );
-      if (!unitId) {
-        return reply.status(404).send({
-          code: "PERSON_NOT_FOUND",
-          message: "Colaborador ativo não encontrado.",
-        });
-      }
-      const user = await requirePermission(
+      const user = await authorizeAvatarChange(
         request,
         reply,
-        options.authenticationService,
-        options.accessService,
-        "people.manage",
-        unitId,
+        request.params.id,
       );
       if (!user) return;
       const avatar = await options.peopleService.getAvatar(request.params.id);
@@ -397,10 +403,10 @@ export const peopleRoutes: FastifyPluginAsync<{
       },
     },
     async (request, reply) => {
-      const unitId =
-        request.body.employment?.unitId ??
-        (await options.peopleService.getActiveUnitId(request.params.id));
-      if (!unitId) {
+      const currentUnitId = await options.peopleService.getActiveUnitId(
+        request.params.id,
+      );
+      if (!currentUnitId) {
         return reply.status(404).send({
           code: "PERSON_NOT_FOUND",
           message: "Colaborador não encontrado.",
@@ -412,10 +418,26 @@ export const peopleRoutes: FastifyPluginAsync<{
         options.authenticationService,
         options.accessService,
         "people.manage",
-        unitId,
+        currentUnitId,
       );
       if (!user) {
         return;
+      }
+      const destinationUnitId = request.body.employment?.unitId;
+      if (
+        destinationUnitId &&
+        destinationUnitId !== currentUnitId &&
+        !(await options.accessService.allows(
+          user.account.id,
+          "people.manage",
+          destinationUnitId,
+        ))
+      ) {
+        return reply.status(403).send({
+          code: "FORBIDDEN",
+          message:
+            "Você não possui permissão para transferir este colaborador para a unidade informada.",
+        });
       }
       const person = await options.peopleService.updatePerson(
         request.params.id,

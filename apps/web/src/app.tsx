@@ -3,9 +3,14 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { RequireAuth } from "./auth";
 import { AppShell } from "./components/app-shell";
+import { RequireAccess } from "./components/require-access";
+import { accessRules } from "./navigation";
 import { ChangePasswordPage } from "./pages/change-password";
 import { LoginPage } from "./pages/login";
 
+const AccountPage = lazy(() =>
+  import("./pages/account").then((module) => ({ default: module.AccountPage })),
+);
 const AdminPage = lazy(() =>
   import("./pages/admin").then((module) => ({ default: module.AdminPage })),
 );
@@ -47,32 +52,48 @@ export function App() {
           <Route
             path="rh"
             element={
-              <Suspense fallback={<PageFallback />}>
-                <DashboardPage />
-              </Suspense>
+              <RequireAccess rule={accessRules.hr}>
+                <Suspense fallback={<PageFallback />}>
+                  <DashboardPage />
+                </Suspense>
+              </RequireAccess>
             }
           />
           <Route
             path="rh/colaboradores"
             element={
-              <Suspense fallback={<PageFallback />}>
-                <PeoplePage />
-              </Suspense>
+              <RequireAccess rule={accessRules.people}>
+                <Suspense fallback={<PageFallback />}>
+                  <PeoplePage />
+                </Suspense>
+              </RequireAccess>
             }
           />
           <Route
             path="rh/ferias"
             element={
-              <Suspense fallback={<PageFallback />}>
-                <VacationsPage />
-              </Suspense>
+              <RequireAccess rule={accessRules.vacations}>
+                <Suspense fallback={<PageFallback />}>
+                  <VacationsPage />
+                </Suspense>
+              </RequireAccess>
             }
           />
           <Route
             path="sistema/administracao"
             element={
+              <RequireAccess rule={accessRules.administration}>
+                <Suspense fallback={<PageFallback />}>
+                  <AdminPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="conta"
+            element={
               <Suspense fallback={<PageFallback />}>
-                <AdminPage />
+                <AccountPage />
               </Suspense>
             }
           />

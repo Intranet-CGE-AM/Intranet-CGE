@@ -49,4 +49,28 @@ describe("system routes", () => {
 
     await app.close();
   });
+
+  it("does not expose unexpected server errors", async () => {
+    const app = await buildApp({
+      config,
+      readinessCheck: async () => undefined,
+    });
+    app.get("/test/unhandled-error", async () => {
+      throw new Error("Failed query: select password_hash, token_hash");
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/test/unhandled-error",
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "Não foi possível concluir a solicitação.",
+    });
+    expect(response.body).not.toContain("password_hash");
+
+    await app.close();
+  });
 });

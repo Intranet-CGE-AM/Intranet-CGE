@@ -3,7 +3,11 @@ import { ArrowRight, CheckCircle, ShieldCheck } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { useAuth } from "../auth";
-import { availableModules, availableSystemNavigation } from "../navigation";
+import {
+  availableModules,
+  availableSystemNavigation,
+  canNavigate,
+} from "../navigation";
 
 const today = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -25,7 +29,7 @@ export function HubPage() {
   const firstName = user.person.displayName.split(/\s+/)[0];
   const primaryRoutes =
     primaryModule?.routes.filter(
-      (route) => route.visible(user) && !route.end,
+      (route) => canNavigate(user, route) && !route.end,
     ) ?? [];
 
   return (

@@ -8,14 +8,14 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 
-import { can } from "./lib/permissions";
+import { canAccess, type AccessRule } from "./lib/permissions";
 
 export type NavigationItem = {
   label: string;
   href: string;
   icon: Icon;
   end?: boolean;
-  visible: (user: AuthenticatedUser) => boolean;
+  access: AccessRule;
 };
 
 export type ModuleNavigation = NavigationItem & {
@@ -25,46 +25,63 @@ export type ModuleNavigation = NavigationItem & {
 };
 
 export const homeNavigation: NavigationItem = {
+  access: { anyOf: [] },
   label: "Início",
   href: "/",
   icon: SquaresFour,
   end: true,
-  visible: () => true,
 };
 
-const canAccessPeople = (user: AuthenticatedUser) => can(user, "people.read");
-const canAccessVacations = (user: AuthenticatedUser) =>
-  can(user, "vacations.create") ||
-  can(user, "vacations.review.supervisor") ||
-  can(user, "vacations.review.final");
+export const accessRules = {
+  administration: {
+    anyOf: ["accounts.manage", "access.manage", "audit.read"],
+    global: true,
+  },
+  hr: {
+    anyOf: [
+      "people.read",
+      "vacations.create",
+      "vacations.review.supervisor",
+      "vacations.review.final",
+    ],
+  },
+  people: { anyOf: ["people.read"] },
+  vacations: {
+    anyOf: [
+      "vacations.create",
+      "vacations.review.supervisor",
+      "vacations.review.final",
+    ],
+  },
+} as const satisfies Record<string, AccessRule>;
 
 export const moduleNavigation: ModuleNavigation[] = [
   {
     id: "hr",
+    access: accessRules.hr,
     label: "Recursos Humanos",
     description: "Pessoas, aniversários e fluxo de férias",
     href: "/rh",
     icon: UsersFour,
-    visible: (user) => canAccessPeople(user) || canAccessVacations(user),
     routes: [
       {
+        access: accessRules.hr,
         label: "Visão geral",
         href: "/rh",
         icon: SquaresFour,
         end: true,
-        visible: (user) => canAccessPeople(user) || canAccessVacations(user),
       },
       {
+        access: accessRules.people,
         label: "Colaboradores",
         href: "/rh/colaboradores",
         icon: IdentificationCard,
-        visible: canAccessPeople,
       },
       {
+        access: accessRules.vacations,
         label: "Férias",
         href: "/rh/ferias",
         icon: CalendarDots,
-        visible: canAccessVacations,
       },
     ],
   },
@@ -72,20 +89,21 @@ export const moduleNavigation: ModuleNavigation[] = [
 
 export const systemNavigation: NavigationItem[] = [
   {
+    access: accessRules.administration,
     label: "Administração",
     href: "/sistema/administracao",
     icon: GearSix,
-    visible: (user) =>
-      can(user, "accounts.manage") ||
-      can(user, "access.manage") ||
-      can(user, "audit.read"),
   },
 ];
 
+export function canNavigate(user: AuthenticatedUser, item: NavigationItem) {
+  return item.access.anyOf.length === 0 || canAccess(user, item.access);
+}
+
 export function availableModules(user: AuthenticatedUser) {
-  return moduleNavigation.filter((module) => module.visible(user));
+  return moduleNavigation.filter((module) => canNavigate(user, module));
 }
 
 export function availableSystemNavigation(user: AuthenticatedUser) {
-  return systemNavigation.filter((item) => item.visible(user));
+  return systemNavigation.filter((item) => canNavigate(user, item));
 }

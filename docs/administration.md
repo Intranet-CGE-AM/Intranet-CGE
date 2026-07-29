@@ -47,6 +47,9 @@ O catálogo de permissões é fixo no código:
 O backend é a autoridade final. Esconder uma ação na interface nunca substitui
 a verificação de permissão e unidade na API.
 
+As regras de implementação e a matriz obrigatória para novos módulos estão em
+[Autorização](authorization.md).
+
 ## Pessoas e férias
 
 Antes de cadastrar vínculos manualmente, crie ao menos uma categoria e uma

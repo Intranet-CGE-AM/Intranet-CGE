@@ -42,7 +42,7 @@ import {
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
 import { manausToday } from "../lib/dates";
-import { can } from "../lib/permissions";
+import { can, canGlobally } from "../lib/permissions";
 import {
   personInputFromForm,
   PersonFormFields,
@@ -70,7 +70,19 @@ export function PeoplePage() {
     null,
   );
   const managesPeople = Boolean(user && can(user, "people.manage"));
-  const importsPeople = Boolean(user && can(user, "people.import"));
+  const managesPeopleGlobally = Boolean(
+    user && canGlobally(user, "people.manage"),
+  );
+  const importsPeople = Boolean(user && canGlobally(user, "people.import"));
+  const manageableUnits = units.filter(
+    (unit) => user && can(user, "people.manage", unit.id),
+  );
+  const showsActions = people.some(
+    (person) =>
+      person.employment &&
+      user &&
+      can(user, "people.manage", person.employment.unitId),
+  );
 
   const load = useCallback(async () => {
     try {
@@ -320,7 +332,7 @@ export function PeoplePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {managesPeople ? (
+          {managesPeopleGlobally ? (
             <Button variant="quiet" onClick={() => setSettingsDialog(true)}>
               <Settings2 aria-hidden="true" size={16} />
               Categorias e unidades
@@ -387,7 +399,7 @@ export function PeoplePage() {
                   <TableHead>Unidade de lotação</TableHead>
                   <TableHead>Categoria funcional</TableHead>
                   <TableHead>Matrícula</TableHead>
-                  {managesPeople ? <TableHead>Ações</TableHead> : null}
+                  {showsActions ? <TableHead>Ações</TableHead> : null}
                 </tr>
               </thead>
               <tbody>
@@ -422,9 +434,11 @@ export function PeoplePage() {
                         {person.employment?.employeeNumber ?? "—"}
                       </Badge>
                     </TableCell>
-                    {managesPeople ? (
+                    {showsActions ? (
                       <TableCell className="whitespace-nowrap">
-                        {person.employment ? (
+                        {person.employment &&
+                        user &&
+                        can(user, "people.manage", person.employment.unitId) ? (
                           <div className="flex gap-1">
                             <Button
                               variant="quiet"
@@ -525,7 +539,7 @@ export function PeoplePage() {
               categories={categories}
               idPrefix="person"
               person={personDialog === "new" ? null : personDialog}
-              units={units}
+              units={manageableUnits}
             />
             <div className="flex justify-end gap-2 sm:col-span-2">
               <Button

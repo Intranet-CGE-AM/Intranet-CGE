@@ -190,7 +190,8 @@ Critérios:
 
 Todos os fluxos priorizados neste mapa foram implementados em `main`.
 
-- 17 de 17 cenários Playwright aprovados;
-- 15 de 15 testes da API aprovados;
+- 19 de 19 cenários Playwright aprovados;
+- 16 de 16 testes da API aprovados;
+- 3 de 3 testes do contrato compartilhado aprovados;
 - rotas críticas aprovadas pelo Axe em 390 px, 768 px e 1440 px;
 - formatação, lint, tipos e builds de produção aprovados.

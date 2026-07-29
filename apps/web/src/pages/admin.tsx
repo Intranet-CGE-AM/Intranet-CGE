@@ -7,7 +7,7 @@ import type {
   Role,
   RoleAssignment,
 } from "@cge/contracts";
-import { permissionKeys } from "@cge/contracts";
+import { permissionKeys, permissionSupportsUnitScope } from "@cge/contracts";
 import {
   Alert,
   Badge,
@@ -39,7 +39,7 @@ import { Link, useSearchParams } from "react-router";
 
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
-import { can } from "../lib/permissions";
+import { can, canGlobally } from "../lib/permissions";
 import {
   personInputFromForm,
   PersonFormFields,
@@ -166,7 +166,7 @@ type AuditEvent = {
 };
 
 export function AdminPage() {
-  const { user } = useAuth();
+  const { refresh, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
@@ -184,17 +184,25 @@ export function AdminPage() {
   const [userMode, setUserMode] = useState<"new" | "existing">("existing");
   const [roleDialog, setRoleDialog] = useState<Role | "new" | null>(null);
   const [assignmentDialog, setAssignmentDialog] = useState(false);
+  const [assignmentRoleId, setAssignmentRoleId] = useState("");
   const [passwordAccount, setPasswordAccount] = useState<AdminUser | null>(
     null,
   );
-  const managesAccounts = Boolean(user && can(user, "accounts.manage"));
+  const managesAccounts = Boolean(user && canGlobally(user, "accounts.manage"));
   const managesPeople = Boolean(
     user && can(user, "people.manage") && can(user, "people.read"),
   );
-  const managesAccess = Boolean(user && can(user, "access.manage"));
-  const readsAudit = Boolean(user && can(user, "audit.read"));
-  const exportsAudit = Boolean(user && can(user, "audit.export"));
-  const hrReady = categories.length > 0 && units.length > 0;
+  const managesAccess = Boolean(user && canGlobally(user, "access.manage"));
+  const readsAudit = Boolean(user && canGlobally(user, "audit.read"));
+  const exportsAudit = Boolean(user && canGlobally(user, "audit.export"));
+  const assignmentRole = roles.find((role) => role.id === assignmentRoleId);
+  const assignmentCanBeScoped = Boolean(
+    assignmentRole?.permissions.every(permissionSupportsUnitScope),
+  );
+  const manageableUnits = units.filter(
+    (unit) => user && can(user, "people.manage", unit.id),
+  );
+  const hrReady = categories.length > 0 && manageableUnits.length > 0;
   const sections = [
     managesAccounts
       ? {
@@ -290,7 +298,11 @@ export function AdminPage() {
     setSuccess("");
     try {
       await action();
-      await load();
+      try {
+        await load();
+      } finally {
+        await refresh();
+      }
       setSuccess(message);
     } catch (cause) {
       const message = messageFor(
@@ -861,7 +873,7 @@ export function AdminPage() {
                   <PersonFormFields
                     categories={categories}
                     idPrefix="onboarding"
-                    units={units}
+                    units={manageableUnits}
                   />
                 </div>
               </section>
@@ -1024,6 +1036,11 @@ export function AdminPage() {
                                 value={permission}
                               />
                               <span>{permissionLabels[permission]}</span>
+                              {!permissionSupportsUnitScope(permission) ? (
+                                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[var(--text-faint)]">
+                                  Organização
+                                </span>
+                              ) : null}
                             </label>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1062,7 +1079,10 @@ export function AdminPage() {
         open={assignmentDialog}
         onOpenChange={(open) => {
           setAssignmentDialog(open);
-          if (!open) setDialogError("");
+          if (!open) {
+            setAssignmentRoleId("");
+            setDialogError("");
+          }
         }}
       >
         <DialogContent title="Conceder acesso">
@@ -1090,7 +1110,14 @@ export function AdminPage() {
               </Select>
             </FormField>
             <FormField htmlFor="roleId" label="Perfil de acesso">
-              <Select autoComplete="off" id="roleId" name="roleId" required>
+              <Select
+                autoComplete="off"
+                id="roleId"
+                name="roleId"
+                onChange={(event) => setAssignmentRoleId(event.target.value)}
+                required
+                value={assignmentRoleId}
+              >
                 <option value="">Selecione</option>
                 {roles.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -1102,9 +1129,18 @@ export function AdminPage() {
             <FormField
               htmlFor="unitId"
               label="Onde o acesso vale"
-              hint="Escolha toda a organização ou limite o acesso a uma unidade."
+              hint={
+                assignmentRole && !assignmentCanBeScoped
+                  ? "Este perfil contém permissões que só podem valer para toda a organização."
+                  : "Escolha toda a organização ou limite o acesso a uma unidade."
+              }
             >
-              <Select autoComplete="off" id="unitId" name="unitId">
+              <Select
+                autoComplete="off"
+                disabled={Boolean(assignmentRole && !assignmentCanBeScoped)}
+                id="unitId"
+                name="unitId"
+              >
                 <option value="">Toda a organização</option>
                 {units.map((unit) => (
                   <option key={unit.id} value={unit.id}>

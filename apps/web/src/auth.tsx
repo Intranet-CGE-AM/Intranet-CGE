@@ -19,6 +19,7 @@ import { api, ApiError, json } from "./lib/api";
 type AuthContextValue = {
   loading: boolean;
   user: AuthenticatedUser | null;
+  refresh: () => Promise<void>;
   login: (input: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (input: ChangePasswordRequest) => Promise<void>;
@@ -48,10 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const refreshOnFocus = () => void refresh();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
+  }, [refresh]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       loading,
       user,
+      refresh,
       async login(input) {
         const result = await api<{ user: AuthenticatedUser }>(
           "/api/auth/login",
@@ -72,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       },
     }),
-    [loading, user],
+    [loading, refresh, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

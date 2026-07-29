@@ -66,7 +66,8 @@ export function DashboardPage() {
           can(user!, "birthdays.read")
             ? api<{ birthdays: Birthday[] }>("/api/birthdays?days=30")
             : Promise.resolve({ birthdays: [] }),
-          can(user!, "vacations.create")
+          user!.employment &&
+          can(user!, "vacations.create", user!.employment.unit.id)
             ? api<{ requests: VacationRequest[] }>(
                 "/api/vacation-requests?scope=mine",
               )
@@ -214,7 +215,8 @@ export function DashboardPage() {
                   Acompanhar solicitações
                 </Link>
               </Button>
-            ) : user.employment && can(user, "vacations.create") ? (
+            ) : user.employment &&
+              can(user, "vacations.create", user.employment.unit.id) ? (
               <Button asChild>
                 <Link to="/rh/ferias">
                   <CalendarCheck aria-hidden="true" size={17} />

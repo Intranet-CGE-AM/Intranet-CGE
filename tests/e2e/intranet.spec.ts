@@ -229,7 +229,7 @@ async function firstLogin(
   await login(page, account.email, account.password);
   await expect(
     page.getByRole("button", {
-      name: new RegExp(`Sair da conta de ${expectedName}`, "i"),
+      name: new RegExp(`Abrir menu da conta de ${expectedName}`, "i"),
     }),
   ).toBeVisible();
 }
@@ -237,9 +237,10 @@ async function firstLogin(
 async function logout(page: Page, displayName: string) {
   await page
     .getByRole("button", {
-      name: new RegExp(`Sair da conta de ${displayName}`, "i"),
+      name: new RegExp(`Abrir menu da conta de ${displayName}`, "i"),
     })
     .click();
+  await page.getByRole("menuitem", { name: "Sair da intranet" }).click();
   await expect(
     page.getByRole("heading", { name: "Bem-vindo de volta" }),
   ).toBeVisible();
