@@ -22,6 +22,7 @@ import {
   Input,
   SearchableSelect,
   TableSkeleton,
+  Toast,
   type ColumnDef,
 } from "@cge/ui";
 import {
@@ -66,6 +67,11 @@ export function PeoplePage() {
   const [importDialog, setImportDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarToast, setAvatarToast] = useState<{
+    description?: string;
+    title: string;
+    tone: "success" | "danger";
+  } | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<PeopleImportResult | null>(
     null,
@@ -322,27 +328,43 @@ export function PeoplePage() {
     }
   }
 
-  async function saveAvatar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!managedPerson || !avatarFile) return;
+  async function saveAvatar(file: File | null) {
+    if (!file) {
+      setAvatarFile(null);
+      return;
+    }
+    if (!managedPerson) return;
+    const personId = managedPerson.id;
+    setAvatarFile(file);
     const body = new FormData();
-    body.append("avatar", avatarFile);
+    body.append("avatar", file);
     try {
       setBusy(true);
-      setDialogError("");
+      setAvatarToast(null);
       const result = await api<{ avatarUrl: string }>(
-        `/api/people/${managedPerson.id}/avatar`,
+        `/api/people/${personId}/avatar`,
         {
           method: "PUT",
           body,
         },
       );
-      setPersonDialog({ ...managedPerson, avatarUrl: result.avatarUrl });
+      setPersonDialog((current) =>
+        current && current !== "new" && current.id === personId
+          ? { ...current, avatarUrl: result.avatarUrl }
+          : current,
+      );
       setAvatarFile(null);
       await loadPeople();
-      setSuccess("Foto do colaborador atualizada.");
+      setAvatarToast({
+        title: "Foto do colaborador atualizada",
+        tone: "success",
+      });
     } catch (cause) {
-      setDialogError(messageFor(cause, "Não foi possível salvar a foto."));
+      setAvatarToast({
+        description: messageFor(cause, "Não foi possível salvar a foto."),
+        title: "Não foi possível salvar",
+        tone: "danger",
+      });
     } finally {
       setBusy(false);
     }
@@ -350,16 +372,28 @@ export function PeoplePage() {
 
   async function removeAvatar() {
     if (!managedPerson) return;
+    const personId = managedPerson.id;
     try {
       setBusy(true);
-      setDialogError("");
-      await api(`/api/people/${managedPerson.id}/avatar`, { method: "DELETE" });
-      setPersonDialog({ ...managedPerson, avatarUrl: null });
+      setAvatarToast(null);
+      await api(`/api/people/${personId}/avatar`, { method: "DELETE" });
+      setPersonDialog((current) =>
+        current && current !== "new" && current.id === personId
+          ? { ...current, avatarUrl: null }
+          : current,
+      );
       setAvatarFile(null);
       await loadPeople();
-      setSuccess("Foto do colaborador removida.");
+      setAvatarToast({
+        title: "Foto do colaborador removida",
+        tone: "success",
+      });
     } catch (cause) {
-      setDialogError(messageFor(cause, "Não foi possível remover a foto."));
+      setAvatarToast({
+        description: messageFor(cause, "Não foi possível remover a foto."),
+        title: "Não foi possível remover",
+        tone: "danger",
+      });
     } finally {
       setBusy(false);
     }
@@ -597,19 +631,24 @@ export function PeoplePage() {
                   A foto aparece no diretório e nas áreas de identificação.
                 </p>
               </div>
-              <form
-                className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-                onSubmit={saveAvatar}
-              >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <AvatarPicker
                   disabled={busy}
                   file={avatarFile}
                   id="personAvatar"
                   name={managedPerson.preferredName ?? managedPerson.fullName}
-                  onFileChange={setAvatarFile}
+                  onFileChange={(file) => void saveAvatar(file)}
                   src={managedPerson.avatarUrl}
                 />
                 <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  {busy && avatarFile ? (
+                    <p
+                      className="py-2 text-sm font-semibold text-[var(--text-muted)]"
+                      role="status"
+                    >
+                      Salvando foto…
+                    </p>
+                  ) : null}
                   {managedPerson.avatarUrl ? (
                     <ConfirmDialog
                       confirmLabel="Remover foto"
@@ -622,15 +661,8 @@ export function PeoplePage() {
                       </Button>
                     </ConfirmDialog>
                   ) : null}
-                  <Button
-                    disabled={!avatarFile || busy}
-                    size="sm"
-                    type="submit"
-                  >
-                    {busy ? "Salvando…" : "Salvar foto"}
-                  </Button>
                 </div>
-              </form>
+              </div>
             </section>
           ) : null}
 
@@ -737,6 +769,14 @@ export function PeoplePage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      {avatarToast ? (
+        <Toast
+          description={avatarToast.description}
+          onDismiss={() => setAvatarToast(null)}
+          title={avatarToast.title}
+          tone={avatarToast.tone}
+        />
+      ) : null}
 
       <Dialog
         open={settingsDialog}

@@ -91,9 +91,10 @@ test("default home exposes permitted destinations and account context", async ({
   });
   const profile = page.getByRole("region", { name: "Perfil" });
   await expect(profile.locator('[data-slot="avatar"] img')).toBeVisible();
-  await expect(profile.getByText("avatar.png", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Salvar foto" }).click();
-  await expect(page.getByText("Foto de perfil atualizada.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar foto" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText("Foto de perfil atualizada")).toBeVisible();
   await expect(
     page.locator('main [data-slot="avatar"] img').first(),
   ).toBeVisible();
@@ -115,7 +116,7 @@ test("default home exposes permitted destinations and account context", async ({
     .getByRole("alertdialog", { name: "Remover sua foto?" })
     .getByRole("button", { name: "Remover foto" })
     .click();
-  await expect(page.getByText("Foto de perfil removida.")).toBeVisible();
+  await expect(page.getByText("Foto de perfil removida")).toBeVisible();
 });
 
 test("module headers toggle their routes without navigating", async ({
@@ -907,7 +908,6 @@ test("avatar upload normalizes images and respects unit scope", async ({
     mimeType: "image/png",
     buffer: Buffer.from("isto não é uma imagem"),
   });
-  await page.getByRole("button", { name: "Salvar foto" }).click();
   await expect(
     page.getByRole("alert").getByText(/JPEG, PNG ou WebP válida/i),
   ).toBeVisible();
@@ -924,8 +924,10 @@ test("avatar upload normalizes images and respects unit scope", async ({
     name: "Gerenciar Caio Nascimento",
   });
   await expect(avatarDialog.locator('[data-slot="avatar"] img')).toBeVisible();
-  await page.getByRole("button", { name: "Salvar foto" }).click();
-  await expect(page.getByText("Foto do colaborador atualizada.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Salvar foto" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText("Foto do colaborador atualizada")).toBeVisible();
   const avatar = personRow.locator('[data-slot="avatar"] img');
   await expect(avatar).toBeVisible();
   const avatarUrl = await avatar.getAttribute("src");
@@ -945,7 +947,7 @@ test("avatar upload normalizes images and respects unit scope", async ({
     .getByRole("alertdialog", { name: "Remover foto?" })
     .getByRole("button", { name: "Remover foto" })
     .click();
-  await expect(page.getByText("Foto do colaborador removida.")).toBeVisible();
+  await expect(page.getByText("Foto do colaborador removida")).toBeVisible();
   await expect(personRow.locator('[data-slot="avatar"] img')).toHaveCount(0);
 
   const audit = await page.request.get("/api/audit-events/export");

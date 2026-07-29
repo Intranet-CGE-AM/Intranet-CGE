@@ -5,8 +5,9 @@ import {
   ConfirmDialog,
   FormField,
   Input,
+  Toast,
 } from "@cge/ui";
-import { Camera, Key, Trash } from "@phosphor-icons/react";
+import { Key, Trash } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
@@ -18,38 +19,47 @@ export function AccountPage() {
   const navigate = useNavigate();
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const [avatarMessage, setAvatarMessage] = useState("");
-  const [avatarError, setAvatarError] = useState("");
+  const [avatarToast, setAvatarToast] = useState<{
+    description?: string;
+    title: string;
+    tone: "success" | "danger";
+  } | null>(null);
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
   if (!user) return null;
   const currentUser = user;
 
-  async function uploadAvatar(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!avatarFile) return;
-    const form = event.currentTarget;
+  async function uploadAvatar(file: File | null) {
+    if (!file) {
+      setAvatarFile(null);
+      return;
+    }
+    setAvatarFile(file);
     const body = new FormData();
-    body.append("avatar", avatarFile);
+    body.append("avatar", file);
     try {
       setAvatarBusy(true);
-      setAvatarError("");
-      setAvatarMessage("");
+      setAvatarToast(null);
       await api(`/api/people/${currentUser.person.id}/avatar`, {
         method: "PUT",
         body,
       });
       await refresh();
-      form.reset();
       setAvatarFile(null);
-      setAvatarMessage("Foto de perfil atualizada.");
+      setAvatarToast({
+        title: "Foto de perfil atualizada",
+        tone: "success",
+      });
     } catch (cause) {
-      setAvatarError(
-        cause instanceof ApiError
-          ? cause.message
-          : "Não foi possível atualizar a foto.",
-      );
+      setAvatarToast({
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível atualizar a foto.",
+        title: "Não foi possível salvar",
+        tone: "danger",
+      });
     } finally {
       setAvatarBusy(false);
     }
@@ -58,19 +68,25 @@ export function AccountPage() {
   async function removeAvatar() {
     try {
       setAvatarBusy(true);
-      setAvatarError("");
-      setAvatarMessage("");
+      setAvatarToast(null);
       await api(`/api/people/${currentUser.person.id}/avatar`, {
         method: "DELETE",
       });
       await refresh();
-      setAvatarMessage("Foto de perfil removida.");
+      setAvatarFile(null);
+      setAvatarToast({
+        title: "Foto de perfil removida",
+        tone: "success",
+      });
     } catch (cause) {
-      setAvatarError(
-        cause instanceof ApiError
-          ? cause.message
-          : "Não foi possível remover a foto.",
-      );
+      setAvatarToast({
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível remover a foto.",
+        title: "Não foi possível remover",
+        tone: "danger",
+      });
     } finally {
       setAvatarBusy(false);
     }
@@ -138,14 +154,14 @@ export function AccountPage() {
           </p>
         </div>
 
-        <form className="max-w-2xl" onSubmit={uploadAvatar}>
+        <div className="max-w-2xl">
           <AvatarPicker
             description={currentUser.account.email}
             disabled={avatarBusy}
             file={avatarFile}
             id="accountAvatar"
             name={currentUser.person.displayName}
-            onFileChange={setAvatarFile}
+            onFileChange={(file) => void uploadAvatar(file)}
             src={currentUser.person.avatarUrl}
           />
 
@@ -168,26 +184,15 @@ export function AccountPage() {
             </div>
           </dl>
 
-          {avatarError ? (
-            <Alert
-              className="mt-5"
-              title="Não foi possível salvar"
-              tone="danger"
-            >
-              {avatarError}
-            </Alert>
-          ) : null}
-          {avatarMessage ? (
-            <Alert className="mt-5" title="Perfil atualizado" tone="success">
-              {avatarMessage}
-            </Alert>
-          ) : null}
-
           <div className="mt-5 flex flex-wrap gap-2">
-            <Button disabled={!avatarFile || avatarBusy} type="submit">
-              <Camera aria-hidden="true" size={18} />
-              {avatarBusy ? "Salvando…" : "Salvar foto"}
-            </Button>
+            {avatarBusy ? (
+              <p
+                className="py-2 text-sm font-semibold text-[var(--text-muted)]"
+                role="status"
+              >
+                Salvando foto…
+              </p>
+            ) : null}
             {currentUser.person.avatarUrl ? (
               <ConfirmDialog
                 confirmLabel="Remover foto"
@@ -202,7 +207,7 @@ export function AccountPage() {
               </ConfirmDialog>
             ) : null}
           </div>
-        </form>
+        </div>
       </section>
 
       <section
@@ -268,6 +273,14 @@ export function AccountPage() {
           </Button>
         </form>
       </section>
+      {avatarToast ? (
+        <Toast
+          description={avatarToast.description}
+          onDismiss={() => setAvatarToast(null)}
+          title={avatarToast.title}
+          tone={avatarToast.tone}
+        />
+      ) : null}
     </div>
   );
 }
