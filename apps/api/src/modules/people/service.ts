@@ -21,7 +21,12 @@ export class PeopleService {
   async listPeople(
     unitIds: string[] | null,
     includeSensitive: boolean,
-    options: { limit?: number; offset?: number; query?: string } = {},
+    options: {
+      employmentId?: string;
+      limit?: number;
+      offset?: number;
+      query?: string;
+    } = {},
   ) {
     const scope =
       unitIds === null
@@ -40,7 +45,13 @@ export class PeopleService {
           ilike(employmentRelationships.employeeNumber, `%${term}%`),
         )
       : undefined;
-    const where = and(scope, search);
+    const where = and(
+      scope,
+      search,
+      options.employmentId
+        ? eq(employmentRelationships.id, options.employmentId)
+        : undefined,
+    );
     const rowsQuery = this.db
       .select({
         id: people.id,

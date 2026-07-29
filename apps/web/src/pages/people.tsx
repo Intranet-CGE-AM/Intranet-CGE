@@ -27,7 +27,6 @@ import {
 import {
   FileArrowUp as FileUp,
   GearSix as Settings2,
-  ImageSquare,
   MagnifyingGlass as Search,
   Plus,
 } from "@phosphor-icons/react";
@@ -66,8 +65,6 @@ export function PeoplePage() {
   const [personDialog, setPersonDialog] = useState<Person | "new" | null>(null);
   const [importDialog, setImportDialog] = useState(false);
   const [settingsDialog, setSettingsDialog] = useState(false);
-  const [supervisorPerson, setSupervisorPerson] = useState<Person | null>(null);
-  const [avatarPerson, setAvatarPerson] = useState<Person | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<PeopleImportResult | null>(
@@ -82,6 +79,8 @@ export function PeoplePage() {
     (unit) => user && can(user, "people.manage", unit.id),
   );
   const showsActions = managesPeople;
+  const managedPerson =
+    personDialog && personDialog !== "new" ? personDialog : null;
 
   const loadPeople = useCallback(
     async (signal?: AbortSignal) => {
@@ -158,16 +157,36 @@ export function PeoplePage() {
   }, [supervisorQuery]);
 
   useEffect(() => {
-    if (!supervisorPerson) return;
+    if (!managedPerson) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ pageSize: "20" });
     if (supervisorSearch) params.set("query", supervisorSearch);
     setSupervisorLoading(true);
     setSupervisorCandidates([]);
-    void api<PeoplePageResult>(`/api/people?${params}`, {
-      signal: controller.signal,
-    })
-      .then((result) => setSupervisorCandidates(result.people))
+    const currentSupervisor = managedPerson.employment?.supervisorRelationshipId
+      ? api<PeoplePageResult>(
+          `/api/people?${new URLSearchParams({
+            employmentId: managedPerson.employment.supervisorRelationshipId,
+            pageSize: "1",
+          })}`,
+          { signal: controller.signal },
+        )
+      : Promise.resolve(null);
+    void Promise.all([
+      api<PeoplePageResult>(`/api/people?${params}`, {
+        signal: controller.signal,
+      }),
+      currentSupervisor,
+    ])
+      .then(([result, current]) => {
+        const candidates = [
+          ...(current?.people ?? []),
+          ...result.people,
+        ].filter((person) => person.id !== managedPerson.id);
+        setSupervisorCandidates([
+          ...new Map(candidates.map((person) => [person.id, person])).values(),
+        ]);
+      })
       .catch((cause) => {
         if (!isAbortError(cause)) {
           setDialogError(
@@ -179,7 +198,7 @@ export function PeoplePage() {
         if (!controller.signal.aborted) setSupervisorLoading(false);
       });
     return () => controller.abort();
-  }, [supervisorPerson, supervisorSearch]);
+  }, [managedPerson, supervisorSearch]);
 
   async function savePerson(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -292,33 +311,12 @@ export function PeoplePage() {
         body: json({ endDate: manausToday() }),
       });
       await loadPeople();
+      setPersonDialog(null);
       setSuccess("Vínculo e conta desativados.");
     } catch (cause) {
-      setError(messageFor(cause, "Não foi possível desativar o colaborador."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function assignSupervisor(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!supervisorPerson) return;
-    const data = new FormData(event.currentTarget);
-    try {
-      setBusy(true);
-      await api(`/api/people/${supervisorPerson.id}`, {
-        method: "PATCH",
-        body: json({
-          employment: {
-            supervisorRelationshipId: data.get("supervisorRelationshipId"),
-          },
-        }),
-      });
-      setSupervisorPerson(null);
-      await loadPeople();
-      setSuccess("Chefia direta atualizada.");
-    } catch (cause) {
-      setDialogError(messageFor(cause, "Não foi possível definir a chefia."));
+      setDialogError(
+        messageFor(cause, "Não foi possível desativar o colaborador."),
+      );
     } finally {
       setBusy(false);
     }
@@ -326,17 +324,20 @@ export function PeoplePage() {
 
   async function saveAvatar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!avatarPerson || !avatarFile) return;
+    if (!managedPerson || !avatarFile) return;
     const body = new FormData();
     body.append("avatar", avatarFile);
     try {
       setBusy(true);
       setDialogError("");
-      await api(`/api/people/${avatarPerson.id}/avatar`, {
-        method: "PUT",
-        body,
-      });
-      setAvatarPerson(null);
+      const result = await api<{ avatarUrl: string }>(
+        `/api/people/${managedPerson.id}/avatar`,
+        {
+          method: "PUT",
+          body,
+        },
+      );
+      setPersonDialog({ ...managedPerson, avatarUrl: result.avatarUrl });
       setAvatarFile(null);
       await loadPeople();
       setSuccess("Foto do colaborador atualizada.");
@@ -348,12 +349,12 @@ export function PeoplePage() {
   }
 
   async function removeAvatar() {
-    if (!avatarPerson) return;
+    if (!managedPerson) return;
     try {
       setBusy(true);
       setDialogError("");
-      await api(`/api/people/${avatarPerson.id}/avatar`, { method: "DELETE" });
-      setAvatarPerson(null);
+      await api(`/api/people/${managedPerson.id}/avatar`, { method: "DELETE" });
+      setPersonDialog({ ...managedPerson, avatarUrl: null });
       setAvatarFile(null);
       await loadPeople();
       setSuccess("Foto do colaborador removida.");
@@ -426,56 +427,21 @@ export function PeoplePage() {
               }
               const name = person.preferredName ?? person.fullName;
               return (
-                <div className="flex whitespace-nowrap">
-                  <Button
-                    variant="quiet"
-                    size="sm"
-                    aria-label={`Alterar foto de ${name}`}
-                    onClick={() => {
-                      setAvatarFile(null);
-                      setAvatarPerson(person);
-                    }}
-                  >
-                    <ImageSquare aria-hidden="true" size={15} />
-                    Foto
-                  </Button>
-                  <Button
-                    variant="quiet"
-                    size="sm"
-                    aria-label={`Editar ${name}`}
-                    onClick={() => setPersonDialog(person)}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="quiet"
-                    size="sm"
-                    aria-label={`Definir chefia de ${name}`}
-                    disabled={busy}
-                    onClick={() => {
-                      setSupervisorQuery("");
-                      setSupervisorSearch("");
-                      setSupervisorPerson(person);
-                    }}
-                  >
-                    Definir chefia
-                  </Button>
-                  <ConfirmDialog
-                    confirmLabel="Desativar colaborador"
-                    description={`O vínculo e a conta de ${name} serão desativados. As sessões abertas serão encerradas.`}
-                    onConfirm={() => deactivate(person)}
-                    title="Desativar colaborador?"
-                  >
-                    <Button
-                      variant="quiet"
-                      size="sm"
-                      aria-label={`Desativar ${name}`}
-                      disabled={busy}
-                    >
-                      Desativar
-                    </Button>
-                  </ConfirmDialog>
-                </div>
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  aria-label={`Gerenciar ${name}`}
+                  onClick={() => {
+                    setAvatarFile(null);
+                    setSupervisorCandidates([]);
+                    setSupervisorQuery("");
+                    setSupervisorSearch("");
+                    setDialogError("");
+                    setPersonDialog(person);
+                  }}
+                >
+                  Gerenciar
+                </Button>
               );
             },
           } satisfies ColumnDef<Person>,
@@ -595,179 +561,180 @@ export function PeoplePage() {
         onOpenChange={(open) => {
           if (!open) {
             setPersonDialog(null);
+            setAvatarFile(null);
+            setSupervisorCandidates([]);
+            setSupervisorQuery("");
+            setSupervisorSearch("");
             setDialogError("");
           }
         }}
       >
         <DialogContent
+          className={managedPerson ? "max-w-3xl" : "max-w-xl"}
           title={
-            personDialog === "new" ? "Novo colaborador" : "Editar colaborador"
+            personDialog === "new"
+              ? "Novo colaborador"
+              : managedPerson
+                ? `Gerenciar ${managedPerson.preferredName ?? managedPerson.fullName}`
+                : "Gerenciar colaborador"
           }
           description={
             personDialog === "new"
               ? "Cadastre a pessoa e seu primeiro vínculo ativo."
-              : "Atualize os dados pessoais e do vínculo ativo."
+              : "Centralize a foto, os dados funcionais, a chefia e a situação do vínculo."
           }
         >
-          <form
-            className="grid gap-4 sm:grid-cols-2"
-            key={personDialog === "new" ? "new" : personDialog?.id}
-            onSubmit={savePerson}
-          >
-            {dialogError ? (
-              <Alert
-                className="sm:col-span-2"
-                title="Revise os dados"
-                tone="danger"
+          {dialogError ? (
+            <Alert className="mb-5" title="Revise os dados" tone="danger">
+              {dialogError}
+            </Alert>
+          ) : null}
+          {managedPerson ? (
+            <section className="border-b border-[var(--border)] pb-5">
+              <div className="mb-4">
+                <h3 className="font-bold">Foto e identificação</h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  A foto aparece no diretório e nas áreas de identificação.
+                </p>
+              </div>
+              <form
+                className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+                onSubmit={saveAvatar}
               >
-                {dialogError}
-              </Alert>
-            ) : null}
-            <PersonFormFields
-              categories={categories}
-              idPrefix="person"
-              person={personDialog === "new" ? null : personDialog}
-              units={manageableUnits}
-            />
-            <div className="flex justify-end gap-2 sm:col-span-2">
-              <Button
-                type="button"
-                variant="quiet"
-                onClick={() => setPersonDialog(null)}
-              >
-                Cancelar
-              </Button>
-              <Button disabled={busy} type="submit">
-                {busy
-                  ? "Salvando…"
-                  : personDialog === "new"
-                    ? "Cadastrar"
-                    : "Salvar alterações"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(avatarPerson)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setAvatarPerson(null);
-            setAvatarFile(null);
-            setDialogError("");
-          }
-        }}
-      >
-        <DialogContent
-          title="Foto do colaborador"
-          description={
-            avatarPerson
-              ? `Atualize a foto de ${avatarPerson.preferredName ?? avatarPerson.fullName}. A imagem será recortada em formato quadrado.`
-              : undefined
-          }
-        >
-          <form className="space-y-5" onSubmit={saveAvatar}>
-            {dialogError ? (
-              <Alert title="Revise a foto" tone="danger">
-                {dialogError}
-              </Alert>
-            ) : null}
-            {avatarPerson ? (
-              <AvatarPicker
-                disabled={busy}
-                file={avatarFile}
-                id="personAvatar"
-                name={avatarPerson.preferredName ?? avatarPerson.fullName}
-                onFileChange={setAvatarFile}
-                src={avatarPerson.avatarUrl}
-              />
-            ) : null}
-            <div className="flex flex-wrap justify-end gap-2">
-              {avatarPerson?.avatarUrl ? (
-                <ConfirmDialog
-                  confirmLabel="Remover foto"
-                  description={`A foto de ${avatarPerson.preferredName ?? avatarPerson.fullName} será removida do perfil.`}
-                  onConfirm={removeAvatar}
-                  title="Remover foto?"
-                >
-                  <Button disabled={busy} type="button" variant="quiet">
-                    Remover foto
+                <AvatarPicker
+                  disabled={busy}
+                  file={avatarFile}
+                  id="personAvatar"
+                  name={managedPerson.preferredName ?? managedPerson.fullName}
+                  onFileChange={setAvatarFile}
+                  src={managedPerson.avatarUrl}
+                />
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  {managedPerson.avatarUrl ? (
+                    <ConfirmDialog
+                      confirmLabel="Remover foto"
+                      description={`A foto de ${managedPerson.preferredName ?? managedPerson.fullName} será removida do perfil.`}
+                      onConfirm={removeAvatar}
+                      title="Remover foto?"
+                    >
+                      <Button disabled={busy} type="button" variant="quiet">
+                        Remover foto
+                      </Button>
+                    </ConfirmDialog>
+                  ) : null}
+                  <Button
+                    disabled={!avatarFile || busy}
+                    size="sm"
+                    type="submit"
+                  >
+                    {busy ? "Salvando…" : "Salvar foto"}
                   </Button>
-                </ConfirmDialog>
-              ) : null}
-              <Button
-                disabled={busy}
-                onClick={() => setAvatarPerson(null)}
-                type="button"
-                variant="quiet"
-              >
-                Cancelar
-              </Button>
-              <Button disabled={!avatarFile || busy} type="submit">
-                {busy ? "Salvando…" : "Salvar foto"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+                </div>
+              </form>
+            </section>
+          ) : null}
 
-      <Dialog
-        open={Boolean(supervisorPerson)}
-        onOpenChange={() => {
-          setSupervisorPerson(null);
-          setSupervisorCandidates([]);
-          setSupervisorQuery("");
-          setSupervisorSearch("");
-          setDialogError("");
-        }}
-      >
-        <DialogContent
-          title="Definir chefia"
-          description={
-            supervisorPerson
-              ? `Selecione a chefia direta de ${supervisorPerson.preferredName ?? supervisorPerson.fullName}. Ela será a primeira responsável por analisar solicitações de férias.`
-              : undefined
-          }
-        >
-          <form className="space-y-4" onSubmit={assignSupervisor}>
-            {dialogError ? (
-              <Alert title="Revise os dados" tone="danger">
-                {dialogError}
-              </Alert>
+          <section className={managedPerson ? "pt-5" : ""}>
+            {managedPerson ? (
+              <div className="mb-4">
+                <h3 className="font-bold">Dados pessoais e vínculo</h3>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Informações usadas no diretório e nos fluxos de Recursos
+                  Humanos.
+                </p>
+              </div>
             ) : null}
-            <FormField htmlFor="supervisorRelationshipId" label="Chefia direta">
-              <SearchableSelect
-                defaultValue=""
-                id="supervisorRelationshipId"
-                name="supervisorRelationshipId"
-                onSearchChange={(value) => {
-                  setSupervisorLoading(true);
-                  setSupervisorCandidates([]);
-                  setSupervisorQuery(value);
-                }}
-                options={supervisorCandidates
-                  .filter(
-                    (person) =>
-                      person.id !== supervisorPerson?.id && person.employment,
-                  )
-                  .map((person) => ({
-                    keywords: [
-                      person.fullName,
-                      person.employment?.unitName ?? "",
-                    ],
-                    label: `${person.preferredName ?? person.fullName} · ${person.employment?.unitName ?? "Sem unidade"}`,
-                    value: person.employment?.id ?? "",
-                  }))}
-                placeholder="Pesquise por nome ou unidade"
-                required
-                searching={supervisorLoading}
+            <form
+              className="grid gap-4 sm:grid-cols-2"
+              key={personDialog === "new" ? "new" : personDialog?.id}
+              onSubmit={savePerson}
+            >
+              <PersonFormFields
+                categories={categories}
+                idPrefix="person"
+                person={personDialog === "new" ? null : personDialog}
+                units={manageableUnits}
               />
-            </FormField>
-            <Button className="w-full" disabled={busy} type="submit">
-              {busy ? "Salvando…" : "Salvar chefia"}
-            </Button>
-          </form>
+              {managedPerson ? (
+                <FormField
+                  className="sm:col-span-2"
+                  hint="A chefia direta faz a primeira análise das solicitações de férias."
+                  htmlFor="supervisorRelationshipId"
+                  label="Chefia direta"
+                >
+                  <SearchableSelect
+                    defaultValue={
+                      managedPerson.employment?.supervisorRelationshipId ??
+                      "no-supervisor"
+                    }
+                    id="supervisorRelationshipId"
+                    name="supervisorRelationshipId"
+                    onSearchChange={(value) => {
+                      setSupervisorLoading(true);
+                      setSupervisorCandidates([]);
+                      setSupervisorQuery(value);
+                    }}
+                    options={[
+                      {
+                        label: "Sem chefia direta",
+                        value: "no-supervisor",
+                      },
+                      ...supervisorCandidates
+                        .filter((person) => person.employment)
+                        .map((person) => ({
+                          keywords: [
+                            person.fullName,
+                            person.employment?.unitName ?? "",
+                          ],
+                          label: `${person.preferredName ?? person.fullName} · ${person.employment?.unitName ?? "Sem unidade"}`,
+                          value: person.employment?.id ?? "",
+                        })),
+                    ]}
+                    placeholder="Pesquise por nome ou unidade"
+                    searching={supervisorLoading}
+                  />
+                </FormField>
+              ) : null}
+              <div className="flex justify-end gap-2 sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="quiet"
+                  onClick={() => setPersonDialog(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button disabled={busy} type="submit">
+                  {busy
+                    ? "Salvando…"
+                    : personDialog === "new"
+                      ? "Cadastrar"
+                      : "Salvar alterações"}
+                </Button>
+              </div>
+            </form>
+          </section>
+
+          {managedPerson ? (
+            <section className="mt-6 flex flex-col gap-4 border-t border-[var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-bold">Situação do vínculo</h3>
+                <p className="mt-1 max-w-xl text-xs text-[var(--text-muted)]">
+                  A desativação encerra o vínculo ativo, desativa a conta
+                  associada e revoga as sessões abertas.
+                </p>
+              </div>
+              <ConfirmDialog
+                confirmLabel="Desativar colaborador"
+                description={`O vínculo e a conta de ${managedPerson.preferredName ?? managedPerson.fullName} serão desativados. As sessões abertas serão encerradas.`}
+                onConfirm={() => deactivate(managedPerson)}
+                title="Desativar colaborador?"
+              >
+                <Button disabled={busy} type="button" variant="danger">
+                  Desativar vínculo e acesso
+                </Button>
+              </ConfirmDialog>
+            </section>
+          ) : null}
         </DialogContent>
       </Dialog>
 

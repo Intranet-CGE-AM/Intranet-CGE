@@ -257,6 +257,7 @@ export const peopleRoutes: FastifyPluginAsync<{
     {
       schema: {
         querystring: z.object({
+          employmentId: z.uuid().optional(),
           unitId: z.uuid().optional(),
           page: z.coerce.number().int().positive().default(1),
           pageSize: z.coerce.number().int().min(1).max(100).default(10),
@@ -305,6 +306,7 @@ export const peopleRoutes: FastifyPluginAsync<{
         {
           limit: request.query.pageSize,
           offset: (request.query.page - 1) * request.query.pageSize,
+          employmentId: request.query.employmentId,
           query: request.query.query,
         },
       );

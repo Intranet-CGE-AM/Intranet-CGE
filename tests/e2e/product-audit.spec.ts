@@ -747,7 +747,7 @@ test("avatar upload normalizes images and respects unit scope", async ({
     .getByRole("row")
     .filter({ hasText: "Caio Nascimento" });
   await personRow
-    .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
+    .getByRole("button", { name: "Gerenciar Caio Nascimento" })
     .click();
 
   const personAvatarPicker = page.getByLabel(
@@ -772,7 +772,7 @@ test("avatar upload normalizes images and respects unit scope", async ({
     ),
   });
   const avatarDialog = page.getByRole("dialog", {
-    name: "Foto do colaborador",
+    name: "Gerenciar Caio Nascimento",
   });
   await expect(avatarDialog.locator('[data-slot="avatar"] img')).toBeVisible();
   await page.getByRole("button", { name: "Salvar foto" }).click();
@@ -791,10 +791,7 @@ test("avatar upload normalizes images and respects unit scope", async ({
   expect((await restrictedPage.request.get(avatarUrl!)).status()).toBe(403);
   await restrictedContext.close();
 
-  await personRow
-    .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
-    .click();
-  await page.getByRole("button", { name: "Remover foto" }).click();
+  await avatarDialog.getByRole("button", { name: "Remover foto" }).click();
   await page
     .getByRole("alertdialog", { name: "Remover foto?" })
     .getByRole("button", { name: "Remover foto" })
@@ -940,8 +937,12 @@ test("administration onboards an employee and supports account operations", asyn
     .getByRole("searchbox", { name: "Buscar colaboradores" })
     .fill("Íris Fernandes");
   const irisRow = page.getByRole("row").filter({ hasText: "Íris Fernandes" });
-  const deactivateIris = irisRow.getByRole("button", {
-    name: "Desativar Íris",
+  await irisRow.getByRole("button", { name: "Gerenciar Íris" }).click();
+  const personDialog = page.getByRole("dialog", {
+    name: "Gerenciar Íris",
+  });
+  const deactivateIris = personDialog.getByRole("button", {
+    name: "Desativar vínculo e acesso",
   });
   await deactivateIris.click();
   const deactivateDialog = page.getByRole("alertdialog", {

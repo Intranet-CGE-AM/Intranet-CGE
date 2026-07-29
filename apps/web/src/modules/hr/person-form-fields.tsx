@@ -134,6 +134,9 @@ export function PersonFormFields({
 }
 
 export function personInputFromForm(data: FormData): PersonInput {
+  const supervisorRelationshipId = String(
+    data.get("supervisorRelationshipId") ?? "",
+  );
   return {
     fullName: String(data.get("fullName")),
     preferredName: String(data.get("preferredName") || "") || null,
@@ -143,6 +146,15 @@ export function personInputFromForm(data: FormData): PersonInput {
       employeeNumber: String(data.get("employeeNumber")),
       categoryId: String(data.get("categoryId")),
       unitId: String(data.get("unitId")),
+      ...(data.has("supervisorRelationshipId")
+        ? {
+            supervisorRelationshipId:
+              supervisorRelationshipId &&
+              supervisorRelationshipId !== "no-supervisor"
+                ? supervisorRelationshipId
+                : null,
+          }
+        : {}),
       startDate: String(data.get("startDate")),
       jobTitle: String(data.get("jobTitle") || "") || null,
     },

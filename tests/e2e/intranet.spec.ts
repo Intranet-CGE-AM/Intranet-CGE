@@ -74,9 +74,11 @@ test("complete HR journey from import through final vacation approval", async ({
   await expect(page.getByText("Trabalhador", { exact: true })).toBeVisible();
 
   const workerRow = page.getByRole("row", { name: /Trabalhador E2E/ });
-  await workerRow.getByRole("button", { name: "Definir chefia" }).click();
+  await workerRow
+    .getByRole("button", { name: "Gerenciar Trabalhador" })
+    .click();
   await chooseOption(page, "Chefia direta", "Supervisora");
-  await page.getByRole("button", { name: "Salvar chefia" }).click();
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
 
   await page.getByRole("link", { name: "Administração" }).click();
   await createAccount(
