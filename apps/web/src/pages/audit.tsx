@@ -105,7 +105,6 @@ export function AuditPage() {
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        setLoading(true);
         setError("");
         const result = await api<AuditPage>(`/api/audit-events?${filters}`, {
           signal,

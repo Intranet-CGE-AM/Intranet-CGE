@@ -731,6 +731,55 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   ).toBeVisible();
 });
 
+test("audit filters keep the current results stable while refreshing", async ({
+  page,
+}) => {
+  await login(page, admin.email, admin.password);
+  await page.goto("/sistema/auditoria");
+  await expect(
+    page.getByRole("table", { name: "Eventos de auditoria" }),
+  ).toBeVisible();
+
+  let releaseRequest!: () => void;
+  let markRequestStarted!: () => void;
+  const requestStarted = new Promise<void>((resolve) => {
+    markRequestStarted = resolve;
+  });
+  const requestReleased = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
+  await page.route("**/api/audit-events?**", async (route) => {
+    markRequestStarted();
+    await requestReleased;
+    await route.continue();
+  });
+
+  const area = page.getByRole("button", { name: "Área", exact: true });
+  await area.click();
+  const dialog = page.getByRole("dialog");
+  const person = dialog.getByText("Pessoa", { exact: true });
+
+  try {
+    await person.click();
+    await requestStarted;
+    expect(
+      await page
+        .getByRole("status", {
+          name: "Carregando eventos de auditoria",
+        })
+        .count(),
+    ).toBe(0);
+    expect(
+      await page
+        .getByRole("table", { name: "Eventos de auditoria" })
+        .isVisible(),
+    ).toBe(true);
+    await expect(dialog).toBeVisible();
+  } finally {
+    releaseRequest();
+  }
+});
+
 test("first access exposes multiple modules and explains a missing supervisor", async ({
   page,
 }) => {
