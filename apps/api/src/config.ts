@@ -15,7 +15,11 @@ const configSchema = z.object({
     .min(32)
     .default("development-only-session-secret-change-me"),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(12),
-  SECURE_COOKIES: z.stringbool().default(true),
+  // Sem valor explícito, segue o NODE_ENV: produção exige HTTPS, o resto não.
+  // Homologação declara `false` porque é acessada por IP e porta, sem TLS —
+  // com o cookie marcado Secure o navegador não o devolveria e o login nunca
+  // completaria.
+  SECURE_COOKIES: z.stringbool().optional(),
   OBJECT_STORAGE_ENDPOINT: z.url().default("http://localhost:9000"),
   OBJECT_STORAGE_ACCESS_KEY: z.string().min(3).default("cge-local-minio"),
   OBJECT_STORAGE_SECRET_KEY: z
@@ -25,8 +29,13 @@ const configSchema = z.object({
   OBJECT_STORAGE_BUCKET: z.string().min(3).max(63).default("intranet-cge"),
 });
 
-export type AppConfig = z.infer<typeof configSchema>;
+const resolvedConfigSchema = configSchema.transform((config) => ({
+  ...config,
+  SECURE_COOKIES: config.SECURE_COOKIES ?? config.NODE_ENV === "production",
+}));
+
+export type AppConfig = z.infer<typeof resolvedConfigSchema>;
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
-  return configSchema.parse(environment);
+  return resolvedConfigSchema.parse(environment);
 }
