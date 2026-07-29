@@ -6,11 +6,11 @@ import {
   Card,
   CardHeader,
   ConfirmDialog,
+  DateRangePicker,
   Dialog,
   DialogContent,
   EmptyState,
   FormField,
-  Input,
   Select,
   Table,
   TableCell,
@@ -65,6 +65,7 @@ export function VacationsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [createDialog, setCreateDialog] = useState(false);
+  const [vacationRange, setVacationRange] = useState({ from: "", to: "" });
   const [decision, setDecision] = useState<Decision | null>(null);
   const [history, setHistory] = useState<VacationRequest | null>(null);
   const hasCreatePermission = Boolean(user && can(user, "vacations.create"));
@@ -120,6 +121,10 @@ export function VacationsPage() {
     const data = new FormData(event.currentTarget);
     const startDate = String(data.get("startDate"));
     const endDate = String(data.get("endDate"));
+    if (!startDate || !endDate) {
+      setDialogError("Selecione as datas inicial e final.");
+      return;
+    }
     if (endDate < startDate) {
       setDialogError(
         "A data final deve ser igual ou posterior à data inicial.",
@@ -139,6 +144,7 @@ export function VacationsPage() {
         }),
       });
       setCreateDialog(false);
+      setVacationRange({ from: "", to: "" });
       await load();
       setSuccess(
         submit
@@ -398,7 +404,10 @@ export function VacationsPage() {
         open={createDialog}
         onOpenChange={(open) => {
           setCreateDialog(open);
-          if (!open) setDialogError("");
+          if (!open) {
+            setDialogError("");
+            setVacationRange({ from: "", to: "" });
+          }
         }}
       >
         <DialogContent
@@ -411,26 +420,21 @@ export function VacationsPage() {
                 {dialogError}
               </Alert>
             ) : null}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField htmlFor="vacationStartDate" label="Data inicial">
-                <Input
-                  id="vacationStartDate"
-                  min={manausToday()}
-                  name="startDate"
-                  type="date"
-                  required
-                />
-              </FormField>
-              <FormField htmlFor="vacationEndDate" label="Data final">
-                <Input
-                  id="vacationEndDate"
-                  min={manausToday()}
-                  name="endDate"
-                  type="date"
-                  required
-                />
-              </FormField>
-            </div>
+            <FormField
+              htmlFor="vacationRange"
+              label="Período das férias"
+              hint="Selecione a data inicial e depois a data final."
+            >
+              <DateRangePicker
+                fromName="startDate"
+                id="vacationRange"
+                min={manausToday()}
+                onChange={setVacationRange}
+                required
+                toName="endDate"
+                value={vacationRange}
+              />
+            </FormField>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"

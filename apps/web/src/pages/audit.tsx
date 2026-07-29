@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   DataTable,
+  DateRangePicker,
   Dialog,
   DialogContent,
   EmptyState,
@@ -293,9 +294,9 @@ export function AuditPage() {
           </Button>
         </CardHeader>
         <CardContent className="border-b border-[var(--border)] py-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+          <div className="grid gap-3 md:grid-cols-2 min-[1400px]:grid-cols-[minmax(18rem,1.7fr)_repeat(3,minmax(9rem,0.8fr))_minmax(14rem,1.15fr)]">
             <FormField
-              className="md:col-span-2 xl:col-span-2"
+              className="md:col-span-2 min-[1400px]:col-span-1"
               htmlFor="auditSearch"
               label="Buscar nos registros"
             >
@@ -369,28 +370,20 @@ export function AuditPage() {
                 values={actions}
               />
             </FormField>
-            <FormField htmlFor="auditFrom" label="A partir de">
-              <Input
-                id="auditFrom"
-                max={to || undefined}
-                onChange={(event) => {
+            <FormField
+              className="md:col-span-2 min-[1400px]:col-span-1"
+              htmlFor="auditRange"
+              label="Período"
+            >
+              <DateRangePicker
+                id="auditRange"
+                onChange={(range) => {
                   setPage(1);
-                  setFrom(event.target.value);
+                  setFrom(range.from);
+                  setTo(range.to);
                 }}
-                type="date"
-                value={from}
-              />
-            </FormField>
-            <FormField htmlFor="auditTo" label="Até">
-              <Input
-                id="auditTo"
-                min={from || undefined}
-                onChange={(event) => {
-                  setPage(1);
-                  setTo(event.target.value);
-                }}
-                type="date"
-                value={to}
+                placeholder="Todas as datas"
+                value={{ from, to }}
               />
             </FormField>
           </div>

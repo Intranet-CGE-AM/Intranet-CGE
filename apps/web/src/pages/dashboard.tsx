@@ -43,10 +43,10 @@ const status: Record<
   cancelled: { label: "Cancelada", tone: "neutral" },
 };
 
-const date = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
+const day = new Intl.DateTimeFormat("pt-BR", { day: "numeric" });
+const dayMonth = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
   month: "short",
-  year: "numeric",
 });
 
 export function DashboardPage() {
@@ -248,37 +248,56 @@ export function DashboardPage() {
                 <Skeleton className="h-14 w-full" />
               </CardContent>
             ) : requests.length ? (
-              <Table>
+              <Table className="table-fixed">
+                <colgroup>
+                  <col className="w-[42%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[36%]" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <TableHead>Colaborador</TableHead>
-                    <TableHead>Período</TableHead>
-                    <TableHead>Etapa</TableHead>
+                    <TableHead className="px-3 first:pl-5">
+                      Colaborador
+                    </TableHead>
+                    <TableHead className="px-3">Período</TableHead>
+                    <TableHead className="px-3 last:pr-5">Etapa</TableHead>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.slice(0, 6).map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <p className="font-semibold">
-                          {request.requester.displayName}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--text-faint)]">
-                          {request.requester.unitName}
-                        </p>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-[var(--text-muted)]">
-                        {date.format(new Date(`${request.startDate}T12:00:00`))}
-                        {" – "}
-                        {date.format(new Date(`${request.endDate}T12:00:00`))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status[request.status].tone}>
-                          {status[request.status].label}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {requests.slice(0, 6).map((request) => {
+                    const [period, year] = formatCompactPeriod(
+                      request.startDate,
+                      request.endDate,
+                    );
+                    return (
+                      <TableRow key={request.id}>
+                        <TableCell className="px-3 first:pl-5">
+                          <p className="font-semibold">
+                            {request.requester.displayName}
+                          </p>
+                          <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                            {request.requester.unitName}
+                          </p>
+                        </TableCell>
+                        <TableCell className="px-3 text-[var(--text-muted)]">
+                          <span className="block whitespace-nowrap">
+                            {period}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-[var(--text-faint)]">
+                            {year}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-3 last:pr-5">
+                          <Badge
+                            className="max-w-full whitespace-normal leading-tight"
+                            variant={status[request.status].tone}
+                          >
+                            {status[request.status].label}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </tbody>
               </Table>
             ) : (
@@ -478,4 +497,22 @@ export function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function formatCompactPeriod(startValue: string, endValue: string) {
+  const start = new Date(`${startValue}T12:00:00`);
+  const end = new Date(`${endValue}T12:00:00`);
+  const year = end.getFullYear();
+  const endLabel = dayMonth.format(end).replace(" de ", " ");
+
+  if (start.getFullYear() === year && start.getMonth() === end.getMonth()) {
+    return [`${day.format(start)}–${endLabel}`, String(year)] as const;
+  }
+  const startLabel = dayMonth.format(start).replace(" de ", " ");
+  return start.getFullYear() === year
+    ? ([`${startLabel} – ${endLabel}`, String(year)] as const)
+    : ([
+        `${startLabel} – ${endLabel}`,
+        `${start.getFullYear()}/${year}`,
+      ] as const);
 }

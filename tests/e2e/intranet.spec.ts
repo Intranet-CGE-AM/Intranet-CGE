@@ -107,8 +107,7 @@ test("complete HR journey from import through final vacation approval", async ({
   await firstLogin(page, worker, "Trabalhador");
   await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await page.getByLabel("Data inicial").fill("2026-09-01");
-  await page.getByLabel("Data final").fill("2026-09-15");
+  await chooseDateRange(page, "Período das férias", "2026-09-01", "2026-09-15");
   await page.getByRole("button", { name: "Enviar para chefia" }).click();
   await expect(page.getByText("Aguardando chefia")).toBeVisible();
 
@@ -313,4 +312,34 @@ async function chooseOption(page: Page, field: string, option: string) {
   await page
     .getByRole("option", { name: new RegExp(`^${option}(?: ·|$)`) })
     .click();
+}
+
+async function chooseDateRange(
+  page: Page,
+  field: string,
+  start: string,
+  end: string,
+) {
+  await page.getByRole("button", { name: field, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Selecionar período" });
+  for (const [index, date] of [start, end].entries()) {
+    const dateButton = dialog.getByRole("button", {
+      name: `Selecionar ${date}`,
+      exact: true,
+    });
+    for (
+      let month = 0;
+      month < 36 && !(await dateButton.isVisible());
+      month++
+    ) {
+      await dialog.getByRole("button", { name: "Próximo mês" }).click();
+    }
+    if (index === 1) {
+      await dateButton.hover();
+      await expect(
+        dialog.locator(".cge-range-preview-middle").first(),
+      ).toBeVisible();
+    }
+    await dateButton.click();
+  }
 }

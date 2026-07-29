@@ -65,6 +65,141 @@ a {
   background: rgb(7 95 99 / 20%);
 }
 
+.cge-calendar {
+  --rdp-accent-color: var(--brand);
+  --rdp-accent-background-color: var(--brand-soft);
+  --rdp-animation_duration: 180ms;
+  --rdp-animation_timing: cubic-bezier(0.16, 1, 0.3, 1);
+  --rdp-day-height: 38px;
+  --rdp-day-width: 38px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-disabled-opacity: 0.35;
+  --rdp-months-gap: 20px;
+  --rdp-nav_button-height: 32px;
+  --rdp-nav_button-width: 32px;
+  --rdp-nav-height: 38px;
+  --rdp-outside-opacity: 0.42;
+  --rdp-range_middle-background-color: var(--brand-soft);
+  --rdp-selected-border: 0;
+  margin: 0;
+  padding: 16px;
+}
+
+.cge-calendar .rdp-months {
+  justify-content: center;
+}
+
+.cge-calendar .rdp-month_caption {
+  align-items: center;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.cge-calendar .rdp-nav {
+  gap: 4px;
+}
+
+.cge-calendar .rdp-button_next,
+.cge-calendar .rdp-button_previous {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.cge-calendar .rdp-button_next:hover,
+.cge-calendar .rdp-button_previous:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.cge-calendar .rdp-button_next:active,
+.cge-calendar .rdp-button_previous:active {
+  transform: scale(0.96);
+}
+
+.cge-calendar .rdp-day_button {
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.cge-calendar .rdp-day:not(.rdp-disabled) .rdp-day_button:hover {
+  background: var(--surface-subtle);
+}
+
+.cge-calendar .rdp-day_button:focus-visible,
+.cge-calendar .rdp-button_next:focus-visible,
+.cge-calendar .rdp-button_previous:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.cge-calendar .rdp-range_start .rdp-day_button,
+.cge-calendar .rdp-range_end .rdp-day_button {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.cge-calendar
+  .rdp-selected:not(.rdp-range_start, .rdp-range_end)
+  .rdp-day_button {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.cge-calendar .rdp-range_middle .rdp-day_button {
+  color: var(--brand-strong);
+}
+
+.cge-calendar .cge-range-preview-start {
+  background: linear-gradient(
+    to right,
+    transparent 50%,
+    color-mix(in srgb, var(--brand-soft) 72%, transparent) 50%
+  );
+}
+
+.cge-calendar .cge-range-preview-middle {
+  background: color-mix(in srgb, var(--brand-soft) 72%, transparent);
+}
+
+.cge-calendar .cge-range-preview-middle .rdp-day_button {
+  border-radius: 0;
+  color: var(--brand-strong);
+}
+
+.cge-calendar .cge-range-preview-end {
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--brand-soft) 72%, transparent) 50%,
+    transparent 50%
+  );
+}
+
+.cge-calendar .cge-range-preview-end .rdp-day_button {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--brand);
+  color: var(--brand-strong);
+}
+
+.cge-calendar .rdp-today:not(.rdp-range_start, .rdp-range_end) .rdp-day_button {
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+@media (max-width: 680px) {
+  .cge-calendar .rdp-months {
+    flex-direction: column;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

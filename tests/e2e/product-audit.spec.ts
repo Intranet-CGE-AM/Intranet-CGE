@@ -209,8 +209,7 @@ test("homolog worker sees every vacation state and immutable history", async ({
   await page.getByRole("button", { name: "Fechar" }).click();
 
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await page.getByLabel("Data inicial").fill("2027-05-01");
-  await page.getByLabel("Data final").fill("2027-05-10");
+  await chooseDateRange(page, "Período das férias", "2027-05-01", "2027-05-10");
   await page.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(page.getByText(/Rascunho salvo/)).toBeVisible();
   const newDraft = page.getByRole("row").filter({ hasText: "01 de mai." });
@@ -715,8 +714,7 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   await login(page, accounts.contractor, password);
   await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await page.getByLabel("Data inicial").fill("2027-02-01");
-  await page.getByLabel("Data final").fill("2027-02-10");
+  await chooseDateRange(page, "Período das férias", "2027-02-01", "2027-02-10");
   await page.getByRole("button", { name: "Enviar para chefia" }).click();
   await expect(
     page
@@ -821,8 +819,7 @@ test("first access exposes multiple modules and explains a missing supervisor", 
     page.getByText("Você ainda não possui solicitações."),
   ).toBeVisible();
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await page.getByLabel("Data inicial").fill("2028-02-01");
-  await page.getByLabel("Data final").fill("2028-02-10");
+  await chooseDateRange(page, "Período das férias", "2028-02-01", "2028-02-10");
   await page.getByRole("button", { name: "Enviar para chefia" }).click();
   await expect(
     page
@@ -956,8 +953,7 @@ test("stale vacation actions return an actionable concurrency state", async ({
   await login(page, accounts.worker, password);
   await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await page.getByLabel("Data inicial").fill("2028-06-01");
-  await page.getByLabel("Data final").fill("2028-06-10");
+  await chooseDateRange(page, "Período das férias", "2028-06-01", "2028-06-10");
   await page.getByRole("button", { name: "Salvar rascunho" }).click();
   await expect(page.getByText(/Rascunho salvo/)).toBeVisible();
 
@@ -1293,4 +1289,34 @@ async function chooseMultiOption(page: Page, field: string, option: string) {
 async function chooseFirstOption(page: Page, field: string) {
   await page.getByRole("combobox", { name: field, exact: true }).click();
   await page.getByRole("option").first().click();
+}
+
+async function chooseDateRange(
+  page: Page,
+  field: string,
+  start: string,
+  end: string,
+) {
+  await page.getByRole("button", { name: field, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Selecionar período" });
+  for (const [index, date] of [start, end].entries()) {
+    const dateButton = dialog.getByRole("button", {
+      name: `Selecionar ${date}`,
+      exact: true,
+    });
+    for (
+      let month = 0;
+      month < 36 && !(await dateButton.isVisible());
+      month++
+    ) {
+      await dialog.getByRole("button", { name: "Próximo mês" }).click();
+    }
+    if (index === 1) {
+      await dateButton.hover();
+      await expect(
+        dialog.locator(".cge-range-preview-middle").first(),
+      ).toBeVisible();
+    }
+    await dateButton.click();
+  }
 }
