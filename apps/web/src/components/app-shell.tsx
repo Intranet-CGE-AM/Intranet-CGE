@@ -15,7 +15,6 @@ import {
   CaretLeft,
   CaretRight,
   CaretUpDown,
-  Key,
   List,
   ShieldCheck,
   SignOut,
@@ -256,12 +255,6 @@ function AccountMenu({
           <Link onClick={onNavigate} to="/conta">
             <UserCircle aria-hidden="true" size={18} />
             Minha conta
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link onClick={onNavigate} to="/conta#seguranca">
-            <Key aria-hidden="true" size={18} />
-            Alterar senha
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

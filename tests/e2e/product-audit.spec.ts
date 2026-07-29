@@ -58,7 +58,7 @@ test("default home exposes permitted destinations and account context", async ({
     .click();
   await expect(
     page.getByRole("menuitem", { name: "Alterar senha" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Minha conta" }).click();
   await expect(
     page.getByRole("heading", { name: "Minha conta" }),
