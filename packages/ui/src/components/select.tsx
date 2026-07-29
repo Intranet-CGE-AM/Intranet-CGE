@@ -38,6 +38,20 @@ type SearchableSelectProps = CommonSelectProps & {
   searching?: boolean;
 };
 
+type SearchableMultiSelectProps = {
+  "aria-describedby"?: string;
+  className?: string;
+  disabled?: boolean;
+  emptyText?: string;
+  id: string;
+  name: string;
+  onValuesChange: (values: string[]) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  values: string[];
+};
+
 const triggerClassName =
   "flex min-h-10 w-full items-center justify-between gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,background-color,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] aria-invalid:border-[var(--danger)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] disabled:text-[var(--text-faint)] data-[placeholder]:text-[var(--text-faint)] active:scale-[0.995]";
 
@@ -238,4 +252,174 @@ export function SearchableSelect({
       ) : null}
     </div>
   );
+}
+
+export function SearchableMultiSelect({
+  className,
+  disabled,
+  emptyText = "Nenhuma opção encontrada.",
+  id,
+  name,
+  onValuesChange,
+  options,
+  placeholder = "Selecione",
+  searchPlaceholder = "Pesquisar…",
+  values,
+  ...ariaProps
+}: SearchableMultiSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selectedOptions = options.filter((option) =>
+    values.includes(option.value),
+  );
+  const normalizedQuery = normalizeSearch(query);
+  const filteredOptions = normalizedQuery
+    ? options.filter((option) =>
+        normalizeSearch(
+          [option.label, ...(option.keywords ?? [])].join(" "),
+        ).includes(normalizedQuery),
+      )
+    : options;
+  const summary =
+    selectedOptions.length === 1
+      ? selectedOptions[0]!.label
+      : selectedOptions.length > 1
+        ? `${selectedOptions.length} opções`
+        : placeholder;
+
+  function toggle(nextValue: string) {
+    onValuesChange(
+      values.includes(nextValue)
+        ? values.filter((value) => value !== nextValue)
+        : [...values, nextValue],
+    );
+  }
+
+  return (
+    <div className="relative">
+      <input name={name} type="hidden" value={values.join(",")} />
+      <PopoverPrimitive.Root
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) setQuery("");
+        }}
+        open={open}
+      >
+        <PopoverPrimitive.Trigger asChild>
+          <button
+            aria-describedby={ariaProps["aria-describedby"]}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            className={cn(triggerClassName, className)}
+            disabled={disabled}
+            id={id}
+            type="button"
+          >
+            <span
+              className={cn(
+                "truncate",
+                !selectedOptions.length && "text-[var(--text-faint)]",
+              )}
+            >
+              {summary}
+            </span>
+            <CaretUpDown aria-hidden="true" className="shrink-0" size={16} />
+          </button>
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Content
+            align="start"
+            className="z-50 w-[var(--radix-popover-trigger-width)] min-w-64 overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-1.5 text-[var(--text)] shadow-[0_14px_38px_rgb(16_35_38/14%)]"
+            aria-label={`Selecionar ${placeholder.toLowerCase()}`}
+            role="dialog"
+            sideOffset={6}
+          >
+            <div className="flex items-center gap-2 border-b border-[var(--border)] px-2">
+              <MagnifyingGlass
+                aria-hidden="true"
+                className="shrink-0 text-[var(--text-faint)]"
+                size={16}
+              />
+              <input
+                aria-label={`Pesquisar ${placeholder.toLowerCase()}`}
+                autoFocus
+                className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-faint)]"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                type="search"
+                value={query}
+              />
+            </div>
+            <div
+              aria-label={`Opções de ${placeholder.toLowerCase()}`}
+              className="max-h-64 overflow-y-auto py-1"
+              role="group"
+            >
+              {filteredOptions.length ? (
+                filteredOptions.map((option) => {
+                  const checked = values.includes(option.value);
+                  return (
+                    <label
+                      className={cn(
+                        "flex min-h-10 cursor-pointer select-none items-center gap-3 rounded-[9px] px-3 py-2 text-sm hover:bg-[var(--surface-subtle)] has-[input:focus-visible]:outline-none has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-inset has-[input:focus-visible]:ring-[var(--focus)]",
+                        option.disabled &&
+                          "pointer-events-none cursor-not-allowed opacity-45",
+                      )}
+                      key={option.value}
+                    >
+                      <input
+                        checked={checked}
+                        className="sr-only"
+                        disabled={option.disabled}
+                        onChange={() => toggle(option.value)}
+                        type="checkbox"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "grid size-4 shrink-0 place-items-center rounded-[4px] border",
+                          checked
+                            ? "border-[var(--brand)] bg-[var(--brand)] text-white"
+                            : "border-[var(--border)] bg-white",
+                        )}
+                      >
+                        {checked ? (
+                          <Check aria-hidden="true" size={11} weight="bold" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {option.label}
+                      </span>
+                    </label>
+                  );
+                })
+              ) : (
+                <p className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
+                  {emptyText}
+                </p>
+              )}
+            </div>
+            {values.length ? (
+              <div className="border-t border-[var(--border)] p-1 pt-1.5">
+                <button
+                  className="min-h-9 w-full rounded-[8px] px-3 text-left text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus)]"
+                  onClick={() => onValuesChange([])}
+                  type="button"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+            ) : null}
+          </PopoverPrimitive.Content>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
+    </div>
+  );
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt-BR");
 }

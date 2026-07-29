@@ -3,7 +3,18 @@ import {
   auditOutcomeSchema,
   authErrorSchema,
 } from "@cge/contracts";
-import { and, count, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lt,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -16,11 +27,32 @@ import { userAccounts } from "../auth/schema.js";
 import { people } from "../people/schema.js";
 import { auditEvents } from "./schema.js";
 
+const splitValues = (value: string) =>
+  [...new Set(value.split(",").map((item) => item.trim()))].filter(Boolean);
+
 const filterSchema = z.object({
   query: z.string().trim().max(120).optional(),
-  outcome: auditOutcomeSchema.optional(),
-  action: z.string().trim().max(120).optional(),
-  objectType: z.string().trim().max(80).optional(),
+  outcome: z
+    .string()
+    .trim()
+    .max(80)
+    .transform(splitValues)
+    .pipe(z.array(auditOutcomeSchema).min(1).max(3))
+    .optional(),
+  action: z
+    .string()
+    .trim()
+    .max(6_050)
+    .transform(splitValues)
+    .pipe(z.array(z.string().min(1).max(120)).min(1).max(50))
+    .optional(),
+  objectType: z
+    .string()
+    .trim()
+    .max(4_050)
+    .transform(splitValues)
+    .pipe(z.array(z.string().min(1).max(80)).min(1).max(50))
+    .optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
 });
@@ -43,10 +75,14 @@ function auditWhere(filters: AuditFilters) {
     ? new Date(new Date(`${filters.to}T00:00:00-04:00`).getTime() + 86_400_000)
     : null;
   return and(
-    filters.outcome ? eq(auditEvents.outcome, filters.outcome) : undefined,
-    filters.action ? eq(auditEvents.action, filters.action) : undefined,
-    filters.objectType
-      ? eq(auditEvents.objectType, filters.objectType)
+    filters.outcome?.length
+      ? inArray(auditEvents.outcome, filters.outcome)
+      : undefined,
+    filters.action?.length
+      ? inArray(auditEvents.action, filters.action)
+      : undefined,
+    filters.objectType?.length
+      ? inArray(auditEvents.objectType, filters.objectType)
       : undefined,
     from ? gte(auditEvents.createdAt, from) : undefined,
     to ? lt(auditEvents.createdAt, to) : undefined,

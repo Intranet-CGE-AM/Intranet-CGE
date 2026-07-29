@@ -12,7 +12,7 @@ import {
   EmptyState,
   FormField,
   Input,
-  Select,
+  SearchableMultiSelect,
   TableSkeleton,
   type ColumnDef,
 } from "@cge/ui";
@@ -73,16 +73,14 @@ const outcomeLabels: Record<AuditOutcome, string> = {
   denied: "Negado",
 };
 
-const allValue = "all";
-
 export function AuditPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [outcome, setOutcome] = useState<AuditOutcome | "">("");
-  const [action, setAction] = useState("");
-  const [objectType, setObjectType] = useState("");
+  const [outcomes, setOutcomes] = useState<AuditOutcome[]>([]);
+  const [actions, setActions] = useState<string[]>([]);
+  const [objectTypes, setObjectTypes] = useState<string[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
@@ -98,9 +96,9 @@ export function AuditPage() {
     pageSize: String(pageSize),
   });
   if (search) filters.set("query", search);
-  if (outcome) filters.set("outcome", outcome);
-  if (action) filters.set("action", action);
-  if (objectType) filters.set("objectType", objectType);
+  if (outcomes.length) filters.set("outcome", outcomes.join(","));
+  if (actions.length) filters.set("action", actions.join(","));
+  if (objectTypes.length) filters.set("objectType", objectTypes.join(","));
   if (from) filters.set("from", from);
   if (to) filters.set("to", to);
 
@@ -132,7 +130,7 @@ export function AuditPage() {
         if (!signal?.aborted) setLoading(false);
       }
     },
-    [action, from, objectType, outcome, page, pageSize, search, to],
+    [actions, from, objectTypes, outcomes, page, pageSize, search, to],
   );
 
   useEffect(() => {
@@ -244,9 +242,9 @@ export function AuditPage() {
   function clearFilters() {
     setQuery("");
     setSearch("");
-    setOutcome("");
-    setAction("");
-    setObjectType("");
+    setOutcomes([]);
+    setActions([]);
+    setObjectTypes([]);
     setFrom("");
     setTo("");
     setPage(1);
@@ -320,57 +318,56 @@ export function AuditPage() {
               </div>
             </FormField>
             <FormField htmlFor="auditOutcome" label="Resultado">
-              <Select
+              <SearchableMultiSelect
                 id="auditOutcome"
                 name="auditOutcome"
-                onValueChange={(value) => {
+                onValuesChange={(values) => {
                   setPage(1);
-                  setOutcome(value === allValue ? "" : (value as AuditOutcome));
+                  setOutcomes(values as AuditOutcome[]);
                 }}
                 options={[
-                  { label: "Todos", value: allValue },
                   { label: "Sucesso", value: "success" },
                   { label: "Falha", value: "failure" },
                   { label: "Negado", value: "denied" },
                 ]}
-                value={outcome || allValue}
+                placeholder="Todos"
+                searchPlaceholder="Pesquisar resultado…"
+                values={outcomes}
               />
             </FormField>
             <FormField htmlFor="auditObject" label="Área">
-              <Select
+              <SearchableMultiSelect
                 id="auditObject"
                 name="auditObject"
-                onValueChange={(value) => {
+                onValuesChange={(values) => {
                   setPage(1);
-                  setObjectType(value === allValue ? "" : value);
+                  setObjectTypes(values);
                 }}
-                options={[
-                  { label: "Todas", value: allValue },
-                  ...Object.entries(objectLabels).map(([value, label]) => ({
-                    label,
-                    value,
-                  })),
-                ]}
-                value={objectType || allValue}
+                options={Object.entries(objectLabels).map(([value, label]) => ({
+                  label,
+                  value,
+                }))}
+                placeholder="Todas"
+                searchPlaceholder="Pesquisar área…"
+                values={objectTypes}
               />
             </FormField>
             <FormField htmlFor="auditAction" label="Evento">
-              <Select
+              <SearchableMultiSelect
                 id="auditAction"
                 name="auditAction"
-                onValueChange={(value) => {
+                onValuesChange={(values) => {
                   setPage(1);
-                  setAction(value === allValue ? "" : value);
+                  setActions(values);
                 }}
-                options={[
-                  { label: "Todos", value: allValue },
-                  ...Object.entries(actionLabels)
-                    .sort(([, left], [, right]) =>
-                      left.localeCompare(right, "pt-BR"),
-                    )
-                    .map(([value, label]) => ({ label, value })),
-                ]}
-                value={action || allValue}
+                options={Object.entries(actionLabels)
+                  .sort(([, left], [, right]) =>
+                    left.localeCompare(right, "pt-BR"),
+                  )
+                  .map(([value, label]) => ({ label, value }))}
+                placeholder="Todos"
+                searchPlaceholder="Pesquisar evento…"
+                values={actions}
               />
             </FormField>
             <FormField htmlFor="auditFrom" label="A partir de">

@@ -594,7 +594,14 @@ test("individual access overrides and audit module work end to end", async ({
     .getByRole("searchbox", { name: "Buscar nos registros" })
     .fill("permission-override.created");
   await expect(page.getByText("Página 1 de 1")).toBeVisible();
-  await chooseOption(page, "Resultado", "Sucesso");
+  await chooseMultiOption(page, "Resultado", "Sucesso");
+  await chooseMultiOption(page, "Resultado", "Falha");
+  await expect(
+    page.getByRole("button", { name: "Resultado", exact: true }),
+  ).toContainText("2 opções");
+  await chooseMultiOption(page, "Área", "Ajuste individual");
+  await chooseMultiOption(page, "Evento", "Ajuste individual aplicado");
+  await chooseMultiOption(page, "Evento", "Ajuste individual removido");
   await expect(
     page.getByText("Ajuste individual aplicado", { exact: true }),
   ).toHaveCount(2);
@@ -609,6 +616,32 @@ test("individual access overrides and audit module work end to end", async ({
   ).toContainText("permission-override.created");
   await page.getByRole("button", { name: "Fechar" }).click();
   await expectAccessiblePage(page, "/sistema/auditoria filtrada", 1280);
+
+  const multiFilterResponse = await page.request.get(
+    "/api/audit-events?outcome=success,failure&action=permission-override.created,auth.login&objectType=permission-override,homolog-fixture&pageSize=100",
+  );
+  expect(multiFilterResponse.status()).toBe(200);
+  const multiFilterEvents = (await multiFilterResponse.json()).events as Array<{
+    action: string;
+    objectType: string;
+    outcome: string;
+  }>;
+  expect(
+    multiFilterEvents.some(
+      (event) =>
+        event.action === "permission-override.created" &&
+        event.objectType === "permission-override" &&
+        event.outcome === "success",
+    ),
+  ).toBe(true);
+  expect(
+    multiFilterEvents.some(
+      (event) =>
+        event.action === "auth.login" &&
+        event.objectType === "homolog-fixture" &&
+        event.outcome === "failure",
+    ),
+  ).toBe(true);
 
   const exportResponse = await page.request.get(
     "/api/audit-events/export?action=permission-override.created",
@@ -1197,6 +1230,15 @@ async function chooseOption(page: Page, field: string, option: string) {
   await page
     .getByRole("option", { name: new RegExp(`^${option}(?: ·|$)`) })
     .click();
+}
+
+async function chooseMultiOption(page: Page, field: string, option: string) {
+  await page.getByRole("button", { name: field, exact: true }).click();
+  await page.getByRole("searchbox", { name: /^Pesquisar/ }).fill(option);
+  const checkbox = page.getByRole("checkbox", { name: option, exact: true });
+  await page.getByRole("dialog").getByText(option, { exact: true }).click();
+  await expect(checkbox).toBeChecked();
+  await page.keyboard.press("Escape");
 }
 
 async function chooseFirstOption(page: Page, field: string) {
