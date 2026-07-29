@@ -685,6 +685,9 @@ test("administration onboards an employee and supports account operations", asyn
       .getByText(/pessoas, vínculos, chefias e lotações/i),
   ).toBeVisible();
   await expectAccessiblePage(page, "explicação de permissão", 1280);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectAccessiblePage(page, "permissões em tela estreita", 390);
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page
     .getByLabel("Descrição")
     .fill("Acesso de colaborador validado em homologação.");

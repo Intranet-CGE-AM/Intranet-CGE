@@ -963,7 +963,7 @@ export function AdminPage() {
         }}
       >
         <DialogContent
-          className="max-w-2xl"
+          className="max-w-3xl"
           title={
             roleDialog === "new"
               ? "Novo perfil de acesso"
@@ -1006,47 +1006,56 @@ export function AdminPage() {
                 Combine acessos de módulos diferentes no mesmo perfil.
               </p>
               <TooltipProvider delayDuration={350}>
-                <div className="mt-3 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+                <div className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)]">
                   {permissionGroups.map((group) => (
-                    <section
-                      className="grid gap-3 py-4 sm:grid-cols-[180px_minmax(0,1fr)]"
-                      key={group.key}
-                    >
-                      <div>
-                        <h3 className="text-sm font-bold">{group.title}</h3>
-                        <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">
+                    <section className="py-5" key={group.key}>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+                        <h3 className="text-sm font-extrabold tracking-[-0.015em]">
+                          {group.title}
+                        </h3>
+                        <p className="text-xs leading-5 text-[var(--text-muted)]">
                           {group.description}
                         </p>
                       </div>
-                      <div className="grid gap-1 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-x-8 gap-y-1 sm:grid-cols-2">
                         {group.permissions.map((permission) => (
                           <div
-                            className="flex min-h-10 items-center rounded-lg px-2 text-xs hover:bg-[var(--surface-subtle)]"
+                            className="grid min-h-14 grid-cols-[18px_minmax(0,1fr)_32px] items-start gap-3 rounded-[10px] px-2 py-2.5 transition-colors hover:bg-[var(--surface-subtle)]"
                             key={permission}
                           >
-                            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                              <input
-                                className="size-4 shrink-0 accent-[var(--brand)]"
-                                defaultChecked={
-                                  roleDialog !== "new" &&
-                                  roleDialog?.permissions.includes(permission)
-                                }
-                                name="permissions"
-                                type="checkbox"
-                                value={permission}
-                              />
-                              <span>{permissionLabels[permission]}</span>
-                              {!permissionSupportsUnitScope(permission) ? (
-                                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[var(--text-faint)]">
-                                  Organização
-                                </span>
-                              ) : null}
-                            </label>
+                            <input
+                              aria-describedby={`permission-scope-${permission}`}
+                              className="mt-0.5 size-[18px] shrink-0 accent-[var(--brand)]"
+                              defaultChecked={
+                                roleDialog !== "new" &&
+                                roleDialog?.permissions.includes(permission)
+                              }
+                              id={`permission-${permission}`}
+                              name="permissions"
+                              type="checkbox"
+                              value={permission}
+                            />
+                            <div className="min-w-0">
+                              <label
+                                className="block cursor-pointer text-sm font-semibold leading-5"
+                                htmlFor={`permission-${permission}`}
+                              >
+                                {permissionLabels[permission]}
+                              </label>
+                              <span
+                                className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-faint)]"
+                                id={`permission-scope-${permission}`}
+                              >
+                                {permissionSupportsUnitScope(permission)
+                                  ? "Organização ou unidade"
+                                  : "Somente organização"}
+                              </span>
+                            </div>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
                                   aria-label={`Explicar permissão ${permissionLabels[permission]}`}
-                                  className="ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--text-faint)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]"
+                                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--text-faint)] hover:bg-white hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]"
                                   type="button"
                                 >
                                   <Question aria-hidden="true" size={15} />

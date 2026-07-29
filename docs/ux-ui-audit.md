@@ -71,7 +71,7 @@ crítico ou alto em aberto.
 | UI             |     92 | tokens compartilhados, hierarquia mais firme, menos recipientes, ícones Phosphor sem blocos decorativos repetidos |
 | Acessibilidade |     95 | teclado, foco contido/restaurado, Escape, contraste AA, semântica e rolagem de tabelas acessível                  |
 | Responsividade |     94 | login e quatro rotas críticas sem overflow em 390 × 844, 768 × 1024 e 1440 × 900                                  |
-| Cobertura      |     96 | 19 cenários Playwright, 25 varreduras Axe, 19 testes de API/contratos e seed com todos os estados relevantes      |
+| Cobertura      |     96 | 19 cenários Playwright, 26 varreduras Axe, 19 testes de API/contratos e seed com todos os estados relevantes      |
 | **Geral**      | **94** | aprovado                                                                                                          |
 
 Não restou problema crítico ou alto no escopo v1 auditado.
