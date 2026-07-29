@@ -27,7 +27,7 @@ próximo passo.
 | Média      | Importação CSV        | O fluxo pede um arquivo sem oferecer formato ou modelo                    | A tela oferece modelo para download e explica validar antes de aplicar                        |
 | Média      | Perfis de acesso      | “Papel”, “atribuição” e “escopo” são técnicos                             | A interface usa “Perfil de acesso”, “Conceder acesso” e “Onde o acesso vale”                  |
 | Média      | Auditoria             | Tipos de objeto aparecem em inglês técnico                                | Tipos são traduzidos para conceitos do produto                                                |
-| Média      | Hub                   | A entrada do módulo é clara, mas não indica trabalho pendente             | O hub continua simples; prioridade operacional fica dentro do módulo                          |
+| Média      | Hub                   | A entrada do módulo é clara, mas não organiza módulos e ferramentas       | A página inicial separa módulos, atalhos reais, ferramentas do sistema e contexto da conta    |
 
 ## Contratos por jornada
 
@@ -55,8 +55,11 @@ Critérios:
 
 Critérios:
 
+- o módulo principal e seus atalhos autorizados ficam visíveis sem navegação
+  intermediária;
 - uma pendência de férias nunca direciona ao diretório;
 - módulos sem permissão não aparecem;
+- ferramentas administrativas aparecem separadas dos módulos de negócio;
 - rotas antigas continuam redirecionando.
 
 ### 3. Encontrar e administrar colaboradores
@@ -187,7 +190,7 @@ Critérios:
 
 Todos os fluxos priorizados neste mapa foram implementados em `main`.
 
-- 16 de 16 cenários Playwright aprovados;
+- 17 de 17 cenários Playwright aprovados;
 - 15 de 15 testes da API aprovados;
 - rotas críticas aprovadas pelo Axe em 390 px, 768 px e 1440 px;
 - formatação, lint, tipos e builds de produção aprovados.

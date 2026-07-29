@@ -200,7 +200,7 @@ export function AppShell() {
     ? "Módulo da Intranet CGE"
     : inSystem
       ? "Configurações compartilhadas"
-      : "Hub de módulos";
+      : "Página inicial da intranet";
 
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

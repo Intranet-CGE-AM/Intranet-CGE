@@ -71,7 +71,7 @@ crítico ou alto em aberto.
 | UI             |     92 | tokens compartilhados, hierarquia mais firme, menos recipientes, ícones Phosphor sem blocos decorativos repetidos |
 | Acessibilidade |     95 | teclado, foco contido/restaurado, Escape, contraste AA, semântica e rolagem de tabelas acessível                  |
 | Responsividade |     94 | login e quatro rotas críticas sem overflow em 390 × 844, 768 × 1024 e 1440 × 900                                  |
-| Cobertura      |     95 | 16 cenários Playwright, 24 varreduras Axe, 15 testes de API e seed com todos os estados relevantes                |
+| Cobertura      |     95 | 17 cenários Playwright, 24 varreduras Axe, 15 testes de API e seed com todos os estados relevantes                |
 | **Geral**      | **94** | aprovado                                                                                                          |
 
 Não restou problema crítico ou alto no escopo v1 auditado.
@@ -85,6 +85,8 @@ Não restou problema crítico ou alto no escopo v1 auditado.
   erro exibido dentro do diálogo que originou a operação.
 - Fotos são privadas, normalizadas e exibidas pelo mesmo componente
   compartilhado no menu, diretório e aniversários.
+- A página inicial separa módulos, atalhos autorizados, ferramentas do sistema
+  e contexto funcional sem inventar indicadores ou destinos indisponíveis.
 - Férias valida datas e elegibilidade, exige motivo na rejeição, mostra o
   histórico imutável e impede ações sem vínculo funcional.
 - O menu móvel contém foco, fecha por Escape e devolve foco ao acionador.
@@ -99,7 +101,7 @@ Executado em 28 de julho de 2026:
 
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck` e `pnpm build`;
 - `pnpm test`: 15 testes de API aprovados;
-- `pnpm test:e2e`: 16 cenários aprovados em conjunto;
+- `pnpm test:e2e`: 17 cenários aprovados em conjunto;
 - Axe: login, painel, pessoas, férias e administração nos três tamanhos, sem
   violação AA e sem overflow de página;
 - seed executado duas vezes no mesmo PostgreSQL de homologação, mantendo as

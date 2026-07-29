@@ -19,6 +19,40 @@ const admin = {
   password: "Admin-E2E-Password-123",
 };
 
+test("default home exposes permitted destinations and account context", async ({
+  page,
+}) => {
+  await login(page, accounts.worker, password);
+  await expect(page.getByRole("heading", { name: "Olá, Caio." })).toBeVisible();
+
+  const hrModule = page.getByRole("region", { name: "Recursos Humanos" });
+  await expect(
+    hrModule.getByRole("link", { name: "Entrar no módulo" }),
+  ).toHaveAttribute("href", "/rh");
+  await expect(
+    hrModule.getByRole("link", { name: "Colaboradores" }),
+  ).toHaveAttribute("href", "/rh/colaboradores");
+  await expect(hrModule.getByRole("link", { name: "Férias" })).toHaveAttribute(
+    "href",
+    "/rh/ferias",
+  );
+  await expect(
+    page
+      .getByRole("main")
+      .getByRole("link", { name: "Administração", exact: true }),
+  ).toHaveCount(0);
+
+  const accountContext = page.getByRole("region", {
+    name: "Contexto da conta",
+  });
+  await expect(
+    accountContext.getByText("Tecnologia da Informação", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    accountContext.getByText(accounts.worker, { exact: true }),
+  ).toBeVisible();
+});
+
 test("homolog worker sees every vacation state and immutable history", async ({
   page,
 }) => {
