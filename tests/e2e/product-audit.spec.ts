@@ -87,8 +87,24 @@ test("default home exposes permitted destinations and account context", async ({
   await expect(
     page.locator('main [data-slot="avatar"] img').first(),
   ).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Remover foto" }).click();
+  const removePhoto = page.getByRole("button", {
+    name: "Remover foto",
+    exact: true,
+  });
+  await removePhoto.click();
+  const removePhotoDialog = page.getByRole("alertdialog", {
+    name: "Remover sua foto?",
+  });
+  await expect(removePhotoDialog).toBeVisible();
+  await expectAccessiblePage(page, "confirmação de remoção de foto", 1280);
+  await page.keyboard.press("Escape");
+  await expect(removePhotoDialog).toHaveCount(0);
+  await expect(removePhoto).toBeFocused();
+  await removePhoto.click();
+  await page
+    .getByRole("alertdialog", { name: "Remover sua foto?" })
+    .getByRole("button", { name: "Remover foto" })
+    .click();
   await expect(page.getByText("Foto de perfil removida.")).toBeVisible();
 });
 
@@ -598,8 +614,11 @@ test("avatar upload normalizes images and respects unit scope", async ({
   await personRow
     .getByRole("button", { name: "Alterar foto de Caio Nascimento" })
     .click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Remover foto" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Remover foto?" })
+    .getByRole("button", { name: "Remover foto" })
+    .click();
   await expect(page.getByText("Foto do colaborador removida.")).toBeVisible();
   await expect(personRow.locator('[data-slot="avatar"] img')).toHaveCount(0);
 
@@ -731,6 +750,27 @@ test("administration onboards an employee and supports account operations", asyn
   await page.getByRole("button", { name: "Redefinir senha" }).click();
   await expect(page.getByText(/sessões revogadas/)).toBeVisible();
 
+  await openHrRoute(page, "Colaboradores");
+  const irisRow = page.getByRole("row").filter({ hasText: "Íris Fernandes" });
+  const deactivateIris = irisRow.getByRole("button", {
+    name: "Desativar Íris",
+  });
+  await deactivateIris.click();
+  const deactivateDialog = page.getByRole("alertdialog", {
+    name: "Desativar colaborador?",
+  });
+  await expect(deactivateDialog).toContainText(
+    "O vínculo e a conta de Íris serão desativados.",
+  );
+  await deactivateDialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(deactivateDialog).toHaveCount(0);
+  await deactivateIris.click();
+  await page
+    .getByRole("alertdialog", { name: "Desativar colaborador?" })
+    .getByRole("button", { name: "Desativar colaborador" })
+    .click();
+  await expect(page.getByText("Vínculo e conta desativados.")).toBeVisible();
+
   const audit = await page.request.get("/api/audit-events/export");
   expect(audit.ok()).toBeTruthy();
   expect(audit.headers()["content-type"]).toContain("text/csv");
@@ -738,6 +778,7 @@ test("administration onboards an employee and supports account operations", asyn
   expect(auditText).toContain("person.created");
   expect(auditText).toContain("account.created");
   expect(auditText).toContain("role.updated");
+  expect(auditText).toContain("person.deactivated");
 
   await page.getByRole("button", { name: "Recolher barra lateral" }).click();
   await expect(

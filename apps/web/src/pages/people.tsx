@@ -13,6 +13,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   EmptyState,
@@ -224,13 +225,6 @@ export function PeoplePage() {
   }
 
   async function deactivate(person: Person) {
-    if (
-      !window.confirm(
-        `Desativar o vínculo e a conta de ${person.preferredName ?? person.fullName}?`,
-      )
-    ) {
-      return;
-    }
     try {
       setDialogError("");
       setBusy(true);
@@ -295,14 +289,7 @@ export function PeoplePage() {
   }
 
   async function removeAvatar() {
-    if (
-      !avatarPerson ||
-      !window.confirm(
-        `Remover a foto de ${avatarPerson.preferredName ?? avatarPerson.fullName}?`,
-      )
-    ) {
-      return;
-    }
+    if (!avatarPerson) return;
     try {
       setBusy(true);
       setDialogError("");
@@ -470,15 +457,21 @@ export function PeoplePage() {
                             >
                               Definir chefia
                             </Button>
-                            <Button
-                              variant="quiet"
-                              size="sm"
-                              aria-label={`Desativar ${person.preferredName ?? person.fullName}`}
-                              disabled={busy}
-                              onClick={() => void deactivate(person)}
+                            <ConfirmDialog
+                              confirmLabel="Desativar colaborador"
+                              description={`O vínculo e a conta de ${person.preferredName ?? person.fullName} serão desativados. As sessões abertas serão encerradas.`}
+                              onConfirm={() => deactivate(person)}
+                              title="Desativar colaborador?"
                             >
-                              Desativar
-                            </Button>
+                              <Button
+                                variant="quiet"
+                                size="sm"
+                                aria-label={`Desativar ${person.preferredName ?? person.fullName}`}
+                                disabled={busy}
+                              >
+                                Desativar
+                              </Button>
+                            </ConfirmDialog>
                           </div>
                         ) : null}
                       </TableCell>
@@ -598,14 +591,16 @@ export function PeoplePage() {
             ) : null}
             <div className="flex flex-wrap justify-end gap-2">
               {avatarPerson?.avatarUrl ? (
-                <Button
-                  disabled={busy}
-                  onClick={() => void removeAvatar()}
-                  type="button"
-                  variant="quiet"
+                <ConfirmDialog
+                  confirmLabel="Remover foto"
+                  description={`A foto de ${avatarPerson.preferredName ?? avatarPerson.fullName} será removida do perfil.`}
+                  onConfirm={removeAvatar}
+                  title="Remover foto?"
                 >
-                  Remover foto
-                </Button>
+                  <Button disabled={busy} type="button" variant="quiet">
+                    Remover foto
+                  </Button>
+                </ConfirmDialog>
               ) : null}
               <Button
                 disabled={busy}

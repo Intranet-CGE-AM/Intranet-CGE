@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   EmptyState,
@@ -211,7 +212,6 @@ export function VacationsPage() {
   }
 
   async function cancel(request: VacationRequest) {
-    if (!window.confirm("Cancelar esta solicitação de férias?")) return;
     try {
       setBusy(true);
       setError("");
@@ -332,13 +332,16 @@ export function VacationsPage() {
                   {["draft", "submitted", "supervisor_approved"].includes(
                     request.status,
                   ) ? (
-                    <Button
-                      variant="quiet"
-                      size="sm"
-                      onClick={() => void cancel(request)}
+                    <ConfirmDialog
+                      confirmLabel="Cancelar solicitação"
+                      description={`A solicitação de ${formatPeriod(request)} será cancelada e permanecerá registrada no histórico.`}
+                      onConfirm={() => cancel(request)}
+                      title="Cancelar solicitação?"
                     >
-                      Cancelar
-                    </Button>
+                      <Button disabled={busy} variant="quiet" size="sm">
+                        Cancelar
+                      </Button>
+                    </ConfirmDialog>
                   ) : null}
                 </>
               )}

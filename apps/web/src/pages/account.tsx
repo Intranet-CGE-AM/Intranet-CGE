@@ -1,4 +1,11 @@
-import { Alert, AvatarPicker, Button, FormField, Input } from "@cge/ui";
+import {
+  Alert,
+  AvatarPicker,
+  Button,
+  ConfirmDialog,
+  FormField,
+  Input,
+} from "@cge/ui";
 import { Camera, Key, Trash } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
@@ -49,7 +56,6 @@ export function AccountPage() {
   }
 
   async function removeAvatar() {
-    if (!window.confirm("Remover sua foto de perfil?")) return;
     try {
       setAvatarBusy(true);
       setAvatarError("");
@@ -183,15 +189,17 @@ export function AccountPage() {
               {avatarBusy ? "Salvando…" : "Salvar foto"}
             </Button>
             {currentUser.person.avatarUrl ? (
-              <Button
-                disabled={avatarBusy}
-                onClick={() => void removeAvatar()}
-                type="button"
-                variant="quiet"
+              <ConfirmDialog
+                confirmLabel="Remover foto"
+                description="Sua foto será removida da intranet. Você continuará sendo identificado pelas iniciais do seu nome."
+                onConfirm={removeAvatar}
+                title="Remover sua foto?"
               >
-                <Trash aria-hidden="true" size={18} />
-                Remover foto
-              </Button>
+                <Button disabled={avatarBusy} type="button" variant="quiet">
+                  <Trash aria-hidden="true" size={18} />
+                  Remover foto
+                </Button>
+              </ConfirmDialog>
             ) : null}
           </div>
         </form>

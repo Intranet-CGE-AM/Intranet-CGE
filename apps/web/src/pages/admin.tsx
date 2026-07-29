@@ -15,6 +15,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   EmptyState,
@@ -431,13 +432,6 @@ export function AdminPage() {
   }
 
   async function deactivate(account: AdminUser) {
-    if (
-      !window.confirm(
-        `Desativar a conta de ${account.person.displayName} e revogar suas sessões?`,
-      )
-    ) {
-      return;
-    }
     await mutate(async () => {
       await api(`/api/admin/users/${account.id}/deactivate`, {
         method: "POST",
@@ -445,8 +439,7 @@ export function AdminPage() {
     }, "Conta desativada e sessões revogadas.");
   }
 
-  async function removeAssignment(assignment: RoleAssignment, label: string) {
-    if (!window.confirm(`Remover o acesso “${label}”?`)) return;
+  async function removeAssignment(assignment: RoleAssignment) {
     await mutate(async () => {
       await api(`/api/admin/role-assignments/${assignment.id}`, {
         method: "DELETE",
@@ -579,14 +572,16 @@ export function AdminPage() {
                         ) : null}
                         {account.status === "active" &&
                         account.id !== user?.account.id ? (
-                          <Button
-                            disabled={busy}
-                            size="sm"
-                            variant="quiet"
-                            onClick={() => void deactivate(account)}
+                          <ConfirmDialog
+                            confirmLabel="Desativar conta"
+                            description={`A conta de ${account.person.displayName} será desativada e todas as sessões abertas serão encerradas.`}
+                            onConfirm={() => deactivate(account)}
+                            title="Desativar conta?"
                           >
-                            Desativar
-                          </Button>
+                            <Button disabled={busy} size="sm" variant="quiet">
+                              Desativar
+                            </Button>
+                          </ConfirmDialog>
                         ) : null}
                       </div>
                     </TableCell>
@@ -716,14 +711,16 @@ export function AdminPage() {
                           {label}
                         </p>
                       </div>
-                      <Button
-                        disabled={busy}
-                        size="sm"
-                        variant="quiet"
-                        onClick={() => void removeAssignment(assignment, label)}
+                      <ConfirmDialog
+                        confirmLabel="Remover acesso"
+                        description={`O acesso “${label}” será removido desta pessoa. Outras permissões concedidas permanecerão ativas.`}
+                        onConfirm={() => removeAssignment(assignment)}
+                        title="Remover acesso?"
                       >
-                        Remover
-                      </Button>
+                        <Button disabled={busy} size="sm" variant="quiet">
+                          Remover
+                        </Button>
+                      </ConfirmDialog>
                     </div>
                   );
                 })}

@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogTrigger,
@@ -106,6 +107,14 @@ export function UiKitPage() {
               <Button>Confirmar</Button>
             </DialogContent>
           </Dialog>
+          <ConfirmDialog
+            confirmLabel="Confirmar ação"
+            description="A confirmação explicita o impacto antes de executar uma ação destrutiva."
+            onConfirm={() => undefined}
+            title="Confirmar ação?"
+          >
+            <Button variant="danger">Abrir confirmação</Button>
+          </ConfirmDialog>
           <TooltipProvider delayDuration={350}>
             <Tooltip>
               <TooltipTrigger asChild>

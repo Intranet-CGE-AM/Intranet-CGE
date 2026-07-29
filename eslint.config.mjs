@@ -14,4 +14,24 @@ export default tseslint.config(
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ["apps/web/src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        ...["alert", "confirm", "prompt"].map((name) => ({
+          message: "Use a shared @cge/ui dialog component.",
+          name,
+        })),
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...["alert", "confirm", "prompt"].map((property) => ({
+          message: "Use a shared @cge/ui dialog component.",
+          object: "window",
+          property,
+        })),
+      ],
+    },
+  },
 );
