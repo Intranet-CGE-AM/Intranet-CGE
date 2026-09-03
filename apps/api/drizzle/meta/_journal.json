@@ -36,6 +36,13 @@
       "when": 1785292056411,
       "tag": "0004_swift_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788360993827,
+      "tag": "0005_fearless_whiplash",
+      "breakpoints": true
     }
   ]
 }

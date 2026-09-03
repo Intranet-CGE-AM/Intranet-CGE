@@ -63,6 +63,11 @@ const permissionLabels: Record<PermissionKey, string> = {
   "vacations.create": "Solicitar férias",
   "vacations.review.supervisor": "Decisão da chefia",
   "vacations.review.final": "Decisão final de férias",
+  "tickets.create": "Abrir chamados de TI",
+  "tickets.read": "Consultar chamados de TI",
+  "tickets.approve": "Deliberar aprovação de TI",
+  "tickets.attend": "Atendimento técnico ATEC",
+  "tickets.manage": "Gestão e métricas de TI",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
@@ -82,9 +87,18 @@ const permissionDescriptions: Record<PermissionKey, string> = {
     "Analisa solicitações das pessoas vinculadas à chefia responsável.",
   "vacations.review.final":
     "Registra a decisão final após a aprovação da chefia.",
+  "tickets.create":
+    "Abre chamados de suporte técnico de informática e sistemas.",
+  "tickets.read": "Consulta chamados de TI no âmbito das unidades autorizadas.",
+  "tickets.approve": "Aprova ou rejeita solicitações restritas de TI do setor.",
+  "tickets.attend":
+    "Assume, executa e conclui atendimentos na fila técnica da ATEC.",
+  "tickets.manage":
+    "Administra todo o fluxo, filas, categorias e relatórios de TI.",
 };
 
-type PermissionModule = "administration" | "audit" | "people" | "vacations";
+type PermissionModule =
+  "administration" | "audit" | "people" | "vacations" | "tickets";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "access.manage": "administration",
@@ -98,6 +112,11 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "vacations.create": "vacations",
   "vacations.review.supervisor": "vacations",
   "vacations.review.final": "vacations",
+  "tickets.create": "tickets",
+  "tickets.read": "tickets",
+  "tickets.approve": "tickets",
+  "tickets.attend": "tickets",
+  "tickets.manage": "tickets",
 };
 
 const permissionGroups = [
@@ -120,6 +139,11 @@ const permissionGroups = [
     key: "vacations",
     title: "Férias",
     description: "Solicitações e decisões",
+  },
+  {
+    key: "tickets",
+    title: "Suporte e Chamados TI",
+    description: "Abertura, aprovações e atendimento ATEC",
   },
 ].map((group) => ({
   ...group,

@@ -36,6 +36,16 @@ const VacationsPage = lazy(() =>
     default: module.VacationsPage,
   })),
 );
+const TicketsPage = lazy(() =>
+  import("./pages/tickets").then((module) => ({
+    default: module.TicketsPage,
+  })),
+);
+const NewTicketPage = lazy(() =>
+  import("./pages/new-ticket").then((module) => ({
+    default: module.NewTicketPage,
+  })),
+);
 
 export function App() {
   return (
@@ -83,6 +93,26 @@ export function App() {
             }
           />
           <Route
+            path="suporte"
+            element={
+              <RequireAccess rule={accessRules.tickets}>
+                <Suspense fallback={<PageFallback />}>
+                  <TicketsPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="suporte/novo"
+            element={
+              <RequireAccess rule={accessRules.ticketsCreate}>
+                <Suspense fallback={<PageFallback />}>
+                  <NewTicketPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
             path="sistema/administracao"
             element={
               <RequireAccess rule={accessRules.administration}>
@@ -125,6 +155,7 @@ export function App() {
             element={<Navigate to="/rh/colaboradores" replace />}
           />
           <Route path="ferias" element={<Navigate to="/rh/ferias" replace />} />
+          <Route path="chamados" element={<Navigate to="/suporte" replace />} />
           <Route
             path="administracao"
             element={<Navigate to="/sistema/administracao" replace />}

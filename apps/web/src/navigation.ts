@@ -3,7 +3,9 @@ import {
   CalendarDots,
   ClipboardText,
   GearSix,
+  Headset,
   IdentificationCard,
+  PlusCircle,
   SquaresFour,
   UsersFour,
   type Icon,
@@ -58,6 +60,19 @@ export const accessRules = {
       "vacations.review.final",
     ],
   },
+  tickets: {
+    anyOf: [
+      "tickets.create",
+      "tickets.read",
+      "tickets.attend",
+      "tickets.approve",
+      "tickets.manage",
+    ],
+  },
+  ticketsCreate: { anyOf: ["tickets.create"] },
+  ticketsAttend: { anyOf: ["tickets.attend", "tickets.manage"] },
+  ticketsApprove: { anyOf: ["tickets.approve", "tickets.manage"] },
+  ticketsManage: { anyOf: ["tickets.manage", "tickets.attend"] },
 } as const satisfies Record<string, AccessRule>;
 
 export const moduleNavigation: ModuleNavigation[] = [
@@ -87,6 +102,29 @@ export const moduleNavigation: ModuleNavigation[] = [
         label: "Férias",
         href: "/rh/ferias",
         icon: CalendarDots,
+      },
+    ],
+  },
+  {
+    id: "tickets",
+    access: accessRules.tickets,
+    label: "Suporte e Chamados TI",
+    description: "Abertura, acompanhamento e atendimento técnico de TI",
+    href: "/suporte",
+    icon: Headset,
+    routes: [
+      {
+        access: accessRules.tickets,
+        label: "Painel de Chamados",
+        href: "/suporte",
+        icon: SquaresFour,
+        end: true,
+      },
+      {
+        access: accessRules.ticketsCreate,
+        label: "Novo Chamado",
+        href: "/suporte/novo",
+        icon: PlusCircle,
       },
     ],
   },

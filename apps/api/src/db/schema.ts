@@ -4,3 +4,4 @@ export * from "../modules/auth/schema.js";
 export * from "../modules/people/import-schema.js";
 export * from "../modules/people/schema.js";
 export * from "../modules/vacations/schema.js";
+export * from "../modules/tickets/schema.js";
