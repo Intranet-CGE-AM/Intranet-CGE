@@ -63,28 +63,70 @@ const permissionLabels: Record<PermissionKey, string> = {
   "vacations.create": "Solicitar férias",
   "vacations.review.supervisor": "Decisão da chefia",
   "vacations.review.final": "Decisão final de férias",
+
+  "visits.read": "Consultar agendamentos de visitas",
+  "visits.create": "Criar agendamentos de visitas",
+  "visits.manage": "Gerenciar agendamentos de visitas",
+  "visits.approve": "Aprovar agendamentos de visitas",
+
+  "assets.read": "Visualizar patrimônio",
+  "assets.manage": "Gerenciar patrimônio",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
   "access.manage":
     "Cria e altera perfis de acesso, além de concedê-los às pessoas.",
-  "accounts.manage": "Cria, desativa e redefine senhas das contas da intranet.",
-  "audit.read": "Consulta o histórico recente de ações da plataforma.",
-  "audit.export": "Baixa o histórico de auditoria em formato CSV.",
-  "people.read": "Consulta colaboradores dentro das unidades autorizadas.",
+
+  "accounts.manage":
+    "Cria, desativa e redefine senhas das contas da intranet.",
+
+  "audit.read":
+    "Consulta o histórico recente de ações da plataforma.",
+
+  "audit.export":
+    "Baixa o histórico de auditoria em formato CSV.",
+
+  "people.read":
+    "Consulta colaboradores dentro das unidades autorizadas.",
+
   "people.manage":
     "Cadastra, altera e desativa pessoas, vínculos, chefias e lotações.",
-  "people.import": "Valida e aplica importações de colaboradores por CSV.",
+
+  "people.import":
+    "Valida e aplica importações de colaboradores por CSV.",
+
   "birthdays.read":
     "Vê nome, dia e mês de quem autorizou a exibição do aniversário.",
-  "vacations.create": "Cria, envia e cancela solicitações próprias de férias.",
+
+  "vacations.create":
+    "Cria, envia e cancela solicitações próprias de férias.",
+
   "vacations.review.supervisor":
     "Analisa solicitações das pessoas vinculadas à chefia responsável.",
+
   "vacations.review.final":
     "Registra a decisão final após a aprovação da chefia.",
+
+  "visits.read":
+    "Consulta visitas, reuniões institucionais e atendimentos técnicos.",
+
+  "visits.create":
+    "Cria novos agendamentos de visitas e registra seus visitantes.",
+
+  "visits.manage":
+    "Altera, acompanha e conclui agendamentos de visitas.",
+
+  "visits.approve":
+    "Analisa, aprova ou rejeita solicitações de agendamento de visitas.",
+
+  "assets.read":
+  "Permite consultar os bens patrimoniais.",
+
+  "assets.manage":
+  "Permite cadastrar, editar e gerenciar bens patrimoniais.",
 };
 
-type PermissionModule = "administration" | "audit" | "people" | "vacations";
+type PermissionModule = "administration" | "audit" | "people" | "vacations" | "visits" | "patrimony";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "access.manage": "administration",
@@ -98,6 +140,15 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "vacations.create": "vacations",
   "vacations.review.supervisor": "vacations",
   "vacations.review.final": "vacations",
+  "visits.read": "visits",
+  "visits.create": "visits",
+  "visits.manage": "visits",
+  "visits.approve": "visits",
+
+  "assets.read": "patrimony",
+  "assets.manage": "patrimony",
+
+
 };
 
 const permissionGroups = [
@@ -121,6 +172,17 @@ const permissionGroups = [
     title: "Férias",
     description: "Solicitações e decisões",
   },
+  {
+    key: "visits",
+    title: "Agendamento de Visitas",
+    description: "Visitas, reuniões e atendimentos institucionais",
+  },
+
+  {
+    key: "patrimony",
+    title: "Controle de patrimônio",
+    description:"Consulta e gerenciamento de bens patrimonias",
+  }
 ].map((group) => ({
   ...group,
   permissions: permissionKeys.filter(
@@ -209,17 +271,17 @@ export function AdminPage() {
   const sections = [
     managesAccounts || managesAccess
       ? {
-          key: "accounts" as const,
-          label: "Pessoas e acessos",
-          count: users.length,
-        }
+        key: "accounts" as const,
+        label: "Pessoas e acessos",
+        count: users.length,
+      }
       : null,
     managesAccess
       ? {
-          key: "access" as const,
-          label: "Perfis",
-          count: roles.length,
-        }
+        key: "access" as const,
+        label: "Perfis",
+        count: roles.length,
+      }
       : null,
   ].filter(
     (
@@ -251,21 +313,21 @@ export function AdminPage() {
           : Promise.resolve({ users: [] }),
         managesPeople
           ? api<{ categories: EmploymentCategory[] }>(
-              "/api/employment-categories",
-            )
+            "/api/employment-categories",
+          )
           : Promise.resolve({ categories: [] }),
         managesAccess
           ? api<{ roles: Role[] }>("/api/admin/roles")
           : Promise.resolve({ roles: [] }),
         managesAccess
           ? api<{ assignments: RoleAssignment[] }>(
-              "/api/admin/role-assignments",
-            )
+            "/api/admin/role-assignments",
+          )
           : Promise.resolve({ assignments: [] }),
         managesAccess
           ? api<{ overrides: PermissionOverride[] }>(
-              "/api/admin/permission-overrides",
-            )
+            "/api/admin/permission-overrides",
+          )
           : Promise.resolve({ overrides: [] }),
         managesAccounts || managesAccess
           ? api<{ units: OrganizationUnit[] }>("/api/admin/organization-units")
@@ -748,8 +810,8 @@ export function AdminPage() {
                           </Button>
                         ) : null}
                         {managesAccounts &&
-                        account.status === "active" &&
-                        account.id !== user?.account.id ? (
+                          account.status === "active" &&
+                          account.id !== user?.account.id ? (
                           <ConfirmDialog
                             confirmLabel="Desativar conta"
                             description={`A conta de ${account.person.displayName} será desativada e todas as sessões abertas serão encerradas.`}
@@ -1121,15 +1183,14 @@ export function AdminPage() {
                   options={[
                     ...(onboardingAccount?.unitId
                       ? [
-                          {
-                            label: `Unidade de lotação — ${
-                              units.find(
-                                (unit) => unit.id === onboardingAccount.unitId,
-                              )?.name ?? "unidade atual"
+                        {
+                          label: `Unidade de lotação — ${units.find(
+                            (unit) => unit.id === onboardingAccount.unitId,
+                          )?.name ?? "unidade atual"
                             }`,
-                            value: "unit",
-                          },
-                        ]
+                          value: "unit",
+                        },
+                      ]
                       : []),
                     {
                       label: "Toda a organização",
@@ -1366,9 +1427,8 @@ export function AdminPage() {
                   const unit = units.find(
                     (item) => item.id === assignment.unitId,
                   );
-                  const label = `${role?.name ?? "Perfil"} · ${
-                    unit?.name ?? "Toda a organização"
-                  }`;
+                  const label = `${role?.name ?? "Perfil"} · ${unit?.name ?? "Toda a organização"
+                    }`;
                   return (
                     <div
                       className="flex min-h-12 items-center gap-3 py-2"

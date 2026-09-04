@@ -26,6 +26,8 @@ import type { ObjectStorage } from "./modules/storage/object-storage.js";
 import { systemRoutes } from "./modules/system/routes.js";
 import { vacationRoutes } from "./modules/vacations/routes.js";
 import type { VacationService } from "./modules/vacations/service.js";
+import { visitRoutes } from "./modules/visits/routes.js";
+import type { VisitService } from "./modules/visits/service.js";
 
 export async function buildApp({
   config,
@@ -35,6 +37,7 @@ export async function buildApp({
   peopleService,
   objectStorage,
   vacationService,
+  visitService,
   readinessCheck,
   logger = false,
 }: {
@@ -45,6 +48,7 @@ export async function buildApp({
   peopleService?: PeopleService;
   objectStorage?: ObjectStorage;
   vacationService?: VacationService;
+  visitService?: VisitService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
@@ -58,9 +62,9 @@ export async function buildApp({
   app.setErrorHandler((error, request, reply) => {
     const statusCode =
       typeof error === "object" &&
-      error !== null &&
-      "statusCode" in error &&
-      typeof error.statusCode === "number"
+        error !== null &&
+        "statusCode" in error &&
+        typeof error.statusCode === "number"
         ? error.statusCode
         : 500;
     if (statusCode < 500) {
@@ -150,6 +154,14 @@ export async function buildApp({
         authenticationService,
         db,
         vacationService,
+      });
+    }
+
+    if (visitService) {
+      await app.register(visitRoutes, {
+        accessService,
+        authenticationService,
+        visitService,
       });
     }
   }

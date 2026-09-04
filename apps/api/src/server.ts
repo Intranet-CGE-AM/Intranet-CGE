@@ -11,6 +11,9 @@ import { LocalAuthenticationService } from "./modules/auth/service.js";
 import { PeopleService } from "./modules/people/service.js";
 import { MinioObjectStorage } from "./modules/storage/object-storage.js";
 import { VacationService } from "./modules/vacations/service.js";
+import { VisitService } from "./modules/visits/service.js";
+import { assetRoutes, } from "./modules/assets/routes.js";
+import { AssetService, } from "./modules/assets/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
@@ -23,12 +26,16 @@ const objectStorage = new MinioObjectStorage(
   config.OBJECT_STORAGE_SECRET_KEY,
 );
 const vacationService = new VacationService(db);
+const visitService = new VisitService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
   (accountId) => accessService.resolvePermissions(accountId),
   (input) => recordAudit(db, input),
 );
+
+const assetService = new AssetService(db);
+
 const app = await buildApp({
   accessService,
   authenticationService,
@@ -42,7 +49,17 @@ const app = await buildApp({
     await objectStorage.ensureReady();
   },
   vacationService,
+  visitService,
 });
+
+await app.register(
+  assetRoutes,
+  {
+    accessService,
+    authenticationService,
+    assetService,
+  },
+);
 
 const shutdown = async () => {
   await app.close();

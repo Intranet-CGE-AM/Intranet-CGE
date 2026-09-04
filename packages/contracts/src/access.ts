@@ -12,6 +12,16 @@ export const permissionKeys = [
   "vacations.create",
   "vacations.review.supervisor",
   "vacations.review.final",
+
+  // Agendamento de Visitas
+  "visits.read",
+  "visits.create",
+  "visits.manage",
+  "visits.approve",
+
+  // Controle de Patrimônio
+  "assets.read",
+  "assets.manage",
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
@@ -33,6 +43,14 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
   "vacations.create": "global-or-unit",
   "vacations.review.supervisor": "global-or-unit",
   "vacations.review.final": "global-or-unit",
+
+  "visits.read": "global-or-unit",
+  "visits.create": "global-or-unit",
+  "visits.manage": "global-or-unit",
+  "visits.approve": "global-or-unit",
+
+  "assets.read": "global-or-unit",
+  "assets.manage": "global-or-unit",
 };
 
 export type PermissionGrant = {

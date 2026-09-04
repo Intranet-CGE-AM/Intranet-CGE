@@ -5,3 +5,5 @@ export * from "./auth.js";
 export * from "./people.js";
 export * from "./vacations.js";
 export * from "./system.js";
+export * from "./visits.js";
+export * from "./assets.js";
