@@ -475,6 +475,11 @@ async function seedHomolog() {
         },
         {
           accountId: accounts.contractor.id,
+          roleId: required(seededRoles.get("worker")).id,
+          unitId: cgti.id,
+        },
+        {
+          accountId: accounts.contractor.id,
           roleId: required(seededRoles.get("technician")).id,
           unitId: cgti.id,
         },
@@ -491,10 +496,6 @@ async function seedHomolog() {
           accountId: accounts.emptyScope.id,
           roleId: required(seededRoles.get("viewer")).id,
           unitId: ombudsman.id,
-        },
-        {
-          accountId: accounts.hr.id,
-          roleId: required(seededRoles.get("admin")).id,
         },
         {
           accountId: accounts.inactiveEmployment.id,

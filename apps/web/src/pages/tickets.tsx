@@ -168,8 +168,7 @@ export function TicketsPage() {
               Suporte e Chamados TI
             </h1>
             <p className="text-sm text-(--text-muted)">
-              Atendimento técnico da Assessoria Técnica
-              (ATEC)
+              Atendimento técnico da Assessoria Técnica (ATEC)
             </p>
           </div>
         </div>
@@ -194,10 +193,11 @@ export function TicketsPage() {
         <button
           type="button"
           onClick={() => handleTabChange("my")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === "my"
-            ? "bg-(--action) text-white shadow-sm"
-            : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
-            }`}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+            activeTab === "my"
+              ? "bg-(--action) text-white shadow-sm"
+              : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
+          }`}
         >
           <User className="h-4 w-4" /> Meus Chamados
         </button>
@@ -206,10 +206,11 @@ export function TicketsPage() {
           <button
             type="button"
             onClick={() => handleTabChange("queue")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === "queue"
-              ? "bg-(--action) text-white shadow-sm"
-              : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
-              }`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              activeTab === "queue"
+                ? "bg-(--action) text-white shadow-sm"
+                : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
+            }`}
           >
             <ListBullets className="h-4 w-4" /> Fila de Atendimento ATEC
           </button>
@@ -219,10 +220,11 @@ export function TicketsPage() {
           <button
             type="button"
             onClick={() => handleTabChange("approvals")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === "approvals"
-              ? "bg-(--action) text-white shadow-sm"
-              : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
-              }`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              activeTab === "approvals"
+                ? "bg-(--action) text-white shadow-sm"
+                : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
+            }`}
           >
             <ShieldCheck className="h-4 w-4" /> Aprovações Pendentes
           </button>
@@ -232,10 +234,11 @@ export function TicketsPage() {
           <button
             type="button"
             onClick={() => handleTabChange("metrics")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${activeTab === "metrics"
-              ? "bg-(--action) text-white shadow-sm"
-              : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
-              }`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              activeTab === "metrics"
+                ? "bg-(--action) text-white shadow-sm"
+                : "text-(--text-muted) hover:bg-(--surface-subtle) hover:text-(--text)"
+            }`}
           >
             <ChartBar className="h-4 w-4" /> Métricas e SLA
           </button>
@@ -370,9 +373,7 @@ export function TicketsPage() {
                     {analytics.byUnit.map((unit) => (
                       <div key={unit.unitName} className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-(--text)">
-                            {unit.unitName}
-                          </span>
+                          <span className="text-(--text)">{unit.unitName}</span>
                           <span className="text-(--text-muted)">
                             {unit.count}
                           </span>
