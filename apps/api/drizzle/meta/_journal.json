@@ -36,6 +36,27 @@
       "when": 1785292056411,
       "tag": "0004_swift_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788277636000,
+      "tag": "0005_brainy_ulik",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788277636001,
+      "tag": "0006_burly_loki",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788534911055,
+      "tag": "0007_closed_fenris",
+      "breakpoints": true
     }
   ]
 }
