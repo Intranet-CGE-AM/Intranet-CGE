@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Delegation } from "./substitutions.js";
 
 export const permissionKeys = [
   "access.manage",
@@ -12,6 +13,26 @@ export const permissionKeys = [
   "vacations.create",
   "vacations.review.supervisor",
   "vacations.review.final",
+  "hr_requests.create",
+  "hr_requests.manage",
+  "documents.read",
+  "documents.manage",
+  "documents.sensitive.read",
+  "documents.sensitive.manage",
+  "employment.manage_history",
+  "occurrences.create",
+  "occurrences.review.supervisor",
+  "occurrences.review.final",
+  "occurrences.manage_types",
+  "training.create",
+  "training.review",
+  "onboarding.manage_templates",
+  "onboarding.manage",
+  "workflows.manage_substitutions",
+  "organization.read",
+  "organization.manage_positions",
+  "hr_communications.manage",
+  "hr_resources.manage",
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
@@ -33,9 +54,30 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
   "vacations.create": "global-or-unit",
   "vacations.review.supervisor": "global-or-unit",
   "vacations.review.final": "global-or-unit",
+  "hr_requests.create": "global-or-unit",
+  "hr_requests.manage": "global-or-unit",
+  "documents.read": "global-or-unit",
+  "documents.manage": "global-or-unit",
+  "documents.sensitive.read": "global-or-unit",
+  "documents.sensitive.manage": "global-or-unit",
+  "employment.manage_history": "global-or-unit",
+  "occurrences.create": "global-or-unit",
+  "occurrences.review.supervisor": "global-or-unit",
+  "occurrences.review.final": "global-or-unit",
+  "occurrences.manage_types": "global",
+  "training.create": "global-or-unit",
+  "training.review": "global-or-unit",
+  "onboarding.manage_templates": "global",
+  "onboarding.manage": "global-or-unit",
+  "workflows.manage_substitutions": "global-or-unit",
+  "organization.read": "global-or-unit",
+  "organization.manage_positions": "global-or-unit",
+  "hr_communications.manage": "global",
+  "hr_resources.manage": "global",
 };
 
 export type PermissionGrant = {
+  delegation?: Delegation;
   effect?: PermissionEffect;
   key: PermissionKey;
   unitId: string | null;

@@ -10,7 +10,8 @@ import type {
 import { argon2id, hash, verify } from "argon2";
 import { and, eq, gt, ilike, isNull, notExists, or, sql } from "drizzle-orm";
 
-import type { Database } from "../../db/client.js";
+import type { Database, Transaction } from "../../db/client.js";
+import { auditEvents } from "../audit/schema.js";
 import {
   employmentCategories,
   employmentRelationships,
@@ -63,6 +64,28 @@ export interface AuthenticationService {
     personId: string,
     actorAccountId: string,
   ): Promise<void>;
+}
+
+export async function deactivateAccountInTransaction(
+  tx: Transaction,
+  accountId: string,
+  actorAccountId: string,
+) {
+  const [account] = await tx
+    .update(userAccounts)
+    .set({ status: "disabled", updatedAt: new Date() })
+    .where(eq(userAccounts.id, accountId))
+    .returning({ id: userAccounts.id });
+  if (!account) return false;
+  await tx.delete(sessions).where(eq(sessions.accountId, accountId));
+  await tx.insert(auditEvents).values({
+    actorAccountId,
+    action: "account.deactivated",
+    objectType: "account",
+    objectId: accountId,
+    outcome: "success",
+  });
+  return true;
 }
 
 export class LocalAuthenticationService implements AuthenticationService {
@@ -407,23 +430,9 @@ export class LocalAuthenticationService implements AuthenticationService {
   }
 
   async deactivateAccount(accountId: string, actorAccountId: string) {
-    const [account] = await this.db
-      .update(userAccounts)
-      .set({ status: "disabled", updatedAt: new Date() })
-      .where(eq(userAccounts.id, accountId))
-      .returning({ id: userAccounts.id });
-    if (!account) {
-      return false;
-    }
-    await this.db.delete(sessions).where(eq(sessions.accountId, accountId));
-    await this.recordEvent({
-      actorAccountId,
-      action: "account.deactivated",
-      objectType: "account",
-      objectId: accountId,
-      outcome: "success",
-    });
-    return true;
+    return this.db.transaction((tx) =>
+      deactivateAccountInTransaction(tx, accountId, actorAccountId),
+    );
   }
 
   async deactivateAccountForPerson(personId: string, actorAccountId: string) {

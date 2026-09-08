@@ -7,9 +7,74 @@ import { RequireAccess } from "./components/require-access";
 import { accessRules } from "./navigation";
 import { ChangePasswordPage } from "./pages/change-password";
 import { LoginPage } from "./pages/login";
+import { NotificationsPage } from "./pages/notifications";
+const ResourcesPage = lazy(() =>
+  import("./pages/resources").then((module) => ({
+    default: module.ResourcesPage,
+  })),
+);
+const CommunicationsPage = lazy(() =>
+  import("./pages/communications").then((module) => ({
+    default: module.CommunicationsPage,
+  })),
+);
+const OrganizationPage = lazy(() =>
+  import("./pages/organization").then((module) => ({
+    default: module.OrganizationPage,
+  })),
+);
+const InboxPage = lazy(() =>
+  import("./pages/inbox").then((module) => ({ default: module.InboxPage })),
+);
+const SubstitutionsPage = lazy(() =>
+  import("./pages/substitutions").then((module) => ({
+    default: module.SubstitutionsPage,
+  })),
+);
+const ChecklistsPage = lazy(() =>
+  import("./pages/checklists").then((module) => ({
+    default: module.ChecklistsPage,
+  })),
+);
+const MetricsPage = lazy(() =>
+  import("./pages/metrics").then((module) => ({ default: module.MetricsPage })),
+);
+const TrainingPage = lazy(() =>
+  import("./pages/training").then((module) => ({
+    default: module.TrainingPage,
+  })),
+);
+const AvailabilityPage = lazy(() =>
+  import("./pages/availability").then((module) => ({
+    default: module.AvailabilityPage,
+  })),
+);
+const OccurrencesPage = lazy(() =>
+  import("./pages/occurrences").then((module) => ({
+    default: module.OccurrencesPage,
+  })),
+);
+const EmploymentHistoryPage = lazy(() =>
+  import("./pages/employment-history").then((module) => ({
+    default: module.EmploymentHistoryPage,
+  })),
+);
+const DocumentsPage = lazy(() =>
+  import("./pages/documents").then((module) => ({
+    default: module.DocumentsPage,
+  })),
+);
 
 const AccountPage = lazy(() =>
   import("./pages/account").then((module) => ({ default: module.AccountPage })),
+);
+const DossierPage = lazy(() =>
+  import("./pages/dossier").then((module) => ({ default: module.DossierPage })),
+);
+const HrRequestsPage = lazy(() =>
+  import("./pages/hr-requests").then((module) => ({
+    default: module.HrRequestsPage,
+  })),
 );
 const AdminPage = lazy(() =>
   import("./pages/admin").then((module) => ({ default: module.AdminPage })),
@@ -44,6 +109,74 @@ export function App() {
       <Route path="alterar-senha" element={<ChangePasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
+          <Route
+            path="biblioteca"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <ResourcesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="comunicados"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <CommunicationsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh/estrutura"
+            element={
+              <RequireAccess
+                rule={{
+                  anyOf: ["organization.read", "organization.manage_positions"],
+                }}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <OrganizationPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="rh/substituicoes"
+            element={
+              <RequireAccess
+                rule={{ anyOf: ["workflows.manage_substitutions"] }}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <SubstitutionsPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="rh/pendencias"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <InboxPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh/checklists"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <ChecklistsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh/indicadores"
+            element={
+              <RequireAccess rule={accessRules.metrics}>
+                <Suspense fallback={<PageFallback />}>
+                  <MetricsPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
           <Route
             index
             element={
@@ -83,6 +216,26 @@ export function App() {
             }
           />
           <Route
+            path="rh/ocorrencias"
+            element={
+              <RequireAccess rule={accessRules.occurrences}>
+                <Suspense fallback={<PageFallback />}>
+                  <OccurrencesPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="rh/disponibilidade"
+            element={
+              <RequireAccess rule={accessRules.availability}>
+                <Suspense fallback={<PageFallback />}>
+                  <AvailabilityPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
             path="sistema/administracao"
             element={
               <RequireAccess rule={accessRules.administration}>
@@ -107,6 +260,53 @@ export function App() {
             element={
               <Suspense fallback={<PageFallback />}>
                 <AccountPage />
+              </Suspense>
+            }
+          />
+          <Route path="notificacoes" element={<NotificationsPage />} />
+          <Route
+            path="rh/capacitacoes"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <TrainingPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh/historico"
+            element={
+              <RequireAccess rule={{ anyOf: ["employment.manage_history"] }}>
+                <Suspense fallback={<PageFallback />}>
+                  <EmploymentHistoryPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="rh/documentos"
+            element={
+              <RequireAccess
+                rule={{ anyOf: ["documents.read", "documents.manage"] }}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <DocumentsPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="rh/meu-dossie"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <DossierPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="rh/solicitacoes"
+            element={
+              <Suspense fallback={<PageFallback />}>
+                <HrRequestsPage />
               </Suspense>
             }
           />

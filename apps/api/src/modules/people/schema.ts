@@ -4,7 +4,9 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -61,6 +63,36 @@ export const organizationUnits = pgTable(
   ],
 );
 
+export const organizationPositions = pgTable(
+  "organization_positions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => organizationUnits.id),
+    code: varchar("code", { length: 30 }).notNull(),
+    title: varchar("title", { length: 160 }).notNull(),
+    plannedCount: integer("planned_count").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex("organization_positions_unit_code_unique").on(
+      table.unitId,
+      table.code,
+    ),
+    uniqueIndex("organization_positions_id_unit_unique").on(
+      table.id,
+      table.unitId,
+    ),
+    check(
+      "organization_positions_planned_nonnegative",
+      sql`${table.plannedCount} >= 0`,
+    ),
+    check("organization_positions_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
 export const employmentRelationships = pgTable(
   "employment_relationships",
   {
@@ -81,6 +113,8 @@ export const employmentRelationships = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
     jobTitle: varchar("job_title", { length: 160 }),
+    positionId: uuid("position_id"),
+    version: integer("version").notNull().default(1),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -90,6 +124,12 @@ export const employmentRelationships = pgTable(
       .defaultNow(),
   },
   (table) => [
+    foreignKey({
+      name: "employment_position_same_unit_fk",
+      columns: [table.positionId, table.unitId],
+      foreignColumns: [organizationPositions.id, organizationPositions.unitId],
+    }),
+    index("employment_relationships_position_idx").on(table.positionId),
     index("employment_relationships_person_idx").on(table.personId),
     index("employment_relationships_unit_idx").on(table.unitId),
     index("employment_relationships_supervisor_idx").on(

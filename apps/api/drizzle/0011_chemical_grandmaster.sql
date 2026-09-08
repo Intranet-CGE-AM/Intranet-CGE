@@ -1,0 +1,1 @@
+ALTER TABLE "hr_requests" ADD COLUMN "correction" jsonb;

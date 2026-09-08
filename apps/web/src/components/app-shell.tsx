@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { useAuth } from "../auth";
+import { NotificationBell } from "../pages/notifications";
 import {
   availableModules,
   availableSystemNavigation,
@@ -425,7 +426,7 @@ export function AppShell() {
         </SheetContent>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white/90 px-4 backdrop-blur-md md:px-6 lg:hidden">
+          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white px-4 md:px-6">
             <SheetTrigger asChild>
               <Button
                 variant="quiet"
@@ -447,6 +448,7 @@ export function AppShell() {
                 {contextDescription}
               </p>
             </div>
+            <NotificationBell />
           </header>
 
           <main

@@ -1,5 +1,6 @@
 import {
   authErrorSchema,
+  dossierSchema,
   birthdaySchema,
   employmentCategoryInputSchema,
   employmentCategorySchema,
@@ -53,6 +54,37 @@ export const peopleRoutes: FastifyPluginAsync<{
   peopleService: PeopleService;
 }> = async (app, options) => {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+  typedApp.get(
+    "/api/me/dossier",
+    {
+      schema: {
+        querystring: z.strictObject({}),
+        response: { 200: dossierSchema, 404: authErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const user = await requireAuthenticatedUser(
+        request,
+        reply,
+        options.authenticationService,
+      );
+      if (!user) return;
+      const dossier = await options.peopleService.getDossier(user.person.id);
+      if (!dossier)
+        return reply.status(404).send({
+          code: "PERSON_NOT_FOUND",
+          message: "Cadastro não encontrado.",
+        });
+      await recordAudit(options.db, {
+        actorAccountId: user.account.id,
+        action: "person.dossier-read",
+        objectType: "person",
+        objectId: user.person.id,
+        outcome: "success",
+      });
+      return reply.header("Cache-Control", "no-store").send(dossier);
+    },
+  );
   const authorizeAvatarChange = async (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -395,7 +427,10 @@ export const peopleRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
-      const result = await options.peopleService.createPerson(request.body);
+      const result = await options.peopleService.createPerson(
+        request.body,
+        user.account.id,
+      );
       await recordAudit(options.db, {
         actorAccountId: user.account.id,
         action: "person.created",
@@ -461,6 +496,15 @@ export const peopleRoutes: FastifyPluginAsync<{
       const person = await options.peopleService.updatePerson(
         request.params.id,
         request.body,
+        {
+          actorAccountId: user.account.id,
+          permissions: user.permissions,
+          permission: "people.manage",
+          reason: "Atualização pelo cadastro de colaboradores",
+          effectiveOn: new Date().toLocaleDateString("en-CA", {
+            timeZone: "America/Manaus",
+          }),
+        },
       );
       if (!person) {
         return reply.status(404).send({
@@ -517,6 +561,13 @@ export const peopleRoutes: FastifyPluginAsync<{
       const person = await options.peopleService.deactivatePerson(
         request.params.id,
         request.body.endDate,
+        {
+          actorAccountId: user.account.id,
+          permissions: user.permissions,
+          permission: "people.manage",
+          reason: "Desligamento pelo cadastro de colaboradores",
+          effectiveOn: request.body.endDate,
+        },
       );
       if (!person) {
         return reply.status(404).send({
@@ -524,10 +575,6 @@ export const peopleRoutes: FastifyPluginAsync<{
           message: "Colaborador não encontrado.",
         });
       }
-      await options.authenticationService.deactivateAccountForPerson(
-        request.params.id,
-        user.account.id,
-      );
       await recordAudit(options.db, {
         actorAccountId: user.account.id,
         action: "person.deactivated",

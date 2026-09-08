@@ -1,0 +1,1 @@
+ALTER TABLE "notifications" ADD COLUMN "message" text DEFAULT 'Consulte o andamento na intranet.' NOT NULL;

@@ -21,6 +21,20 @@ import { auditRoutes } from "./modules/audit/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
 import { peopleRoutes } from "./modules/people/routes.js";
+import { hrRequestRoutes } from "./modules/hr-requests/routes.js";
+import { notificationRoutes } from "./modules/notifications/routes.js";
+import { occurrenceRoutes } from "./modules/occurrences/routes.js";
+import { availabilityRoutes } from "./modules/people/availability-routes.js";
+import { trainingRoutes } from "./modules/training/routes.js";
+import { metricsRoutes } from "./modules/people/metrics-routes.js";
+import { onboardingRoutes } from "./modules/onboarding/routes.js";
+import { inboxRoutes } from "./modules/inbox/routes.js";
+import { substitutionRoutes } from "./modules/substitutions/routes.js";
+import { organizationRoutes } from "./modules/organization/routes.js";
+import { documentRoutes } from "./modules/documents/routes.js";
+import { communicationRoutes } from "./modules/communications/routes.js";
+import { resourceRoutes } from "./modules/resources/routes.js";
+import { employmentHistoryRoutes } from "./modules/people/history-routes.js";
 import type { PeopleService } from "./modules/people/service.js";
 import type { ObjectStorage } from "./modules/storage/object-storage.js";
 import { systemRoutes } from "./modules/system/routes.js";
@@ -118,6 +132,25 @@ export async function buildApp({
     });
   }
   if (authenticationService && accessService && db) {
+    await app.register(hrRequestRoutes, { db, authenticationService });
+    await app.register(notificationRoutes, { db, authenticationService });
+    await app.register(occurrenceRoutes, { db, authenticationService });
+    await app.register(availabilityRoutes, { db, authenticationService });
+    await app.register(metricsRoutes, { db, authenticationService });
+    await app.register(onboardingRoutes, { db, authenticationService });
+    await app.register(organizationRoutes, { db, authenticationService });
+    await app.register(communicationRoutes, { db, authenticationService });
+    await app.register(resourceRoutes, {
+      db,
+      authenticationService,
+      objectStorage,
+    });
+    await app.register(trainingRoutes, {
+      db,
+      authenticationService,
+      objectStorage,
+    });
+    await app.register(employmentHistoryRoutes, { db, authenticationService });
     if (peopleService) {
       await app.register(adminRoutes, {
         accessService,
@@ -125,6 +158,16 @@ export async function buildApp({
         peopleService,
       });
     }
+    await app.register(inboxRoutes, {
+      db,
+      authenticationService,
+      accessService,
+    });
+    await app.register(substitutionRoutes, {
+      db,
+      authenticationService,
+      accessService,
+    });
     await app.register(accessRoutes, {
       accessService,
       authenticationService,
@@ -136,6 +179,11 @@ export async function buildApp({
       db,
     });
     if (peopleService && objectStorage) {
+      await app.register(documentRoutes, {
+        db,
+        authenticationService,
+        objectStorage,
+      });
       await app.register(peopleRoutes, {
         accessService,
         authenticationService,

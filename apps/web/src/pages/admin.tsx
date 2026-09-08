@@ -52,6 +52,26 @@ import {
 } from "../modules/hr/person-form-fields";
 
 const permissionLabels: Record<PermissionKey, string> = {
+  "occurrences.create": "Solicitar ocorrências",
+  "occurrences.review.supervisor": "Analisar ocorrências da equipe",
+  "occurrences.review.final": "Decisão final de ocorrências",
+  "occurrences.manage_types": "Administrar tipos de ocorrência",
+  "training.create": "Registrar capacitações próprias",
+  "training.review": "Analisar capacitações",
+  "onboarding.manage_templates": "Administrar modelos de checklist",
+  "onboarding.manage": "Gerenciar checklists",
+  "workflows.manage_substitutions": "Gerenciar substituições temporárias",
+  "organization.read": "Consultar estrutura e cargos",
+  "organization.manage_positions": "Gerenciar quadro de cargos",
+  "hr_communications.manage": "Gerenciar comunicados internos",
+  "hr_resources.manage": "Gerenciar políticas e formulários",
+  "employment.manage_history": "Registrar movimentações funcionais",
+  "documents.read": "Consultar documentos funcionais",
+  "documents.manage": "Publicar e arquivar documentos",
+  "documents.sensitive.read": "Consultar documentos sensíveis",
+  "documents.sensitive.manage": "Publicar documentos sensíveis",
+  "hr_requests.create": "Abrir solicitações de RH",
+  "hr_requests.manage": "Tratar solicitações de RH",
   "access.manage": "Perfis e permissões",
   "accounts.manage": "Contas de acesso",
   "audit.read": "Consultar auditoria",
@@ -66,6 +86,41 @@ const permissionLabels: Record<PermissionKey, string> = {
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
+  "occurrences.create": "Solicita ocorrências no próprio vínculo ativo.",
+  "occurrences.review.supervisor":
+    "Analisa informações administrativas da equipe, sem documentos sensíveis.",
+  "occurrences.review.final":
+    "Decide ocorrências nas unidades autorizadas, sem conceder acesso automático a documentos sensíveis.",
+  "occurrences.manage_types":
+    "Configura o catálogo e as exigências de análise e documentação.",
+  "training.create": "Envia capacitações do próprio vínculo para validação.",
+  "training.review": "Valida, rejeita e arquiva capacitações dentro do escopo.",
+  "onboarding.manage_templates":
+    "Configura modelos de ingresso e desligamento.",
+  "onboarding.manage":
+    "Inicia checklists e acompanha responsáveis nas unidades autorizadas.",
+  "workflows.manage_substitutions":
+    "Define responsáveis substitutos por unidade, fluxo e período.",
+  "organization.read":
+    "Consulta estrutura, equipe e ocupação nas unidades autorizadas.",
+  "organization.manage_positions":
+    "Organiza hierarquia, previsão e vínculos do quadro de cargos por unidade.",
+  "hr_communications.manage":
+    "Publica comunicados para toda a CGE, unidades ou categorias funcionais.",
+  "hr_resources.manage":
+    "Publica políticas, manuais e formulários com versão e vigência.",
+  "employment.manage_history":
+    "Registra alterações e desligamentos com histórico nas unidades autorizadas.",
+  "documents.read": "Baixa documentos funcionais nas unidades autorizadas.",
+  "documents.manage":
+    "Publica e arquiva documentos com finalidade e retenção definidas.",
+  "documents.sensitive.read":
+    "Autoriza leitura sensível em conjunto com consultar documentos.",
+  "documents.sensitive.manage":
+    "Autoriza publicação sensível em conjunto com publicar documentos.",
+  "hr_requests.create": "Abre e acompanha solicitações do próprio vínculo.",
+  "hr_requests.manage":
+    "Analisa e responde solicitações nas unidades autorizadas.",
   "access.manage":
     "Cria e altera perfis de acesso, além de concedê-los às pessoas.",
   "accounts.manage": "Cria, desativa e redefine senhas das contas da intranet.",
@@ -87,6 +142,26 @@ const permissionDescriptions: Record<PermissionKey, string> = {
 type PermissionModule = "administration" | "audit" | "people" | "vacations";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
+  "occurrences.create": "people",
+  "occurrences.review.supervisor": "people",
+  "occurrences.review.final": "people",
+  "occurrences.manage_types": "people",
+  "training.create": "people",
+  "training.review": "people",
+  "onboarding.manage_templates": "people",
+  "onboarding.manage": "people",
+  "workflows.manage_substitutions": "people",
+  "organization.read": "people",
+  "organization.manage_positions": "people",
+  "hr_communications.manage": "people",
+  "hr_resources.manage": "people",
+  "employment.manage_history": "people",
+  "documents.read": "people",
+  "documents.manage": "people",
+  "documents.sensitive.read": "people",
+  "documents.sensitive.manage": "people",
+  "hr_requests.create": "people",
+  "hr_requests.manage": "people",
   "access.manage": "administration",
   "accounts.manage": "administration",
   "audit.read": "audit",

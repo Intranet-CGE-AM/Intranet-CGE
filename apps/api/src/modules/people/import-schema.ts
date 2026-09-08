@@ -11,6 +11,15 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { userAccounts } from "../auth/schema.js";
+import type { ImportComparison } from "@cge/contracts";
+
+export type ImportPreview = {
+  employeeNumber: string;
+  personId: string;
+  version: number;
+  updatedAt: string;
+  comparisons: ImportComparison[];
+};
 
 export const importStatusEnum = pgEnum("import_status", [
   "previewed",
@@ -25,6 +34,7 @@ export const importRuns = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     originalFilename: varchar("original_filename", { length: 255 }).notNull(),
     checksum: varchar("checksum", { length: 64 }).notNull(),
+    preview: jsonb("preview").$type<ImportPreview[]>(),
     status: importStatusEnum("status").notNull().default("previewed"),
     totalRows: integer("total_rows").notNull().default(0),
     successfulRows: integer("successful_rows").notNull().default(0),
