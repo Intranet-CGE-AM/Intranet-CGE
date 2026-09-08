@@ -325,6 +325,7 @@ export class PeopleService {
       .orderBy(organizationUnits.name);
   }
 
+//Criar setor
   async createUnit(input: OrganizationUnitInput) {
     const [unit] = await this.db
       .insert(organizationUnits)
@@ -339,6 +340,7 @@ export class PeopleService {
     return unit;
   }
 
+//Atualizar setor
   async updateUnit(
   id: string,
   input: OrganizationUnitInput,
@@ -351,6 +353,31 @@ export class PeopleService {
         name: input.name,
         parentId:
           input.parentId ?? null,
+      })
+      .where(
+        eq(
+          organizationUnits.id,
+          id,
+        ),
+      )
+      .returning();
+
+  return unit ?? null;
+}
+
+//Ativa e desativa o setor (O setor não pode ser excluido do banco, 
+//apenas desativado, pois ele estará associado a algum bem e será ultil para o historico de transferência)
+  async setUnitActive(
+  id: string,
+  active: boolean,
+) {
+  const [unit] =
+    await this.db
+      .update(
+        organizationUnits,
+      )
+      .set({
+        active,
       })
       .where(
         eq(

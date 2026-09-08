@@ -13,8 +13,10 @@ import {
 } from "@cge/ui";
 
 import {
+  CheckCircle,
   PencilSimple,
   PlusCircle,
+  Prohibit,
 } from "@phosphor-icons/react";
 
 import {
@@ -307,6 +309,56 @@ export function AssetSectorPage() {
     }
   }
 
+  async function handleToggleActive(
+  unit: OrganizationUnit,
+) {
+  const newActive =
+    !unit.active;
+
+  try {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    await api(
+      `/api/organization-units/${unit.id}/active`,
+      {
+        method: "PATCH",
+
+        body: json({
+          active:
+            newActive,
+        }),
+      },
+    );
+
+    setSuccess(
+      newActive
+        ? "Setor ativado com sucesso."
+        : "Setor inativado com sucesso.",
+    );
+
+    await loadUnits();
+  } catch (cause) {
+    if (
+      cause instanceof
+      ApiError
+    ) {
+      setError(
+        cause.message,
+      );
+    } else {
+      setError(
+        newActive
+          ? "Não foi possível ativar o setor."
+          : "Não foi possível inativar o setor.",
+      );
+    }
+  } finally {
+    setSaving(false);
+  }
+}
+
   return (
     <div className="space-y-6">
       <div>
@@ -588,22 +640,54 @@ export function AssetSectorPage() {
                       </TableCell>
 
                       <TableCell>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() =>
-                            startEdit(
-                              unit,
-                            )
-                          }
-                        >
-                          <PencilSimple
-                            size={16}
-                          />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={saving}
+                        onClick={() =>
+                          startEdit(
+                            unit,
+                          )
+                        }
+                      >
+                        <PencilSimple
+                          size={16}
+                        />
 
-                          Editar
-                        </Button>
-                      </TableCell>
+                        Editar
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={saving}
+                        onClick={() =>
+                          void handleToggleActive(
+                            unit,
+                          )
+                        }
+                      >
+                        {unit.active ? (
+                          <>
+                            <Prohibit
+                              size={16}
+                            />
+
+                            Inativar
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle
+                              size={16}
+                            />
+
+                            Ativar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
                     </TableRow>
                   ),
                 )}
