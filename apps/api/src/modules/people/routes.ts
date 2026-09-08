@@ -627,6 +627,59 @@ export const peopleRoutes: FastifyPluginAsync<{
     },
   );
 
+  typedApp.patch(
+  "/api/organization-units/:id",
+
+  {
+    schema: {
+      params:
+        z.object({
+          id: z.uuid(),
+        }),
+
+      body:
+        organizationUnitInputSchema,
+    },
+  },
+
+  async (
+    request,
+    reply,
+  ) => {
+    const user =
+      await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "people.manage",
+      );
+
+    if (!user) {
+      return;
+    }
+
+    const updated =
+      await options.peopleService.updateUnit(
+        request.params.id,
+        request.body,
+      );
+
+    if (!updated) {
+      return reply
+        .status(404)
+        .send({
+          code:
+            "ORGANIZATION_UNIT_NOT_FOUND",
+
+          message:
+            "Setor não encontrado.",
+        });
+    }
+
+    return updated;
+  },
+);
+
   typedApp.post(
     "/api/imports/people",
     {

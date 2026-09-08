@@ -338,4 +338,28 @@ export class PeopleService {
     }
     return unit;
   }
+
+  async updateUnit(
+  id: string,
+  input: OrganizationUnitInput,
+) {
+  const [unit] =
+    await this.db
+      .update(organizationUnits)
+      .set({
+        code: input.code,
+        name: input.name,
+        parentId:
+          input.parentId ?? null,
+      })
+      .where(
+        eq(
+          organizationUnits.id,
+          id,
+        ),
+      )
+      .returning();
+
+  return unit ?? null;
+}
 }
