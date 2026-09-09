@@ -13,6 +13,7 @@ import {
 
 import {
   ArrowLeft,
+  ArrowsLeftRight,
   PencilSimple,
 } from "@phosphor-icons/react";
 
@@ -204,6 +205,7 @@ export function AssetDetailPage() {
   </div>
 
   <div className="flex items-center gap-2">
+    {/* Botão Editar */}
     <Button asChild>
       <Link
         to={`/patrimonio/bens/${asset.id}/editar`}
@@ -214,6 +216,22 @@ export function AssetDetailPage() {
       </Link>
     </Button>
 
+  {/* Botão Movimentar */}
+      <Button
+    asChild
+    variant="secondary"
+  >
+    <Link
+      to={`/patrimonio/bens/${asset.id}/movimentar`}
+    >
+      <ArrowsLeftRight
+        size={18}
+      />
+
+      Movimentar
+    </Link>
+  </Button>
+  {/* Botão Voltar */}
     <Button
       asChild
       variant="secondary"

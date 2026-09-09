@@ -248,6 +248,16 @@ const AssetSectorPage = lazy(
     })),
 );
 
+const AssetMovementPage = lazy(
+  () =>
+    import(
+      "./modules/assets/AssetMovementPage"
+    ).then((module) => ({
+      default:
+        module.AssetMovementPage,
+    })),
+);
+
 
 export function App() {
   return (
@@ -542,7 +552,20 @@ export function App() {
             }
           />
 
-
+          <Route
+            path="patrimonio/bens/:id/movimentar"
+            element={
+              <RequireAccess
+                rule={{
+                  anyOf: [
+                    "assets.manage",
+                  ],
+                }}
+              >
+                <AssetMovementPage />
+              </RequireAccess>
+            }
+          />
 
 
 
