@@ -119,3 +119,46 @@ export const assets = pgTable(
         .defaultNow(),
   },
 );
+export const assetMovements = pgTable(
+  "asset_movements",
+  {
+    id:
+      uuid("id")
+        .primaryKey()
+        .defaultRandom(),
+
+    assetId:
+      uuid("asset_id")
+        .notNull()
+        .references(
+          () => assets.id,
+        ),
+
+    fromUnitId:
+      uuid("from_unit_id")
+        .references(
+          () => organizationUnits.id,
+        ),
+
+    toUnitId:
+      uuid("to_unit_id")
+        .notNull()
+        .references(
+          () => organizationUnits.id,
+        ),
+
+    movementDate:
+      date("movement_date")
+        .notNull(),
+
+    notes:
+      text("notes"),
+
+    createdAt:
+      timestamp("created_at", {
+        withTimezone: true,
+      })
+        .notNull()
+        .defaultNow(),
+  },
+);

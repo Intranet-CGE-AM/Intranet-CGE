@@ -1,5 +1,6 @@
 import {
   assetCreateSchema,
+  assetMovementCreateSchema,
   assetUpdateSchema,
 } from "@cge/contracts";
 
@@ -187,6 +188,109 @@ export const assetRoutes:
           },
         );
 
+        /* MOVIMENTAR BEM */
+
+typedApp.post(
+  "/api/assets/:id/movements",
+
+  {
+    schema: {
+      params:
+        z.object({
+          id: z.uuid(),
+        }),
+
+      body:
+        assetMovementCreateSchema,
+    },
+  },
+
+  async (
+    request,
+    reply,
+  ) => {
+    const user =
+      await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.manage",
+      );
+
+    if (!user) {
+      return;
+    }
+
+    const result =
+      await options
+        .assetService
+        .move(
+          request.params.id,
+          request.body,
+        );
+
+    if (!result.success) {
+      switch (
+        result.reason
+      ) {
+        case "ASSET_NOT_FOUND":
+          return reply
+            .status(404)
+            .send({
+              code:
+                "ASSET_NOT_FOUND",
+
+              message:
+                "Bem patrimonial não encontrado.",
+            });
+
+        case "UNIT_NOT_FOUND":
+          return reply
+            .status(404)
+            .send({
+              code:
+                "ORGANIZATION_UNIT_NOT_FOUND",
+
+              message:
+                "Setor de destino não encontrado.",
+            });
+
+        case "UNIT_INACTIVE":
+          return reply
+            .status(400)
+            .send({
+              code:
+                "ORGANIZATION_UNIT_INACTIVE",
+
+              message:
+                "O setor de destino está inativo.",
+            });
+
+        case "SAME_UNIT":
+          return reply
+            .status(400)
+            .send({
+              code:
+                "ASSET_ALREADY_IN_UNIT",
+
+              message:
+                "O bem já está localizado nesse setor.",
+            });
+      }
+    }
+
+    return reply
+      .status(201)
+      .send({
+        movement:
+          result.movement,
+
+        asset:
+          result.asset,
+      });
+  },
+);
+
 
     /* CADASTRAR BEM */
 
@@ -230,4 +334,66 @@ export const assetRoutes:
           );
       },
     );
+
+    /* HISTÓRICO DE MOVIMENTAÇÕES */
+
+      typedApp.get(
+        "/api/assets/:id/movements",
+
+        {
+          schema: {
+            params:
+              z.object({
+                id: z.uuid(),
+              }),
+          },
+        },
+
+        async (
+          request,
+          reply,
+        ) => {
+          const user =
+            await requireAnyPermission(
+              request,
+              reply,
+              options.authenticationService,
+              "assets.read",
+            );
+
+          if (!user) {
+            return;
+          }
+
+          const asset =
+            await options
+              .assetService
+              .findById(
+                request.params.id,
+              );
+
+          if (!asset) {
+            return reply
+              .status(404)
+              .send({
+                code:
+                  "ASSET_NOT_FOUND",
+
+                message:
+                  "Bem patrimonial não encontrado.",
+              });
+          }
+
+          const movements =
+            await options
+              .assetService
+              .listMovements(
+                request.params.id,
+              );
+
+          return {
+            movements,
+          };
+        },
+      );
   };

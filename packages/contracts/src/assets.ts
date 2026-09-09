@@ -210,3 +210,22 @@ export const assetUpdateSchema = z.object({
 
 export type AssetUpdate =
   z.infer<typeof assetUpdateSchema>;
+
+export const assetMovementCreateSchema = z.object({
+  toUnitId:
+    z.uuid(),
+
+  movementDate:
+    z.string(),
+
+  notes:
+    z.string()
+      .trim()
+      .nullable()
+      .optional(),
+});
+
+export type AssetMovementCreate =
+  z.infer<
+    typeof assetMovementCreateSchema
+  >;

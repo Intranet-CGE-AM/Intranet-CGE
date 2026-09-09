@@ -1,6 +1,7 @@
 import type {
   AssetCreate,
   AssetUpdate,
+   AssetMovementCreate,
 } from "@cge/contracts";
 
 import type {
@@ -8,12 +9,18 @@ import type {
 } from "../../db/client.js";
 
 import {
+  assetMovements,
   assets,
 } from "./schema.js";
 
 import {
+  organizationUnits,
+} from "../people/schema.js";
+
+import {
   eq,
 } from "drizzle-orm";
+
 
 export class AssetService {
   constructor(
@@ -28,6 +35,23 @@ export class AssetService {
         assets.createdAt,
       );
   }
+
+  async listMovements(
+      assetId: string,
+    ) {
+      return this.db
+        .select()
+        .from(assetMovements)
+        .where(
+          eq(
+            assetMovements.assetId,
+            assetId,
+          ),
+        )
+        .orderBy(
+          assetMovements.createdAt,
+        );
+    }
 
   async findById(
   id: string,
@@ -190,6 +214,136 @@ async update(
       .returning();
 
   return updated ?? null;
+}
+//Para mover Bem(patrimonio) de setor
+async move(
+  id: string,
+  input: AssetMovementCreate,
+) {
+  return this.db.transaction(
+    async (transaction) => {
+      const [asset] =
+        await transaction
+          .select({
+            id:
+              assets.id,
+
+            unitId:
+              assets.unitId,
+          })
+          .from(assets)
+          .where(
+            eq(
+              assets.id,
+              id,
+            ),
+          )
+          .limit(1);
+
+      if (!asset) {
+        return {
+          success: false as const,
+          reason:
+            "ASSET_NOT_FOUND" as const,
+        };
+      }
+
+      const [destinationUnit] =
+        await transaction
+          .select({
+            id:
+              organizationUnits.id,
+
+            active:
+              organizationUnits.active,
+          })
+          .from(
+            organizationUnits,
+          )
+          .where(
+            eq(
+              organizationUnits.id,
+              input.toUnitId,
+            ),
+          )
+          .limit(1);
+
+      if (!destinationUnit) {
+        return {
+          success: false as const,
+          reason:
+            "UNIT_NOT_FOUND" as const,
+        };
+      }
+
+      if (!destinationUnit.active) {
+        return {
+          success: false as const,
+          reason:
+            "UNIT_INACTIVE" as const,
+        };
+      }
+
+      if (
+        asset.unitId ===
+        input.toUnitId
+      ) {
+        return {
+          success: false as const,
+          reason:
+            "SAME_UNIT" as const,
+        };
+      }
+
+      const [movement] =
+        await transaction
+          .insert(
+            assetMovements,
+          )
+          .values({
+            assetId:
+              asset.id,
+
+            fromUnitId:
+              asset.unitId,
+
+            toUnitId:
+              input.toUnitId,
+
+            movementDate:
+              input.movementDate,
+
+            notes:
+              input.notes ?? null,
+          })
+          .returning();
+
+      const [updatedAsset] =
+        await transaction
+          .update(assets)
+          .set({
+            unitId:
+              input.toUnitId,
+
+            updatedAt:
+              new Date(),
+          })
+          .where(
+            eq(
+              assets.id,
+              asset.id,
+            ),
+          )
+          .returning();
+
+      return {
+        success: true as const,
+        movement,
+        asset:
+          updatedAsset,
+      };
+    },
+  );
 }
 
   async create(
