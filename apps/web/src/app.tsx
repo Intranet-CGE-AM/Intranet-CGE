@@ -227,6 +227,17 @@ lazy(()=>
   ),
 );
 
+const AssetEditPage = lazy(
+  () =>
+    import(
+      "./modules/assets/AssetEditPage"
+    ).then((module) => ({
+      default:
+        module.AssetEditPage,
+    })),
+);
+
+
 const AssetSectorPage = lazy(
   () =>
     import(
@@ -501,6 +512,21 @@ export function App() {
           />
 
           <Route
+              path="patrimonio/bens/:id/editar"
+              element={
+                <RequireAccess
+                  rule={{
+                    anyOf: [
+                      "assets.manage",
+                    ],
+                  }}
+                >
+                  <AssetEditPage />
+                </RequireAccess>
+              }
+            />
+
+          <Route
             path="patrimonio/setores"
             element={
               <RequireAccess
@@ -515,6 +541,8 @@ export function App() {
               </RequireAccess>
             }
           />
+
+
 
 
 

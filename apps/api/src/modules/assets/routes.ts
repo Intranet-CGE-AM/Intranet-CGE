@@ -1,5 +1,6 @@
 import {
   assetCreateSchema,
+  assetUpdateSchema,
 } from "@cge/contracts";
 
 import type {
@@ -126,6 +127,63 @@ export const assetRoutes:
             }
 
             return asset;
+          },
+        );
+
+        /* EDITAR BEM */
+
+        typedApp.patch(
+          "/api/assets/:id",
+
+          {
+            schema: {
+              params:
+                z.object({
+                  id: z.uuid(),
+                }),
+
+              body:
+                assetUpdateSchema,
+            },
+          },
+
+          async (
+            request,
+            reply,
+          ) => {
+            const user =
+              await requireAnyPermission(
+                request,
+                reply,
+                options.authenticationService,
+                "assets.manage",
+              );
+
+            if (!user) {
+              return;
+            }
+
+            const updated =
+              await options
+                .assetService
+                .update(
+                  request.params.id,
+                  request.body,
+                );
+
+            if (!updated) {
+              return reply
+                .status(404)
+                .send({
+                  code:
+                    "ASSET_NOT_FOUND",
+
+                  message:
+                    "Bem patrimonial não encontrado.",
+                });
+            }
+
+            return updated;
           },
         );
 

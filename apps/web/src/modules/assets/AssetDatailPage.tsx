@@ -13,6 +13,7 @@ import {
 
 import {
   ArrowLeft,
+  PencilSimple,
 } from "@phosphor-icons/react";
 
 import {
@@ -29,6 +30,7 @@ import {
   api,
   ApiError,
 } from "../../lib/api";
+
 
 type OrganizationUnit = {
   id: string;
@@ -189,33 +191,41 @@ export function AssetDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-            Bem Patrimonial{" "}
-            {asset.patrimonyNumber}
-          </h1>
+  <div>
+    <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
+      Bem Patrimonial{" "}
+      {asset.patrimonyNumber}
+    </h1>
 
-          <p className="text-sm text-[var(--text-muted)]">
-            Consulte as informações
-            completas do patrimônio.
-          </p>
-        </div>
+    <p className="text-sm text-[var(--text-muted)]">
+      Consulte as informações
+      completas do patrimônio.
+    </p>
+  </div>
 
-        <Button
-          asChild
-          variant="secondary"
-        >
-          <Link
-            to="/patrimonio/bens"
-          >
-            <ArrowLeft
-              size={18}
-            />
+  <div className="flex items-center gap-2">
+    <Button asChild>
+      <Link
+        to={`/patrimonio/bens/${asset.id}/editar`}
+      >
+        <PencilSimple size={18} />
 
-            Voltar
-          </Link>
-        </Button>
-      </div>
+        Editar
+      </Link>
+    </Button>
+
+    <Button
+      asChild
+      variant="secondary"
+    >
+      <Link to="/patrimonio/bens">
+        <ArrowLeft size={18} />
+
+        Voltar
+      </Link>
+    </Button>
+  </div>
+</div>
 
       <Card>
         <CardHeader>

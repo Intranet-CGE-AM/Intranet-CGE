@@ -1,5 +1,6 @@
 import type {
   AssetCreate,
+  AssetUpdate,
 } from "@cge/contracts";
 
 import type {
@@ -44,6 +45,151 @@ export class AssetService {
       .limit(1);
 
   return asset ?? null;
+}
+
+async update(
+  id: string,
+  input: AssetUpdate,
+) {
+  const [updated] =
+    await this.db
+      .update(assets)
+      .set({
+        ...(input.patrimonyNumber !== undefined
+          ? {
+              patrimonyNumber:
+                input.patrimonyNumber,
+            }
+          : {}),
+
+        ...(input.description !== undefined
+          ? {
+              description:
+                input.description,
+            }
+          : {}),
+
+        ...(input.brand !== undefined
+          ? {
+              brand:
+                input.brand,
+            }
+          : {}),
+
+        ...(input.model !== undefined
+          ? {
+              model:
+                input.model,
+            }
+          : {}),
+
+        ...(input.serialNumber !== undefined
+          ? {
+              serialNumber:
+                input.serialNumber,
+            }
+          : {}),
+
+        ...(input.responsiblePersonId !== undefined
+          ? {
+              responsiblePersonId:
+                input.responsiblePersonId,
+            }
+          : {}),
+
+        ...(input.room !== undefined
+          ? {
+              room:
+                input.room,
+            }
+          : {}),
+
+        ...(input.usageDate !== undefined
+          ? {
+              usageDate:
+                input.usageDate,
+            }
+          : {}),
+
+        ...(input.documentNumber !== undefined
+          ? {
+              documentNumber:
+                input.documentNumber,
+            }
+          : {}),
+
+        ...(input.documentDate !== undefined
+          ? {
+              documentDate:
+                input.documentDate,
+            }
+          : {}),
+
+        ...(input.commitmentNumber !== undefined
+          ? {
+              commitmentNumber:
+                input.commitmentNumber,
+            }
+          : {}),
+
+        ...(input.conservationStatus !== undefined
+          ? {
+              conservationStatus:
+                input.conservationStatus,
+            }
+          : {}),
+
+        ...(input.renavam !== undefined
+          ? {
+              renavam:
+                input.renavam,
+            }
+          : {}),
+
+        ...(input.chassis !== undefined
+          ? {
+              chassis:
+                input.chassis,
+            }
+          : {}),
+
+        ...(input.acquisitionDate !== undefined
+          ? {
+              acquisitionDate:
+                input.acquisitionDate,
+            }
+          : {}),
+
+        ...(input.acquisitionValue !== undefined
+          ? {
+              acquisitionValue:
+                input.acquisitionValue === null
+                  ? null
+                  : String(
+                      input.acquisitionValue,
+                    ),
+            }
+          : {}),
+
+        ...(input.notes !== undefined
+          ? {
+              notes:
+                input.notes,
+            }
+          : {}),
+
+        updatedAt:
+          new Date(),
+      })
+      .where(
+        eq(
+          assets.id,
+          id,
+        ),
+      )
+      .returning();
+
+  return updated ?? null;
 }
 
   async create(

@@ -140,3 +140,73 @@ export const assetCreateSchema = z.object({
 
 export type AssetCreate =
   z.infer<typeof assetCreateSchema>;
+
+//Editar Bem
+
+/*
+ * Representa os dados permitidos
+ * na edição cadastral de um bem.
+ *
+ * unitId não está presente porque
+ * a alteração de setor será feita
+ * através da movimentação patrimonial.
+ */
+export const assetUpdateSchema = z.object({
+  patrimonyNumber:
+    z.string().trim().min(1).optional(),
+
+  description:
+    z.string().trim().min(2).optional(),
+
+  brand:
+    z.string().trim().nullable().optional(),
+
+  model:
+    z.string().trim().nullable().optional(),
+
+  serialNumber:
+    z.string().trim().nullable().optional(),
+
+  responsiblePersonId:
+    z.uuid().nullable().optional(),
+
+  room:
+    z.string().trim().nullable().optional(),
+
+  usageDate:
+    z.string().nullable().optional(),
+
+  documentNumber:
+    z.string().trim().nullable().optional(),
+
+  documentDate:
+    z.string().nullable().optional(),
+
+  commitmentNumber:
+    z.string().trim().nullable().optional(),
+
+  conservationStatus:
+    z.string().trim().nullable().optional(),
+
+  renavam:
+    z.string().trim().nullable().optional(),
+
+  chassis:
+    z.string().trim().nullable().optional(),
+
+  acquisitionDate:
+    z.string().nullable().optional(),
+
+  acquisitionValue:
+    z
+      .number()
+      .nonnegative()
+      .nullable()
+      .optional(),
+
+  notes:
+    z.string().trim().nullable().optional(),
+});
+
+export type AssetUpdate =
+  z.infer<typeof assetUpdateSchema>;
