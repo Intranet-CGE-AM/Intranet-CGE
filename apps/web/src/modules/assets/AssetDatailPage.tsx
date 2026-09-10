@@ -1,5 +1,6 @@
 import type {
   Asset,
+  AssetMovement,
 } from "@cge/contracts";
 
 import {
@@ -33,6 +34,8 @@ import {
 } from "../../lib/api";
 
 
+
+
 type OrganizationUnit = {
   id: string;
   code: string;
@@ -43,6 +46,10 @@ type OrganizationUnit = {
 
 type OrganizationUnitsResponse = {
   units: OrganizationUnit[];
+};
+
+type AssetMovementsResponse = {
+  movements: AssetMovement[];
 };
 
 const assetStatusLabels = {
@@ -81,6 +88,20 @@ export function AssetDetailPage() {
     setError,
   ] = useState("");
 
+  const [
+    movements,
+    setMovements,
+  ] = useState<
+    AssetMovement[]
+  >([]);
+
+  const [
+    units,
+    setUnits,
+  ] = useState<
+    OrganizationUnit[]
+  >([]);
+
   useEffect(() => {
     if (!id) {
       setError(
@@ -105,6 +126,7 @@ export function AssetDetailPage() {
       const [
         assetResult,
         unitsResult,
+        movementsResult,
       ] = await Promise.all([
         api<Asset>(
           `/api/assets/${assetId}`,
@@ -113,10 +135,22 @@ export function AssetDetailPage() {
         api<OrganizationUnitsResponse>(
           "/api/organization-units",
         ),
+
+        api<AssetMovementsResponse>(
+          `/api/assets/${assetId}/movements`,
+        ),
       ]);
+
+      setUnits(
+      unitsResult.units,
+      );
 
       setAsset(
         assetResult,
+      );
+
+      setMovements(
+        movementsResult.movements,
       );
 
       const foundUnit =
@@ -188,6 +222,16 @@ export function AssetDetailPage() {
       </div>
     );
   }
+
+const unitsById =
+  new Map(
+    units.map(
+      (unit) => [
+        unit.id,
+        unit,
+      ],
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -457,6 +501,83 @@ export function AssetDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-medium">
+                Histórico de movimentações
+              </h2>
+
+              <p className="text-xs text-[var(--text-muted)]">
+                Transferências realizadas
+                entre setores.
+              </p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {movements.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">
+                Nenhuma movimentação
+                registrada para este bem.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {[...movements]
+                  .reverse()
+                  .map(
+                    (
+                      movement,
+                    ) => (
+                      <div
+                        key={
+                          movement.id
+                        }
+                        className="rounded-md border border-[var(--border)] p-4"
+                      >
+                        <div className="grid gap-4 sm:grid-cols-3">
+                          <DetailItem
+                            label="Data"
+                            value={formatDate(
+                              movement.movementDate,
+                            )}
+                          />
+
+                          <DetailItem
+                            label="Origem"
+                            value={formatUnit(
+                              movement.fromUnitId,
+                              unitsById,
+                            )}
+                          />
+
+                          <DetailItem
+                            label="Destino"
+                            value={formatUnit(
+                              movement.toUnitId,
+                              unitsById,
+                            )}
+                          />
+                        </div>
+
+                        {movement.notes ? (
+                          <div className="mt-4">
+                            <DetailItem
+                              label="Observação"
+                              value={
+                                movement.notes
+                              }
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    ),
+                  )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
     </div>
   );
 }
@@ -543,4 +664,28 @@ function formatCurrency(
       currency: "BRL",
     },
   ).format(number);
+}
+
+
+function formatUnit(
+  unitId: string | null,
+  unitsById: Map<
+    string,
+    OrganizationUnit
+  >,
+) {
+  if (!unitId) {
+    return "Sem setor anterior";
+  }
+
+  const unit =
+    unitsById.get(
+      unitId,
+    );
+
+  if (!unit) {
+    return "Setor não encontrado";
+  }
+
+  return `${unit.code} - ${unit.name}`;
 }

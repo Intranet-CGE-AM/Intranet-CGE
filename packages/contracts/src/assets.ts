@@ -229,3 +229,29 @@ export type AssetMovementCreate =
   z.infer<
     typeof assetMovementCreateSchema
   >;
+
+  export const assetMovementSchema = z.object({
+  id: z.uuid(),
+
+  assetId: z.uuid(),
+
+  fromUnitId:
+    z.uuid().nullable(),
+
+  toUnitId:
+    z.uuid(),
+
+  movementDate:
+    z.string(),
+
+  notes:
+    z.string().nullable(),
+
+  createdAt:
+    z.string(),
+});
+
+export type AssetMovement =
+  z.infer<
+    typeof assetMovementSchema
+  >;
