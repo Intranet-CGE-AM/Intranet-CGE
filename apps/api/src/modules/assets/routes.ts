@@ -396,4 +396,67 @@ typedApp.post(
           };
         },
       );
+
+      /* ALTERAR SITUAÇÃO DO BEM */
+
+      typedApp.patch(
+        "/api/assets/:id/status",
+
+        {
+          schema: {
+            params:
+              z.object({
+                id: z.uuid(),
+              }),
+
+            body:
+              z.object({
+                status:
+                  z.enum([
+                    "active",
+                    "maintenance",
+                  ]),
+              }),
+          },
+        },
+
+        async (
+          request,
+          reply,
+        ) => {
+          const user =
+            await requireAnyPermission(
+              request,
+              reply,
+              options.authenticationService,
+              "assets.manage",
+            );
+
+          if (!user) {
+            return;
+          }
+
+          const updated =
+            await options
+              .assetService
+              .setStatus(
+                request.params.id,
+                request.body.status,
+              );
+
+          if (!updated) {
+            return reply
+              .status(404)
+              .send({
+                code:
+                  "ASSET_NOT_FOUND",
+
+                message:
+                  "Bem patrimonial não encontrado.",
+              });
+          }
+
+          return updated;
+        },
+      );
   };

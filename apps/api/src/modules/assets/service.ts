@@ -420,4 +420,29 @@ async move(
 
     return created;
   }
+
+  async setStatus(
+  id: string,
+  status:
+    | "active"
+    | "maintenance",
+) {
+  const [updated] =
+    await this.db
+      .update(assets)
+      .set({
+        status,
+        updatedAt:
+          new Date(),
+      })
+      .where(
+        eq(
+          assets.id,
+          id,
+        ),
+      )
+      .returning();
+
+  return updated ?? null;
+}
 }

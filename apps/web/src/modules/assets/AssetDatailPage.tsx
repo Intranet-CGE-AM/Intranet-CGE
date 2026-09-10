@@ -102,6 +102,11 @@ export function AssetDetailPage() {
     OrganizationUnit[]
   >([]);
 
+  const [
+  changingStatus,
+  setChangingStatus,
+] = useState(false);
+
   useEffect(() => {
     if (!id) {
       setError(
@@ -233,6 +238,60 @@ const unitsById =
     ),
   );
 
+  async function handleStatusChange() {
+  if (!asset) {
+    return;
+  }
+
+  const newStatus =
+    asset.status === "maintenance"
+      ? "active"
+      : "maintenance";
+
+  try {
+    setChangingStatus(true);
+    setError("");
+
+    const updated =
+      await api<Asset>(
+        `/api/assets/${asset.id}/status`,
+        {
+          method: "PATCH",
+
+          body: JSON.stringify({
+            status:
+              newStatus,
+          }),
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+    setAsset(
+      updated,
+    );
+  } catch (cause) {
+    if (
+      cause instanceof
+      ApiError
+    ) {
+      setError(
+        cause.message,
+      );
+    } else {
+      setError(
+        "Não foi possível alterar a situação do bem.",
+      );
+    }
+  } finally {
+    setChangingStatus(false);
+  }
+}
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -312,17 +371,40 @@ const unitsById =
               }
             />
 
-            <DetailItem
-              label="Situação"
-            >
-              <Badge variant="neutral">
-                {
-                  assetStatusLabels[
-                    asset.status
-                  ]
+        <DetailItem
+          label="Situação"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="neutral">
+              {
+                assetStatusLabels[
+                  asset.status
+                ]
+              }
+            </Badge>
+
+            {asset.status !==
+            "disposed" ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={
+                  changingStatus
                 }
-              </Badge>
-            </DetailItem>
+                onClick={() =>
+                  void handleStatusChange()
+                }
+              >
+                {changingStatus
+                  ? "Atualizando..."
+                  : asset.status ===
+                      "maintenance"
+                    ? "Retornar ao uso"
+                    : "Enviar para manutenção"}
+              </Button>
+            ) : null}
+          </div>
+        </DetailItem>
 
             <DetailItem
               label="Conservação"
