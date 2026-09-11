@@ -422,7 +422,7 @@ export function AssetCreatePage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <FormField
                   htmlFor="patrimonyNumber"
-                  label="Tombo"
+                  label="Número do Tombo"
                 >
                   <Input
                     autoComplete="off"
@@ -560,7 +560,7 @@ export function AssetCreatePage() {
             <CardHeader>
               <div>
                 <h2 className="font-medium">
-                  Documentação e aquisição
+                  Nota Fiscal/ Documentação e aquisição
                 </h2>
 
                 <p className="text-xs text-[var(--text-muted)]">

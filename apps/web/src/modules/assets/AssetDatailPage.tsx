@@ -365,7 +365,7 @@ const unitsById =
         <CardContent>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem
-              label="Tombo"
+              label="Número do Tombo"
               value={
                 asset.patrimonyNumber
               }
@@ -485,7 +485,7 @@ const unitsById =
         <CardHeader>
           <div>
             <h2 className="font-medium">
-              Documentação e aquisição
+              Nota Fiscal/ Documentação e aquisição
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">

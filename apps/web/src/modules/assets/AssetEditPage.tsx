@@ -556,7 +556,7 @@ const submittedDocumentDate =
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FormField
-                label="Tombo"
+                label="Número do Tombo"
                 htmlFor="patrimonyNumber"
               >
                 <Input
@@ -729,7 +729,7 @@ const submittedDocumentDate =
           <CardHeader>
             <div>
               <h2 className="font-medium">
-                Documentação e aquisição
+                Nota Fiscal/ Documentação e aquisição
               </h2>
             </div>
           </CardHeader>
