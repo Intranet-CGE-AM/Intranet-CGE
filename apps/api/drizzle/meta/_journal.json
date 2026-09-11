@@ -64,6 +64,13 @@
       "when": 1788963028911,
       "tag": "0008_pretty_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789135901736,
+      "tag": "0009_flimsy_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

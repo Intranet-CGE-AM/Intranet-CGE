@@ -1,7 +1,8 @@
 import type {
   AssetCreate,
+  AssetDisposalCreate,
+  AssetMovementCreate,
   AssetUpdate,
-   AssetMovementCreate,
 } from "@cge/contracts";
 
 import type {
@@ -9,6 +10,7 @@ import type {
 } from "../../db/client.js";
 
 import {
+  assetDisposals,
   assetMovements,
   assets,
 } from "./schema.js";
@@ -71,6 +73,8 @@ export class AssetService {
   return asset ?? null;
 }
 
+
+//Servico de editar Bem patrimonio
 async update(
   id: string,
   input: AssetUpdate,
@@ -215,6 +219,7 @@ async update(
 
   return updated ?? null;
 }
+
 //Para mover Bem(patrimonio) de setor
 async move(
   id: string,
@@ -346,6 +351,7 @@ async move(
   );
 }
 
+//Servico de cadastro de Bem patrimonio
   async create(
     input: AssetCreate,
   ) {
@@ -444,5 +450,97 @@ async move(
       .returning();
 
   return updated ?? null;
+}
+
+//Servico de disponibilidade do Bem patrimonio
+async dispose(
+  id: string,
+  input: AssetDisposalCreate,
+) {
+  return this.db.transaction(
+    async (transaction) => {
+      const [asset] =
+        await transaction
+          .select({
+            id:
+              assets.id,
+
+            status:
+              assets.status,
+          })
+          .from(assets)
+          .where(
+            eq(
+              assets.id,
+              id,
+            ),
+          )
+          .limit(1);
+
+      if (!asset) {
+        return {
+          success: false as const,
+          reason:
+            "ASSET_NOT_FOUND" as const,
+        };
+      }
+
+      if (
+        asset.status ===
+        "disposed"
+      ) {
+        return {
+          success: false as const,
+          reason:
+            "ALREADY_DISPOSED" as const,
+        };
+      }
+
+      const [disposal] =
+        await transaction
+          .insert(
+            assetDisposals,
+          )
+          .values({
+            assetId:
+              asset.id,
+
+            disposalDate:
+              input.disposalDate,
+
+            reason:
+              input.reason,
+
+            notes:
+              input.notes ?? null,
+          })
+          .returning();
+
+      const [updatedAsset] =
+        await transaction
+          .update(assets)
+          .set({
+            status:
+              "disposed",
+
+            updatedAt:
+              new Date(),
+          })
+          .where(
+            eq(
+              assets.id,
+              asset.id,
+            ),
+          )
+          .returning();
+
+      return {
+        success: true as const,
+        disposal,
+        asset:
+          updatedAsset,
+      };
+    },
+  );
 }
 }

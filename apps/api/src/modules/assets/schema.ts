@@ -22,6 +22,8 @@ export const assetStatus = pgEnum(
   ],
 );
 
+
+//Patrimonio
 export const assets = pgTable(
   "assets",
   {
@@ -119,6 +121,8 @@ export const assets = pgTable(
         .defaultNow(),
   },
 );
+
+//Movimentação do patrimonio
 export const assetMovements = pgTable(
   "asset_movements",
   {
@@ -149,6 +153,42 @@ export const assetMovements = pgTable(
 
     movementDate:
       date("movement_date")
+        .notNull(),
+
+    notes:
+      text("notes"),
+
+    createdAt:
+      timestamp("created_at", {
+        withTimezone: true,
+      })
+        .notNull()
+        .defaultNow(),
+  },
+);
+
+//Disponibilidade o Patrimonio
+export const assetDisposals = pgTable(
+  "asset_disposals",
+  {
+    id:
+      uuid("id")
+        .primaryKey()
+        .defaultRandom(),
+
+    assetId:
+      uuid("asset_id")
+        .notNull()
+        .references(
+          () => assets.id,
+        ),
+
+    disposalDate:
+      date("disposal_date")
+        .notNull(),
+
+    reason:
+      text("reason")
         .notNull(),
 
     notes:

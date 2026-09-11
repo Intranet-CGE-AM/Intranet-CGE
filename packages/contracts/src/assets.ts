@@ -6,7 +6,7 @@ export const assetStatusSchema = z.enum([
   "disposed",
 ]);
 
-/*Representa um bem que já existe no sistema*/
+/*Contrato para listar Bem patrimonio que já existe no sistema*/
 export type AssetStatus =
   z.infer<typeof assetStatusSchema>;
 
@@ -81,7 +81,7 @@ export type Asset =
   z.infer<typeof assetSchema>;
 
 
-/*Representa os dados enviados pelo formulário para criar um novo bem*/
+/*Contrato para criar um novo bem*/
 export const assetCreateSchema = z.object({
   patrimonyNumber:
     z.string().trim().min(1),
@@ -141,7 +141,7 @@ export const assetCreateSchema = z.object({
 export type AssetCreate =
   z.infer<typeof assetCreateSchema>;
 
-//Editar Bem
+//Contrato de Editar Bem patrimonio
 
 /*
  * Representa os dados permitidos
@@ -225,6 +225,7 @@ export const assetMovementCreateSchema = z.object({
       .optional(),
 });
 
+//Contrato de movimentação de Bem patrimonio
 export type AssetMovementCreate =
   z.infer<
     typeof assetMovementCreateSchema
@@ -254,4 +255,26 @@ export type AssetMovementCreate =
 export type AssetMovement =
   z.infer<
     typeof assetMovementSchema
+  >;
+
+//Contrato de disponibilidade de Bem patrimonio
+export const assetDisposalCreateSchema = z.object({
+  disposalDate:
+    z.string(),
+
+  reason:
+    z.string()
+      .trim()
+      .min(2),
+
+  notes:
+    z.string()
+      .trim()
+      .nullable()
+      .optional(),
+});
+
+export type AssetDisposalCreate =
+  z.infer<
+    typeof assetDisposalCreateSchema
   >;
