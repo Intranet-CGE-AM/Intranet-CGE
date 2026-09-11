@@ -74,11 +74,52 @@ export class AssetService {
 }
 
 
+
+
+
 //Servico de editar Bem patrimonio
 async update(
   id: string,
   input: AssetUpdate,
 ) {
+
+const [asset] =
+  await this.db
+    .select({
+      id:
+        assets.id,
+
+      status:
+        assets.status,
+    })
+    .from(assets)
+    .where(
+      eq(
+        assets.id,
+        id,
+      ),
+    )
+    .limit(1);
+
+if (!asset) {
+  return {
+    success: false as const,
+    reason:
+      "ASSET_NOT_FOUND" as const,
+  };
+}
+
+if (
+  asset.status ===
+  "disposed"
+) {
+  return {
+    success: false as const,
+    reason:
+      "ASSET_DISPOSED" as const,
+  };
+}
+  
   const [updated] =
     await this.db
       .update(assets)
@@ -217,7 +258,11 @@ async update(
       )
       .returning();
 
-  return updated ?? null;
+  return {
+  success: true as const,
+  asset:
+    updated,
+};
 }
 
 //Para mover Bem(patrimonio) de setor
@@ -227,29 +272,42 @@ async move(
 ) {
   return this.db.transaction(
     async (transaction) => {
-      const [asset] =
-        await transaction
-          .select({
-            id:
-              assets.id,
+    const [asset] =
+      await transaction
+        .select({
+          id:
+            assets.id,
 
-            unitId:
-              assets.unitId,
-          })
-          .from(assets)
-          .where(
-            eq(
-              assets.id,
-              id,
-            ),
-          )
-          .limit(1);
+          unitId:
+            assets.unitId,
+
+          status:
+            assets.status,
+        })
+        .from(assets)
+        .where(
+          eq(
+            assets.id,
+            id,
+          ),
+        )
+        .limit(1);
 
       if (!asset) {
         return {
           success: false as const,
           reason:
             "ASSET_NOT_FOUND" as const,
+        };
+      }
+      if (
+        asset.status ===
+        "disposed"
+      ) {
+        return {
+          success: false as const,
+          reason:
+            "ASSET_DISPOSED" as const,
         };
       }
 
@@ -427,12 +485,49 @@ async move(
     return created;
   }
 
-  async setStatus(
+async setStatus(
   id: string,
   status:
     | "active"
     | "maintenance",
 ) {
+  const [asset] =
+    await this.db
+      .select({
+        id:
+          assets.id,
+
+        status:
+          assets.status,
+      })
+      .from(assets)
+      .where(
+        eq(
+          assets.id,
+          id,
+        ),
+      )
+      .limit(1);
+
+  if (!asset) {
+    return {
+      success: false as const,
+      reason:
+        "ASSET_NOT_FOUND" as const,
+    };
+  }
+
+  if (
+    asset.status ===
+    "disposed"
+  ) {
+    return {
+      success: false as const,
+      reason:
+        "ASSET_DISPOSED" as const,
+    };
+  }
+
   const [updated] =
     await this.db
       .update(assets)
@@ -449,7 +544,11 @@ async move(
       )
       .returning();
 
-  return updated ?? null;
+  return {
+    success: true as const,
+    asset:
+      updated,
+  };
 }
 
 //Servico de disponibilidade do Bem patrimonio

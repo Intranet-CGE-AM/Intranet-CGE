@@ -309,7 +309,7 @@ const unitsById =
   </div>
 
   <div className="flex items-center gap-2">
-    {/* Botão Editar */}
+  {/* Botão Editar */}
     <Button asChild>
       <Link
         to={`/patrimonio/bens/${asset.id}/editar`}
@@ -336,7 +336,7 @@ const unitsById =
     </Link>
   </Button>
 
-{/*Botão de Baixa*/}
+  {/*Botão de Baixa*/}
       {asset.status !==
     "disposed" ? (
       <Button
@@ -356,18 +356,18 @@ const unitsById =
     ) : null}
 
   {/* Botão Voltar */}
-    <Button
-      asChild
-      variant="secondary"
-    >
-      <Link to="/patrimonio/bens">
-        <ArrowLeft size={18} />
+        <Button
+          asChild
+          variant="secondary"
+        >
+          <Link to="/patrimonio/bens">
+            <ArrowLeft size={18} />
 
-        Voltar
-      </Link>
-    </Button>
-  </div>
-</div>
+            Voltar
+          </Link>
+        </Button>
+      </div>
+    </div>
 
       <Card>
         <CardHeader>

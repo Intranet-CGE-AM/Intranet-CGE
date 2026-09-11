@@ -79,115 +79,131 @@ export const assetRoutes:
             },
           );
 
-            /* CONSULTAR BEM */
+          /* CONSULTAR BEM */
 
-        typedApp.get(
-          "/api/assets/:id",
+          typedApp.get(
+            "/api/assets/:id",
 
-          {
-            schema: {
-              params:
-                z.object({
-                  id: z.uuid(),
-                }),
+            {
+              schema: {
+                params:
+                  z.object({
+                    id: z.uuid(),
+                  }),
+              },
             },
-          },
 
-          async (
-            request,
-            reply,
-          ) => {
-            const user =
-              await requireAnyPermission(
-                request,
-                reply,
-                options.authenticationService,
-                "assets.read",
-              );
-
-            if (!user) {
-              return;
-            }
-
-            const asset =
-              await options
-                .assetService
-                .findById(
-                  request.params.id,
+            async (
+              request,
+              reply,
+            ) => {
+              const user =
+                await requireAnyPermission(
+                  request,
+                  reply,
+                  options.authenticationService,
+                  "assets.read",
                 );
 
-            if (!asset) {
-              return reply
-                .status(404)
-                .send({
-                  code:
-                    "ASSET_NOT_FOUND",
+              if (!user) {
+                return;
+              }
 
-                  message:
-                    "Bem patrimonial não encontrado.",
-                });
-            }
+              const asset =
+                await options
+                  .assetService
+                  .findById(
+                    request.params.id,
+                  );
 
-            return asset;
-          },
-        );
+              if (!asset) {
+                return reply
+                  .status(404)
+                  .send({
+                    code:
+                      "ASSET_NOT_FOUND",
 
-        /* EDITAR BEM */
+                    message:
+                      "Bem patrimonial não encontrado.",
+                  });
+              }
 
-        typedApp.patch(
-          "/api/assets/:id",
-
-          {
-            schema: {
-              params:
-                z.object({
-                  id: z.uuid(),
-                }),
-
-              body:
-                assetUpdateSchema,
+              return asset;
             },
-          },
+          );
 
-          async (
-            request,
-            reply,
-          ) => {
-            const user =
-              await requireAnyPermission(
-                request,
-                reply,
-                options.authenticationService,
-                "assets.manage",
-              );
+/* EDITAR BEM */
 
-            if (!user) {
-              return;
-            }
+typedApp.patch(
+  "/api/assets/:id",
 
-            const updated =
-              await options
-                .assetService
-                .update(
-                  request.params.id,
-                  request.body,
-                );
+  {
+    schema: {
+      params:
+        z.object({
+          id: z.uuid(),
+        }),
 
-            if (!updated) {
-              return reply
-                .status(404)
-                .send({
-                  code:
-                    "ASSET_NOT_FOUND",
+      body:
+        assetUpdateSchema,
+    },
+  },
 
-                  message:
-                    "Bem patrimonial não encontrado.",
-                });
-            }
+  async (
+    request,
+    reply,
+  ) => {
+    const user =
+      await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.manage",
+      );
 
-            return updated;
-          },
+    if (!user) {
+      return;
+    }
+
+    const result =
+      await options
+        .assetService
+        .update(
+          request.params.id,
+          request.body,
         );
+
+    if (!result.success) {
+      switch (
+        result.reason
+      ) {
+        case "ASSET_NOT_FOUND":
+          return reply
+            .status(404)
+            .send({
+              code:
+                "ASSET_NOT_FOUND",
+
+              message:
+                "Bem patrimonial não encontrado.",
+            });
+
+        case "ASSET_DISPOSED":
+          return reply
+            .status(400)
+            .send({
+              code:
+                "ASSET_DISPOSED",
+
+              message:
+                "Não é possível editar um bem que já possui baixa patrimonial.",
+            });
+      }
+    }
+
+    return result.asset;
+  },
+);
 
         /* MOVIMENTAR BEM */
 
@@ -277,6 +293,17 @@ export const assetRoutes:
                     message:
                       "O bem já está localizado nesse setor.",
                   });
+
+                  case "ASSET_DISPOSED":
+                  return reply
+                    .status(400)
+                    .send({
+                      code:
+                        "ASSET_DISPOSED",
+
+                      message:
+                        "Não é possível movimentar um bem que já possui baixa patrimonial.",
+                    });
             }
           }
 
@@ -437,27 +464,43 @@ export const assetRoutes:
             return;
           }
 
-          const updated =
-            await options
-              .assetService
-              .setStatus(
-                request.params.id,
-                request.body.status,
-              );
+        const result =
+          await options
+            .assetService
+            .setStatus(
+              request.params.id,
+              request.body.status,
+            );
 
-          if (!updated) {
-            return reply
-              .status(404)
-              .send({
-                code:
-                  "ASSET_NOT_FOUND",
+        if (!result.success) {
+          switch (
+            result.reason
+          ) {
+            case "ASSET_NOT_FOUND":
+              return reply
+                .status(404)
+                .send({
+                  code:
+                    "ASSET_NOT_FOUND",
 
-                message:
-                  "Bem patrimonial não encontrado.",
-              });
+                  message:
+                    "Bem patrimonial não encontrado.",
+                });
+
+            case "ASSET_DISPOSED":
+              return reply
+                .status(400)
+                .send({
+                  code:
+                    "ASSET_DISPOSED",
+
+                  message:
+                    "Não é possível alterar a situação de um bem que já possui baixa patrimonial.",
+                });
           }
+        }
 
-          return updated;
+        return result.asset;
         },
       );
 
