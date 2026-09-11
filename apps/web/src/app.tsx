@@ -258,6 +258,16 @@ const AssetMovementPage = lazy(
     })),
 );
 
+const AssetDisposalPage = lazy(
+  () =>
+    import(
+      "./modules/assets/AssetDisposalPage"
+    ).then((module) => ({
+      default:
+        module.AssetDisposalPage,
+    })),
+);
+
 
 export function App() {
   return (
@@ -563,6 +573,21 @@ export function App() {
                 }}
               >
                 <AssetMovementPage />
+              </RequireAccess>
+            }
+          />
+
+          <Route
+            path="patrimonio/bens/:id/baixa"
+            element={
+              <RequireAccess
+                rule={{
+                  anyOf: [
+                    "assets.manage",
+                  ],
+                }}
+              >
+                <AssetDisposalPage />
               </RequireAccess>
             }
           />

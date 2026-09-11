@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ArrowsLeftRight,
   PencilSimple,
+  TrashSimple,
 } from "@phosphor-icons/react";
 
 import {
@@ -334,6 +335,26 @@ const unitsById =
       Movimentar
     </Link>
   </Button>
+
+{/*Botão de Baixa*/}
+      {asset.status !==
+    "disposed" ? (
+      <Button
+        asChild
+        variant="danger"
+      >
+        <Link
+          to={`/patrimonio/bens/${asset.id}/baixa`}
+        >
+          <TrashSimple
+            size={18}
+          />
+
+          Baixar
+        </Link>
+      </Button>
+    ) : null}
+
   {/* Botão Voltar */}
     <Button
       asChild
