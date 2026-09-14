@@ -79,6 +79,34 @@ export const assetRoutes:
             },
           );
 
+          /* DASHBOARD DO PATRIMÔNIO */
+
+          typedApp.get(
+            "/api/assets/dashboard",
+
+            async (
+              request,
+              reply,
+            ) => {
+              const user =
+                await requireAnyPermission(
+                  request,
+                  reply,
+                  options.authenticationService,
+                  "assets.read",
+                );
+
+              if (!user) {
+                return;
+              }
+
+              return options
+                .assetService
+                .getDashboard();
+            },
+          );
+
+
           /* CONSULTAR BEM */
 
           typedApp.get(

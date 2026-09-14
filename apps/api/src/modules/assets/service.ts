@@ -21,6 +21,7 @@ import {
 
 import {
   eq,
+  desc,
 } from "drizzle-orm";
 
 
@@ -37,6 +38,434 @@ export class AssetService {
         assets.createdAt,
       );
   }
+
+  async getDashboard() {
+  const [
+    assetRows,
+    unitRows,
+    recentMovementRows,
+    recentDisposalRows,
+  ] = await Promise.all([
+    this.db
+      .select({
+        id:
+          assets.id,
+
+        patrimonyNumber:
+          assets.patrimonyNumber,
+
+        status:
+          assets.status,
+
+        acquisitionValue:
+          assets.acquisitionValue,
+
+        unitId:
+          assets.unitId,
+
+        conservationStatus:
+          assets.conservationStatus,
+      })
+      .from(assets),
+
+    this.db
+      .select({
+        id:
+          organizationUnits.id,
+
+        code:
+          organizationUnits.code,
+
+        name:
+          organizationUnits.name,
+      })
+      .from(
+        organizationUnits,
+      ),
+
+    this.db
+      .select({
+        id:
+          assetMovements.id,
+
+        assetId:
+          assetMovements.assetId,
+
+        fromUnitId:
+          assetMovements.fromUnitId,
+
+        toUnitId:
+          assetMovements.toUnitId,
+
+        movementDate:
+          assetMovements.movementDate,
+      })
+      .from(
+        assetMovements,
+      )
+      .orderBy(
+        desc(
+          assetMovements.movementDate,
+        ),
+      )
+      .limit(5),
+
+    this.db
+      .select({
+        id:
+          assetDisposals.id,
+
+        assetId:
+          assetDisposals.assetId,
+
+        disposalDate:
+          assetDisposals.disposalDate,
+
+        reason:
+          assetDisposals.reason,
+      })
+      .from(
+        assetDisposals,
+      )
+      .orderBy(
+        desc(
+          assetDisposals.disposalDate,
+        ),
+      )
+      .limit(5),
+  ]);
+
+  /*
+   * Resumo geral
+   */
+
+  const total =
+    assetRows.length;
+
+  const active =
+    assetRows.filter(
+      (asset) =>
+        asset.status ===
+        "active",
+    ).length;
+
+  const maintenance =
+    assetRows.filter(
+      (asset) =>
+        asset.status ===
+        "maintenance",
+    ).length;
+
+  const disposed =
+    assetRows.filter(
+      (asset) =>
+        asset.status ===
+        "disposed",
+    ).length;
+
+  const totalValue =
+    assetRows.reduce(
+      (
+        totalValue,
+        asset,
+      ) =>
+        totalValue +
+        Number(
+          asset.acquisitionValue ??
+            0,
+        ),
+      0,
+    );
+
+  /*
+   * Mapas auxiliares
+   */
+
+  const assetById =
+    new Map(
+      assetRows.map(
+        (asset) => [
+          asset.id,
+          asset,
+        ],
+      ),
+    );
+
+  const unitById =
+    new Map(
+      unitRows.map(
+        (unit) => [
+          unit.id,
+          unit,
+        ],
+      ),
+    );
+
+  /*
+   * Bens por setor
+   */
+
+  const unitTotals =
+    new Map<
+      string,
+      number
+    >();
+
+  for (
+    const asset of assetRows
+  ) {
+    if (!asset.unitId) {
+      continue;
+    }
+
+    unitTotals.set(
+      asset.unitId,
+      (
+        unitTotals.get(
+          asset.unitId,
+        ) ?? 0
+      ) + 1,
+    );
+  }
+
+  const byUnit =
+    Array.from(
+      unitTotals.entries(),
+    )
+      .map(
+        ([
+          unitId,
+          total,
+        ]) => {
+          const unit =
+            unitById.get(
+              unitId,
+            );
+
+          return {
+            unitId,
+            code:
+              unit?.code ??
+              null,
+            name:
+              unit?.name ??
+              null,
+            total,
+          };
+        },
+      )
+      .sort(
+        (a, b) =>
+          b.total -
+          a.total,
+      );
+
+  /*
+   * Estado de conservação
+   */
+
+  const conservationTotals =
+    new Map<
+      string,
+      number
+    >();
+
+  for (
+    const asset of assetRows
+  ) {
+    const status =
+      asset
+        .conservationStatus
+        ?.trim() ||
+      "Não informado";
+
+    conservationTotals.set(
+      status,
+      (
+        conservationTotals.get(
+          status,
+        ) ?? 0
+      ) + 1,
+    );
+  }
+
+  const conservationOrder =
+    [
+      "Ótimo",
+      "Bom",
+      "Regular",
+      "Ruim",
+      "Inservível",
+      "Não informado",
+    ];
+
+  const byConservation =
+    Array.from(
+      conservationTotals.entries(),
+    )
+      .map(
+        ([
+          status,
+          total,
+        ]) => ({
+          status,
+          total,
+        }),
+      )
+      .sort(
+        (a, b) => {
+          const aIndex =
+            conservationOrder.indexOf(
+              a.status,
+            );
+
+          const bIndex =
+            conservationOrder.indexOf(
+              b.status,
+            );
+
+          const normalizedA =
+            aIndex === -1
+              ? conservationOrder.length
+              : aIndex;
+
+          const normalizedB =
+            bIndex === -1
+              ? conservationOrder.length
+              : bIndex;
+
+          return (
+            normalizedA -
+            normalizedB
+          );
+        },
+      );
+
+  /*
+   * Movimentações recentes
+   */
+
+  const recentMovements =
+    recentMovementRows.map(
+      (movement) => {
+        const asset =
+          assetById.get(
+            movement.assetId,
+          );
+
+        const fromUnit =
+          movement.fromUnitId
+            ? unitById.get(
+                movement.fromUnitId,
+              )
+            : null;
+
+        const toUnit =
+          unitById.get(
+            movement.toUnitId,
+          );
+
+        return {
+          id:
+            movement.id,
+
+          assetId:
+            movement.assetId,
+
+          patrimonyNumber:
+            asset?.patrimonyNumber ??
+            null,
+
+          movementDate:
+            movement.movementDate,
+
+          fromUnit:
+            fromUnit
+              ? {
+                  id:
+                    fromUnit.id,
+
+                  code:
+                    fromUnit.code,
+
+                  name:
+                    fromUnit.name,
+                }
+              : null,
+
+          toUnit:
+            toUnit
+              ? {
+                  id:
+                    toUnit.id,
+
+                  code:
+                    toUnit.code,
+
+                  name:
+                    toUnit.name,
+                }
+              : null,
+        };
+      },
+    );
+
+  /*
+   * Baixas recentes
+   */
+
+  const recentDisposals =
+    recentDisposalRows.map(
+      (disposal) => {
+        const asset =
+          assetById.get(
+            disposal.assetId,
+          );
+
+        return {
+          id:
+            disposal.id,
+
+          assetId:
+            disposal.assetId,
+
+          patrimonyNumber:
+            asset?.patrimonyNumber ??
+            null,
+
+          disposalDate:
+            disposal.disposalDate,
+
+          reason:
+            disposal.reason,
+        };
+      },
+    );
+
+  return {
+    summary: {
+      total,
+      active,
+      maintenance,
+      disposed,
+      totalValue:
+        Number(
+          totalValue.toFixed(
+            2,
+          ),
+        ),
+    },
+
+    byUnit,
+
+    byConservation,
+
+    recentMovements,
+
+    recentDisposals,
+  };
+}
+
 
   async listMovements(
       assetId: string,
