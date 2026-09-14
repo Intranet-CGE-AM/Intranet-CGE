@@ -642,4 +642,23 @@ async dispose(
     },
   );
 }
+
+async getDisposal(
+  assetId: string,
+) {
+  const [disposal] =
+    await this.db
+      .select()
+      .from(assetDisposals)
+      .where(
+        eq(
+          assetDisposals.assetId,
+          assetId,
+        ),
+      )
+      .limit(1);
+
+  return disposal ?? null;
+}
+
 }

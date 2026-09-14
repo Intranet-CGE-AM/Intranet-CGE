@@ -53,6 +53,19 @@ type AssetMovementsResponse = {
   movements: AssetMovement[];
 };
 
+type AssetDisposal = {
+  id: string;
+  assetId: string;
+  disposalDate: string;
+  reason: string;
+  notes: string | null;
+  createdAt: string;
+};
+
+type AssetDisposalResponse = {
+  disposal: AssetDisposal;
+};
+
 const assetStatusLabels = {
   active: "Em uso",
   maintenance: "Em manutenção",
@@ -103,10 +116,18 @@ export function AssetDetailPage() {
     OrganizationUnit[]
   >([]);
 
+  
   const [
-  changingStatus,
-  setChangingStatus,
-] = useState(false);
+    changingStatus,
+    setChangingStatus,
+  ] = useState(false);
+
+  const [
+    disposal,
+    setDisposal,
+  ] = useState<AssetDisposal | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!id) {
@@ -135,15 +156,15 @@ export function AssetDetailPage() {
         movementsResult,
       ] = await Promise.all([
         api<Asset>(
-          `/api/assets/${assetId}`,
+          `/api/assets/${assetId}`, //Busca de Bem
         ),
 
         api<OrganizationUnitsResponse>(
-          "/api/organization-units",
+          "/api/organization-units", //Busca de setores
         ),
 
         api<AssetMovementsResponse>(
-          `/api/assets/${assetId}/movements`,
+          `/api/assets/${assetId}/movements`, //Busca de movimentações
         ),
       ]);
 
@@ -158,6 +179,25 @@ export function AssetDetailPage() {
       setMovements(
         movementsResult.movements,
       );
+
+      if (
+        assetResult.status ===
+        "disposed"
+      ) {
+        const disposalResult =
+          await api<AssetDisposalResponse>(
+            `/api/assets/${assetId}/disposal`,
+          );
+
+        setDisposal(
+          disposalResult.disposal,
+        );
+      } else {
+        setDisposal(
+          null,
+        );
+      }
+
 
       const foundUnit =
         assetResult.unitId
@@ -310,7 +350,69 @@ const unitsById =
 
   <div className="flex items-center gap-2">
   {/* Botão Editar */}
-    <Button asChild>
+
+    {asset.status !==
+  "disposed" ? (
+    <>
+      <Button asChild>
+        <Link
+          to={`/patrimonio/bens/${asset.id}/editar`}
+        >
+          <PencilSimple
+            size={18}
+          />
+
+          Editar
+        </Link>
+      </Button>
+
+      <Button
+        asChild
+        variant="secondary"
+      >
+        <Link
+          to={`/patrimonio/bens/${asset.id}/movimentar`}
+        >
+          <ArrowsLeftRight
+            size={18}
+          />
+
+          Movimentar
+        </Link>
+      </Button>
+
+      <Button
+        asChild
+        variant="danger"
+      >
+        <Link
+          to={`/patrimonio/bens/${asset.id}/baixa`}
+        >
+          <TrashSimple
+            size={18}
+          />
+
+          Baixar
+        </Link>
+      </Button>
+    </>
+  ) : null}
+
+      <Button
+        asChild
+        variant="secondary"
+      >
+        <Link
+          to="/patrimonio/bens"
+        >
+          <ArrowLeft
+            size={18}
+          />
+
+          Voltar
+        </Link>
+      </Button>
+    {/* <Button asChild>
       <Link
         to={`/patrimonio/bens/${asset.id}/editar`}
       >
@@ -320,7 +422,7 @@ const unitsById =
       </Link>
     </Button>
 
-  {/* Botão Movimentar */}
+ 
       <Button
     asChild
     variant="secondary"
@@ -336,7 +438,7 @@ const unitsById =
     </Link>
   </Button>
 
-  {/*Botão de Baixa*/}
+ 
       {asset.status !==
     "disposed" ? (
       <Button
@@ -355,7 +457,7 @@ const unitsById =
       </Button>
     ) : null}
 
-  {/* Botão Voltar */}
+ 
         <Button
           asChild
           variant="secondary"
@@ -365,7 +467,8 @@ const unitsById =
 
             Voltar
           </Link>
-        </Button>
+        </Button> */}
+        
       </div>
     </div>
 
@@ -466,6 +569,54 @@ const unitsById =
           </div>
         </CardContent>
       </Card>
+
+      {asset.status ===
+          "disposed" &&
+        disposal ? (
+          <Card>
+            <CardHeader>
+              <div>
+                <h2 className="font-medium">
+                  Baixa Patrimonial
+                </h2>
+
+                <p className="text-xs text-[var(--text-muted)]">
+                  Informações registradas
+                  no processo de baixa do bem.
+                </p>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailItem
+                  label="Data da baixa"
+                  value={formatDate(
+                    disposal.disposalDate,
+                  )}
+                />
+
+                <div className="sm:col-span-2">
+                  <DetailItem
+                    label="Motivo da baixa"
+                    value={
+                      disposal.reason
+                    }
+                  />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <DetailItem
+                    label="Observação"
+                    value={
+                      disposal.notes
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
       <Card>
         <CardHeader>

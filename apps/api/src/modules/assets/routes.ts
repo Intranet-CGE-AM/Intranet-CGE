@@ -584,4 +584,79 @@ typedApp.patch(
             });
         },
       );
+
+      /* CONSULTAR BAIXA PATRIMONIAL */
+
+      typedApp.get(
+        "/api/assets/:id/disposal",
+
+        {
+          schema: {
+            params:
+              z.object({
+                id: z.uuid(),
+              }),
+          },
+        },
+
+        async (
+          request,
+          reply,
+        ) => {
+          const user =
+            await requireAnyPermission(
+              request,
+              reply,
+              options.authenticationService,
+              "assets.read",
+            );
+
+          if (!user) {
+            return;
+          }
+
+          const asset =
+            await options
+              .assetService
+              .findById(
+                request.params.id,
+              );
+
+          if (!asset) {
+            return reply
+              .status(404)
+              .send({
+                code:
+                  "ASSET_NOT_FOUND",
+
+                message:
+                  "Bem patrimonial não encontrado.",
+              });
+          }
+
+          const disposal =
+                await options
+                  .assetService
+                  .getDisposal(
+                    request.params.id,
+                  );
+
+              if (!disposal) {
+                return reply
+                  .status(404)
+                  .send({
+                    code:
+                      "ASSET_DISPOSAL_NOT_FOUND",
+
+                    message:
+                      "Este bem não possui baixa patrimonial.",
+                  });
+              }
+
+              return {
+                disposal,
+              };
+        },
+        );
+
   };
