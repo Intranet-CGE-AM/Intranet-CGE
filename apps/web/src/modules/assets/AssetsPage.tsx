@@ -308,7 +308,7 @@ export function AssetsPage() {
                 </p>
               </div>
 
-              <Button
+              {/* <Button
                 asChild
                 size="sm"
                 variant="quiet"
@@ -321,38 +321,48 @@ export function AssetsPage() {
                     size={15}
                   />
                 </Link>
-              </Button>
+              </Button> */}
             </CardHeader>
 
             <CardContent className="divide-y divide-[var(--border)] p-0">
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Package
-                    aria-hidden="true"
-                    size={18}
-                  />
-                </span>
+              <Link
+  to="/patrimonio/bens"
+  className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+>
+  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
+    <Package
+      aria-hidden="true"
+      size={18}
+    />
+  </span>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">
-                    Total de bens
-                  </p>
+  <div className="min-w-0 flex-1">
+    <p className="text-sm font-bold">
+      Total de bens
+    </p>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Todos os bens
-                    cadastrados
-                  </p>
-                </div>
+    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+      Todos os bens cadastrados
+    </p>
+  </div>
 
-                {loading ? (
-                  <Skeleton className="h-8 w-10" />
-                ) : (
-                  <strong className="text-2xl font-extrabold tabular-nums">
-                    {total}
-                  </strong>
-                )}
-              </div>
+  {loading ? (
+    <Skeleton className="h-8 w-10" />
+  ) : (
+    <div className="flex items-center gap-2">
+      <strong className="text-2xl font-extrabold tabular-nums">
+        {total}
+      </strong>
 
+      <ArrowRight
+        aria-hidden="true"
+        size={15}
+        className="text-[var(--text-faint)]"
+      />
+    </div>
+  )}
+</Link>
+             
                 {/* Filtro de "Em uso"  */}
                 <Link
                   to="/patrimonio/bens?status=active"
@@ -884,8 +894,7 @@ export function AssetsPage() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Últimas baixas
-                  patrimoniais realizadas
+                  Últimas baixas patrimoniais realizadas
                 </p>
               </div>
             </CardHeader>
@@ -897,15 +906,11 @@ export function AssetsPage() {
                   <Skeleton className="h-14 w-full" />
                 </div>
               ) : dashboard &&
-                dashboard
-                  .recentDisposals
-                  .length ? (
+                dashboard.recentDisposals.length ? (
                 <div className="divide-y divide-[var(--border)]">
                   {dashboard.recentDisposals.map(
-                    (
-                      disposal,
-                    ) => (
-                     <Link
+                    (disposal) => (
+                      <Link
                         key={disposal.id}
                         to={`/patrimonio/bens/${disposal.assetId}`}
                         className="flex items-start gap-3 rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
@@ -913,9 +918,7 @@ export function AssetsPage() {
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
                           <XCircle
                             aria-hidden="true"
-                            size={
-                              18
-                            }
+                            size={18}
                           />
                         </span>
 
@@ -926,33 +929,30 @@ export function AssetsPage() {
                           </p>
 
                           <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                            {
-                              disposal.reason
-                            }
+                            {disposal.reason}
                           </p>
                         </div>
 
-                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-xs text-[var(--text-faint)]">
-                          {formatDate(
-                            disposal.disposalDate,
-                          )}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs text-[var(--text-faint)]">
+                            {formatDate(
+                              disposal.disposalDate,
+                            )}
+                          </span>
 
-                        <ArrowRight
-                          aria-hidden="true"
-                          size={14}
-                          className="text-[var(--text-faint)]"
-                        />
-                      </div>
+                          <ArrowRight
+                            aria-hidden="true"
+                            size={14}
+                            className="text-[var(--text-faint)]"
+                          />
+                        </div>
                       </Link>
                     ),
                   )}
                 </div>
               ) : (
                 <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhuma baixa
-                  patrimonial registrada.
+                  Nenhuma baixa patrimonial registrada.
                 </p>
               )}
             </CardContent>
