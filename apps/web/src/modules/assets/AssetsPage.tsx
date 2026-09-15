@@ -803,8 +803,7 @@ export function AssetsPage() {
                 </h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Últimas transferências
-                  entre setores
+                  Últimas transferências entre setores
                 </p>
               </div>
             </CardHeader>
@@ -817,26 +816,19 @@ export function AssetsPage() {
                   <Skeleton className="h-14 w-full" />
                 </div>
               ) : dashboard &&
-                dashboard
-                  .recentMovements
-                  .length ? (
+                dashboard.recentMovements.length ? (
                 <div className="divide-y divide-[var(--border)]">
                   {dashboard.recentMovements.map(
-                    (
-                      movement,
-                    ) => (
-                      <div
-                        key={
-                          movement.id
-                        }
-                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    (movement) => (
+                      <Link
+                        key={movement.id}
+                        to={`/patrimonio/bens/${movement.assetId}`}
+                        className="flex items-center gap-3 rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
                       >
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
                           <ArrowsLeftRight
                             aria-hidden="true"
-                            size={
-                              18
-                            }
+                            size={18}
                           />
                         </span>
 
@@ -847,31 +839,36 @@ export function AssetsPage() {
                           </p>
 
                           <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-                            {movement
-                              .fromUnit
-                              ?.code ||
+                            {movement.fromUnit?.code ||
                               "Sem setor"}
+
                             {" → "}
-                            {movement
-                              .toUnit
-                              ?.code ||
+
+                            {movement.toUnit?.code ||
                               "Sem setor"}
                           </p>
                         </div>
 
-                        <span className="shrink-0 text-xs text-[var(--text-faint)]">
-                          {formatDate(
-                            movement.movementDate,
-                          )}
-                        </span>
-                      </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-xs text-[var(--text-faint)]">
+                            {formatDate(
+                              movement.movementDate,
+                            )}
+                          </span>
+
+                          <ArrowRight
+                            aria-hidden="true"
+                            size={14}
+                            className="text-[var(--text-faint)]"
+                          />
+                        </div>
+                      </Link>
                     ),
                   )}
                 </div>
               ) : (
                 <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhuma movimentação
-                  registrada.
+                  Nenhuma movimentação registrada.
                 </p>
               )}
             </CardContent>
@@ -908,11 +905,10 @@ export function AssetsPage() {
                     (
                       disposal,
                     ) => (
-                      <div
-                        key={
-                          disposal.id
-                        }
-                        className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+                     <Link
+                        key={disposal.id}
+                        to={`/patrimonio/bens/${disposal.assetId}`}
+                        className="flex items-start gap-3 rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
                       >
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
                           <XCircle
@@ -936,12 +932,20 @@ export function AssetsPage() {
                           </p>
                         </div>
 
-                        <span className="shrink-0 text-xs text-[var(--text-faint)]">
+                       <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs text-[var(--text-faint)]">
                           {formatDate(
                             disposal.disposalDate,
                           )}
                         </span>
+
+                        <ArrowRight
+                          aria-hidden="true"
+                          size={14}
+                          className="text-[var(--text-faint)]"
+                        />
                       </div>
+                      </Link>
                     ),
                   )}
                 </div>
