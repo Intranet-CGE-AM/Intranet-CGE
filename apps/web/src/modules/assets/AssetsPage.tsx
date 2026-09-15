@@ -332,60 +332,91 @@ export function AssetsPage() {
                 </p>
               </div>
 
-              {/* <Button
-                asChild
-                size="sm"
-                variant="quiet"
-              >
-                <Link to="/patrimonio/bens">
-                  Ver bens
-
-                  <ArrowRight
-                    aria-hidden="true"
-                    size={15}
-                  />
-                </Link>
-              </Button> */}
             </CardHeader>
+
+            {!loading && total > 0 ? (
+              <div className="px-5 pb-2 sm:px-6">
+                <div className="flex h-9 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+                  <div
+                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    style={{
+                      width: `${activePercentage}%`,
+                      backgroundColor: "var(--brand)",
+                    }}
+                    title={`Em uso: ${activePercentage}%`}
+                  >
+                    <span className="truncate">
+                      Em uso {activePercentage}%
+                    </span>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    style={{
+                      width: `${maintenancePercentage}%`,
+                      backgroundColor: "#d97706",
+                    }}
+                    title={`Em manutenção: ${maintenancePercentage}%`}
+                  >
+                    <span className="truncate">
+                      Manut. {maintenancePercentage}%
+                    </span>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    style={{
+                      width: `${disposedPercentage}%`,
+                      backgroundColor: "#be185d",
+                    }}
+                    title={`Baixados: ${disposedPercentage}%`}
+                  >
+                    <span className="truncate">
+                      Baix. {disposedPercentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <CardContent className="divide-y divide-[var(--border)] p-0">
               <Link
-  to="/patrimonio/bens"
-  className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
->
-  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-    <Package
-      aria-hidden="true"
-      size={18}
-    />
-  </span>
+              to="/patrimonio/bens"
+              className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+            >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
+              <Package
+                aria-hidden="true"
+                size={18}
+              />
+            </span>
 
-  <div className="min-w-0 flex-1">
-    <p className="text-sm font-bold">
-      Total de bens
-    </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">
+                Total de bens
+              </p>
 
-    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-      Todos os bens cadastrados
-    </p>
-  </div>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Todos os bens cadastrados
+              </p>
+            </div>
 
-  {loading ? (
-    <Skeleton className="h-8 w-10" />
-  ) : (
-    <div className="flex items-center gap-2">
-      <strong className="text-2xl font-extrabold tabular-nums">
-        {total}
-      </strong>
+            {loading ? (
+              <Skeleton className="h-8 w-10" />
+            ) : (
+              <div className="flex items-center gap-2">
+                <strong className="text-2xl font-extrabold tabular-nums">
+                  {total}
+                </strong>
 
-      <ArrowRight
-        aria-hidden="true"
-        size={15}
-        className="text-[var(--text-faint)]"
-      />
-    </div>
-  )}
-</Link>
+                <ArrowRight
+                  aria-hidden="true"
+                  size={15}
+                  className="text-[var(--text-faint)]"
+                />
+              </div>
+            )}
+          </Link>
              
                 {/* Filtro de "Em uso"  */}
                 <Link
