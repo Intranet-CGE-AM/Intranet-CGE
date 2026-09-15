@@ -705,11 +705,14 @@ export function AssetsPage() {
                       100;
 
                     return (
-                      <div
+                      <Link
                         key={
                           conservation.status
                         }
-                        className="py-3 first:pt-0 last:pb-0"
+                        to={`/patrimonio/bens?conservationStatus=${encodeURIComponent(
+                          conservation.status,
+                        )}`}
+                        className="block rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <span className="text-sm font-semibold">
@@ -718,11 +721,19 @@ export function AssetsPage() {
                             }
                           </span>
 
-                          <strong className="text-lg font-extrabold tabular-nums">
-                            {
-                              conservation.total
-                            }
-                          </strong>
+                          <div className="flex items-center gap-2">
+                            <strong className="text-lg font-extrabold tabular-nums">
+                              {
+                                conservation.total
+                              }
+                            </strong>
+
+                            <ArrowRight
+                              aria-hidden="true"
+                              size={14}
+                              className="text-[var(--text-faint)]"
+                            />
+                          </div>
                         </div>
 
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
@@ -733,7 +744,7 @@ export function AssetsPage() {
                             }}
                           />
                         </div>
-                      </div>
+                      </Link>
                     );
                   },
                 )}
