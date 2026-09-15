@@ -191,6 +191,30 @@ export function AssetsPage() {
     dashboard?.summary
       .totalValue ?? 0;
 
+  const activePercentage =
+  total > 0
+    ? Math.round(
+        (active / total) *
+          100,
+      )
+    : 0;
+
+  const maintenancePercentage =
+    total > 0
+      ? Math.round(
+          (maintenance / total) *
+            100,
+        )
+      : 0;
+
+  const disposedPercentage =
+    total > 0
+      ? Math.round(
+          (disposed / total) *
+            100,
+        )
+      : 0;
+
   return (
     <div className="page-enter space-y-5 pb-6">
       {/* CABEÇALHO */}
@@ -388,17 +412,23 @@ export function AssetsPage() {
                   {loading ? (
                     <Skeleton className="h-8 w-10" />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <strong className="text-2xl font-extrabold tabular-nums">
+                    <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <strong className="block text-2xl font-extrabold tabular-nums">
                         {active}
                       </strong>
 
-                      <ArrowRight
-                        aria-hidden="true"
-                        size={15}
-                        className="text-[var(--text-faint)]"
-                      />
+                      <span className="text-xs font-semibold text-[var(--text-faint)]">
+                        {activePercentage}%
+                      </span>
                     </div>
+
+                    <ArrowRight
+                      aria-hidden="true"
+                      size={15}
+                      className="text-[var(--text-faint)]"
+                    />
+                  </div>
                   )}
                 </Link>
 
@@ -427,17 +457,23 @@ export function AssetsPage() {
                   {loading ? (
                     <Skeleton className="h-8 w-10" />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <strong className="text-2xl font-extrabold tabular-nums">
+                    <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <strong className="block text-2xl font-extrabold tabular-nums">
                         {maintenance}
                       </strong>
 
-                      <ArrowRight
-                        aria-hidden="true"
-                        size={15}
-                        className="text-[var(--text-faint)]"
-                      />
+                      <span className="text-xs font-semibold text-[var(--text-faint)]">
+                        {maintenancePercentage}%
+                      </span>
                     </div>
+
+                    <ArrowRight
+                      aria-hidden="true"
+                      size={15}
+                      className="text-[var(--text-faint)]"
+                    />
+                  </div>
                   )}
                 </Link>
 
@@ -466,17 +502,23 @@ export function AssetsPage() {
                   {loading ? (
                     <Skeleton className="h-8 w-10" />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <strong className="text-2xl font-extrabold tabular-nums">
-                        {disposed}
-                      </strong>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <strong className="block text-2xl font-extrabold tabular-nums">
+                      {disposed}
+                    </strong>
 
-                      <ArrowRight
-                        aria-hidden="true"
-                        size={15}
-                        className="text-[var(--text-faint)]"
-                      />
-                    </div>
+                    <span className="text-xs font-semibold text-[var(--text-faint)]">
+                      {disposedPercentage}%
+                    </span>
+                  </div>
+
+                  <ArrowRight
+                    aria-hidden="true"
+                    size={15}
+                    className="text-[var(--text-faint)]"
+                  />
+                </div>
                   )}
                 </Link>
 
