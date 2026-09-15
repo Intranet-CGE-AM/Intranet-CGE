@@ -30,6 +30,7 @@ import {
 
 import {
   Link,
+  useSearchParams,
 } from "react-router";
 
 import {
@@ -56,6 +57,16 @@ const assetStatusLabels = {
 } as const;
 
 export function AssetListPage() {
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
+  const selectedUnitId =
+    searchParams.get(
+      "unitId",
+    );
+
   const [
     assets,
     setAssets,
@@ -89,6 +100,32 @@ export function AssetListPage() {
         ),
       [units],
     );
+
+  const filteredAssets =
+  useMemo(
+    () => {
+      if (!selectedUnitId) {
+        return assets;
+      }
+
+      return assets.filter(
+        (asset) =>
+          asset.unitId ===
+          selectedUnitId,
+      );
+    },
+    [
+      assets,
+      selectedUnitId,
+    ],
+  );
+
+  const selectedUnit =
+  selectedUnitId
+    ? unitsById.get(
+        selectedUnitId,
+      ) ?? null
+    : null;
 
   const loadData =
     useCallback(async () => {
@@ -199,11 +236,26 @@ export function AssetListPage() {
               Bens cadastrados
             </h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
-              {assets.length} bem(ns)
-              encontrado(s).
-            </p>
+           <p className="text-xs text-[var(--text-muted)]">
+            {filteredAssets.length}{" "}
+            bem(ns) encontrado(s).
+          </p>
           </div>
+
+          {selectedUnit ? (
+              <Button
+                onClick={() => {
+                  setSearchParams({});
+                }}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                {selectedUnit.code}
+                {" · "}
+                Limpar filtro
+              </Button>
+            ) : null}
         </CardHeader>
 
         <CardContent>
@@ -211,11 +263,19 @@ export function AssetListPage() {
             <p className="py-10 text-center text-sm text-[var(--text-muted)]">
               Carregando bens...
             </p>
-          ) : assets.length ===
-            0 ? (
+          ) : filteredAssets.length ===
+          0 ? (
             <EmptyState
-              description="Ainda não existem bens patrimoniais cadastrados."
-              title="Nenhum bem cadastrado"
+              description={
+                selectedUnit
+                  ? `Não existem bens vinculados ao setor ${selectedUnit.code} - ${selectedUnit.name}.`
+                  : "Ainda não existem bens patrimoniais cadastrados."
+              }
+              title={
+                selectedUnit
+                  ? "Nenhum bem encontrado neste setor"
+                  : "Nenhum bem cadastrado"
+              }
             />
           ) : (
             <div className="overflow-x-auto">
@@ -269,7 +329,7 @@ export function AssetListPage() {
                 </thead>
 
                 <tbody>
-                  {assets.map(
+                 {filteredAssets.map(
                     (asset) => {
                       const unit =
                         asset.unitId

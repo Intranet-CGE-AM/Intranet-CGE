@@ -259,6 +259,13 @@ export function AssetsPage() {
             </Link>
           </Button>
         }
+        artwork={
+          <img
+            alt=""
+            className="h-full w-full origin-right scale-[1.28] object-contain object-right"
+            src="/assets/dashboard/patrimonio-workspace.webp"
+          />
+        }
         description={
           loading
             ? "Carregando informações do patrimônio."
@@ -476,9 +483,10 @@ export function AssetsPage() {
                       100;
 
                     return (
-                      <div
+                      <Link
                         key={unit.unitId}
-                        className="py-3 first:pt-0 last:pb-0"
+                        to={`/patrimonio/bens?unitId=${unit.unitId}`}
+                        className="block rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0 flex-1">
@@ -496,9 +504,17 @@ export function AssetsPage() {
                             ) : null}
                           </div>
 
-                          <strong className="text-lg font-extrabold tabular-nums">
-                            {unit.total}
-                          </strong>
+                          <div className="flex items-center gap-2">
+                            <strong className="text-lg font-extrabold tabular-nums">
+                              {unit.total}
+                            </strong>
+
+                            <ArrowRight
+                              aria-hidden="true"
+                              size={14}
+                              className="text-[var(--text-faint)]"
+                            />
+                          </div>
                         </div>
 
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
@@ -509,7 +525,7 @@ export function AssetsPage() {
                             }}
                           />
                         </div>
-                      </div>
+                      </Link>
                     );
                   },
                 )}
