@@ -71,6 +71,8 @@ export function AssetListPage() {
     "conservationStatus",
   );
 
+
+
   const [
     assets,
     setAssets,
@@ -105,37 +107,58 @@ export function AssetListPage() {
       [units],
     );
 
-    const filteredAssets =
-      useMemo(
-        () => {
-          return assets.filter(
-            (asset) => {
-              if (
-                selectedUnitId &&
-                asset.unitId !==
-                  selectedUnitId
-              ) {
-                return false;
-              }
+const selectedStatus =
+  searchParams.get(
+    "status",
+  );
 
-              if (
-                selectedConservationStatus &&
-                asset.conservationStatus !==
-                  selectedConservationStatus
-              ) {
-                return false;
-              }
+const filteredAssets =
+  useMemo(
+    () => {
+      return assets.filter(
+        (asset) => {
+          if (
+            selectedUnitId &&
+            asset.unitId !==
+              selectedUnitId
+          ) {
+            return false;
+          }
 
-              return true;
-            },
-          );
+          if (
+            selectedConservationStatus &&
+            asset.conservationStatus !==
+              selectedConservationStatus
+          ) {
+            return false;
+          }
+
+          if (
+            selectedStatus &&
+            asset.status !==
+              selectedStatus
+          ) {
+            return false;
+          }
+
+          return true;
         },
-        [
-          assets,
-          selectedUnitId,
-          selectedConservationStatus,
-        ],
       );
+    },
+    [
+      assets,
+      selectedUnitId,
+      selectedConservationStatus,
+      selectedStatus,
+    ],
+  );
+    
+  const selectedStatusLabel =
+  selectedStatus
+    ? assetStatusLabels[
+        selectedStatus as keyof typeof assetStatusLabels
+      ] ?? null
+    : null;
 
   const selectedUnit =
   selectedUnitId
@@ -259,8 +282,9 @@ export function AssetListPage() {
           </p>
           </div>
 
-          {selectedUnit ||
-          selectedConservationStatus ? (
+         {selectedUnit ||
+          selectedConservationStatus ||
+          selectedStatusLabel ? (
             <Button
               onClick={() => {
                 setSearchParams({});
@@ -271,7 +295,9 @@ export function AssetListPage() {
             >
               {selectedUnit
                 ? selectedUnit.code
-                : selectedConservationStatus}
+                : selectedConservationStatus
+                  ? selectedConservationStatus
+                  : selectedStatusLabel}
 
               {" · "}
               Limpar filtro
@@ -292,11 +318,14 @@ export function AssetListPage() {
                   ? `Não existem bens vinculados ao setor ${selectedUnit.code} - ${selectedUnit.name}.`
                   : selectedConservationStatus
                     ? `Não existem bens com estado de conservação "${selectedConservationStatus}".`
-                    : "Ainda não existem bens patrimoniais cadastrados."
+                    : selectedStatusLabel
+                      ? `Não existem bens com situação "${selectedStatusLabel}".`
+                      : "Ainda não existem bens patrimoniais cadastrados."
               }
               title={
                 selectedUnit ||
-                selectedConservationStatus
+                selectedConservationStatus ||
+                selectedStatusLabel
                   ? "Nenhum bem encontrado"
                   : "Nenhum bem cadastrado"
               }

@@ -353,89 +353,124 @@ export function AssetsPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Package
-                    aria-hidden="true"
-                    size={18}
-                  />
-                </span>
+                {/* Filtro de "Em uso"  */}
+                <Link
+                  to="/patrimonio/bens?status=active"
+                  className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
+                    <Package
+                      aria-hidden="true"
+                      size={18}
+                    />
+                  </span>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">
-                    Em uso
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">
+                      Em uso
+                    </p>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Bens ativos em
-                    utilização
-                  </p>
-                </div>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Bens ativos em utilização
+                    </p>
+                  </div>
 
-                {loading ? (
-                  <Skeleton className="h-8 w-10" />
-                ) : (
-                  <strong className="text-2xl font-extrabold tabular-nums">
-                    {active}
-                  </strong>
-                )}
-              </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-10" />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <strong className="text-2xl font-extrabold tabular-nums">
+                        {active}
+                      </strong>
 
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Wrench
-                    aria-hidden="true"
-                    size={18}
-                  />
-                </span>
+                      <ArrowRight
+                        aria-hidden="true"
+                        size={15}
+                        className="text-[var(--text-faint)]"
+                      />
+                    </div>
+                  )}
+                </Link>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">
-                    Em manutenção
-                  </p>
+                {/* Filtro de "Em manutenção"      */}
+                <Link
+                  to="/patrimonio/bens?status=maintenance"
+                  className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
+                    <Wrench
+                      aria-hidden="true"
+                      size={18}
+                    />
+                  </span>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Bens temporariamente
-                    indisponíveis
-                  </p>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">
+                      Em manutenção
+                    </p>
 
-                {loading ? (
-                  <Skeleton className="h-8 w-10" />
-                ) : (
-                  <strong className="text-2xl font-extrabold tabular-nums">
-                    {maintenance}
-                  </strong>
-                )}
-              </div>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Bens temporariamente indisponíveis
+                    </p>
+                  </div>
 
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <XCircle
-                    aria-hidden="true"
-                    size={18}
-                  />
-                </span>
+                  {loading ? (
+                    <Skeleton className="h-8 w-10" />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <strong className="text-2xl font-extrabold tabular-nums">
+                        {maintenance}
+                      </strong>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">
-                    Baixados
-                  </p>
+                      <ArrowRight
+                        aria-hidden="true"
+                        size={15}
+                        className="text-[var(--text-faint)]"
+                      />
+                    </div>
+                  )}
+                </Link>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Bens com baixa
-                    patrimonial
-                  </p>
-                </div>
+                {/* Filtro de "Baixados" */}
+                <Link
+                  to="/patrimonio/bens?status=disposed"
+                  className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
+                    <XCircle
+                      aria-hidden="true"
+                      size={18}
+                    />
+                  </span>
 
-                {loading ? (
-                  <Skeleton className="h-8 w-10" />
-                ) : (
-                  <strong className="text-2xl font-extrabold tabular-nums">
-                    {disposed}
-                  </strong>
-                )}
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">
+                      Baixados
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Bens com baixa patrimonial
+                    </p>
+                  </div>
+
+                  {loading ? (
+                    <Skeleton className="h-8 w-10" />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <strong className="text-2xl font-extrabold tabular-nums">
+                        {disposed}
+                      </strong>
+
+                      <ArrowRight
+                        aria-hidden="true"
+                        size={15}
+                        className="text-[var(--text-faint)]"
+                      />
+                    </div>
+                  )}
+                </Link>
+
+         
             </CardContent>
           </Card>
 
