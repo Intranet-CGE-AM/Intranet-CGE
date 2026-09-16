@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
   EmptyState,
+  Input,
   Table,
   TableCell,
   TableHead,
@@ -71,7 +72,10 @@ export function AssetListPage() {
     "conservationStatus",
   );
 
-
+  const searchTerm =
+    searchParams.get(
+      "q",
+    ) ?? "";
 
   const [
     assets,
@@ -115,8 +119,29 @@ const selectedStatus =
 const filteredAssets =
   useMemo(
     () => {
+      const normalizedSearch =
+        searchTerm
+          .trim()
+          .toLowerCase();
+
       return assets.filter(
         (asset) => {
+          if (
+            normalizedSearch &&
+            !asset.patrimonyNumber
+              .toLowerCase()
+              .includes(
+                normalizedSearch,
+              ) &&
+            !asset.description
+              .toLowerCase()
+              .includes(
+                normalizedSearch,
+              )
+          ) {
+            return false;
+          }
+
           if (
             selectedUnitId &&
             asset.unitId !==
@@ -147,6 +172,7 @@ const filteredAssets =
     },
     [
       assets,
+      searchTerm,
       selectedUnitId,
       selectedConservationStatus,
       selectedStatus,
@@ -166,6 +192,31 @@ const filteredAssets =
         selectedUnitId,
       ) ?? null
     : null;
+
+    function updateFilter(
+      key: string,
+      value: string,
+    ) {
+      const next =
+        new URLSearchParams(
+          searchParams,
+        );
+
+      if (value) {
+        next.set(
+          key,
+          value,
+        );
+      } else {
+        next.delete(
+          key,
+        );
+      }
+
+      setSearchParams(
+        next,
+      );
+    }
 
   const loadData =
     useCallback(async () => {
@@ -268,6 +319,152 @@ const filteredAssets =
           {error}
         </Alert>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-medium">
+              Filtros
+            </h2>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              Localize bens por tombo,
+              material, situação ou setor.
+            </p>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="asset-search"
+              >
+                Tombo / Material
+              </label>
+
+              <Input
+                id="asset-search"
+                value={
+                  searchTerm
+                }
+                onChange={(
+                  event,
+                ) =>
+                  updateFilter(
+                    "q",
+                    event.target.value,
+                  )
+                }
+                placeholder="Ex.: 335 ou Notebook"
+              />
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="status-filter"
+              >
+                Situação
+              </label>
+
+              <select
+                id="status-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={
+                  selectedStatus ?? ""
+                }
+                onChange={(
+                  event,
+                ) =>
+                  updateFilter(
+                    "status",
+                    event.target.value,
+                  )
+                }
+              >
+                <option value="">
+                  Todas
+                </option>
+
+                <option value="active">
+                  Em uso
+                </option>
+
+                <option value="maintenance">
+                  Em manutenção
+                </option>
+
+                <option value="disposed">
+                  Baixados
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="unit-filter"
+              >
+                Setor / Localização
+              </label>
+
+              <select
+                id="unit-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={
+                  selectedUnitId ?? ""
+                }
+                onChange={(
+                  event,
+                ) =>
+                  updateFilter(
+                    "unitId",
+                    event.target.value,
+                  )
+                }
+              >
+                <option value="">
+                  Todos os setores
+                </option>
+
+                {units.map(
+                  (unit) => (
+                    <option
+                      key={
+                        unit.id
+                      }
+                      value={
+                        unit.id
+                      }
+                    >
+                      {unit.code} -{" "}
+                      {unit.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                className="w-full"
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setSearchParams(
+                    {},
+                  )
+                }
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
