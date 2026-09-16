@@ -177,6 +177,25 @@ export class AssetService {
       0,
     );
 
+    const assetsWithValue =
+      assetRows.filter(
+        (asset) =>
+          asset.acquisitionValue !==
+            null &&
+          Number(
+            asset.acquisitionValue,
+          ) > 0,
+      );
+
+    const assetsWithValueCount =
+      assetsWithValue.length;
+
+    const averageValue =
+      assetsWithValueCount > 0
+        ? totalValue /
+          assetsWithValueCount
+        : 0;
+
   /*
    * Mapas auxiliares
    */
@@ -448,9 +467,19 @@ export class AssetService {
       active,
       maintenance,
       disposed,
+
       totalValue:
         Number(
           totalValue.toFixed(
+            2,
+          ),
+        ),
+
+      assetsWithValueCount,
+
+      averageValue:
+        Number(
+          averageValue.toFixed(
             2,
           ),
         ),

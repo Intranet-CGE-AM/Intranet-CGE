@@ -72,11 +72,13 @@ type DashboardDisposal = {
 
 type AssetsDashboardResponse = {
   summary: {
-    total: number;
-    active: number;
-    maintenance: number;
-    disposed: number;
-    totalValue: number;
+  total: number;
+  active: number;
+  maintenance: number;
+  disposed: number;
+  totalValue: number;
+  assetsWithValueCount: number;
+  averageValue: number;
   };
 
   byUnit: DashboardUnit[];
@@ -191,6 +193,14 @@ export function AssetsPage() {
     dashboard?.summary
       .totalValue ?? 0;
 
+  const assetsWithValueCount =
+  dashboard?.summary
+    .assetsWithValueCount ?? 0;
+
+  const averageValue =
+  dashboard?.summary
+    .averageValue ?? 0;
+
   const activePercentage =
   total > 0
     ? Math.round(
@@ -214,6 +224,7 @@ export function AssetsPage() {
             100,
         )
       : 0;
+
 
   return (
     <div className="page-enter space-y-5 pb-6">
@@ -756,7 +767,8 @@ export function AssetsPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="flex items-center gap-4">
+            <CardContent className="space-y-5">
+            <div className="flex items-center gap-4">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
                 <CurrencyDollar
                   aria-hidden="true"
@@ -764,16 +776,55 @@ export function AssetsPage() {
                 />
               </span>
 
-              {loading ? (
-                <Skeleton className="h-10 w-48" />
-              ) : (
-                <p className="text-3xl font-extrabold tabular-nums tracking-[-0.04em]">
-                  {formatCurrency(
-                    totalValue,
-                  )}
+              <div className="min-w-0 flex-1">
+                {loading ? (
+                  <Skeleton className="h-10 w-48" />
+                ) : (
+                  <p className="text-3xl font-extrabold tabular-nums tracking-[-0.04em]">
+                    {formatCurrency(
+                      totalValue,
+                    )}
+                  </p>
+                )}
+
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Valor total cadastrado
                 </p>
-              )}
-            </CardContent>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 border-t border-[var(--border)] pt-4">
+              <div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Bens com valor informado
+                </p>
+
+                {loading ? (
+                  <Skeleton className="mt-2 h-7 w-12" />
+                ) : (
+                  <p className="mt-1 text-xl font-extrabold tabular-nums">
+                    {assetsWithValueCount}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Valor médio por bem
+                </p>
+
+                {loading ? (
+                  <Skeleton className="mt-2 h-7 w-28" />
+                ) : (
+                  <p className="mt-1 text-xl font-extrabold tabular-nums">
+                    {formatCurrency(
+                      averageValue,
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
           </Card>
 
           {/* CONSERVAÇÃO */}
