@@ -1,645 +1,249 @@
+﻿import { lookup } from "node:dns/promises";
 import nodemailer from "nodemailer";
 
-/* =========================================================
- * TIPOS
- * ======================================================= */
-
-export type VisitConfirmationMailInput = {
-  visitorName: string;
-  visitorEmail: string;
-
-  protocol: string;
-  subject: string;
-
-  scheduledDate: string;
-
-  startTime: string;
-  endTime: string;
-
-  location: string;
-
-  confirmationUrl: string;
+type VisitMailInput = {
+  to?: string;
+  email?: string;
+  visitorEmail?: string;
+  visitorName?: string;
+  name?: string;
+  protocol?: string;
+  subject?: string;
+  reason?: string;
+  purpose?: string;
+  scheduledDate?: string | Date;
+  visitDate?: string | Date;
+  date?: string | Date;
+  startTime?: string;
+  endTime?: string;
+  roomName?: string | null;
+  room?: string | null;
+  location?: string | null;
+  organization?: string | null;
+  hostName?: string | null;
+  requestedBy?: string | null;
+  confirmationUrl?: string;
+  [key: string]: unknown;
 };
 
-type MailConfig = {
-  host: string;
-  port: number;
-  secure: boolean;
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
 
-  user: string;
-  pass: string;
-
-  from: string;
-
-  publicWebUrl: string;
-};
-
-/* =========================================================
- * CONFIGURAÇÃO SMTP
- * ======================================================= */
-
-function getMailConfig(): MailConfig {
-  const host =
-    process.env.SMTP_HOST?.trim();
-
-  const user =
-    process.env.SMTP_USER?.trim();
-
-  const pass =
-    process.env.SMTP_PASS
-      ?.replace(/\s+/g, "")
-      .trim();
-
-  const from =
-    process.env.SMTP_FROM?.trim();
-
-  const publicWebUrl =
-    process.env.PUBLIC_WEB_URL
-      ?.trim()
-      .replace(/\/$/, "");
-
-  const port =
-    Number(
-      process.env.SMTP_PORT ??
-        "587",
-    );
-
-  const secure =
-    process.env.SMTP_SECURE ===
-    "true";
-
-  if (!host) {
-    throw new Error(
-      "SMTP_HOST não configurado.",
-    );
+  if (!value) {
+    throw new Error(`Variável de ambiente não configurada: ${name}`);
   }
 
-  if (!user) {
-    throw new Error(
-      "SMTP_USER não configurado.",
-    );
-  }
-
-  if (!pass) {
-    throw new Error(
-      "SMTP_PASS não configurado.",
-    );
-  }
-
-  if (!from) {
-    throw new Error(
-      "SMTP_FROM não configurado.",
-    );
-  }
-
-  if (!publicWebUrl) {
-    throw new Error(
-      "PUBLIC_WEB_URL não configurado.",
-    );
-  }
-
-  if (
-    !Number.isInteger(port) ||
-    port <= 0
-  ) {
-    throw new Error(
-      "SMTP_PORT inválido.",
-    );
-  }
-
-  return {
-    host,
-    port,
-    secure,
-    user,
-    pass,
-    from,
-    publicWebUrl,
-  };
+  return value;
 }
 
-/* =========================================================
- * TRANSPORTER
- * ======================================================= */
+function optionalEnv(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
+}
 
-function createTransporter() {
-  const config =
-    getMailConfig();
+function normalizePassword(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatDate(value: unknown): string {
+  if (!value) {
+    return "Não informada";
+  }
+
+  if (value instanceof Date) {
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Manaus",
+      dateStyle: "short",
+    }).format(value);
+  }
+
+  const text = String(value);
+  const parsed = new Date(text);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return text;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Manaus",
+    dateStyle: "short",
+  }).format(parsed);
+}
+
+function formatTimeRange(startTime?: string, endTime?: string): string {
+  const start = startTime?.trim();
+  const end = endTime?.trim();
+
+  if (start && end) {
+    return `${start} às ${end}`;
+  }
+
+  if (start) {
+    return start;
+  }
+
+  if (end) {
+    return end;
+  }
+
+  return "Não informado";
+}
+
+async function createSmtpTransporter() {
+  const smtpHost = optionalEnv("SMTP_HOST", "smtp.gmail.com");
+  const smtpPort = Number(optionalEnv("SMTP_PORT", "465"));
+  const smtpSecure = optionalEnv("SMTP_SECURE", "true").toLowerCase() === "true";
+  const smtpUser = requiredEnv("SMTP_USER");
+  const smtpPass = normalizePassword(requiredEnv("SMTP_PASS"));
+
+  const ipv4 = await lookup(smtpHost, {
+    family: 4,
+  });
 
   return nodemailer.createTransport({
-    host:
-      config.host,
-
-    port:
-      config.port,
-
-    secure:
-      config.secure,
-
-    /*
-     * Porta 587:
-     *
-     * secure = false
-     * requireTLS = true
-     *
-     * A conexão inicia normal e é promovida para TLS.
-     */
-    requireTLS:
-      !config.secure,
-
+    host: ipv4.address,
+    port: smtpPort,
+    secure: smtpSecure,
     auth: {
-      user:
-        config.user,
-
-      pass:
-        config.pass,
+      user: smtpUser,
+      pass: smtpPass,
+    },
+    tls: {
+      servername: smtpHost,
+      rejectUnauthorized: true,
     },
   });
 }
 
-/* =========================================================
- * TESTE SMTP
- * ======================================================= */
+function buildVisitScheduledMail(input: VisitMailInput) {
+  const visitorName = String(input.visitorName ?? input.name ?? "Visitante");
+  const protocol = String(input.protocol ?? "Não informado");
+  const subject = String(input.subject ?? input.reason ?? input.purpose ?? "Visita institucional");
+  const scheduledDate = formatDate(input.scheduledDate ?? input.visitDate ?? input.date);
+  const timeRange = formatTimeRange(input.startTime, input.endTime);
+  const room = String(input.roomName ?? input.room ?? input.location ?? "Não informada");
+  const organization = String(input.organization ?? "Não informada");
+  const hostName = String(input.hostName ?? "Equipe CGE");
+  const requestedBy = String(input.requestedBy ?? "Assessoria/Controladoria");
 
-export async function verifyMailConnection() {
-  const transporter =
-    createTransporter();
+  const mailSubject = `[Intranet CGE] Visita agendada - ${protocol}`;
 
-  await transporter.verify();
+  const text = `
+Olá, ${visitorName}.
 
-  return true;
-}
+Sua visita foi agendada no sistema da Intranet CGE.
 
-/* =========================================================
- * GERAR LINK DE CONFIRMAÇÃO
- * ======================================================= */
+Protocolo: ${protocol}
+Motivo: ${subject}
+Data: ${scheduledDate}
+Horário: ${timeRange}
+Sala/Local: ${room}
+Órgão/Instituição: ${organization}
+Responsável interno: ${hostName}
+Agendada por: ${requestedBy}
 
-export function buildConfirmationUrl(
-  token: string,
-) {
-  const config =
-    getMailConfig();
-
-  return (
-    `${config.publicWebUrl}` +
-    `/confirmar-visita?token=${encodeURIComponent(
-      token,
-    )}`
-  );
-}
-
-/* =========================================================
- * ENVIO DO E-MAIL
- * ======================================================= */
-
-export async function sendVisitConfirmationMail(
-  input:
-    VisitConfirmationMailInput,
-) {
-  const config =
-    getMailConfig();
-
-  const transporter =
-    createTransporter();
-
-  const formattedDate =
-    formatDate(
-      input.scheduledDate,
-    );
-
-  const result =
-    await transporter.sendMail({
-      /*
-       * REMETENTE
-       */
-      from:
-        config.from,
-
-      /*
-       * DESTINATÁRIO DINÂMICO
-       *
-       * Este endereço será o e-mail
-       * cadastrado no visitante:
-       *
-       * visit_visitors.email
-       */
-      to:
-        input.visitorEmail,
-
-      subject:
-        `Confirmação de visita à CGE-AM - ${input.protocol}`,
-
-      /* ===================================================
-       * TEXTO PURO
-       * ================================================= */
-
-      text: `
-Prezado(a) ${input.visitorName},
-
-Existe uma visita agendada em seu nome junto à Controladoria-Geral do Estado do Amazonas.
-
-Protocolo: ${input.protocol}
-Motivo da visita: ${input.subject}
-Data: ${formattedDate}
-Horário: ${input.startTime} às ${input.endTime}
-Local: ${input.location}
-
-Para confirmar sua presença ou informar que não poderá comparecer, acesse:
-
-${input.confirmationUrl}
+Esta mensagem é apenas um aviso de agendamento.
 
 Atenciosamente,
+Controladoria Geral do Estado do Amazonas - CGE
+`.trim();
 
-Controladoria-Geral do Estado do Amazonas
-Intranet CGE - Agendamento de Visitas
-      `.trim(),
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5;">
+      <h2>Visita agendada - Intranet CGE</h2>
 
-      /* ===================================================
-       * HTML
-       * ================================================= */
+      <p>Olá, <strong>${escapeHtml(visitorName)}</strong>.</p>
 
-      html: `
-<!doctype html>
+      <p>Sua visita foi agendada no sistema da <strong>Intranet CGE</strong>.</p>
 
-<html lang="pt-BR">
+      <table style="border-collapse: collapse; width: 100%; max-width: 720px;">
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Protocolo</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(protocol)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Motivo</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(subject)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Data</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(scheduledDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Horário</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(timeRange)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Sala/Local</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(room)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Órgão/Instituição</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(organization)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Responsável interno</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(hostName)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;"><strong>Agendada por</strong></td>
+          <td style="padding: 8px; border: 1px solid #e5e7eb;">${escapeHtml(requestedBy)}</td>
+        </tr>
+      </table>
 
-<head>
-  <meta charset="utf-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1"
-  >
+      <p style="margin-top: 16px;">
+        Esta mensagem é apenas um aviso de agendamento.
+      </p>
 
-  <title>
-    Confirmação de visita à CGE
-  </title>
-</head>
-
-<body
-  style="
-    margin:0;
-    padding:0;
-    background:#f5f8f7;
-    font-family:Arial,Helvetica,sans-serif;
-    color:#173433;
-  "
->
-
-<table
-  width="100%"
-  cellpadding="0"
-  cellspacing="0"
-  border="0"
-  style="
-    width:100%;
-    background:#f5f8f7;
-    padding:32px 12px;
-  "
->
-
-<tr>
-
-<td align="center">
-
-<table
-  width="620"
-  cellpadding="0"
-  cellspacing="0"
-  border="0"
-  style="
-    width:100%;
-    max-width:620px;
-    background:#ffffff;
-    border:1px solid #dce9e7;
-    border-radius:12px;
-  "
->
-
-<!-- CABEÇALHO -->
-
-<tr>
-
-<td
-  style="
-    padding:24px 28px;
-    border-bottom:4px solid #08756f;
-  "
->
-
-<div
-  style="
-    color:#075f5b;
-    font-size:21px;
-    font-weight:700;
-  "
->
-  CGE Amazonas
-</div>
-
-<div
-  style="
-    margin-top:5px;
-    color:#71817f;
-    font-size:11px;
-    letter-spacing:1px;
-  "
->
-  CONTROLADORIA-GERAL DO ESTADO DO AMAZONAS
-</div>
-
-</td>
-
-</tr>
-
-<!-- CONTEÚDO -->
-
-<tr>
-
-<td
-  style="
-    padding:30px 28px;
-  "
->
-
-<p
-  style="
-    margin-top:0;
-    font-size:15px;
-  "
->
-  Prezado(a)
-  <strong>
-    ${escapeHtml(
-      input.visitorName,
-    )}
-  </strong>,
-</p>
-
-<p
-  style="
-    color:#526765;
-    font-size:14px;
-    line-height:1.6;
-  "
->
-  Existe uma visita agendada em seu nome junto à
-  Controladoria-Geral do Estado do Amazonas.
-  Confira os dados abaixo e confirme sua participação.
-</p>
-
-<!-- DADOS -->
-
-<table
-  width="100%"
-  cellpadding="10"
-  cellspacing="0"
-  border="0"
-  style="
-    margin-top:22px;
-    background:#f3f8f7;
-    border:1px solid #dce9e7;
-    border-radius:8px;
-  "
->
-
-<tr>
-<td>
-  <strong>
-    Protocolo
-  </strong>
-</td>
-
-<td>
-  ${escapeHtml(
-    input.protocol,
-  )}
-</td>
-</tr>
-
-<tr>
-<td>
-  <strong>
-    Motivo
-  </strong>
-</td>
-
-<td>
-  ${escapeHtml(
-    input.subject,
-  )}
-</td>
-</tr>
-
-<tr>
-<td>
-  <strong>
-    Data
-  </strong>
-</td>
-
-<td>
-  ${escapeHtml(
-    formattedDate,
-  )}
-</td>
-</tr>
-
-<tr>
-<td>
-  <strong>
-    Horário
-  </strong>
-</td>
-
-<td>
-  ${escapeHtml(
-    input.startTime,
-  )}
-  às
-  ${escapeHtml(
-    input.endTime,
-  )}
-</td>
-</tr>
-
-<tr>
-<td>
-  <strong>
-    Local
-  </strong>
-</td>
-
-<td>
-  ${escapeHtml(
-    input.location,
-  )}
-</td>
-</tr>
-
-</table>
-
-<!-- CTA -->
-
-<p
-  style="
-    margin-top:28px;
-    color:#526765;
-    font-size:14px;
-    line-height:1.6;
-  "
->
-  Para confirmar sua presença ou informar que não poderá
-  comparecer, utilize o botão abaixo.
-</p>
-
-<p
-  style="
-    margin:30px 0;
-    text-align:center;
-  "
->
-
-<a
-  href="${escapeHtml(
-    input.confirmationUrl,
-  )}"
-  style="
-    display:inline-block;
-    background:#08756f;
-    color:#ffffff;
-    padding:14px 26px;
-    border-radius:8px;
-    text-decoration:none;
-    font-size:14px;
-    font-weight:bold;
-  "
->
-  RESPONDER AO AGENDAMENTO
-</a>
-
-</p>
-
-<p
-  style="
-    color:#71817f;
-    font-size:11px;
-    line-height:1.5;
-  "
->
-  Caso o botão não funcione, copie e cole o endereço
-  abaixo no navegador:
-</p>
-
-<p
-  style="
-    color:#08756f;
-    font-size:11px;
-    line-height:1.5;
-    word-break:break-all;
-  "
->
-  ${escapeHtml(
-    input.confirmationUrl,
-  )}
-</p>
-
-</td>
-
-</tr>
-
-<!-- RODAPÉ -->
-
-<tr>
-
-<td
-  style="
-    padding:18px 28px;
-    border-top:1px solid #dce9e7;
-    color:#71817f;
-    font-size:11px;
-    line-height:1.5;
-  "
->
-
-Esta é uma mensagem automática do módulo
-Agendamento de Visitas da Intranet CGE-AM.
-
-<br><br>
-
-Controladoria-Geral do Estado do Amazonas.
-
-</td>
-
-</tr>
-
-</table>
-
-</td>
-
-</tr>
-
-</table>
-
-</body>
-
-</html>
-      `.trim(),
-    });
+      <p style="margin-top: 24px;">
+        Atenciosamente,<br />
+        <strong>Controladoria Geral do Estado do Amazonas - CGE</strong>
+      </p>
+    </div>
+  `.trim();
 
   return {
-    messageId:
-      result.messageId,
-
-    accepted:
-      result.accepted,
-
-    rejected:
-      result.rejected,
+    subject: mailSubject,
+    text,
+    html,
   };
 }
 
-/* =========================================================
- * FORMATAR DATA
- * ======================================================= */
+export async function sendVisitScheduledMail(input: VisitMailInput) {
+  const to = String(input.to ?? input.visitorEmail ?? input.email ?? "").trim();
 
-function formatDate(
-  value: string,
-) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-  ).format(
-    new Date(
-      `${value}T12:00:00`,
-    ),
-  );
+  if (!to) {
+    throw new Error("E-mail do visitante não informado.");
+  }
+
+  const smtpUser = requiredEnv("SMTP_USER");
+  const from = process.env.SMTP_FROM?.trim() || smtpUser;
+  const transporter = await createSmtpTransporter();
+  const mail = buildVisitScheduledMail(input);
+
+  return transporter.sendMail({
+    from,
+    to,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+  });
 }
 
-/* =========================================================
- * ESCAPE DE HTML
- * ======================================================= */
+export async function sendVisitConfirmationMail(input: VisitMailInput) {
+  return sendVisitScheduledMail(input);
+}
 
-function escapeHtml(
-  value: string,
-) {
-  return value
-    .replaceAll(
-      "&",
-      "&amp;",
-    )
-    .replaceAll(
-      "<",
-      "&lt;",
-    )
-    .replaceAll(
-      ">",
-      "&gt;",
-    )
-    .replaceAll(
-      '"',
-      "&quot;",
-    )
-    .replaceAll(
-      "'",
-      "&#039;",
-    );
+export function buildConfirmationUrl(token: string): string {
+  const publicWebUrl = optionalEnv("PUBLIC_WEB_URL", "http://localhost:5173").replace(/\/$/, "");
+
+  return `${publicWebUrl}/visitas/confirmar/${token}`;
 }
