@@ -26,6 +26,8 @@ import type { ObjectStorage } from "./modules/storage/object-storage.js";
 import { systemRoutes } from "./modules/system/routes.js";
 import { vacationRoutes } from "./modules/vacations/routes.js";
 import type { VacationService } from "./modules/vacations/service.js";
+import { ticketRoutes } from "./modules/tickets/routes.js";
+import type { TicketService } from "./modules/tickets/service.js";
 
 export async function buildApp({
   config,
@@ -35,6 +37,7 @@ export async function buildApp({
   peopleService,
   objectStorage,
   vacationService,
+  ticketService,
   readinessCheck,
   logger = false,
 }: {
@@ -45,6 +48,7 @@ export async function buildApp({
   peopleService?: PeopleService;
   objectStorage?: ObjectStorage;
   vacationService?: VacationService;
+  ticketService?: TicketService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
@@ -150,6 +154,14 @@ export async function buildApp({
         authenticationService,
         db,
         vacationService,
+      });
+    }
+    if (ticketService) {
+      await app.register(ticketRoutes, {
+        accessService,
+        authenticationService,
+        db,
+        ticketService,
       });
     }
   }

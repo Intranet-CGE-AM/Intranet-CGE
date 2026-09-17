@@ -19,6 +19,11 @@ CREATE TABLE "visit_visitors" (
 	"email" text,
 	"phone" text,
 	"cpf" text,
+	"confirmation_status" varchar(20) DEFAULT 'not_sent' NOT NULL,
+	"confirmation_token_hash" varchar(64),
+	"confirmation_sent_at" timestamp with time zone,
+	"confirmation_responded_at" timestamp with time zone,
+	"confirmation_expires_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

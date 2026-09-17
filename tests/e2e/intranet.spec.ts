@@ -107,7 +107,7 @@ test("complete HR journey from import through final vacation approval", async ({
   await firstLogin(page, worker, "Trabalhador");
   await openHrRoute(page, "Férias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
-  await chooseDateRange(page, "Período das férias", "2026-09-01", "2026-09-15");
+  await chooseDateRange(page, "Período das férias", "2028-09-01", "2028-09-15");
   await page.getByRole("button", { name: "Enviar para chefia" }).click();
   await expect(page.getByText("Aguardando chefia")).toBeVisible();
 

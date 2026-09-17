@@ -11,6 +11,7 @@ import { LocalAuthenticationService } from "./modules/auth/service.js";
 import { PeopleService } from "./modules/people/service.js";
 import { MinioObjectStorage } from "./modules/storage/object-storage.js";
 import { VacationService } from "./modules/vacations/service.js";
+import { TicketService } from "./modules/tickets/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
@@ -23,6 +24,7 @@ const objectStorage = new MinioObjectStorage(
   config.OBJECT_STORAGE_SECRET_KEY,
 );
 const vacationService = new VacationService(db);
+const ticketService = new TicketService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
@@ -42,6 +44,7 @@ const app = await buildApp({
     await objectStorage.ensureReady();
   },
   vacationService,
+  ticketService,
 });
 
 const shutdown = async () => {

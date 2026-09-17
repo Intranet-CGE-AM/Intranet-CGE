@@ -33,25 +33,26 @@ O banco deve estar migrado antes da execução.
 - papéis globais, restritos por unidade e múltiplos papéis na mesma conta;
 - unidade vazia para validar escopos sem resultados;
 - solicitações nos 7 estados do fluxo de férias;
-- eventos imutáveis e registros de auditoria com sucesso e falha.
+- eventos imutáveis e registros de auditoria com sucesso e falha;
+- chamados de TI em 5 estados do ciclo de vida: aberto, pendente de aprovação da chefia, em atendimento remoto com chat AnyDesk, pausado e concluído com causa, solução e avaliação 5 estrelas.
 
 As contas ativas usam o valor de `HOMOLOG_SEED_PASSWORD`. O comando imprime os
 e-mails disponíveis, mas nunca imprime a senha.
 
 ## Personas de validação
 
-| Conta                                   | Estado principal                                           |
-| --------------------------------------- | ---------------------------------------------------------- |
-| `marina.rocha@homolog.cge.am.gov.br`    | Gestão de pessoas e decisão final                          |
-| `helena.monteiro@homolog.cge.am.gov.br` | Chefia com escopo de unidade                               |
-| `caio.nascimento@homolog.cge.am.gov.br` | Todos os estados do fluxo de férias                        |
-| `leonardo.araujo@homolog.cge.am.gov.br` | Diretório limitado por unidade e aniversário oculto        |
-| `dandara.ribeiro@homolog.cge.am.gov.br` | Categoria não elegível a férias                            |
-| `patricia.mota@homolog.cge.am.gov.br`   | Conta desativada                                           |
-| `ana.vasconcelos@homolog.cge.am.gov.br` | Conta ativa sem acesso a módulos                           |
-| `luiza.barreto@homolog.cge.am.gov.br`   | Primeiro acesso, sem chefia e com papéis em RH e auditoria |
-| `thiago.freitas@homolog.cge.am.gov.br`  | Diretório com escopo autorizado vazio                      |
-| `renata.martins@homolog.cge.am.gov.br`  | Conta ativa com vínculo funcional encerrado                |
+| Conta                                   | Estado principal                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| `marina.rocha@homolog.cge.am.gov.br`    | Gestão de pessoas, decisão final de férias e administradora de chamados |
+| `helena.monteiro@homolog.cge.am.gov.br` | Chefia CGTI com escopo de unidade e aprovações de TI                    |
+| `caio.nascimento@homolog.cge.am.gov.br` | Colaborador solicitante de férias e chamados de TI                      |
+| `dandara.ribeiro@homolog.cge.am.gov.br` | Técnica de TI (ATEC), atendimento à fila unificada e chat               |
+| `leonardo.araujo@homolog.cge.am.gov.br` | Diretório CCI, aniversário oculto e chamado pendente aprovação          |
+| `patricia.mota@homolog.cge.am.gov.br`   | Conta desativada                                                        |
+| `ana.vasconcelos@homolog.cge.am.gov.br` | Conta ativa sem acesso a módulos                                        |
+| `luiza.barreto@homolog.cge.am.gov.br`   | Primeiro acesso, sem chefia e com papéis em RH e auditoria              |
+| `thiago.freitas@homolog.cge.am.gov.br`  | Diretório com escopo autorizado vazio                                   |
+| `renata.martins@homolog.cge.am.gov.br`  | Conta ativa com vínculo funcional encerrado                             |
 
 ## Estados que não pertencem ao seed
 
