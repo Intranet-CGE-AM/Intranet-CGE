@@ -1,6 +1,7 @@
 import type {
   AssetCreate,
   AssetDisposalCreate,
+  AssetListQuery,
   AssetMovementCreate,
   AssetUpdate,
 } from "@cge/contracts";
@@ -20,8 +21,14 @@ import {
 } from "../people/schema.js";
 
 import {
-  eq,
+  and,
+  asc,
+  count,
   desc,
+  eq,
+  getTableColumns,
+  ilike,
+  or,
 } from "drizzle-orm";
 
 
@@ -30,14 +37,201 @@ export class AssetService {
     private readonly db: Database,
   ) {}
 
-  async list() {
-    return this.db
-      .select()
-      .from(assets)
-      .orderBy(
-        assets.createdAt,
-      );
+async list(
+  query: AssetListQuery,
+) {
+  const conditions = [];
+
+  const search =
+    query.q?.trim();
+
+  if (search) {
+    conditions.push(
+      or(
+        ilike(
+          assets.patrimonyNumber,
+          `%${search}%`,
+        ),
+
+        ilike(
+          assets.description,
+          `%${search}%`,
+        ),
+      ),
+    );
   }
+
+  if (query.status) {
+    conditions.push(
+      eq(
+        assets.status,
+        query.status,
+      ),
+    );
+  }
+
+  if (query.unitId) {
+    conditions.push(
+      eq(
+        assets.unitId,
+        query.unitId,
+      ),
+    );
+  }
+
+  if (
+    query.conservationStatus
+  ) {
+    conditions.push(
+      eq(
+        assets.conservationStatus,
+        query.conservationStatus,
+      ),
+    );
+  }
+
+  const where =
+    conditions.length > 0
+      ? and(
+          ...conditions,
+        )
+      : undefined;
+
+  const direction =
+    query.sortDirection ===
+    "desc"
+      ? desc
+      : asc;
+
+  const orderBy =
+    (() => {
+      switch (
+        query.sortBy
+      ) {
+        case "description":
+          return [
+            direction(
+              assets.description,
+            ),
+
+            asc(
+              assets.patrimonyNumber,
+            ),
+          ];
+
+        case "unit":
+          return [
+            direction(
+              organizationUnits.name,
+            ),
+
+            direction(
+              organizationUnits.code,
+            ),
+
+            asc(
+              assets.patrimonyNumber,
+            ),
+          ];
+
+        case "value":
+          return [
+            direction(
+              assets.acquisitionValue,
+            ),
+
+            asc(
+              assets.patrimonyNumber,
+            ),
+          ];
+
+        case "createdAt":
+          return [
+            direction(
+              assets.createdAt,
+            ),
+          ];
+
+        case "patrimonyNumber":
+        default:
+          return [
+            direction(
+              assets.patrimonyNumber,
+            ),
+          ];
+      }
+    })();
+
+  const offset =
+    (query.page - 1) *
+    query.pageSize;
+
+  const [
+    rows,
+    totalResult,
+  ] = await Promise.all([
+    this.db
+      .select({
+        ...getTableColumns(
+          assets,
+        ),
+      })
+      .from(assets)
+      .leftJoin(
+        organizationUnits,
+        eq(
+          assets.unitId,
+          organizationUnits.id,
+        ),
+      )
+      .where(where)
+      .orderBy(
+        ...orderBy,
+      )
+      .limit(
+        query.pageSize,
+      )
+      .offset(
+        offset,
+      ),
+
+    this.db
+      .select({
+        total:
+          count(),
+      })
+      .from(assets)
+      .where(where),
+  ]);
+
+  const total =
+    totalResult[0]?.total ??
+    0;
+
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        total /
+          query.pageSize,
+      ),
+    );
+
+  return {
+    assets:
+      rows,
+
+    total,
+
+    page:
+      query.page,
+
+    pageSize:
+      query.pageSize,
+
+    totalPages,
+  };
+}
 
   async getDashboard() {
   const [

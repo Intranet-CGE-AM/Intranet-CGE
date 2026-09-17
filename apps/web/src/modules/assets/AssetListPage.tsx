@@ -51,6 +51,14 @@ type OrganizationUnitsResponse = {
   units: OrganizationUnit[];
 };
 
+type AssetListResponse = {
+  assets: Asset[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 const assetStatusLabels = {
   active: "Em uso",
   maintenance: "Em manutenção",
@@ -81,6 +89,26 @@ export function AssetListPage() {
     assets,
     setAssets,
   ] = useState<Asset[]>([]);
+
+const [
+  total,
+  setTotal,
+] = useState(0);
+
+const [
+  totalPages,
+  setTotalPages,
+] = useState(1);
+
+const [
+  currentPage,
+  setCurrentPage,
+] = useState(1);
+
+const [
+  currentPageSize,
+  setCurrentPageSize,
+] = useState(10);
 
   const [
     units,
@@ -125,228 +153,7 @@ export function AssetListPage() {
     searchParams.get(
       "sortDirection",
     ) ?? "asc";
-  const currentPage =
-    Math.max(
-      1,
-      Number(
-        searchParams.get(
-          "page",
-        ) ?? "1",
-      ),
-    );
 
-  const pageSize =
-    Math.max(
-      1,
-      Number(
-        searchParams.get(
-          "pageSize",
-        ) ?? "10",
-      ),
-    );
-
-
-  const filteredAssets =
-    useMemo(
-      () => {
-        const normalizedSearch =
-          searchTerm
-            .trim()
-            .toLowerCase();
-
-        return assets.filter(
-          (asset) => {
-            if (
-              normalizedSearch &&
-              !asset.patrimonyNumber
-                .toLowerCase()
-                .includes(
-                  normalizedSearch,
-                ) &&
-              !asset.description
-                .toLowerCase()
-                .includes(
-                  normalizedSearch,
-                )
-            ) {
-              return false;
-            }
-
-            if (
-              selectedUnitId &&
-              asset.unitId !==
-              selectedUnitId
-            ) {
-              return false;
-            }
-
-            if (
-              selectedConservationStatus &&
-              asset.conservationStatus !==
-              selectedConservationStatus
-            ) {
-              return false;
-            }
-
-            if (
-              selectedStatus &&
-              asset.status !==
-              selectedStatus
-            ) {
-              return false;
-            }
-
-            return true;
-          },
-        );
-      },
-      [
-        assets,
-        searchTerm,
-        selectedUnitId,
-        selectedConservationStatus,
-        selectedStatus,
-      ],
-    );
-
-  const sortedAssets =
-    useMemo(() => {
-      const direction =
-        sortDirection ===
-          "desc"
-          ? -1
-          : 1;
-
-      return [
-        ...filteredAssets,
-      ].sort(
-        (
-          first,
-          second,
-        ) => {
-          switch (
-          sortBy
-          ) {
-            case "description":
-              return (
-                first.description.localeCompare(
-                  second.description,
-                  "pt-BR",
-                ) *
-                direction
-              );
-
-            case "unit": {
-              const firstUnit =
-                first.unitId
-                  ? unitsById.get(
-                    first.unitId,
-                  )
-                  : null;
-
-              const secondUnit =
-                second.unitId
-                  ? unitsById.get(
-                    second.unitId,
-                  )
-                  : null;
-
-              const firstName =
-                firstUnit
-                  ? `${firstUnit.code} ${firstUnit.name}`
-                  : "";
-
-              const secondName =
-                secondUnit
-                  ? `${secondUnit.code} ${secondUnit.name}`
-                  : "";
-
-              return (
-                firstName.localeCompare(
-                  secondName,
-                  "pt-BR",
-                ) *
-                direction
-              );
-            }
-
-            case "value": {
-              const firstValue =
-                Number(
-                  first.acquisitionValue ??
-                  0,
-                );
-
-              const secondValue =
-                Number(
-                  second.acquisitionValue ??
-                  0,
-                );
-
-              return (
-                (firstValue -
-                  secondValue) *
-                direction
-              );
-            }
-
-            case "patrimonyNumber":
-            default:
-              return (
-                first.patrimonyNumber.localeCompare(
-                  second.patrimonyNumber,
-                  "pt-BR",
-                  {
-                    numeric:
-                      true,
-                  },
-                ) *
-                direction
-              );
-          }
-        },
-      );
-    }, [
-      filteredAssets,
-      sortBy,
-      sortDirection,
-      unitsById,
-    ]);
-
-    const totalPages =
-      Math.max(
-        1,
-        Math.ceil(
-          sortedAssets.length /
-            pageSize,
-        ),
-      );
-
-    const safeCurrentPage =
-      Math.min(
-        currentPage,
-        totalPages,
-      );
-
-    const paginatedAssets =
-      useMemo(() => {
-        const start =
-          (safeCurrentPage - 1) *
-          pageSize;
-
-        const end =
-          start +
-          pageSize;
-
-        return sortedAssets.slice(
-          start,
-          end,
-        );
-      }, [
-        sortedAssets,
-        safeCurrentPage,
-        pageSize,
-      ]);
 
   const selectedStatusLabel =
     selectedStatus
@@ -484,21 +291,28 @@ function changePage(
     );
   }
 
-  
+  const queryString =
+  searchParams.toString();
 
-  const loadData =
-    useCallback(async () => {
+const loadData =
+  useCallback(
+    async () => {
       try {
         setLoading(true);
         setError("");
+
+        const assetUrl =
+          queryString
+            ? `/api/assets?${queryString}`
+            : "/api/assets";
 
         const [
           assetResult,
           unitResult,
         ] =
           await Promise.all([
-            api<Asset[]>(
-              "/api/assets",
+            api<AssetListResponse>(
+              assetUrl,
             ),
 
             api<OrganizationUnitsResponse>(
@@ -507,7 +321,23 @@ function changePage(
           ]);
 
         setAssets(
-          assetResult,
+          assetResult.assets,
+        );
+
+        setTotal(
+          assetResult.total,
+        );
+
+        setTotalPages(
+          assetResult.totalPages,
+        );
+
+        setCurrentPage(
+          assetResult.page,
+        );
+
+        setCurrentPageSize(
+          assetResult.pageSize,
         );
 
         setUnits(
@@ -529,7 +359,11 @@ function changePage(
       } finally {
         setLoading(false);
       }
-    }, []);
+    },
+    [
+      queryString,
+    ],
+  );
 
   useEffect(() => {
     void loadData();
@@ -742,8 +576,7 @@ function changePage(
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              {filteredAssets.length}{" "}
-              bem(ns) encontrado(s).
+             {total} bem(ns) encontrado(s).
             </p>
           </div>
 
@@ -775,8 +608,7 @@ function changePage(
             <p className="py-10 text-center text-sm text-[var(--text-muted)]">
               Carregando bens...
             </p>
-          ) : filteredAssets.length ===
-            0 ? (
+          ) : assets.length === 0 ? (
             <EmptyState
               description={
                 selectedUnit
@@ -919,7 +751,7 @@ function changePage(
                 </thead>
 
                 <tbody>
-                 {paginatedAssets.map(
+                 {assets.map(
                     (asset) => {
                       const unit =
                         asset.unitId
@@ -1020,79 +852,75 @@ function changePage(
               </Table>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-[var(--text-muted)]">
-                Página{" "}
-                {safeCurrentPage} de{" "}
-                {totalPages}
-                {" · "}
-                {sortedAssets.length}{" "}
-                bem(ns)
-              </div>
+  <div className="text-sm text-[var(--text-muted)]">
+    Página{" "}
+    {currentPage} de{" "}
+    {totalPages}
+    {" · "}
+    {total} bem(ns)
+  </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
-                  value={
-                    String(
-                      pageSize,
-                    )
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    changePageSize(
-                      event.target.value,
-                    )
-                  }
-                >
-                  <option value="10">
-                    10 por página
-                  </option>
+  <div className="flex flex-wrap items-center gap-2">
+    <select
+      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+      value={
+        String(
+          currentPageSize,
+        )
+      }
+      onChange={(
+        event,
+      ) =>
+        changePageSize(
+          event.target.value,
+        )
+      }
+    >
+      <option value="10">
+        10 por página
+      </option>
 
-                  <option value="20">
-                    20 por página
-                  </option>
+      <option value="20">
+        20 por página
+      </option>
 
-                  <option value="50">
-                    50 por página
-                  </option>
-                </select>
+      <option value="50">
+        50 por página
+      </option>
+    </select>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={
-                    safeCurrentPage <=
-                    1
-                  }
-                  onClick={() =>
-                    changePage(
-                      safeCurrentPage -
-                        1,
-                    )
-                  }
-                >
-                  Anterior
-                </Button>
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={
+        currentPage <= 1
+      }
+      onClick={() =>
+        changePage(
+          currentPage - 1,
+        )
+      }
+    >
+      Anterior
+    </Button>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={
-                    safeCurrentPage >=
-                    totalPages
-                  }
-                  onClick={() =>
-                    changePage(
-                      safeCurrentPage +
-                        1,
-                    )
-                  }
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={
+        currentPage >=
+        totalPages
+      }
+      onClick={() =>
+        changePage(
+          currentPage + 1,
+        )
+      }
+    >
+      Próxima
+    </Button>
+  </div>
+</div>
 
             </div>
           )}

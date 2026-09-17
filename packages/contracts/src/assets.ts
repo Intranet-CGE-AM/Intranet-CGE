@@ -81,6 +81,71 @@ export type Asset =
   z.infer<typeof assetSchema>;
 
 
+export const assetListQuerySchema = z.object({
+  q:
+    z.string()
+      .trim()
+      .optional(),
+
+  status:
+    assetStatusSchema
+      .optional(),
+
+  unitId:
+    z.uuid()
+      .optional(),
+
+  conservationStatus:
+    z.string()
+      .trim()
+      .optional(),
+
+  sortBy:
+    z.enum([
+      "patrimonyNumber",
+      "description",
+      "unit",
+      "value",
+      "createdAt",
+    ])
+      .optional()
+      .default(
+        "patrimonyNumber",
+      ),
+
+  sortDirection:
+    z.enum([
+      "asc",
+      "desc",
+    ])
+      .optional()
+      .default("asc"),
+
+  page:
+    z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(1),
+
+  pageSize:
+    z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .default(10),
+});
+
+export type AssetListQuery =
+  z.infer<
+    typeof assetListQuerySchema
+  >;
+
+
+
 /*Contrato para criar um novo bem*/
 export const assetCreateSchema = z.object({
   patrimonyNumber:

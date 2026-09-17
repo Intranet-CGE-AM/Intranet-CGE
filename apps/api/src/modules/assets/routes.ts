@@ -1,6 +1,7 @@
 import {
   assetCreateSchema,
   assetDisposalCreateSchema,
+  assetListQuerySchema,
   assetMovementCreateSchema,
   assetUpdateSchema,
 } from "@cge/contracts";
@@ -54,30 +55,39 @@ export const assetRoutes:
 
           /* LISTAR BENS */
 
-          typedApp.get(
-            "/api/assets",
+typedApp.get(
+  "/api/assets",
 
-            async (
-              request,
-              reply,
-            ) => {
-              const user =
-                await requireAnyPermission(
-                  request,
-                  reply,
-                  options.authenticationService,
-                  "assets.read",
-                );
+  {
+    schema: {
+      querystring:
+        assetListQuerySchema,
+    },
+  },
 
-              if (!user) {
-                return;
-              }
+  async (
+    request,
+    reply,
+  ) => {
+    const user =
+      await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
+      );
 
-              return options
-                .assetService
-                .list();
-            },
-          );
+    if (!user) {
+      return;
+    }
+
+    return options
+      .assetService
+      .list(
+        request.query,
+      );
+  },
+);
 
           /* DASHBOARD DO PATRIMÔNIO */
 
