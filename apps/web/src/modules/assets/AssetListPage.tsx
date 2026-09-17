@@ -68,9 +68,9 @@ export function AssetListPage() {
       "unitId",
     );
   const selectedConservationStatus =
-  searchParams.get(
-    "conservationStatus",
-  );
+    searchParams.get(
+      "conservationStatus",
+    );
 
   const searchTerm =
     searchParams.get(
@@ -111,112 +111,380 @@ export function AssetListPage() {
       [units],
     );
 
-const selectedStatus =
-  searchParams.get(
-    "status",
-  );
+  const selectedStatus =
+    searchParams.get(
+      "status",
+    );
 
-const filteredAssets =
-  useMemo(
-    () => {
-      const normalizedSearch =
-        searchTerm
-          .trim()
-          .toLowerCase();
+  const sortBy =
+    searchParams.get(
+      "sortBy",
+    ) ?? "patrimonyNumber";
 
-      return assets.filter(
-        (asset) => {
-          if (
-            normalizedSearch &&
-            !asset.patrimonyNumber
-              .toLowerCase()
-              .includes(
-                normalizedSearch,
-              ) &&
-            !asset.description
-              .toLowerCase()
-              .includes(
-                normalizedSearch,
-              )
-          ) {
-            return false;
-          }
+  const sortDirection =
+    searchParams.get(
+      "sortDirection",
+    ) ?? "asc";
+  const currentPage =
+    Math.max(
+      1,
+      Number(
+        searchParams.get(
+          "page",
+        ) ?? "1",
+      ),
+    );
 
-          if (
-            selectedUnitId &&
-            asset.unitId !==
+  const pageSize =
+    Math.max(
+      1,
+      Number(
+        searchParams.get(
+          "pageSize",
+        ) ?? "10",
+      ),
+    );
+
+
+  const filteredAssets =
+    useMemo(
+      () => {
+        const normalizedSearch =
+          searchTerm
+            .trim()
+            .toLowerCase();
+
+        return assets.filter(
+          (asset) => {
+            if (
+              normalizedSearch &&
+              !asset.patrimonyNumber
+                .toLowerCase()
+                .includes(
+                  normalizedSearch,
+                ) &&
+              !asset.description
+                .toLowerCase()
+                .includes(
+                  normalizedSearch,
+                )
+            ) {
+              return false;
+            }
+
+            if (
+              selectedUnitId &&
+              asset.unitId !==
               selectedUnitId
-          ) {
-            return false;
-          }
+            ) {
+              return false;
+            }
 
-          if (
-            selectedConservationStatus &&
-            asset.conservationStatus !==
+            if (
+              selectedConservationStatus &&
+              asset.conservationStatus !==
               selectedConservationStatus
-          ) {
-            return false;
-          }
+            ) {
+              return false;
+            }
 
-          if (
-            selectedStatus &&
-            asset.status !==
+            if (
+              selectedStatus &&
+              asset.status !==
               selectedStatus
-          ) {
-            return false;
-          }
+            ) {
+              return false;
+            }
 
-          return true;
+            return true;
+          },
+        );
+      },
+      [
+        assets,
+        searchTerm,
+        selectedUnitId,
+        selectedConservationStatus,
+        selectedStatus,
+      ],
+    );
+
+  const sortedAssets =
+    useMemo(() => {
+      const direction =
+        sortDirection ===
+          "desc"
+          ? -1
+          : 1;
+
+      return [
+        ...filteredAssets,
+      ].sort(
+        (
+          first,
+          second,
+        ) => {
+          switch (
+          sortBy
+          ) {
+            case "description":
+              return (
+                first.description.localeCompare(
+                  second.description,
+                  "pt-BR",
+                ) *
+                direction
+              );
+
+            case "unit": {
+              const firstUnit =
+                first.unitId
+                  ? unitsById.get(
+                    first.unitId,
+                  )
+                  : null;
+
+              const secondUnit =
+                second.unitId
+                  ? unitsById.get(
+                    second.unitId,
+                  )
+                  : null;
+
+              const firstName =
+                firstUnit
+                  ? `${firstUnit.code} ${firstUnit.name}`
+                  : "";
+
+              const secondName =
+                secondUnit
+                  ? `${secondUnit.code} ${secondUnit.name}`
+                  : "";
+
+              return (
+                firstName.localeCompare(
+                  secondName,
+                  "pt-BR",
+                ) *
+                direction
+              );
+            }
+
+            case "value": {
+              const firstValue =
+                Number(
+                  first.acquisitionValue ??
+                  0,
+                );
+
+              const secondValue =
+                Number(
+                  second.acquisitionValue ??
+                  0,
+                );
+
+              return (
+                (firstValue -
+                  secondValue) *
+                direction
+              );
+            }
+
+            case "patrimonyNumber":
+            default:
+              return (
+                first.patrimonyNumber.localeCompare(
+                  second.patrimonyNumber,
+                  "pt-BR",
+                  {
+                    numeric:
+                      true,
+                  },
+                ) *
+                direction
+              );
+          }
         },
       );
-    },
-    [
-      assets,
-      searchTerm,
-      selectedUnitId,
-      selectedConservationStatus,
-      selectedStatus,
-    ],
-  );
-    
+    }, [
+      filteredAssets,
+      sortBy,
+      sortDirection,
+      unitsById,
+    ]);
+
+    const totalPages =
+      Math.max(
+        1,
+        Math.ceil(
+          sortedAssets.length /
+            pageSize,
+        ),
+      );
+
+    const safeCurrentPage =
+      Math.min(
+        currentPage,
+        totalPages,
+      );
+
+    const paginatedAssets =
+      useMemo(() => {
+        const start =
+          (safeCurrentPage - 1) *
+          pageSize;
+
+        const end =
+          start +
+          pageSize;
+
+        return sortedAssets.slice(
+          start,
+          end,
+        );
+      }, [
+        sortedAssets,
+        safeCurrentPage,
+        pageSize,
+      ]);
+
   const selectedStatusLabel =
-  selectedStatus
-    ? assetStatusLabels[
-        selectedStatus as keyof typeof assetStatusLabels
+    selectedStatus
+      ? assetStatusLabels[
+      selectedStatus as keyof typeof assetStatusLabels
       ] ?? null
-    : null;
+      : null;
 
   const selectedUnit =
-  selectedUnitId
-    ? unitsById.get(
+    selectedUnitId
+      ? unitsById.get(
         selectedUnitId,
       ) ?? null
-    : null;
+      : null;
 
-    function updateFilter(
-      key: string,
-      value: string,
-    ) {
-      const next =
-        new URLSearchParams(
-          searchParams,
-        );
+  function updateFilter(
+    key: string,
+    value: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
 
-      if (value) {
-        next.set(
-          key,
-          value,
-        );
-      } else {
-        next.delete(
-          key,
-        );
-      }
-
-      setSearchParams(
-        next,
+    if (value) {
+      next.set(
+        key,
+        value,
+      );
+    } else {
+      next.delete(
+        key,
       );
     }
+
+    next.set(
+      "page",
+      "1",
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+function changePage(
+  page: number,
+) {
+  const next =
+    new URLSearchParams(
+      searchParams,
+    );
+
+  next.set(
+    "page",
+    String(page),
+  );
+
+  setSearchParams(
+    next,
+  );
+}
+
+  function changePageSize(
+    value: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    next.set(
+      "pageSize",
+      value,
+    );
+
+    next.set(
+      "page",
+      "1",
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  function updateSort(
+    field: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    const currentField =
+      next.get(
+        "sortBy",
+      );
+
+    const currentDirection =
+      next.get(
+        "sortDirection",
+      ) ?? "asc";
+
+    if (
+      currentField ===
+      field
+    ) {
+      next.set(
+        "sortDirection",
+        currentDirection ===
+          "asc"
+          ? "desc"
+          : "asc",
+      );
+    } else {
+      next.set(
+        "sortBy",
+        field,
+      );
+
+      next.set(
+        "sortDirection",
+        "asc",
+      );
+
+      next.set(
+        "page",
+        "1",
+      );
+    }
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  
 
   const loadData =
     useCallback(async () => {
@@ -473,15 +741,15 @@ const filteredAssets =
               Bens cadastrados
             </h2>
 
-           <p className="text-xs text-[var(--text-muted)]">
-            {filteredAssets.length}{" "}
-            bem(ns) encontrado(s).
-          </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              {filteredAssets.length}{" "}
+              bem(ns) encontrado(s).
+            </p>
           </div>
 
-         {selectedUnit ||
-          selectedConservationStatus ||
-          selectedStatusLabel ? (
+          {selectedUnit ||
+            selectedConservationStatus ||
+            selectedStatusLabel ? (
             <Button
               onClick={() => {
                 setSearchParams({});
@@ -508,7 +776,7 @@ const filteredAssets =
               Carregando bens...
             </p>
           ) : filteredAssets.length ===
-          0 ? (
+            0 ? (
             <EmptyState
               description={
                 selectedUnit
@@ -521,8 +789,8 @@ const filteredAssets =
               }
               title={
                 selectedUnit ||
-                selectedConservationStatus ||
-                selectedStatusLabel
+                  selectedConservationStatus ||
+                  selectedStatusLabel
                   ? "Nenhum bem encontrado"
                   : "Nenhum bem cadastrado"
               }
@@ -533,15 +801,69 @@ const filteredAssets =
                 <thead>
                   <tr>
                     <TableHead>
-                      Tombo
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "patrimonyNumber",
+                          )
+                        }
+                      >
+                        Tombo
+
+                        {sortBy ===
+                          "patrimonyNumber"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
                     </TableHead>
 
                     <TableHead>
-                      Material
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "description",
+                          )
+                        }
+                      >
+                        Material
+
+                        {sortBy ===
+                          "description"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
                     </TableHead>
 
                     <TableHead>
-                      Setor
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "unit",
+                          )
+                        }
+                      >
+                        Setor
+
+                        {sortBy ===
+                          "unit"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
                     </TableHead>
 
                     <TableHead>
@@ -569,7 +891,25 @@ const filteredAssets =
                     </TableHead>
 
                     <TableHead>
-                      Valor
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "value",
+                          )
+                        }
+                      >
+                        Valor
+
+                        {sortBy ===
+                          "value"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
                     </TableHead>
 
                     <TableHead>
@@ -579,13 +919,13 @@ const filteredAssets =
                 </thead>
 
                 <tbody>
-                 {filteredAssets.map(
+                 {paginatedAssets.map(
                     (asset) => {
                       const unit =
                         asset.unitId
                           ? unitsById.get(
-                              asset.unitId,
-                            )
+                            asset.unitId,
+                          )
                           : null;
 
                       return (
@@ -667,7 +1007,7 @@ const filteredAssets =
                             <Badge variant="neutral">
                               {
                                 assetStatusLabels[
-                                  asset.status
+                                asset.status
                                 ]
                               }
                             </Badge>
@@ -678,6 +1018,82 @@ const filteredAssets =
                   )}
                 </tbody>
               </Table>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-[var(--text-muted)]">
+                Página{" "}
+                {safeCurrentPage} de{" "}
+                {totalPages}
+                {" · "}
+                {sortedAssets.length}{" "}
+                bem(ns)
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+                  value={
+                    String(
+                      pageSize,
+                    )
+                  }
+                  onChange={(
+                    event,
+                  ) =>
+                    changePageSize(
+                      event.target.value,
+                    )
+                  }
+                >
+                  <option value="10">
+                    10 por página
+                  </option>
+
+                  <option value="20">
+                    20 por página
+                  </option>
+
+                  <option value="50">
+                    50 por página
+                  </option>
+                </select>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    safeCurrentPage <=
+                    1
+                  }
+                  onClick={() =>
+                    changePage(
+                      safeCurrentPage -
+                        1,
+                    )
+                  }
+                >
+                  Anterior
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    safeCurrentPage >=
+                    totalPages
+                  }
+                  onClick={() =>
+                    changePage(
+                      safeCurrentPage +
+                        1,
+                    )
+                  }
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+
             </div>
           )}
         </CardContent>
