@@ -16,12 +16,12 @@
   --action-hover: var(--brand-strong);
   --action-foreground: #ffffff;
   --action-soft: var(--brand-soft);
-  --success: #087a54;
+  --success: #035438;
   --success-soft: #e2f8ef;
-  --success-strong: #087a54;
-  --warning-soft: #fff6dd;
-  --warning-border: #f0d999;
-  --warning-strong: #7a5a08;
+  --success-strong: #023826;
+  --warning-soft: #fff8e6;
+  --warning-border: #ebd07b;
+  --warning-strong: #5c3e02;
   --danger: #a92952;
   --danger-strong: #8d1f44;
   --danger-soft: #fdeaf0;

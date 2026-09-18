@@ -12,7 +12,7 @@
     "build": "pnpm -r --if-present build",
     "admin:bootstrap": "pnpm --filter @cge/api admin:bootstrap",
     "homolog:seed": "pnpm --filter @cge/api homolog:seed",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
+    "@cge/contracts": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.2",

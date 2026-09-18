@@ -332,6 +332,27 @@ describe("ticket routes", () => {
     });
     expect(queueRes.statusCode).toBe(200);
 
+    const queueSingleStatus = await app.inject({
+      method: "GET",
+      url: "/api/tickets/queue?status=open",
+      headers: { cookie, origin: config.WEB_ORIGIN },
+    });
+    expect(queueSingleStatus.statusCode).toBe(200);
+
+    const queueMultiStatus = await app.inject({
+      method: "GET",
+      url: "/api/tickets/queue?status=open&status=in_service",
+      headers: { cookie, origin: config.WEB_ORIGIN },
+    });
+    expect(queueMultiStatus.statusCode).toBe(200);
+
+    const queueCommaStatus = await app.inject({
+      method: "GET",
+      url: "/api/tickets/queue?status=open,in_service&area=sistemas",
+      headers: { cookie, origin: config.WEB_ORIGIN },
+    });
+    expect(queueCommaStatus.statusCode).toBe(200);
+
     const transitionRes = await app.inject({
       method: "POST",
       url: `/api/tickets/${fakeDetail.id}/transition`,

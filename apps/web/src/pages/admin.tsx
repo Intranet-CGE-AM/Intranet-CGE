@@ -68,6 +68,17 @@ const permissionLabels: Record<PermissionKey, string> = {
   "tickets.approve": "Deliberar aprovação de TI",
   "tickets.attend": "Atendimento técnico ATEC",
   "tickets.manage": "Gestão e métricas de TI",
+  "visits.read": "Consultar visitas",
+  "visits.create": "Agendar visitas",
+  "visits.update": "Editar visitas",
+  "visits.delete": "Cancelar/Excluir visitas",
+  "visits.approve": "Aprovar visitas",
+  "visits.release": "Liberar acesso na portaria",
+  "visits.history": "Histórico de visitas",
+  "visits.reports": "Relatórios de visitas",
+  "visits.export": "Exportar visitas",
+  "visits.manage": "Administrar módulo de visitas",
+  "visits.confirmation.manage": "Gerenciar confirmações de visitas",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
@@ -95,10 +106,22 @@ const permissionDescriptions: Record<PermissionKey, string> = {
     "Assume, executa e conclui atendimentos na fila técnica da ATEC.",
   "tickets.manage":
     "Administra todo o fluxo, filas, categorias e relatórios de TI.",
+  "visits.read": "Consulta agendamentos de visitas na instituição.",
+  "visits.create": "Cria novos agendamentos de visitas e reuniões.",
+  "visits.update": "Altera dados de agendamentos existentes.",
+  "visits.delete": "Cancela ou remove agendamentos de visitas.",
+  "visits.approve": "Analisa e aprova solicitações de visitas institucionais.",
+  "visits.release":
+    "Registra entrada e saída de visitantes na recepção/portaria.",
+  "visits.history": "Consulta histórico completo de visitas realizadas.",
+  "visits.reports": "Gera relatórios estatísticos e gerenciais de visitas.",
+  "visits.export": "Exporta dados de visitas em formatos PDF e Excel.",
+  "visits.manage": "Administra parâmetros e configurações gerais de visitas.",
+  "visits.confirmation.manage": "Envia e gerencia confirmações aos visitantes.",
 };
 
 type PermissionModule =
-  "administration" | "audit" | "people" | "vacations" | "tickets";
+  "administration" | "audit" | "people" | "vacations" | "tickets" | "visits";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "access.manage": "administration",
@@ -117,35 +140,53 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "tickets.approve": "tickets",
   "tickets.attend": "tickets",
   "tickets.manage": "tickets",
+  "visits.read": "visits",
+  "visits.create": "visits",
+  "visits.update": "visits",
+  "visits.delete": "visits",
+  "visits.approve": "visits",
+  "visits.release": "visits",
+  "visits.history": "visits",
+  "visits.reports": "visits",
+  "visits.export": "visits",
+  "visits.manage": "visits",
+  "visits.confirmation.manage": "visits",
 };
 
-const permissionGroups = [
-  {
-    key: "administration",
-    title: "Administração do sistema",
-    description: "Perfis e contas da plataforma",
-  },
-  {
-    key: "audit",
-    title: "Auditoria",
-    description: "Consulta e exportação dos registros",
-  },
-  {
-    key: "people",
-    title: "Pessoas e RH",
-    description: "Diretório, cadastros e aniversários",
-  },
-  {
-    key: "vacations",
-    title: "Férias",
-    description: "Solicitações e decisões",
-  },
-  {
-    key: "tickets",
-    title: "Suporte e Chamados TI",
-    description: "Abertura, aprovações e atendimento ATEC",
-  },
-].map((group) => ({
+const permissionGroups = (
+  [
+    {
+      key: "administration",
+      title: "Administração",
+      description: "Perfis e contas de acesso",
+    },
+    {
+      key: "audit",
+      title: "Auditoria",
+      description: "Consulta e exportação dos registros",
+    },
+    {
+      key: "people",
+      title: "Pessoas e RH",
+      description: "Diretório, cadastros e aniversários",
+    },
+    {
+      key: "vacations",
+      title: "Férias",
+      description: "Solicitações e decisões",
+    },
+    {
+      key: "tickets",
+      title: "Suporte e Chamados TI",
+      description: "Abertura, aprovações e atendimento ATEC",
+    },
+    {
+      key: "visits",
+      title: "Visitas",
+      description: "Agendamentos, portaria e relatórios",
+    },
+  ] as const
+).map((group) => ({
   ...group,
   permissions: permissionKeys.filter(
     (permission) => permissionModule[permission] === group.key,

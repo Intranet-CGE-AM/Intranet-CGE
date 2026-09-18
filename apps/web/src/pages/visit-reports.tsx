@@ -36,23 +36,13 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  utils,
-  writeFileXLSX,
-} from "xlsx";
+import { utils, writeFileXLSX } from "xlsx";
 
-import {
-  jsPDF,
-} from "jspdf";
+import { jsPDF } from "jspdf";
 
-import {
-  autoTable,
-} from "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
-import {
-  api,
-  ApiError,
-} from "../lib/api";
+import { api, ApiError } from "../lib/api";
 
 import {
   visitLocationOptions,
@@ -64,12 +54,7 @@ import {
  * TIPOS
  * ======================================================= */
 
-type ReportKind =
-  | "general"
-  | "type"
-  | "status"
-  | "location"
-  | "organization";
+type ReportKind = "general" | "type" | "status" | "location" | "organization";
 
 type DateRangeValue = {
   from: string;
@@ -79,17 +64,11 @@ type DateRangeValue = {
 type ReportFilters = {
   dateRange: DateRangeValue;
 
-  type:
-    | VisitType
-    | "";
+  type: VisitType | "";
 
-  location:
-    | VisitLocation
-    | "";
+  location: VisitLocation | "";
 
-  status:
-    | VisitStatus
-    | "";
+  status: VisitStatus | "";
 
   subject: string;
 
@@ -128,85 +107,49 @@ const initialFilters: ReportFilters = {
  * ======================================================= */
 
 export function VisitReportsPage() {
-  const [
-    reportKind,
-    setReportKind,
-  ] = useState<ReportKind>("general");
+  const [reportKind, setReportKind] = useState<ReportKind>("general");
 
-  const [
-    filters,
-    setFilters,
-  ] = useState<ReportFilters>(
-    initialFilters,
-  );
+  const [filters, setFilters] = useState<ReportFilters>(initialFilters);
 
-  const [
-    appliedFilters,
-    setAppliedFilters,
-  ] = useState<ReportFilters>({
+  const [appliedFilters, setAppliedFilters] = useState<ReportFilters>({
     ...initialFilters,
     dateRange: {
       ...initialFilters.dateRange,
     },
   });
 
-  const [
-    reportIssued,
-    setReportIssued,
-  ] = useState(false);
+  const [reportIssued, setReportIssued] = useState(false);
 
-  const [
-    visits,
-    setVisits,
-  ] = useState<VisitSummary[]>([]);
+  const [visits, setVisits] = useState<VisitSummary[]>([]);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    exportingXlsx,
-    setExportingXlsx,
-  ] = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
-  const [
-    exportingPdf,
-    setExportingPdf,
-  ] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [error, setError] = useState("");
 
   /* =======================================================
    * CARREGAR RELATÓRIO
    * ===================================================== */
 
-  const loadReport =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const loadReport = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const result =
-          await fetchAllVisits(
-            appliedFilters,
-          );
+      const result = await fetchAllVisits(appliedFilters);
 
-        setVisits(result);
-      } catch (cause) {
-        setError(
-          getErrorMessage(
-            cause,
-            "Não foi possível carregar o relatório.",
-          ),
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, [appliedFilters]);
+      setVisits(result);
+    } catch (cause) {
+      setError(
+        getErrorMessage(cause, "Não foi possível carregar o relatório."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [appliedFilters]);
 
   useEffect(() => {
     if (!reportIssued) {
@@ -221,76 +164,45 @@ export function VisitReportsPage() {
    * AGRUPAMENTOS
    * ===================================================== */
 
-  const groupedByType =
-    useMemo(
-      () =>
-        aggregateVisits(
-          visits,
-          (visit) =>
-            visitTypeLabels[
-              visit.type
-            ],
-        ),
-      [visits],
-    );
+  const groupedByType = useMemo(
+    () => aggregateVisits(visits, (visit) => visitTypeLabels[visit.type]),
+    [visits],
+  );
 
-  const groupedByStatus =
-    useMemo(
-      () =>
-        aggregateVisits(
-          visits,
-          (visit) =>
-            visitStatusLabels[
-              visit.status
-            ],
-        ),
-      [visits],
-    );
+  const groupedByStatus = useMemo(
+    () => aggregateVisits(visits, (visit) => visitStatusLabels[visit.status]),
+    [visits],
+  );
 
-  const groupedByLocation =
-    useMemo(
-      () =>
-        aggregateVisits(
-          visits,
-          (visit) =>
-            visitLocationOptions.find(
-              (option) =>
-                option.value ===
-                visit.location,
-            )?.label ??
-            visit.location,
-        ),
-      [visits],
-    );
+  const groupedByLocation = useMemo(
+    () =>
+      aggregateVisits(
+        visits,
+        (visit) =>
+          visitLocationOptions.find((option) => option.value === visit.location)
+            ?.label ?? visit.location,
+      ),
+    [visits],
+  );
 
-  const groupedByOrganization =
-    useMemo(
-      () =>
-        aggregateVisits(
-          visits,
-          (visit) =>
-            visit.organization ||
-            "Não informado",
-        ),
-      [visits],
-    );
+  const groupedByOrganization = useMemo(
+    () =>
+      aggregateVisits(visits, (visit) => visit.organization || "Não informado"),
+    [visits],
+  );
 
   /* =======================================================
    * FILTROS
    * ===================================================== */
 
-  function updateFilter<
-    K extends keyof ReportFilters,
-  >(
+  function updateFilter<K extends keyof ReportFilters>(
     key: K,
     value: ReportFilters[K],
   ) {
-    setFilters(
-      (current) => ({
-        ...current,
-        [key]: value,
-      }),
-    );
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   function clearFilters() {
@@ -313,12 +225,9 @@ export function VisitReportsPage() {
     if (
       filters.dateRange.from &&
       filters.dateRange.to &&
-      filters.dateRange.from >
-        filters.dateRange.to
+      filters.dateRange.from > filters.dateRange.to
     ) {
-      setError(
-        "A data inicial não pode ser posterior à data final.",
-      );
+      setError("A data inicial não pode ser posterior à data final.");
       return;
     }
 
@@ -337,12 +246,8 @@ export function VisitReportsPage() {
    * ===================================================== */
 
   function exportXlsx() {
-    if (
-      visits.length === 0
-    ) {
-      setError(
-        "Não existem registros para exportação.",
-      );
+    if (visits.length === 0) {
+      setError("Não existem registros para exportação.");
       return;
     }
 
@@ -351,33 +256,20 @@ export function VisitReportsPage() {
       setError("");
 
       if (reportKind === "general") {
-        createGeneralXlsx(
-          visits,
-          appliedFilters,
-        );
+        createGeneralXlsx(visits, appliedFilters);
         return;
       }
 
-      const grouped =
-        getGroupedReportData(
-          reportKind,
-          {
-            type: groupedByType,
-            status: groupedByStatus,
-            location: groupedByLocation,
-            organization: groupedByOrganization,
-          },
-        );
+      const grouped = getGroupedReportData(reportKind, {
+        type: groupedByType,
+        status: groupedByStatus,
+        location: groupedByLocation,
+        organization: groupedByOrganization,
+      });
 
-      createGroupedXlsx(
-        grouped.rows,
-        appliedFilters,
-        grouped.title,
-      );
+      createGroupedXlsx(grouped.rows, appliedFilters, grouped.title);
     } catch {
-      setError(
-        "Não foi possível gerar o relatório XLSX.",
-      );
+      setError("Não foi possível gerar o relatório XLSX.");
     } finally {
       setExportingXlsx(false);
     }
@@ -388,12 +280,8 @@ export function VisitReportsPage() {
    * ===================================================== */
 
   function exportPdf() {
-    if (
-      visits.length === 0
-    ) {
-      setError(
-        "Não existem registros para exportação.",
-      );
+    if (visits.length === 0) {
+      setError("Não existem registros para exportação.");
       return;
     }
 
@@ -402,33 +290,20 @@ export function VisitReportsPage() {
       setError("");
 
       if (reportKind === "general") {
-        createGeneralPdf(
-          visits,
-          appliedFilters,
-        );
+        createGeneralPdf(visits, appliedFilters);
         return;
       }
 
-      const grouped =
-        getGroupedReportData(
-          reportKind,
-          {
-            type: groupedByType,
-            status: groupedByStatus,
-            location: groupedByLocation,
-            organization: groupedByOrganization,
-          },
-        );
+      const grouped = getGroupedReportData(reportKind, {
+        type: groupedByType,
+        status: groupedByStatus,
+        location: groupedByLocation,
+        organization: groupedByOrganization,
+      });
 
-      createGroupedPdf(
-        grouped.rows,
-        appliedFilters,
-        grouped.title,
-      );
+      createGroupedPdf(grouped.rows, appliedFilters, grouped.title);
     } catch {
-      setError(
-        "Não foi possível gerar o relatório PDF.",
-      );
+      setError("Não foi possível gerar o relatório PDF.");
     } finally {
       setExportingPdf(false);
     }
@@ -452,17 +327,13 @@ export function VisitReportsPage() {
         </h1>
 
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Consulte indicadores dos
-          agendamentos e exporte os
-          resultados em Excel ou PDF.
+          Consulte indicadores dos agendamentos e exporte os resultados em Excel
+          ou PDF.
         </p>
       </div>
 
       {error ? (
-        <Alert
-          title="Não foi possível concluir a operação"
-          tone="danger"
-        >
+        <Alert title="Não foi possível concluir a operação" tone="danger">
           {error}
         </Alert>
       ) : null}
@@ -472,13 +343,10 @@ export function VisitReportsPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-extrabold">
-              Tipo de relatório
-            </h2>
+            <h2 className="font-extrabold">Tipo de relatório</h2>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Selecione uma forma de
-              visualização dos agendamentos.
+              Selecione uma forma de visualização dos agendamentos.
             </p>
           </div>
         </CardHeader>
@@ -486,73 +354,38 @@ export function VisitReportsPage() {
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <ReportOption
-              active={
-                reportKind ===
-                "general"
-              }
+              active={reportKind === "general"}
               title="Relatório Geral"
               description="Relação detalhada dos agendamentos."
-              onClick={() =>
-                setReportKind(
-                  "general",
-                )
-              }
+              onClick={() => setReportKind("general")}
             />
 
             <ReportOption
-              active={
-                reportKind ===
-                "type"
-              }
+              active={reportKind === "type"}
               title="Por Tipo de Visita"
               description="Distribuição dos agendamentos por categoria."
-              onClick={() =>
-                setReportKind(
-                  "type",
-                )
-              }
+              onClick={() => setReportKind("type")}
             />
 
             <ReportOption
-              active={
-                reportKind ===
-                "status"
-              }
+              active={reportKind === "status"}
               title="Por Situação"
               description="Distribuição por status do agendamento."
-              onClick={() =>
-                setReportKind(
-                  "status",
-                )
-              }
+              onClick={() => setReportKind("status")}
             />
 
             <ReportOption
-              active={
-                reportKind ===
-                "location"
-              }
+              active={reportKind === "location"}
               title="Por Sala"
               description="Utilização das salas de reunião e auditório."
-              onClick={() =>
-                setReportKind(
-                  "location",
-                )
-              }
+              onClick={() => setReportKind("location")}
             />
 
             <ReportOption
-              active={
-                reportKind ===
-                "organization"
-              }
+              active={reportKind === "organization"}
               title="Por Órgão / Instituição"
               description="Distribuição das visitas por instituição de origem."
-              onClick={() =>
-                setReportKind(
-                  "organization",
-                )
-              }
+              onClick={() => setReportKind("organization")}
             />
           </div>
         </CardContent>
@@ -564,20 +397,13 @@ export function VisitReportsPage() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <FunnelSimple
-                size={20}
-                aria-hidden="true"
-              />
+              <FunnelSimple size={20} aria-hidden="true" />
 
-              <h2 className="font-extrabold">
-                Filtros
-              </h2>
+              <h2 className="font-extrabold">Filtros</h2>
             </div>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Combine período, tipo,
-              sala, situação, motivo e
-              instituição.
+              Combine período, tipo, sala, situação, motivo e instituição.
             </p>
           </div>
         </CardHeader>
@@ -596,15 +422,8 @@ export function VisitReportsPage() {
 
               <DateRangePicker
                 id="report-period"
-                value={
-                  filters.dateRange
-                }
-                onChange={(value) =>
-                  updateFilter(
-                    "dateRange",
-                    value,
-                  )
-                }
+                value={filters.dateRange}
+                onChange={(value) => updateFilter("dateRange", value)}
                 placeholder="Selecione o período"
               />
             </div>
@@ -614,37 +433,18 @@ export function VisitReportsPage() {
             <SelectField
               id="report-type"
               label="Tipo de visita"
-              value={
-                filters.type
-              }
+              value={filters.type}
               onChange={(value) =>
-                updateFilter(
-                  "type",
-                  value as
-                    | VisitType
-                    | "",
-                )
+                updateFilter("type", value as VisitType | "")
               }
             >
-              <option value="">
-                Todos os tipos
-              </option>
+              <option value="">Todos os tipos</option>
 
-              {Object.entries(
-                visitTypeLabels,
-              ).map(
-                ([
-                  value,
-                  label,
-                ]) => (
-                  <option
-                    key={value}
-                    value={value}
-                  >
-                    {label}
-                  </option>
-                ),
-              )}
+              {Object.entries(visitTypeLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </SelectField>
 
             {/* SALA */}
@@ -652,36 +452,18 @@ export function VisitReportsPage() {
             <SelectField
               id="report-location"
               label="Sala da visita"
-              value={
-                filters.location
-              }
+              value={filters.location}
               onChange={(value) =>
-                updateFilter(
-                  "location",
-                  value as
-                    | VisitLocation
-                    | "",
-                )
+                updateFilter("location", value as VisitLocation | "")
               }
             >
-              <option value="">
-                Todas as salas
-              </option>
+              <option value="">Todas as salas</option>
 
-              {visitLocationOptions.map(
-                (option) => (
-                  <option
-                    key={
-                      option.value
-                    }
-                    value={
-                      option.value
-                    }
-                  >
-                    {option.label}
-                  </option>
-                ),
-              )}
+              {visitLocationOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </SelectField>
 
             {/* STATUS */}
@@ -689,37 +471,18 @@ export function VisitReportsPage() {
             <SelectField
               id="report-status"
               label="Situação"
-              value={
-                filters.status
-              }
+              value={filters.status}
               onChange={(value) =>
-                updateFilter(
-                  "status",
-                  value as
-                    | VisitStatus
-                    | "",
-                )
+                updateFilter("status", value as VisitStatus | "")
               }
             >
-              <option value="">
-                Todas as situações
-              </option>
+              <option value="">Todas as situações</option>
 
-              {Object.entries(
-                visitStatusLabels,
-              ).map(
-                ([
-                  value,
-                  label,
-                ]) => (
-                  <option
-                    key={value}
-                    value={value}
-                  >
-                    {label}
-                  </option>
-                ),
-              )}
+              {Object.entries(visitStatusLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </SelectField>
 
             {/* MOTIVO */}
@@ -735,14 +498,9 @@ export function VisitReportsPage() {
               <Input
                 id="report-subject"
                 placeholder="Ex.: apoio técnico"
-                value={
-                  filters.subject
-                }
+                value={filters.subject}
                 onChange={(event) =>
-                  updateFilter(
-                    "subject",
-                    event.target.value,
-                  )
+                  updateFilter("subject", event.target.value)
                 }
               />
             </div>
@@ -760,14 +518,9 @@ export function VisitReportsPage() {
               <Input
                 id="report-organization"
                 placeholder="Ex.: SEFAZ-AM"
-                value={
-                  filters.organization
-                }
+                value={filters.organization}
                 onChange={(event) =>
-                  updateFilter(
-                    "organization",
-                    event.target.value,
-                  )
+                  updateFilter("organization", event.target.value)
                 }
               />
             </div>
@@ -785,60 +538,35 @@ export function VisitReportsPage() {
               Limpar filtros
             </Button>
 
-            <Button
-              type="button"
-              onClick={emitReport}
-              disabled={loading}
-            >
-              <ChartBar
-                size={17}
-                aria-hidden="true"
-              />
+            <Button type="button" onClick={emitReport} disabled={loading}>
+              <ChartBar size={17} aria-hidden="true" />
 
-              {loading
-                ? "Emitindo relatório..."
-                : "Emitir relatório"}
+              {loading ? "Emitindo relatório..." : "Emitir relatório"}
             </Button>
 
             <Button
               type="button"
               variant="secondary"
               disabled={
-                exportingXlsx ||
-                exportingPdf ||
-                loading ||
-                visits.length === 0
+                exportingXlsx || exportingPdf || loading || visits.length === 0
               }
               onClick={exportXlsx}
             >
-              <DownloadSimple
-                size={17}
-                aria-hidden="true"
-              />
+              <DownloadSimple size={17} aria-hidden="true" />
 
-              {exportingXlsx
-                ? "Gerando XLSX..."
-                : "Exportar XLSX"}
+              {exportingXlsx ? "Gerando XLSX..." : "Exportar XLSX"}
             </Button>
 
             <Button
               type="button"
               disabled={
-                exportingPdf ||
-                exportingXlsx ||
-                loading ||
-                visits.length === 0
+                exportingPdf || exportingXlsx || loading || visits.length === 0
               }
               onClick={exportPdf}
             >
-              <FilePdf
-                size={17}
-                aria-hidden="true"
-              />
+              <FilePdf size={17} aria-hidden="true" />
 
-              {exportingPdf
-                ? "Gerando PDF..."
-                : "Exportar PDF"}
+              {exportingPdf ? "Gerando PDF..." : "Exportar PDF"}
             </Button>
           </div>
         </CardContent>
@@ -847,55 +575,26 @@ export function VisitReportsPage() {
       {/* INDICADORES */}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
-          label="Total de agendamentos"
-          value={
-            visits.length
-          }
-        />
+        <MetricCard label="Total de agendamentos" value={visits.length} />
 
         <MetricCard
           label="Pendentes"
-          value={
-            visits.filter(
-              (visit) =>
-                visit.status ===
-                "pending",
-            ).length
-          }
+          value={visits.filter((visit) => visit.status === "pending").length}
         />
 
         <MetricCard
           label="Aprovadas"
-          value={
-            visits.filter(
-              (visit) =>
-                visit.status ===
-                "approved",
-            ).length
-          }
+          value={visits.filter((visit) => visit.status === "approved").length}
         />
 
         <MetricCard
           label="Concluídas"
-          value={
-            visits.filter(
-              (visit) =>
-                visit.status ===
-                "completed",
-            ).length
-          }
+          value={visits.filter((visit) => visit.status === "completed").length}
         />
 
         <MetricCard
           label="Liberadas para recepção"
-          value={
-            visits.filter(
-              (visit) =>
-                visit.status ===
-                "scheduled",
-            ).length
-          }
+          value={visits.filter((visit) => visit.status === "scheduled").length}
         />
       </div>
 
@@ -905,21 +604,13 @@ export function VisitReportsPage() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <ChartBar
-                size={20}
-                aria-hidden="true"
-              />
+              <ChartBar size={20} aria-hidden="true" />
 
-              <h2 className="font-extrabold">
-                {getReportTitle(
-                  reportKind,
-                )}
-              </h2>
+              <h2 className="font-extrabold">{getReportTitle(reportKind)}</h2>
             </div>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              {visits.length} registro(s)
-              encontrado(s).
+              {visits.length} registro(s) encontrado(s).
             </p>
           </div>
         </CardHeader>
@@ -940,21 +631,16 @@ export function VisitReportsPage() {
               description="Nenhum agendamento corresponde aos filtros selecionados."
             />
           ) : reportKind === "general" ? (
-            <GeneralTable
-              visits={visits}
-            />
+            <GeneralTable visits={visits} />
           ) : (
             <GroupedTable
               rows={
-                getGroupedReportData(
-                  reportKind,
-                  {
-                    type: groupedByType,
-                    status: groupedByStatus,
-                    location: groupedByLocation,
-                    organization: groupedByOrganization,
-                  },
-                ).rows
+                getGroupedReportData(reportKind, {
+                  type: groupedByType,
+                  status: groupedByStatus,
+                  location: groupedByLocation,
+                  organization: groupedByOrganization,
+                }).rows
               }
             />
           )}
@@ -981,29 +667,20 @@ function SelectField({
 
   value: string;
 
-  onChange:
-    (value: string) => void;
+  onChange: (value: string) => void;
 
-  children:
-    ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block text-sm font-semibold"
-      >
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
         {label}
       </label>
 
       <select
         id={id}
         value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
-        }
+        onChange={(event) => onChange(event.target.value)}
         className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
       >
         {children}
@@ -1028,8 +705,7 @@ function ReportOption({
 
   description: string;
 
-  onClick:
-    () => void;
+  onClick: () => void;
 }) {
   return (
     <button
@@ -1041,13 +717,9 @@ function ReportOption({
           : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]"
       }`}
     >
-      <strong>
-        {title}
-      </strong>
+      <strong>{title}</strong>
 
-      <p className="mt-1 text-xs text-[var(--text-muted)]">
-        {description}
-      </p>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">{description}</p>
     </button>
   );
 }
@@ -1071,9 +743,7 @@ function MetricCard({
           {label}
         </p>
 
-        <p className="mt-2 text-3xl font-extrabold">
-          {value}
-        </p>
+        <p className="mt-2 text-3xl font-extrabold">{value}</p>
       </CardContent>
     </Card>
   );
@@ -1083,111 +753,56 @@ function MetricCard({
  * RELATÓRIO GERAL
  * ======================================================= */
 
-function GeneralTable({
-  visits,
-}: {
-  visits:
-    VisitSummary[];
-}) {
+function GeneralTable({ visits }: { visits: VisitSummary[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
         <thead>
           <tr>
-            <TableHead>
-              Protocolo
-            </TableHead>
+            <TableHead>Protocolo</TableHead>
 
-            <TableHead>
-              Data
-            </TableHead>
+            <TableHead>Data</TableHead>
 
-            <TableHead>
-              Horário
-            </TableHead>
+            <TableHead>Horário</TableHead>
 
-            <TableHead>
-              Tipo
-            </TableHead>
+            <TableHead>Tipo</TableHead>
 
-            <TableHead>
-              Motivo
-            </TableHead>
+            <TableHead>Motivo</TableHead>
 
-            <TableHead>
-              Órgão
-            </TableHead>
+            <TableHead>Órgão</TableHead>
 
-            <TableHead>
-              Sala
-            </TableHead>
+            <TableHead>Sala</TableHead>
 
-            <TableHead>
-              Situação
-            </TableHead>
+            <TableHead>Situação</TableHead>
           </tr>
         </thead>
 
         <tbody>
-          {visits.map(
-            (visit) => (
-              <TableRow
-                key={visit.id}
-              >
-                <TableCell>
-                  <strong>
-                    {visit.protocol}
-                  </strong>
-                </TableCell>
+          {visits.map((visit) => (
+            <TableRow key={visit.id}>
+              <TableCell>
+                <strong>{visit.protocol}</strong>
+              </TableCell>
 
-                <TableCell>
-                  {formatDate(
-                    visit.scheduledDate,
-                  )}
-                </TableCell>
+              <TableCell>{formatDate(visit.scheduledDate)}</TableCell>
 
-                <TableCell>
-                  {normalizeTime(
-                    visit.startTime,
-                  )}
-                  {" - "}
-                  {normalizeTime(
-                    visit.endTime,
-                  )}
-                </TableCell>
+              <TableCell>
+                {normalizeTime(visit.startTime)}
+                {" - "}
+                {normalizeTime(visit.endTime)}
+              </TableCell>
 
-                <TableCell>
-                  {
-                    visitTypeLabels[
-                      visit.type
-                    ]
-                  }
-                </TableCell>
+              <TableCell>{visitTypeLabels[visit.type]}</TableCell>
 
-                <TableCell>
-                  {visit.subject}
-                </TableCell>
+              <TableCell>{visit.subject}</TableCell>
 
-                <TableCell>
-                  {
-                    visit.organization
-                  }
-                </TableCell>
+              <TableCell>{visit.organization}</TableCell>
 
-                <TableCell>
-                  {visit.location}
-                </TableCell>
+              <TableCell>{visit.location}</TableCell>
 
-                <TableCell>
-                  {
-                    visitStatusLabels[
-                      visit.status
-                    ]
-                  }
-                </TableCell>
-              </TableRow>
-            ),
-          )}
+              <TableCell>{visitStatusLabels[visit.status]}</TableCell>
+            </TableRow>
+          ))}
         </tbody>
       </Table>
     </div>
@@ -1198,56 +813,32 @@ function GeneralTable({
  * RELATÓRIOS AGRUPADOS
  * ======================================================= */
 
-function GroupedTable({
-  rows,
-}: {
-  rows:
-    GroupedRow[];
-}) {
+function GroupedTable({ rows }: { rows: GroupedRow[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
         <thead>
           <tr>
-            <TableHead>
-              Categoria
-            </TableHead>
+            <TableHead>Categoria</TableHead>
 
-            <TableHead>
-              Quantidade
-            </TableHead>
+            <TableHead>Quantidade</TableHead>
 
-            <TableHead>
-              Percentual
-            </TableHead>
+            <TableHead>Percentual</TableHead>
           </tr>
         </thead>
 
         <tbody>
-          {rows.map(
-            (row) => (
-              <TableRow
-                key={row.label}
-              >
-                <TableCell>
-                  <strong>
-                    {row.label}
-                  </strong>
-                </TableCell>
+          {rows.map((row) => (
+            <TableRow key={row.label}>
+              <TableCell>
+                <strong>{row.label}</strong>
+              </TableCell>
 
-                <TableCell>
-                  {row.total}
-                </TableCell>
+              <TableCell>{row.total}</TableCell>
 
-                <TableCell>
-                  {row.percentage.toFixed(
-                    1,
-                  )}
-                  %
-                </TableCell>
-              </TableRow>
-            ),
-          )}
+              <TableCell>{row.percentage.toFixed(1)}%</TableCell>
+            </TableRow>
+          ))}
         </tbody>
       </Table>
     </div>
@@ -1261,96 +852,51 @@ function GroupedTable({
  * não existe mais variável totalPages.
  * ======================================================= */
 
-async function fetchAllVisits(
-  filters:
-    ReportFilters,
-) {
-  const result:
-    VisitSummary[] = [];
+async function fetchAllVisits(filters: ReportFilters) {
+  const result: VisitSummary[] = [];
 
   let page = 1;
 
   while (true) {
-    const params =
-      new URLSearchParams({
-        page:
-          String(page),
+    const params = new URLSearchParams({
+      page: String(page),
 
-        pageSize:
-          "100",
-      });
+      pageSize: "100",
+    });
 
-    if (
-      filters.dateRange.from
-    ) {
-      params.set(
-        "dateFrom",
-        filters.dateRange.from,
-      );
+    if (filters.dateRange.from) {
+      params.set("dateFrom", filters.dateRange.from);
     }
 
-    if (
-      filters.dateRange.to
-    ) {
-      params.set(
-        "dateTo",
-        filters.dateRange.to,
-      );
+    if (filters.dateRange.to) {
+      params.set("dateTo", filters.dateRange.to);
     }
 
-    if (
-      filters.type
-    ) {
-      params.set(
-        "type",
-        filters.type,
-      );
+    if (filters.type) {
+      params.set("type", filters.type);
     }
 
-    if (
-      filters.location
-    ) {
-      params.set(
-        "location",
-        filters.location,
-      );
+    if (filters.location) {
+      params.set("location", filters.location);
     }
 
-    if (
-      filters.status
-    ) {
-      params.set(
-        "status",
-        filters.status,
-      );
+    if (filters.status) {
+      params.set("status", filters.status);
     }
 
-    if (
-      filters.subject.trim()
-    ) {
-      params.set(
-        "subject",
-        filters.subject.trim(),
-      );
+    if (filters.subject.trim()) {
+      params.set("subject", filters.subject.trim());
     }
 
-    if (
-      filters.organization.trim()
-    ) {
-      params.set(
-        "organization",
-        filters.organization.trim(),
-      );
+    if (filters.organization.trim()) {
+      params.set("organization", filters.organization.trim());
     }
 
-    const response =
-      await api<VisitPageResult>(
-        `/api/visits?${params.toString()}`,
-      );
-
-    result.push(
-      ...response.visits,
+    const response = await api<VisitPageResult>(
+      `/api/visits?${params.toString()}`,
     );
+
+    result.push(...response.visits);
 
     /*
      * A própria resposta informa se
@@ -1359,10 +905,7 @@ async function fetchAllVisits(
      * Isso elimina o erro:
      * no-useless-assignment.
      */
-    if (
-      page >=
-      response.pagination.totalPages
-    ) {
+    if (page >= response.pagination.totalPages) {
       break;
     }
 
@@ -1377,60 +920,27 @@ async function fetchAllVisits(
  * ======================================================= */
 
 function aggregateVisits(
-  visits:
-    VisitSummary[],
+  visits: VisitSummary[],
 
-  selector:
-    (
-      visit:
-        VisitSummary,
-    ) => string,
+  selector: (visit: VisitSummary) => string,
 ): GroupedRow[] {
-  const map =
-    new Map<
-      string,
-      number
-    >();
+  const map = new Map<string, number>();
 
-  for (
-    const visit of visits
-  ) {
-    const key =
-      selector(visit);
+  for (const visit of visits) {
+    const key = selector(visit);
 
-    map.set(
-      key,
-      (map.get(key) ??
-        0) + 1,
-    );
+    map.set(key, (map.get(key) ?? 0) + 1);
   }
 
-  return Array.from(
-    map.entries(),
-  )
-    .map(
-      ([
-        label,
-        total,
-      ]) => ({
-        label,
+  return Array.from(map.entries())
+    .map(([label, total]) => ({
+      label,
 
-        total,
+      total,
 
-        percentage:
-          visits.length ===
-          0
-            ? 0
-            : (total /
-                visits.length) *
-              100,
-      }),
-    )
-    .sort(
-      (a, b) =>
-        b.total -
-        a.total,
-    );
+      percentage: visits.length === 0 ? 0 : (total / visits.length) * 100,
+    }))
+    .sort((a, b) => b.total - a.total);
 }
 
 /* =========================================================
@@ -1438,48 +948,27 @@ function aggregateVisits(
  * ======================================================= */
 
 function createGeneralXlsx(
-  visits:
-    VisitSummary[],
+  visits: VisitSummary[],
 
-  filters:
-    ReportFilters,
+  filters: ReportFilters,
 ) {
-  const workbook =
-    utils.book_new();
+  const workbook = utils.book_new();
 
-  const summary =
-    utils.aoa_to_sheet([
-      [
-        "RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS",
-      ],
+  const summary = utils.aoa_to_sheet([
+    ["RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS"],
 
-      [
-        "Controladoria-Geral do Estado do Amazonas",
-      ],
+    ["Controladoria-Geral do Estado do Amazonas"],
 
-      [],
+    [],
 
-      [
-        "Emitido em",
-        formatDateTime(
-          new Date(),
-        ),
-      ],
+    ["Emitido em", formatDateTime(new Date())],
 
-      [
-        "Total de registros",
-        visits.length,
-      ],
+    ["Total de registros", visits.length],
 
-      [],
+    [],
 
-      [
-        "Filtros",
-        buildFilterDescription(
-          filters,
-        ),
-      ],
-    ]);
+    ["Filtros", buildFilterDescription(filters)],
+  ]);
 
   summary["!cols"] = [
     {
@@ -1491,59 +980,31 @@ function createGeneralXlsx(
     },
   ];
 
-  utils.book_append_sheet(
-    workbook,
-    summary,
-    "Resumo",
+  utils.book_append_sheet(workbook, summary, "Resumo");
+
+  const worksheet = utils.json_to_sheet(
+    visits.map((visit) => ({
+      Protocolo: visit.protocol,
+
+      Data: formatDate(visit.scheduledDate),
+
+      "Hora inicial": normalizeTime(visit.startTime),
+
+      "Hora final": normalizeTime(visit.endTime),
+
+      Tipo: visitTypeLabels[visit.type],
+
+      Motivo: visit.subject,
+
+      Órgão: visit.organization,
+
+      Setor: visit.sector ?? "",
+
+      Sala: visit.location,
+
+      Situação: visitStatusLabels[visit.status],
+    })),
   );
-
-  const worksheet =
-    utils.json_to_sheet(
-      visits.map(
-        (visit) => ({
-          Protocolo:
-            visit.protocol,
-
-          Data:
-            formatDate(
-              visit.scheduledDate,
-            ),
-
-          "Hora inicial":
-            normalizeTime(
-              visit.startTime,
-            ),
-
-          "Hora final":
-            normalizeTime(
-              visit.endTime,
-            ),
-
-          Tipo:
-            visitTypeLabels[
-              visit.type
-            ],
-
-          Motivo:
-            visit.subject,
-
-          Órgão:
-            visit.organization,
-
-          Setor:
-            visit.sector ??
-            "",
-
-          Sala:
-            visit.location,
-
-          Situação:
-            visitStatusLabels[
-              visit.status
-            ],
-        }),
-      ),
-    );
 
   worksheet["!cols"] = [
     { wch: 22 },
@@ -1558,31 +1019,17 @@ function createGeneralXlsx(
     { wch: 27 },
   ];
 
-  if (
-    worksheet["!ref"]
-  ) {
-    worksheet[
-      "!autofilter"
-    ] = {
-      ref:
-        worksheet["!ref"],
+  if (worksheet["!ref"]) {
+    worksheet["!autofilter"] = {
+      ref: worksheet["!ref"],
     };
   }
 
-  utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Agendamentos",
-  );
+  utils.book_append_sheet(workbook, worksheet, "Agendamentos");
 
-  writeFileXLSX(
-    workbook,
-    `relatorio-geral-visitas-${fileDate()}.xlsx`,
-    {
-      compression:
-        true,
-    },
-  );
+  writeFileXLSX(workbook, `relatorio-geral-visitas-${fileDate()}.xlsx`, {
+    compression: true,
+  });
 }
 
 /* =========================================================
@@ -1590,44 +1037,25 @@ function createGeneralXlsx(
  * ======================================================= */
 
 function createGroupedXlsx(
-  rows:
-    GroupedRow[],
+  rows: GroupedRow[],
 
-  filters:
-    ReportFilters,
+  filters: ReportFilters,
 
-  title:
-    string,
+  title: string,
 ) {
-  const workbook =
-    utils.book_new();
+  const workbook = utils.book_new();
 
-  const summary =
-    utils.aoa_to_sheet([
-      [
-        title.toUpperCase(),
-      ],
+  const summary = utils.aoa_to_sheet([
+    [title.toUpperCase()],
 
-      [
-        "Controladoria-Geral do Estado do Amazonas",
-      ],
+    ["Controladoria-Geral do Estado do Amazonas"],
 
-      [],
+    [],
 
-      [
-        "Emitido em",
-        formatDateTime(
-          new Date(),
-        ),
-      ],
+    ["Emitido em", formatDateTime(new Date())],
 
-      [
-        "Filtros",
-        buildFilterDescription(
-          filters,
-        ),
-      ],
-    ]);
+    ["Filtros", buildFilterDescription(filters)],
+  ]);
 
   summary["!cols"] = [
     {
@@ -1639,52 +1067,25 @@ function createGroupedXlsx(
     },
   ];
 
-  utils.book_append_sheet(
-    workbook,
-    summary,
-    "Resumo",
+  utils.book_append_sheet(workbook, summary, "Resumo");
+
+  const worksheet = utils.json_to_sheet(
+    rows.map((row) => ({
+      Categoria: row.label,
+
+      Quantidade: row.total,
+
+      Percentual: `${row.percentage.toFixed(1)}%`,
+    })),
   );
 
-  const worksheet =
-    utils.json_to_sheet(
-      rows.map(
-        (row) => ({
-          Categoria:
-            row.label,
+  worksheet["!cols"] = [{ wch: 45 }, { wch: 15 }, { wch: 15 }];
 
-          Quantidade:
-            row.total,
+  utils.book_append_sheet(workbook, worksheet, "Dados");
 
-          Percentual:
-            `${row.percentage.toFixed(
-              1,
-            )}%`,
-        }),
-      ),
-    );
-
-  worksheet["!cols"] = [
-    { wch: 45 },
-    { wch: 15 },
-    { wch: 15 },
-  ];
-
-  utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Dados",
-  );
-
-  writeFileXLSX(
-    workbook,
-    `${slug(
-      title,
-    )}-${fileDate()}.xlsx`,
-    {
-      compression:
-        true,
-    },
-  );
+  writeFileXLSX(workbook, `${slug(title)}-${fileDate()}.xlsx`, {
+    compression: true,
+  });
 }
 
 /* =========================================================
@@ -1692,73 +1093,40 @@ function createGroupedXlsx(
  * ======================================================= */
 
 function createGeneralPdf(
-  visits:
-    VisitSummary[],
+  visits: VisitSummary[],
 
-  filters:
-    ReportFilters,
+  filters: ReportFilters,
 ) {
-  const document =
-    new jsPDF({
-      orientation:
-        "landscape",
+  const document = new jsPDF({
+    orientation: "landscape",
 
-      unit:
-        "mm",
+    unit: "mm",
 
-      format:
-        "a4",
-    });
+    format: "a4",
+  });
 
-  const pageWidth =
-    document.internal
-      .pageSize
-      .getWidth();
+  const pageWidth = document.internal.pageSize.getWidth();
 
-  const pageHeight =
-    document.internal
-      .pageSize
-      .getHeight();
+  const pageHeight = document.internal.pageSize.getHeight();
 
-  document.setFont(
-    "helvetica",
-    "bold",
-  );
+  document.setFont("helvetica", "bold");
 
   document.setFontSize(15);
 
-  document.text(
-    "RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS",
-    14,
-    15,
-  );
+  document.text("RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS", 14, 15);
 
-  document.setFont(
-    "helvetica",
-    "normal",
-  );
+  document.setFont("helvetica", "normal");
 
   document.setFontSize(9);
 
-  document.text(
-    "Controladoria-Geral do Estado do Amazonas",
-    14,
-    21,
-  );
+  document.text("Controladoria-Geral do Estado do Amazonas", 14, 21);
+
+  document.text(`Total de registros: ${visits.length}`, pageWidth - 14, 15, {
+    align: "right",
+  });
 
   document.text(
-    `Total de registros: ${visits.length}`,
-    pageWidth - 14,
-    15,
-    {
-      align: "right",
-    },
-  );
-
-  document.text(
-    `Emitido em: ${formatDateTime(
-      new Date(),
-    )}`,
+    `Emitido em: ${formatDateTime(new Date())}`,
     pageWidth - 14,
     21,
     {
@@ -1766,35 +1134,24 @@ function createGeneralPdf(
     },
   );
 
-  const filtersText =
-    document.splitTextToSize(
-      `Filtros: ${buildFilterDescription(
-        filters,
-      )}`,
-      pageWidth - 28,
-    );
+  const filtersText = document.splitTextToSize(
+    `Filtros: ${buildFilterDescription(filters)}`,
+    pageWidth - 28,
+  );
 
   document.setFontSize(8);
 
-  document.text(
-    filtersText,
-    14,
-    28,
-  );
+  document.text(filtersText, 14, 28);
 
-  const startY =
-    34 +
-    filtersText.length * 3;
+  const startY = 34 + filtersText.length * 3;
 
-  autoTable(
-    document,
-    {
-      startY,
+  autoTable(document, {
+    startY,
 
-      theme:
-        "grid",
+    theme: "grid",
 
-      head: [[
+    head: [
+      [
         "Protocolo",
         "Data",
         "Horário",
@@ -1803,85 +1160,61 @@ function createGeneralPdf(
         "Órgão",
         "Sala",
         "Situação",
-      ]],
+      ],
+    ],
 
-      body:
-        visits.map(
-          (visit) => [
-            visit.protocol,
+    body: visits.map((visit) => [
+      visit.protocol,
 
-            formatDate(
-              visit.scheduledDate,
-            ),
+      formatDate(visit.scheduledDate),
 
-            `${normalizeTime(
-              visit.startTime,
-            )} - ${normalizeTime(
-              visit.endTime,
-            )}`,
+      `${normalizeTime(visit.startTime)} - ${normalizeTime(visit.endTime)}`,
 
-            visitTypeLabels[
-              visit.type
-            ],
+      visitTypeLabels[visit.type],
 
-            visit.subject,
+      visit.subject,
 
-            visit.organization,
+      visit.organization,
 
-            visit.location,
+      visit.location,
 
-            visitStatusLabels[
-              visit.status
-            ],
-          ],
-        ),
+      visitStatusLabels[visit.status],
+    ]),
 
-      styles: {
-        fontSize: 7,
-        cellPadding: 2,
-        overflow:
-          "linebreak",
-        valign:
-          "top",
-      },
-
-      headStyles: {
-        fontStyle:
-          "bold",
-      },
-
-      margin: {
-        left: 10,
-        right: 10,
-        bottom: 14,
-      },
-
-      didDrawPage: () => {
-        document.setFontSize(
-          7,
-        );
-
-        document.text(
-          "CGE-AM - Agendamento de Visitas",
-          14,
-          pageHeight - 7,
-        );
-
-        document.text(
-          `Página ${document.getNumberOfPages()}`,
-          pageWidth - 14,
-          pageHeight - 7,
-          {
-            align: "right",
-          },
-        );
-      },
+    styles: {
+      fontSize: 7,
+      cellPadding: 2,
+      overflow: "linebreak",
+      valign: "top",
     },
-  );
 
-  document.save(
-    `relatorio-geral-visitas-${fileDate()}.pdf`,
-  );
+    headStyles: {
+      fontStyle: "bold",
+    },
+
+    margin: {
+      left: 10,
+      right: 10,
+      bottom: 14,
+    },
+
+    didDrawPage: () => {
+      document.setFontSize(7);
+
+      document.text("CGE-AM - Agendamento de Visitas", 14, pageHeight - 7);
+
+      document.text(
+        `Página ${document.getNumberOfPages()}`,
+        pageWidth - 14,
+        pageHeight - 7,
+        {
+          align: "right",
+        },
+      );
+    },
+  });
+
+  document.save(`relatorio-geral-visitas-${fileDate()}.pdf`);
 }
 
 /* =========================================================
@@ -1889,119 +1222,69 @@ function createGeneralPdf(
  * ======================================================= */
 
 function createGroupedPdf(
-  rows:
-    GroupedRow[],
+  rows: GroupedRow[],
 
-  filters:
-    ReportFilters,
+  filters: ReportFilters,
 
-  title:
-    string,
+  title: string,
 ) {
-  const document =
-    new jsPDF({
-      orientation:
-        "portrait",
+  const document = new jsPDF({
+    orientation: "portrait",
 
-      unit:
-        "mm",
+    unit: "mm",
 
-      format:
-        "a4",
-    });
+    format: "a4",
+  });
 
-  document.setFont(
-    "helvetica",
-    "bold",
-  );
+  document.setFont("helvetica", "bold");
 
   document.setFontSize(15);
 
-  document.text(
-    title.toUpperCase(),
-    14,
-    15,
-  );
+  document.text(title.toUpperCase(), 14, 15);
 
-  document.setFont(
-    "helvetica",
-    "normal",
-  );
+  document.setFont("helvetica", "normal");
 
   document.setFontSize(9);
 
-  document.text(
-    "Controladoria-Geral do Estado do Amazonas",
-    14,
-    21,
-  );
+  document.text("Controladoria-Geral do Estado do Amazonas", 14, 21);
 
-  const filtersText =
-    document.splitTextToSize(
-      `Filtros: ${buildFilterDescription(
-        filters,
-      )}`,
-      180,
-    );
+  const filtersText = document.splitTextToSize(
+    `Filtros: ${buildFilterDescription(filters)}`,
+    180,
+  );
 
   document.setFontSize(8);
 
-  document.text(
-    filtersText,
-    14,
-    28,
-  );
+  document.text(filtersText, 14, 28);
 
-  const startY =
-    34 +
-    filtersText.length * 3;
+  const startY = 34 + filtersText.length * 3;
 
-  autoTable(
-    document,
-    {
-      startY,
+  autoTable(document, {
+    startY,
 
-      theme:
-        "grid",
+    theme: "grid",
 
-      head: [[
-        "Categoria",
-        "Quantidade",
-        "Percentual",
-      ]],
+    head: [["Categoria", "Quantidade", "Percentual"]],
 
-      body:
-        rows.map(
-          (row) => [
-            row.label,
+    body: rows.map((row) => [
+      row.label,
 
-            String(
-              row.total,
-            ),
+      String(row.total),
 
-            `${row.percentage.toFixed(
-              1,
-            )}%`,
-          ],
-        ),
+      `${row.percentage.toFixed(1)}%`,
+    ]),
 
-      styles: {
-        fontSize: 9,
-        cellPadding: 2,
-      },
-
-      headStyles: {
-        fontStyle:
-          "bold",
-      },
+    styles: {
+      fontSize: 9,
+      cellPadding: 2,
     },
-  );
 
-  document.save(
-    `${slug(
-      title,
-    )}-${fileDate()}.pdf`,
-  );
+    headStyles: {
+      fontStyle: "bold",
+    },
+  });
+
+  document.save(`${slug(title)}-${fileDate()}.pdf`);
 }
 
 /* =========================================================
@@ -2049,10 +1332,7 @@ function getGroupedReportData(
  * TITULO
  * ======================================================= */
 
-function getReportTitle(
-  kind:
-    ReportKind,
-) {
+function getReportTitle(kind: ReportKind) {
   switch (kind) {
     case "type":
       return "Relatório por tipo de visita";
@@ -2076,206 +1356,93 @@ function getReportTitle(
  * DESCRIÇÃO DOS FILTROS
  * ======================================================= */
 
-function buildFilterDescription(
-  filters:
-    ReportFilters,
-) {
-  const parts:
-    string[] = [];
+function buildFilterDescription(filters: ReportFilters) {
+  const parts: string[] = [];
 
-  if (
-    filters.dateRange.from
-  ) {
-    parts.push(
-      `De ${formatDate(
-        filters.dateRange.from,
-      )}`,
-    );
+  if (filters.dateRange.from) {
+    parts.push(`De ${formatDate(filters.dateRange.from)}`);
   }
 
-  if (
-    filters.dateRange.to
-  ) {
-    parts.push(
-      `Até ${formatDate(
-        filters.dateRange.to,
-      )}`,
-    );
+  if (filters.dateRange.to) {
+    parts.push(`Até ${formatDate(filters.dateRange.to)}`);
   }
 
-  if (
-    filters.type
-  ) {
-    parts.push(
-      `Tipo: ${
-        visitTypeLabels[
-          filters.type
-        ]
-      }`,
-    );
+  if (filters.type) {
+    parts.push(`Tipo: ${visitTypeLabels[filters.type]}`);
   }
 
-  if (
-    filters.location
-  ) {
-    parts.push(
-      `Sala: ${filters.location}`,
-    );
+  if (filters.location) {
+    parts.push(`Sala: ${filters.location}`);
   }
 
-  if (
-    filters.status
-  ) {
-    parts.push(
-      `Situação: ${
-        visitStatusLabels[
-          filters.status
-        ]
-      }`,
-    );
+  if (filters.status) {
+    parts.push(`Situação: ${visitStatusLabels[filters.status]}`);
   }
 
-  if (
-    filters.subject.trim()
-  ) {
-    parts.push(
-      `Motivo: ${filters.subject.trim()}`,
-    );
+  if (filters.subject.trim()) {
+    parts.push(`Motivo: ${filters.subject.trim()}`);
   }
 
-  if (
-    filters.organization.trim()
-  ) {
-    parts.push(
-      `Órgão: ${filters.organization.trim()}`,
-    );
+  if (filters.organization.trim()) {
+    parts.push(`Órgão: ${filters.organization.trim()}`);
   }
 
-  return parts.length >
-    0
-    ? parts.join(
-        " | ",
-      )
-    : "Todos os registros";
+  return parts.length > 0 ? parts.join(" | ") : "Todos os registros";
 }
 
 /* =========================================================
  * DATAS
  * ======================================================= */
 
-function formatDate(
-  value:
-    string,
-) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-  ).format(
-    new Date(
-      `${value}T12:00:00`,
-    ),
-  );
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
 }
 
-function formatDateTime(
-  value:
-    Date,
-) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle:
-        "short",
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
 
-      timeStyle:
-        "short",
+    timeStyle: "short",
 
-      timeZone:
-        "America/Manaus",
-    },
-  ).format(value);
+    timeZone: "America/Manaus",
+  }).format(value);
 }
 
 function fileDate() {
-  const parts =
-    new Intl.DateTimeFormat(
-      "en-CA",
-      {
-        timeZone:
-          "America/Manaus",
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Manaus",
 
-        year:
-          "numeric",
+    year: "numeric",
 
-        month:
-          "2-digit",
+    month: "2-digit",
 
-        day:
-          "2-digit",
-      },
-    ).formatToParts(
-      new Date(),
-    );
+    day: "2-digit",
+  }).formatToParts(new Date());
 
-  const year =
-    parts.find(
-      (part) =>
-        part.type ===
-        "year",
-    )?.value ??
-    "0000";
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
 
-  const month =
-    parts.find(
-      (part) =>
-        part.type ===
-        "month",
-    )?.value ??
-    "00";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
 
-  const day =
-    parts.find(
-      (part) =>
-        part.type ===
-        "day",
-    )?.value ??
-    "00";
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
 
   return `${year}-${month}-${day}`;
 }
 
-function normalizeTime(
-  value:
-    string,
-) {
-  return value.slice(
-    0,
-    5,
-  );
+function normalizeTime(value: string) {
+  return value.slice(0, 5);
 }
 
 /* =========================================================
  * SLUG
  * ======================================================= */
 
-function slug(
-  value:
-    string,
-) {
+function slug(value: string) {
   return value
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      "",
-    )
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(
-      /[^a-z0-9]+/g,
-      "-",
-    )
-    .replace(
-      /^-|-$/g,
-      "",
-    );
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /* =========================================================
@@ -2283,14 +1450,9 @@ function slug(
  * ======================================================= */
 
 function getErrorMessage(
-  cause:
-    unknown,
+  cause: unknown,
 
-  fallback:
-    string,
+  fallback: string,
 ) {
-  return cause instanceof
-    ApiError
-    ? cause.message
-    : fallback;
+  return cause instanceof ApiError ? cause.message : fallback;
 }

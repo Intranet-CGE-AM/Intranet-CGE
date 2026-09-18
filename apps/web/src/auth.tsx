@@ -36,10 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await api<{ user: AuthenticatedUser }>("/api/auth/me");
       setUser(result.user);
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401) {
-        throw error;
+      if (error instanceof ApiError && error.status === 401) {
+        setUser(null);
+      } else {
+        console.warn("Não foi possível verificar sessão de usuário:", error);
+        setUser(null);
       }
-      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -100,7 +102,7 @@ export function RequireAuth() {
   if (loading) {
     return (
       <div
-        className="grid min-h-[100dvh] place-items-center text-sm text-[var(--text-muted)]"
+        className="grid min-h-dvh place-items-center text-sm text-(--text-muted)"
         role="status"
       >
         Carregando intranet…

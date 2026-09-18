@@ -80,9 +80,7 @@ export const visits = pgTable(
       .notNull()
       .references(() => userAccounts.id),
 
-    status: visitStatusEnum("status")
-      .notNull()
-      .default("pending"),
+    status: visitStatusEnum("status").notNull().default("pending"),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -102,14 +100,9 @@ export const visits = pgTable(
 
     index("visits_status_idx").on(table.status),
 
-    index("visits_responsible_unit_idx").on(
-      table.responsibleUnitId,
-    ),
+    index("visits_responsible_unit_idx").on(table.responsibleUnitId),
 
-    check(
-      "visits_valid_time",
-      sql`${table.endTime} > ${table.startTime}`,
-    ),
+    check("visits_valid_time", sql`${table.endTime} > ${table.startTime}`),
   ],
 );
 
@@ -138,43 +131,27 @@ export const visitVisitors = pgTable(
 
     cpf: text("cpf"),
 
-
-    confirmationStatus: varchar(
-      "confirmation_status",
-      {
-        length: 20,
-      },
-    )
+    confirmationStatus: varchar("confirmation_status", {
+      length: 20,
+    })
       .notNull()
       .default("not_sent"),
 
-    confirmationTokenHash: varchar(
-      "confirmation_token_hash",
-      {
-        length: 64,
-      },
-    ),
+    confirmationTokenHash: varchar("confirmation_token_hash", {
+      length: 64,
+    }),
 
-    confirmationSentAt: timestamp(
-      "confirmation_sent_at",
-      {
-        withTimezone: true,
-      },
-    ),
+    confirmationSentAt: timestamp("confirmation_sent_at", {
+      withTimezone: true,
+    }),
 
-    confirmationRespondedAt: timestamp(
-      "confirmation_responded_at",
-      {
-        withTimezone: true,
-      },
-    ),
+    confirmationRespondedAt: timestamp("confirmation_responded_at", {
+      withTimezone: true,
+    }),
 
-    confirmationExpiresAt: timestamp(
-      "confirmation_expires_at",
-      {
-        withTimezone: true,
-      },
-    ),
+    confirmationExpiresAt: timestamp("confirmation_expires_at", {
+      withTimezone: true,
+    }),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -183,9 +160,7 @@ export const visitVisitors = pgTable(
       .defaultNow(),
   },
 
-  (table) => [
-    index("visit_visitors_visit_idx").on(table.visitId),
-  ],
+  (table) => [index("visit_visitors_visit_idx").on(table.visitId)],
 );
 
 export const visitEvents = pgTable(
@@ -214,7 +189,5 @@ export const visitEvents = pgTable(
       .defaultNow(),
   },
 
-  (table) => [
-    index("visit_events_visit_idx").on(table.visitId),
-  ],
+  (table) => [index("visit_events_visit_idx").on(table.visitId)],
 );

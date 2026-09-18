@@ -6,3 +6,4 @@ export * from "./people.js";
 export * from "./vacations.js";
 export * from "./tickets.js";
 export * from "./system.js";
+export * from "./visits.js";

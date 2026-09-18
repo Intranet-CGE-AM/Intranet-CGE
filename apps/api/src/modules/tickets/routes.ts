@@ -153,7 +153,18 @@ export const ticketRoutes: FastifyPluginAsync<{
     {
       schema: {
         querystring: z.object({
-          status: z.array(ticketStatusSchema).optional(),
+          status: z
+            .union([
+              z.string().transform((val) =>
+                val
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              ),
+              z.array(z.string()),
+            ])
+            .pipe(z.array(ticketStatusSchema))
+            .optional(),
           area: z.enum(["sistemas", "redes", "manutencao"]).optional(),
         }),
         response: {

@@ -1,17 +1,10 @@
-import type {
-  VisitLocation,
-  VisitStatus,
-  VisitType,
-} from "@cge/contracts";
+import type { VisitLocation, VisitStatus, VisitType } from "@cge/contracts";
 
 /* =========================================================
  * TIPOS DE VISITA
  * ======================================================= */
 
-export const visitTypeLabels: Record<
-  VisitType,
-  string
-> = {
+export const visitTypeLabels: Record<VisitType, string> = {
   institutional_meeting: "Reunião institucional",
   technical_support: "Apoio técnico",
   technical_visit: "Visita técnica",
@@ -28,10 +21,7 @@ export const visitTypeLabels: Record<
  * STATUS
  * ======================================================= */
 
-export const visitStatusLabels: Record<
-  VisitStatus,
-  string
-> = {
+export const visitStatusLabels: Record<VisitStatus, string> = {
   pending: "Pendente",
   approved: "Aprovada",
   scheduled: "Liberada para recepção",
@@ -67,16 +57,10 @@ export const visitLocationOptions: Array<{
  * LABEL DAS SALAS
  * ======================================================= */
 
-export const visitLocationLabels: Record<
-  VisitLocation,
-  string
-> = {
-  "Sala de Reuniões - Anexo":
-    "Sala de Reuniões - Anexo",
+export const visitLocationLabels: Record<VisitLocation, string> = {
+  "Sala de Reuniões - Anexo": "Sala de Reuniões - Anexo",
 
-  "Sala de Reuniões - Sede":
-    "Sala de Reuniões - Sede",
+  "Sala de Reuniões - Sede": "Sala de Reuniões - Sede",
 
-  "Auditório":
-    "Auditório",
+  Auditório: "Auditório",
 };

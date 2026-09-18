@@ -1,15 +1,8 @@
-import {
-  visitorConfirmationResponseSchema,
-} from "@cge/contracts";
+import { visitorConfirmationResponseSchema } from "@cge/contracts";
 
-import type {
-  FastifyInstance,
-  FastifyReply,
-} from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 
-import type {
-  Database,
-} from "../../db/client.js";
+import type { Database } from "../../db/client.js";
 
 import {
   VisitConfirmationError,
@@ -21,8 +14,7 @@ import {
  * ======================================================= */
 
 type VisitConfirmationRoutesOptions = {
-  db:
-    Database;
+  db: Database;
 };
 
 /* =========================================================
@@ -30,8 +22,7 @@ type VisitConfirmationRoutesOptions = {
  * ======================================================= */
 
 type ConfirmationTokenParams = {
-  token:
-    string;
+  token: string;
 };
 
 /* =========================================================
@@ -44,20 +35,15 @@ type ConfirmationTokenParams = {
  * ======================================================= */
 
 export async function visitConfirmationRoutes(
-  app:
-    FastifyInstance,
+  app: FastifyInstance,
 
-  options:
-    VisitConfirmationRoutesOptions,
+  options: VisitConfirmationRoutesOptions,
 ) {
   /* =======================================================
    * SERVICE
    * ===================================================== */
 
-  const confirmationService =
-    new VisitConfirmationService(
-      options.db,
-    );
+  const confirmationService = new VisitConfirmationService(options.db);
 
   /* =======================================================
    * GET
@@ -77,36 +63,21 @@ export async function visitConfirmationRoutes(
   app.get(
     "/api/public/visit-confirmations/:token",
 
-    async (
-      request,
-      reply,
-    ) => {
-      const {
-        token,
-      } =
-        request.params as
-          ConfirmationTokenParams;
+    async (request, reply) => {
+      const { token } = request.params as ConfirmationTokenParams;
 
       /* ===================================================
        * VALIDAR TOKEN BÁSICO
        * ================================================= */
 
-      const normalizedToken =
-        token
-          ?.trim();
+      const normalizedToken = token?.trim();
 
-      if (
-        !normalizedToken
-      ) {
-        return reply
-          .status(400)
-          .send({
-            code:
-              "INVALID_CONFIRMATION_TOKEN",
+      if (!normalizedToken) {
+        return reply.status(400).send({
+          code: "INVALID_CONFIRMATION_TOKEN",
 
-            message:
-              "Link de confirmação inválido.",
-          });
+          message: "Link de confirmação inválido.",
+        });
       }
 
       /* ===================================================
@@ -114,25 +85,11 @@ export async function visitConfirmationRoutes(
        * ================================================= */
 
       try {
-        const result =
-          await confirmationService
-            .getPublic(
-              normalizedToken,
-            );
+        const result = await confirmationService.getPublic(normalizedToken);
 
-        return reply
-          .status(200)
-          .send(
-            result,
-          );
-      } catch (
-        cause
-      ) {
-        return handleConfirmationError(
-          request,
-          reply,
-          cause,
-        );
+        return reply.status(200).send(result);
+      } catch (cause) {
+        return handleConfirmationError(request, reply, cause);
       }
     },
   );
@@ -173,60 +130,35 @@ export async function visitConfirmationRoutes(
   app.post(
     "/api/public/visit-confirmations/:token",
 
-    async (
-      request,
-      reply,
-    ) => {
-      const {
-        token,
-      } =
-        request.params as
-          ConfirmationTokenParams;
+    async (request, reply) => {
+      const { token } = request.params as ConfirmationTokenParams;
 
       /* ===================================================
        * VALIDAR TOKEN BÁSICO
        * ================================================= */
 
-      const normalizedToken =
-        token
-          ?.trim();
+      const normalizedToken = token?.trim();
 
-      if (
-        !normalizedToken
-      ) {
-        return reply
-          .status(400)
-          .send({
-            code:
-              "INVALID_CONFIRMATION_TOKEN",
+      if (!normalizedToken) {
+        return reply.status(400).send({
+          code: "INVALID_CONFIRMATION_TOKEN",
 
-            message:
-              "Link de confirmação inválido.",
-          });
+          message: "Link de confirmação inválido.",
+        });
       }
 
       /* ===================================================
        * VALIDAR BODY
        * ================================================= */
 
-      const parsed =
-        visitorConfirmationResponseSchema
-          .safeParse(
-            request.body,
-          );
+      const parsed = visitorConfirmationResponseSchema.safeParse(request.body);
 
-      if (
-        !parsed.success
-      ) {
-        return reply
-          .status(400)
-          .send({
-            code:
-              "INVALID_CONFIRMATION_RESPONSE",
+      if (!parsed.success) {
+        return reply.status(400).send({
+          code: "INVALID_CONFIRMATION_RESPONSE",
 
-            message:
-              "Resposta de confirmação inválida.",
-          });
+          message: "Resposta de confirmação inválida.",
+        });
       }
 
       /* ===================================================
@@ -249,27 +181,15 @@ export async function visitConfirmationRoutes(
        * ================================================= */
 
       try {
-        const result =
-          await confirmationService
-            .respond(
-              normalizedToken,
+        const result = await confirmationService.respond(
+          normalizedToken,
 
-              parsed.data,
-            );
-
-        return reply
-          .status(200)
-          .send(
-            result,
-          );
-      } catch (
-        cause
-      ) {
-        return handleConfirmationError(
-          request,
-          reply,
-          cause,
+          parsed.data,
         );
+
+        return reply.status(200).send(result);
+      } catch (cause) {
+        return handleConfirmationError(request, reply, cause);
       }
     },
   );
@@ -280,46 +200,30 @@ export async function visitConfirmationRoutes(
  * ======================================================= */
 
 function handleConfirmationError(
-  request:
-    {
-      log: {
-        error:
-          (
-            payload:
-              unknown,
+  request: {
+    log: {
+      error: (
+        payload: unknown,
 
-            message?:
-              string,
-          ) =>
-            void;
-      };
-    },
+        message?: string,
+      ) => void;
+    };
+  },
 
-  reply:
-    FastifyReply,
+  reply: FastifyReply,
 
-  cause:
-    unknown,
+  cause: unknown,
 ) {
   /* =======================================================
    * ERROS DE DOMÍNIO
    * ===================================================== */
 
-  if (
-    cause instanceof
-    VisitConfirmationError
-  ) {
-    return reply
-      .status(
-        cause.statusCode,
-      )
-      .send({
-        code:
-          cause.code,
+  if (cause instanceof VisitConfirmationError) {
+    return reply.status(cause.statusCode).send({
+      code: cause.code,
 
-        message:
-          cause.message,
-      });
+      message: cause.message,
+    });
   }
 
   /* =======================================================
@@ -330,20 +234,15 @@ function handleConfirmationError(
 
   request.log.error(
     {
-      err:
-        cause,
+      err: cause,
     },
 
     "Erro ao processar confirmação pública de visita",
   );
 
-  return reply
-    .status(500)
-    .send({
-      code:
-        "VISIT_CONFIRMATION_INTERNAL_ERROR",
+  return reply.status(500).send({
+    code: "VISIT_CONFIRMATION_INTERNAL_ERROR",
 
-      message:
-        "Não foi possível processar a confirmação da visita.",
-    });
+    message: "Não foi possível processar a confirmação da visita.",
+  });
 }

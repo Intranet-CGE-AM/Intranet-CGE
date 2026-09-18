@@ -14,9 +14,12 @@
     "@cge/ui": "workspace:*",
     "@fontsource-variable/manrope": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router": "8.3.0"
+    "react-router": "8.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

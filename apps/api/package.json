@@ -29,11 +29,13 @@
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "minio": "8.0.7",
+    "nodemailer": "^6.10.0",
     "postgres": "^3.4.9",
     "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
     "drizzle-kit": "^0.31.10"
   }
 }

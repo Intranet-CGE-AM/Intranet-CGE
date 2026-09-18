@@ -212,12 +212,12 @@ export function NewTicketPage() {
             </div>
 
             {createdTicket.approvalStatus === "pending" && (
-              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-left text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                <div className="flex items-center gap-2 font-semibold">
-                  <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <div className="mb-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-soft)] p-3.5 text-left text-xs shadow-xs">
+                <div className="flex items-center gap-2 font-bold text-[var(--warning-strong)]">
+                  <ShieldCheck className="h-4 w-4 text-[var(--warning-strong)]" />
                   <span>Aprovação da Chefia Necessária</span>
                 </div>
-                <p className="mt-1">
+                <p className="mt-1 font-medium text-[#453002] leading-relaxed">
                   Este tipo de solicitação foi enviado para deliberação da
                   chefia do seu setor. O atendimento pela ATEC começará assim
                   que for aprovado.
@@ -359,13 +359,13 @@ export function NewTicketPage() {
               <CardContent className="space-y-6 p-6">
                 {/* Dicas N1 Instantâneas */}
                 {selectedCategory.n1Tips && (
-                  <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                    <Lightbulb className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-start gap-3 rounded-xl border-2 border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-xs shadow-xs">
+                    <Lightbulb className="h-5 w-5 shrink-0 text-[var(--warning-strong)] stroke-[2.5]" />
                     <div>
-                      <span className="font-bold">
+                      <span className="block text-xs font-black uppercase tracking-wider text-[var(--warning-strong)]">
                         Orientação de Autoatendimento (N1):
                       </span>
-                      <p className="mt-0.5 leading-relaxed">
+                      <p className="mt-1 text-xs font-semibold text-[#453002] leading-relaxed">
                         {selectedCategory.n1Tips}
                       </p>
                     </div>

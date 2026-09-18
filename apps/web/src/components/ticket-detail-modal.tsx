@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type {
   AuthenticatedUser,
   TicketDetail,
@@ -80,6 +80,7 @@ export function TicketDetailModal({
     "details",
   );
   const [copiedToken, setCopiedToken] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
   // Chat message
   const [newMessage, setNewMessage] = useState("");
@@ -108,29 +109,37 @@ export function TicketDetailModal({
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState("");
 
-  const loadTicket = async (id: string) => {
+  const loadTicket = async (id: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       setActionError(null);
       const data = await api<TicketDetail>(`/api/tickets/${id}`);
       setTicket(data);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os detalhes do chamado.",
-      );
+      if (!silent) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar os detalhes do chamado.",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     if (ticketId) {
       void loadTicket(ticketId);
     }
-  });
+  }, [ticketId]);
+
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [activeTab, ticket?.messages]);
 
   if (!ticketId) return null;
 
@@ -319,25 +328,31 @@ export function TicketDetailModal({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticket || !newMessage.trim()) return;
+    const content = newMessage.trim();
+    if (!ticket || !content || sendingMsg) return;
     try {
       setSendingMsg(true);
       setActionError(null);
+      setNewMessage("");
       const msg = await api<{
         id: string;
+        ticketId: string;
+        authorAccountId: string;
         authorName: string;
         fromUser: boolean;
         content: string;
         createdAt: string;
       }>(`/api/tickets/${ticket.id}/messages`, {
         method: "POST",
-        body: json({ content: newMessage.trim() }),
+        body: json({ content }),
       });
-      setTicket((prev) =>
-        prev ? { ...prev, messages: [...prev.messages, msg as never] } : prev,
-      );
-      setNewMessage("");
+      setTicket((prev) => {
+        if (!prev) return prev;
+        if (prev.messages.some((m) => m.id === msg.id)) return prev;
+        return { ...prev, messages: [...prev.messages, msg as never] };
+      });
     } catch (err: unknown) {
+      setNewMessage(content);
       setActionError(
         err instanceof Error
           ? err.message
@@ -419,8 +434,8 @@ export function TicketDetailModal({
         className="max-h-[92vh] max-w-4xl overflow-y-auto p-0 sm:max-w-4xl"
       >
         {loading ? (
-          <div className="flex h-72 items-center justify-center space-x-3 text-[var(--text-muted)]">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent" />
+          <div className="flex h-72 items-center justify-center space-x-3 text-(--text-muted)">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-(--brand) border-t-transparent" />
             <span>Carregando dados do chamado...</span>
           </div>
         ) : error || !ticket ? (
@@ -439,17 +454,17 @@ export function TicketDetailModal({
               </div>
             )}
             {/* ── Top Header ─────────────────────────────────────────────── */}
-            <div className="border-b border-[var(--border)] bg-[var(--surface-subtle)] p-6">
+            <div className="border-b border-(--border) bg-(--surface-subtle) p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xl font-bold tracking-tight text-[var(--text)]">
+                    <span className="font-mono text-xl font-bold tracking-tight text-(--text)">
                       #{ticket.ticketNumber}
                     </span>
                     <button
                       type="button"
                       onClick={copyTrackNumber}
-                      className="inline-flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
+                      className="inline-flex items-center gap-1 rounded border border-(--border) bg-(--surface) px-2 py-0.5 text-xs text-(--text-muted) transition hover:text-(--text)"
                       title="Copiar número do chamado"
                     >
                       {copiedToken ? (
@@ -472,7 +487,7 @@ export function TicketDetailModal({
                       <Badge variant="danger">Reprovado pela Chefia</Badge>
                     )}
                   </div>
-                  <h2 className="mt-1.5 text-lg font-semibold text-[var(--text)]">
+                  <h2 className="mt-1.5 text-lg font-semibold text-(--text)">
                     {ticket.categoryName}
                     {ticket.subcategoryName
                       ? ` › ${ticket.subcategoryName}`
@@ -481,7 +496,7 @@ export function TicketDetailModal({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="text-right text-xs text-[var(--text-muted)]">
+                  <div className="text-right text-xs text-(--text-muted)">
                     <div>
                       Aberto em{" "}
                       {new Date(ticket.openedAt).toLocaleString("pt-BR", {
@@ -507,9 +522,9 @@ export function TicketDetailModal({
               {ticket.status !== "cancelled" ? (
                 <div className="mt-6">
                   <div className="relative flex items-center justify-between">
-                    <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-[var(--border)]" />
+                    <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-(--border)" />
                     <div
-                      className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-[var(--action)] transition-all duration-500"
+                      className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-(--action) transition-all duration-500"
                       style={{
                         width: `${(Math.max(0, currentStep) / (STEPPER_STAGES.length - 1)) * 100}%`,
                       }}
@@ -525,14 +540,14 @@ export function TicketDetailModal({
                           <div
                             className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${
                               isPast
-                                ? "border-[var(--action)] bg-[var(--action)] text-white"
+                                ? "border-(--action) bg-(--action) text-white"
                                 : isCurrent
-                                  ? "border-[var(--action)] bg-[var(--surface)] text-[var(--action)] shadow-md ring-4 ring-[var(--brand-soft)]"
-                                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]"
+                                  ? "border-(--action) bg-(--surface) text-(--action) shadow-md ring-4 ring-(--brand-soft)"
+                                  : "border-(--border) bg-(--surface) text-(--text-muted)"
                             }`}
                           >
                             {isPast ? (
-                              <Check className="h-4 w-4 stroke-[3]" />
+                              <Check className="h-4 w-4 stroke-3" />
                             ) : (
                               idx + 1
                             )}
@@ -540,10 +555,10 @@ export function TicketDetailModal({
                           <span
                             className={`mt-1.5 text-xs font-medium ${
                               isCurrent
-                                ? "text-[var(--action)] font-semibold"
+                                ? "text-(--action) font-semibold"
                                 : isPast
-                                  ? "text-[var(--text)]"
-                                  : "text-[var(--text-muted)]"
+                                  ? "text-(--text)"
+                                  : "text-(--text-muted)"
                             }`}
                           >
                             {step.label}
@@ -565,9 +580,9 @@ export function TicketDetailModal({
             {canApprove &&
               ticket.approvalStatus === "pending" &&
               ticket.status !== "cancelled" && (
-                <div className="flex items-center justify-between border-b border-amber-200 bg-amber-50 px-6 py-3.5 dark:border-amber-900/60 dark:bg-amber-950/40">
-                  <div className="flex items-center gap-2 text-sm text-amber-900 dark:text-amber-200">
-                    <ShieldCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <div className="flex items-center justify-between border-b border-(--warning-border) bg-(--warning-soft) px-6 py-3.5">
+                  <div className="flex items-center gap-2 text-sm font-bold text-(--warning-strong)">
+                    <ShieldCheck className="h-5 w-5 text-(--warning-strong)" />
                     <span>
                       Este chamado requer aprovação da chefia do setor antes de
                       ser atendido pela ATEC.
@@ -602,7 +617,7 @@ export function TicketDetailModal({
             {isStaff &&
               ticket.status !== "completed" &&
               ticket.status !== "cancelled" && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-(--border) bg-(--surface) px-6 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
                       Ações Técnicas:
@@ -786,43 +801,45 @@ export function TicketDetailModal({
 
                     {/* Conclusão Técnica (Causa e Solução) */}
                     {ticket.status === "completed" && (
-                      <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
-                          <CheckCircle className="h-5 w-5" />
-                          <h4 className="font-semibold">
+                      <div className="space-y-3.5 rounded-xl border-2 border-[#044b4e] bg-[#f0f9f8] p-4.5 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-[#044b4e] shrink-0 stroke-[2.5]" />
+                          <h4 className="text-base font-extrabold text-[#044b4e] tracking-tight">
                             Registro de Conclusão Técnica
                           </h4>
                         </div>
-                        {ticket.cause && (
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
-                              Causa Identificada:
+                        <div className="space-y-3 pt-1">
+                          {ticket.cause && (
+                            <div className="rounded-lg border border-[#044b4e]/30 bg-white p-4 shadow-xs">
+                              <span className="block text-xs font-black uppercase tracking-wider text-[#044b4e]">
+                                Causa Identificada
+                              </span>
+                              <p className="mt-1.5 text-sm font-semibold text-[#102326] leading-relaxed">
+                                {ticket.cause}
+                              </p>
                             </div>
-                            <p className="mt-1 text-sm text-[var(--text)]">
-                              {ticket.cause}
-                            </p>
-                          </div>
-                        )}
-                        {ticket.solution && (
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
-                              Solução Aplicada:
+                          )}
+                          {ticket.solution && (
+                            <div className="rounded-lg border border-[#044b4e]/30 bg-white p-4 shadow-xs">
+                              <span className="block text-xs font-black uppercase tracking-wider text-[#044b4e]">
+                                Solução Aplicada
+                              </span>
+                              <p className="mt-1.5 text-sm font-semibold text-[#102326] leading-relaxed">
+                                {ticket.solution}
+                              </p>
                             </div>
-                            <p className="mt-1 text-sm text-[var(--text)]">
-                              {ticket.solution}
-                            </p>
-                          </div>
-                        )}
-                        {ticket.completionNote && (
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
-                              Observações:
+                          )}
+                          {ticket.completionNote && (
+                            <div className="rounded-lg border border-[#044b4e]/30 bg-white p-4 shadow-xs">
+                              <span className="block text-xs font-black uppercase tracking-wider text-[#044b4e]">
+                                Observações
+                              </span>
+                              <p className="mt-1.5 text-sm font-semibold text-[#102326] leading-relaxed">
+                                {ticket.completionNote}
+                              </p>
                             </div>
-                            <p className="mt-1 text-sm text-[var(--text)]">
-                              {ticket.completionNote}
-                            </p>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -984,6 +1001,7 @@ export function TicketDetailModal({
                         );
                       })
                     )}
+                    <div ref={chatBottomRef} />
                   </div>
 
                   <form

@@ -100,7 +100,8 @@ function formatTimeRange(startTime?: string, endTime?: string): string {
 async function createSmtpTransporter() {
   const smtpHost = optionalEnv("SMTP_HOST", "smtp.gmail.com");
   const smtpPort = Number(optionalEnv("SMTP_PORT", "465"));
-  const smtpSecure = optionalEnv("SMTP_SECURE", "true").toLowerCase() === "true";
+  const smtpSecure =
+    optionalEnv("SMTP_SECURE", "true").toLowerCase() === "true";
   const smtpUser = requiredEnv("SMTP_USER");
   const smtpPass = normalizePassword(requiredEnv("SMTP_PASS"));
 
@@ -126,10 +127,16 @@ async function createSmtpTransporter() {
 function buildVisitScheduledMail(input: VisitMailInput) {
   const visitorName = String(input.visitorName ?? input.name ?? "Visitante");
   const protocol = String(input.protocol ?? "Não informado");
-  const subject = String(input.subject ?? input.reason ?? input.purpose ?? "Visita institucional");
-  const scheduledDate = formatDate(input.scheduledDate ?? input.visitDate ?? input.date);
+  const subject = String(
+    input.subject ?? input.reason ?? input.purpose ?? "Visita institucional",
+  );
+  const scheduledDate = formatDate(
+    input.scheduledDate ?? input.visitDate ?? input.date,
+  );
   const timeRange = formatTimeRange(input.startTime, input.endTime);
-  const room = String(input.roomName ?? input.room ?? input.location ?? "Não informada");
+  const room = String(
+    input.roomName ?? input.room ?? input.location ?? "Não informada",
+  );
   const organization = String(input.organization ?? "Não informada");
   const hostName = String(input.hostName ?? "Equipe CGE");
   const requestedBy = String(input.requestedBy ?? "Assessoria/Controladoria");
@@ -243,7 +250,10 @@ export async function sendVisitConfirmationMail(input: VisitMailInput) {
 }
 
 export function buildConfirmationUrl(token: string): string {
-  const publicWebUrl = optionalEnv("PUBLIC_WEB_URL", "http://localhost:5173").replace(/\/$/, "");
+  const publicWebUrl = optionalEnv(
+    "PUBLIC_WEB_URL",
+    "http://localhost:5173",
+  ).replace(/\/$/, "");
 
   return `${publicWebUrl}/visitas/confirmar/${token}`;
 }

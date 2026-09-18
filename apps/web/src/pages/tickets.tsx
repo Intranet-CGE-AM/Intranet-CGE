@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type {
   TicketAnalyticsSummary,
@@ -95,48 +95,55 @@ export function TicketsPage() {
   // Modal Detail
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const loadData = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) setLoading(true);
+        setError(null);
 
-      if (activeTab === "my") {
-        const data = await api<{ tickets: TicketSummary[] }>("/api/tickets/my");
-        setTickets(data.tickets);
-      } else if (activeTab === "queue") {
-        const params = new URLSearchParams();
-        if (statusFilter !== "all") params.append("status", statusFilter);
-        if (areaFilter !== "all") params.append("area", areaFilter);
-        const url = `/api/tickets/queue${params.toString() ? `?${params.toString()}` : ""}`;
-        const data = await api<{ tickets: TicketSummary[] }>(url);
-        setTickets(data.tickets);
-      } else if (activeTab === "approvals") {
-        const data = await api<{ tickets: TicketSummary[] }>(
-          "/api/tickets/approvals",
-        );
-        setTickets(data.tickets);
-      } else if (activeTab === "metrics") {
-        setLoadingAnalytics(true);
-        const data = await api<TicketAnalyticsSummary>(
-          "/api/tickets/analytics",
-        );
-        setAnalytics(data);
-        setLoadingAnalytics(false);
+        if (activeTab === "my") {
+          const data = await api<{ tickets: TicketSummary[] }>(
+            "/api/tickets/my",
+          );
+          setTickets(data.tickets);
+        } else if (activeTab === "queue") {
+          const params = new URLSearchParams();
+          if (statusFilter !== "all") params.append("status", statusFilter);
+          if (areaFilter !== "all") params.append("area", areaFilter);
+          const url = `/api/tickets/queue${params.toString() ? `?${params.toString()}` : ""}`;
+          const data = await api<{ tickets: TicketSummary[] }>(url);
+          setTickets(data.tickets);
+        } else if (activeTab === "approvals") {
+          const data = await api<{ tickets: TicketSummary[] }>(
+            "/api/tickets/approvals",
+          );
+          setTickets(data.tickets);
+        } else if (activeTab === "metrics") {
+          if (!silent) setLoadingAnalytics(true);
+          const data = await api<TicketAnalyticsSummary>(
+            "/api/tickets/analytics",
+          );
+          setAnalytics(data);
+          if (!silent) setLoadingAnalytics(false);
+        }
+      } catch (err: unknown) {
+        if (!silent) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Não foi possível carregar os chamados.",
+          );
+        }
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os chamados.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [activeTab, statusFilter, areaFilter],
+  );
 
   useEffect(() => {
     void loadData();
-  }, [activeTab, statusFilter, areaFilter]);
+  }, [loadData]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -177,7 +184,7 @@ export function TicketsPage() {
           <Button
             variant="quiet"
             size="sm"
-            onClick={loadData}
+            onClick={() => void loadData()}
             title="Atualizar lista"
           >
             <ArrowClockwise className="h-4 w-4" />
@@ -286,7 +293,7 @@ export function TicketsPage() {
                     <span className="text-xs font-semibold uppercase tracking-wider text-(--text-muted)">
                       Concluídos
                     </span>
-                    <div className="mt-2 text-3xl font-black text-emerald-600">
+                    <div className="mt-2 text-3xl font-black text-[#023826] dark:text-emerald-300">
                       {analytics.completed}
                     </div>
                     <div className="mt-2 text-xs text-(--text-muted)">

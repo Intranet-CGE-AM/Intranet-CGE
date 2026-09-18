@@ -17,6 +17,17 @@ export const permissionKeys = [
   "tickets.approve",
   "tickets.attend",
   "tickets.manage",
+  "visits.read",
+  "visits.create",
+  "visits.update",
+  "visits.delete",
+  "visits.approve",
+  "visits.release",
+  "visits.history",
+  "visits.reports",
+  "visits.export",
+  "visits.manage",
+  "visits.confirmation.manage",
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
@@ -43,6 +54,17 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
   "tickets.approve": "global-or-unit",
   "tickets.attend": "global-or-unit",
   "tickets.manage": "global",
+  "visits.read": "global",
+  "visits.create": "global",
+  "visits.update": "global",
+  "visits.delete": "global",
+  "visits.approve": "global",
+  "visits.release": "global",
+  "visits.history": "global",
+  "visits.reports": "global",
+  "visits.export": "global",
+  "visits.manage": "global",
+  "visits.confirmation.manage": "global",
 };
 
 export type PermissionGrant = {

@@ -1,158 +1,79 @@
-import type {
-  PublicVisitConfirmation,
-} from "@cge/contracts";
+import type { PublicVisitConfirmation } from "@cge/contracts";
 
-import {
-  CheckCircle,
-  XCircle,
-} from "@phosphor-icons/react";
+import { CheckCircle, XCircle } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import {
-  useSearchParams,
-} from "react-router";
+import { useSearchParams } from "react-router";
 
-import {
-  api,
-  ApiError,
-  json,
-} from "../lib/api";
+import { api, ApiError, json } from "../lib/api";
 
 /* =========================================================
  * ESTADO LOCAL
  * ======================================================= */
 
-type ResponseState =
-  | "idle"
-  | "sending"
-  | "confirmed"
-  | "declined";
+type ResponseState = "idle" | "sending" | "confirmed" | "declined";
 
 /* =========================================================
  * PÁGINA
  * ======================================================= */
 
 export function VisitConfirmationPage() {
-  const [
-    searchParams,
-  ] =
-    useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  const token =
-    searchParams
-      .get("token")
-      ?.trim() ?? "";
+  const token = searchParams.get("token")?.trim() ?? "";
 
-  const [
-    visit,
-    setVisit,
-  ] =
-    useState<
-      PublicVisitConfirmation
-      | null
-    >(null);
+  const [visit, setVisit] = useState<PublicVisitConfirmation | null>(null);
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true,
-    );
+  const [loading, setLoading] = useState(true);
 
-  const [
-    responseState,
-    setResponseState,
-  ] =
-    useState<ResponseState>(
-      "idle",
-    );
+  const [responseState, setResponseState] = useState<ResponseState>("idle");
 
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
+  const [error, setError] = useState("");
 
   /* =======================================================
    * CARREGAR AGENDAMENTO
    * ===================================================== */
 
-  const load =
-    useCallback(
-      async () => {
-        if (!token) {
-          setError(
-            "Link de confirmação inválido.",
-          );
+  const load = useCallback(async () => {
+    if (!token) {
+      setError("Link de confirmação inválido.");
 
-          setLoading(
-            false,
-          );
+      setLoading(false);
 
-          return;
-        }
+      return;
+    }
 
-        try {
-          setLoading(
-            true,
-          );
+    try {
+      setLoading(true);
 
-          setError("");
+      setError("");
 
-          const result =
-            await api<
-              PublicVisitConfirmation
-            >(
-              `/api/public/visit-confirmations/${encodeURIComponent(
-                token,
-              )}`,
-            );
+      const result = await api<PublicVisitConfirmation>(
+        `/api/public/visit-confirmations/${encodeURIComponent(token)}`,
+      );
 
-          setVisit(
-            result,
-          );
+      setVisit(result);
 
-          if (
-            result.status ===
-            "confirmed"
-          ) {
-            setResponseState(
-              "confirmed",
-            );
-          }
+      if (result.status === "confirmed") {
+        setResponseState("confirmed");
+      }
 
-          if (
-            result.status ===
-            "declined"
-          ) {
-            setResponseState(
-              "declined",
-            );
-          }
-        } catch (cause) {
-          setError(
-            getErrorMessage(
-              cause,
+      if (result.status === "declined") {
+        setResponseState("declined");
+      }
+    } catch (cause) {
+      setError(
+        getErrorMessage(
+          cause,
 
-              "Não foi possível consultar o agendamento.",
-            ),
-          );
-        } finally {
-          setLoading(
-            false,
-          );
-        }
-      },
-
-      [token],
-    );
+          "Não foi possível consultar o agendamento.",
+        ),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     void load();
@@ -162,44 +83,30 @@ export function VisitConfirmationPage() {
    * RESPONDER
    * ===================================================== */
 
-  async function respond(
-    response:
-      | "confirmed"
-      | "declined",
-  ) {
+  async function respond(response: "confirmed" | "declined") {
     if (!token) {
       return;
     }
 
     try {
-      setResponseState(
-        "sending",
-      );
+      setResponseState("sending");
 
       setError("");
 
       await api(
-        `/api/public/visit-confirmations/${encodeURIComponent(
-          token,
-        )}`,
+        `/api/public/visit-confirmations/${encodeURIComponent(token)}`,
         {
-          method:
-            "POST",
+          method: "POST",
 
-          body:
-            json({
-              response,
-            }),
+          body: json({
+            response,
+          }),
         },
       );
 
-      setResponseState(
-        response,
-      );
+      setResponseState(response);
     } catch (cause) {
-      setResponseState(
-        "idle",
-      );
+      setResponseState("idle");
 
       setError(
         getErrorMessage(
@@ -219,9 +126,7 @@ export function VisitConfirmationPage() {
     return (
       <PublicLayout>
         <div className="py-12 text-center">
-          <p className="text-sm text-slate-600">
-            Consultando agendamento...
-          </p>
+          <p className="text-sm text-slate-600">Consultando agendamento...</p>
         </div>
       </PublicLayout>
     );
@@ -231,10 +136,7 @@ export function VisitConfirmationPage() {
    * ERRO SEM VISITA
    * ===================================================== */
 
-  if (
-    error &&
-    !visit
-  ) {
+  if (error && !visit) {
     return (
       <PublicLayout>
         <div className="rounded-xl border border-red-200 bg-red-50 p-5">
@@ -242,9 +144,7 @@ export function VisitConfirmationPage() {
             Não foi possível abrir o convite
           </h1>
 
-          <p className="mt-2 text-sm text-red-700">
-            {error}
-          </p>
+          <p className="mt-2 text-sm text-red-700">{error}</p>
         </div>
       </PublicLayout>
     );
@@ -254,10 +154,7 @@ export function VisitConfirmationPage() {
    * JÁ CONFIRMADO
    * ===================================================== */
 
-  if (
-    responseState ===
-    "confirmed"
-  ) {
+  if (responseState === "confirmed") {
     return (
       <PublicLayout>
         <div className="py-10 text-center">
@@ -272,8 +169,8 @@ export function VisitConfirmationPage() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            Sua confirmação foi registrada com sucesso.
-            O agendamento já foi atualizado na Intranet CGE.
+            Sua confirmação foi registrada com sucesso. O agendamento já foi
+            atualizado na Intranet CGE.
           </p>
 
           <div className="mt-6 inline-flex rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
@@ -288,10 +185,7 @@ export function VisitConfirmationPage() {
    * RECUSADO
    * ===================================================== */
 
-  if (
-    responseState ===
-    "declined"
-  ) {
+  if (responseState === "declined") {
     return (
       <PublicLayout>
         <div className="py-10 text-center">
@@ -306,8 +200,8 @@ export function VisitConfirmationPage() {
           </h1>
 
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            A Controladoria-Geral do Estado do Amazonas
-            foi informada de que você não poderá comparecer.
+            A Controladoria-Geral do Estado do Amazonas foi informada de que
+            você não poderá comparecer.
           </p>
         </div>
       </PublicLayout>
@@ -333,11 +227,8 @@ export function VisitConfirmationPage() {
       </h1>
 
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Prezado(a){" "}
-        <strong>
-          {visit.visitorName}
-        </strong>
-        , existe uma visita agendada em seu nome junto à CGE Amazonas.
+        Prezado(a) <strong>{visit.visitorName}</strong>, existe uma visita
+        agendada em seu nome junto à CGE Amazonas.
       </p>
 
       {error ? (
@@ -347,99 +238,50 @@ export function VisitConfirmationPage() {
       ) : null}
 
       <div className="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-        <Info
-          label="Protocolo"
-          value={
-            visit.protocol
-          }
-        />
+        <Info label="Protocolo" value={visit.protocol} />
 
-        <Info
-          label="Motivo da visita"
-          value={
-            visit.subject
-          }
-        />
+        <Info label="Motivo da visita" value={visit.subject} />
 
-        <Info
-          label="Órgão / instituição"
-          value={
-            visit.organization
-          }
-        />
+        <Info label="Órgão / instituição" value={visit.organization} />
 
-        <Info
-          label="Data"
-          value={
-            formatDate(
-              visit.scheduledDate,
-            )
-          }
-        />
+        <Info label="Data" value={formatDate(visit.scheduledDate)} />
 
         <Info
           label="Horário"
-          value={
-            `${visit.startTime} às ${visit.endTime}`
-          }
+          value={`${visit.startTime} às ${visit.endTime}`}
         />
 
-        <Info
-          label="Local"
-          value={
-            visit.location
-          }
-        />
+        <Info label="Local" value={visit.location} />
       </div>
 
       <div className="mt-7 grid gap-3 sm:grid-cols-2">
         <button
           type="button"
-          disabled={
-            responseState ===
-            "sending"
-          }
-          onClick={() =>
-            void respond(
-              "confirmed",
-            )
-          }
+          disabled={responseState === "sending"}
+          onClick={() => void respond("confirmed")}
           className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#08756f] px-5 font-bold text-white transition hover:bg-[#06635e] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <CheckCircle
-            size={21}
-          />
+          <CheckCircle size={21} />
 
-          {responseState ===
-          "sending"
+          {responseState === "sending"
             ? "Registrando..."
             : "Confirmar presença"}
         </button>
 
         <button
           type="button"
-          disabled={
-            responseState ===
-            "sending"
-          }
-          onClick={() =>
-            void respond(
-              "declined",
-            )
-          }
+          disabled={responseState === "sending"}
+          onClick={() => void respond("declined")}
           className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <XCircle
-            size={21}
-          />
-
+          <XCircle size={21} />
           Não poderei comparecer
         </button>
       </div>
 
       <p className="mt-7 text-xs leading-5 text-slate-500">
-        Sua resposta será registrada diretamente no
-        sistema de Agendamento de Visitas da CGE Amazonas.
+        Sua resposta será registrada diretamente no sistema de Agendamento de
+        Visitas da CGE Amazonas.
       </p>
     </PublicLayout>
   );
@@ -449,12 +291,7 @@ export function VisitConfirmationPage() {
  * LAYOUT
  * ======================================================= */
 
-function PublicLayout({
-  children,
-}: {
-  children:
-    ReactNode;
-}) {
+function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[#f5f8f7] px-4 py-10">
       <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
@@ -482,11 +319,9 @@ function Info({
   label,
   value,
 }: {
-  label:
-    string;
+  label: string;
 
-  value:
-    string;
+  value: string;
 }) {
   return (
     <div className="border-b border-slate-200 px-5 py-4 last:border-b-0">
@@ -494,9 +329,7 @@ function Info({
         {label}
       </p>
 
-      <p className="mt-1 font-semibold text-slate-900">
-        {value}
-      </p>
+      <p className="mt-1 font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
@@ -505,17 +338,8 @@ function Info({
  * FORMATAR DATA
  * ======================================================= */
 
-function formatDate(
-  value:
-    string,
-) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-  ).format(
-    new Date(
-      `${value}T12:00:00`,
-    ),
-  );
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
 }
 
 /* =========================================================
@@ -523,14 +347,9 @@ function formatDate(
  * ======================================================= */
 
 function getErrorMessage(
-  cause:
-    unknown,
+  cause: unknown,
 
-  fallback:
-    string,
+  fallback: string,
 ) {
-  return cause instanceof
-    ApiError
-    ? cause.message
-    : fallback;
+  return cause instanceof ApiError ? cause.message : fallback;
 }

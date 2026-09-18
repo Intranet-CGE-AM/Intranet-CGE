@@ -1374,6 +1374,9 @@ async function chooseDateRange(
 
 async function chooseDate(page: Page, field: string, date: string) {
   const [year, month] = date.split("-");
+  if (!year || !month) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
   await page.getByRole("button", { name: field, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Selecionar data" });
   await dialog.getByRole("combobox", { name: "Ano" }).selectOption(year);

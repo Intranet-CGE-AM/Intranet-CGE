@@ -21,37 +21,21 @@ import {
   TableRow,
 } from "@cge/ui";
 
-import {
-  ArrowRight,
-  CalendarCheck,
-  Clock,
-} from "@phosphor-icons/react";
+import { ArrowRight, CalendarCheck, Clock } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Link } from "react-router";
 
 import { useAuth } from "../auth";
 
-import {
-  api,
-  ApiError,
-} from "../lib/api";
+import { api, ApiError } from "../lib/api";
 
 const statusLabels: Record<
   VisitStatus,
   {
     label: string;
-    variant:
-      | "neutral"
-      | "warning"
-      | "success"
-      | "danger"
-      | "brand";
+    variant: "neutral" | "warning" | "success" | "danger" | "brand";
   }
 > = {
   pending: {
@@ -91,71 +75,54 @@ const statusLabels: Record<
 };
 
 const typeLabels: Record<VisitType, string> = {
-  institutional_meeting:
-    "Reunião institucional",
+  institutional_meeting: "Reunião institucional",
 
-  technical_support:
-    "Apoio técnico",
+  technical_support: "Apoio técnico",
 
-  technical_visit:
-    "Visita técnica",
+  technical_visit: "Visita técnica",
 
-  alignment_meeting:
-    "Reunião de alinhamento",
+  alignment_meeting: "Reunião de alinhamento",
 
-  presentation:
-    "Apresentação",
+  presentation: "Apresentação",
 
-  audit:
-    "Auditoria",
+  audit: "Auditoria",
 
-  inspection:
-    "Fiscalização",
+  inspection: "Fiscalização",
 
-  training:
-    "Capacitação",
+  training: "Capacitação",
 
-  external_service:
-    "Atendimento externo",
+  external_service: "Atendimento externo",
 
-  other:
-    "Outro",
+  other: "Outro",
 };
 
 export function VisitsPage() {
   const { user } = useAuth();
 
-  const [dashboard, setDashboard] =
-    useState<VisitDashboard | null>(null);
+  const [dashboard, setDashboard] = useState<VisitDashboard | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const loadDashboard =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const result =
-          await api<VisitDashboard>(
-            "/api/visits/dashboard",
-          );
+      const result = await api<VisitDashboard>("/api/visits/dashboard");
 
-        setDashboard(result);
-      } catch (cause) {
-        setError(
-          cause instanceof ApiError
-            ? cause.message
-            : "Não foi possível carregar os agendamentos.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+      setDashboard(result);
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError
+          ? cause.message
+          : "Não foi possível carregar os agendamentos.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -169,18 +136,16 @@ export function VisitsPage() {
     return null;
   }
 
-  const firstName =
-    user.person.displayName.split(/\s+/)[0];
+  const firstName = user.person.displayName.split(/\s+/)[0];
 
-  const counters =
-    dashboard?.counters ?? {
-      today: 0,
-      tomorrow: 0,
-      month: 0,
-      pending: 0,
-      inProgress: 0,
-      completed: 0,
-    };
+  const counters = dashboard?.counters ?? {
+    today: 0,
+    tomorrow: 0,
+    month: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+  };
 
   return (
     <div className="page-enter space-y-5 pb-6">
@@ -195,52 +160,35 @@ export function VisitsPage() {
           </h1>
 
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Reuniões, visitas institucionais e
-            atendimentos técnicos da CGE.
+            Reuniões, visitas institucionais e atendimentos técnicos da CGE.
           </p>
         </div>
 
         <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {new Intl.DateTimeFormat(
-            "pt-BR",
-            {
-              weekday: "long",
-              day: "2-digit",
-              month: "long",
-              timeZone:
-                "America/Manaus",
-            },
-          ).format(new Date())}
+          {new Intl.DateTimeFormat("pt-BR", {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            timeZone: "America/Manaus",
+          }).format(new Date())}
         </p>
       </div>
 
       {error ? (
-        <Alert
-          title="Painel indisponível"
-          tone="danger"
-        >
+        <Alert title="Painel indisponível" tone="danger">
           {error}
         </Alert>
       ) : null}
 
       <DashboardBanner
         action={
-          <Button
-            asChild
-            size="sm"
-            variant="quiet"
-          >
+          <Button asChild size="sm" variant="quiet">
             <Link
               className="!min-h-0 !justify-start !p-0 text-[var(--brand)] hover:!bg-transparent"
               to="/visitas/agenda"
             >
               Abrir agenda
-
-              <ArrowRight
-                aria-hidden="true"
-                size={15}
-                weight="bold"
-              />
+              <ArrowRight aria-hidden="true" size={15} weight="bold" />
             </Link>
           </Button>
         }
@@ -289,9 +237,7 @@ export function VisitsPage() {
           emptyTitle="Nenhuma visita para amanhã"
           loading={loading}
           title="Visitas de amanhã"
-          visits={
-            dashboard?.tomorrow ?? []
-          }
+          visits={dashboard?.tomorrow ?? []}
         />
 
         <VisitListCard
@@ -300,18 +246,14 @@ export function VisitsPage() {
           emptyTitle="Nenhuma visita programada"
           loading={loading}
           title="Próximas visitas"
-          visits={
-            dashboard?.upcoming ?? []
-          }
+          visits={dashboard?.upcoming ?? []}
         />
 
         <div className="space-y-5">
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">
-                  Minha rotina
-                </h2>
+                <h2 className="font-extrabold">Minha rotina</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   O que precisa da sua atenção
@@ -325,8 +267,7 @@ export function VisitsPage() {
                 title={
                   counters.pending
                     ? `${counters.pending} ${
-                        counters.pending ===
-                        1
+                        counters.pending === 1
                           ? "agendamento pendente"
                           : "agendamentos pendentes"
                       }`
@@ -344,8 +285,7 @@ export function VisitsPage() {
                 title={
                   counters.inProgress
                     ? `${counters.inProgress} ${
-                        counters.inProgress ===
-                        1
+                        counters.inProgress === 1
                           ? "atendimento em andamento"
                           : "atendimentos em andamento"
                       }`
@@ -359,9 +299,7 @@ export function VisitsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">
-                  Indicadores
-                </h2>
+                <h2 className="font-extrabold">Indicadores</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Resumo dos agendamentos
@@ -370,20 +308,11 @@ export function VisitsPage() {
             </CardHeader>
 
             <CardContent className="grid gap-4 sm:grid-cols-3">
-              <Indicator
-                label="No mês"
-                value={counters.month}
-              />
+              <Indicator label="No mês" value={counters.month} />
 
-              <Indicator
-                label="Pendentes"
-                value={counters.pending}
-              />
+              <Indicator label="Pendentes" value={counters.pending} />
 
-              <Indicator
-                label="Concluídas"
-                value={counters.completed}
-              />
+              <Indicator label="Concluídas" value={counters.completed} />
             </CardContent>
           </Card>
         </div>
@@ -392,28 +321,17 @@ export function VisitsPage() {
       <Card className="overflow-hidden">
         <CardHeader>
           <div>
-            <h2 className="font-extrabold">
-              Últimas visitas técnicas
-            </h2>
+            <h2 className="font-extrabold">Últimas visitas técnicas</h2>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Histórico recente de visitas
-              técnicas concluídas
+              Histórico recente de visitas técnicas concluídas
             </p>
           </div>
 
-          <Button
-            asChild
-            size="sm"
-            variant="quiet"
-          >
+          <Button asChild size="sm" variant="quiet">
             <Link to="/visitas/historico">
               Ver histórico
-
-              <ArrowRight
-                aria-hidden="true"
-                size={15}
-              />
+              <ArrowRight aria-hidden="true" size={15} />
             </Link>
           </Button>
         </CardHeader>
@@ -424,14 +342,8 @@ export function VisitsPage() {
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </CardContent>
-        ) : dashboard
-            ?.recentTechnicalVisits
-            .length ? (
-          <VisitsTable
-            visits={
-              dashboard.recentTechnicalVisits
-            }
-          />
+        ) : dashboard?.recentTechnicalVisits.length ? (
+          <VisitsTable visits={dashboard.recentTechnicalVisits} />
         ) : (
           <EmptyState
             title="Nenhuma visita técnica concluída"
@@ -462,27 +374,15 @@ function VisitListCard({
     <Card className="overflow-hidden">
       <CardHeader>
         <div>
-          <h2 className="font-extrabold">
-            {title}
-          </h2>
+          <h2 className="font-extrabold">{title}</h2>
 
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            {description}
-          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{description}</p>
         </div>
 
-        <Button
-          asChild
-          size="sm"
-          variant="quiet"
-        >
+        <Button asChild size="sm" variant="quiet">
           <Link to="/visitas/agenda">
             Ver agenda
-
-            <ArrowRight
-              aria-hidden="true"
-              size={15}
-            />
+            <ArrowRight aria-hidden="true" size={15} />
           </Link>
         </Button>
       </CardHeader>
@@ -495,29 +395,18 @@ function VisitListCard({
       ) : visits.length ? (
         <VisitsTable visits={visits} />
       ) : (
-        <EmptyState
-          title={emptyTitle}
-          description={emptyDescription}
-        />
+        <EmptyState title={emptyTitle} description={emptyDescription} />
       )}
 
       <div className="border-t border-[var(--border)] px-5 py-4 text-xs text-[var(--text-muted)]">
-        <strong className="text-[var(--text)]">
-          {visits.length}
-        </strong>{" "}
-        {visits.length === 1
-          ? "agendamento"
-          : "agendamentos"}
+        <strong className="text-[var(--text)]">{visits.length}</strong>{" "}
+        {visits.length === 1 ? "agendamento" : "agendamentos"}
       </div>
     </Card>
   );
 }
 
-function VisitsTable({
-  visits,
-}: {
-  visits: VisitSummary[];
-}) {
+function VisitsTable({ visits }: { visits: VisitSummary[] }) {
   return (
     <Table className="table-fixed">
       <colgroup>
@@ -531,17 +420,11 @@ function VisitsTable({
         <tr>
           <TableHead>Data/Hora</TableHead>
 
-          <TableHead>
-            Órgão
-          </TableHead>
+          <TableHead>Órgão</TableHead>
 
-          <TableHead>
-            Assunto
-          </TableHead>
+          <TableHead>Assunto</TableHead>
 
-          <TableHead>
-            Situação
-          </TableHead>
+          <TableHead>Situação</TableHead>
         </tr>
       </thead>
 
@@ -549,22 +432,15 @@ function VisitsTable({
         {visits.map((visit) => (
           <TableRow key={visit.id}>
             <TableCell>
-              <p className="font-semibold">
-                {formatDate(
-                  visit.scheduledDate,
-                )}
-              </p>
+              <p className="font-semibold">{formatDate(visit.scheduledDate)}</p>
 
               <p className="mt-0.5 text-xs text-[var(--text-faint)]">
-                {visit.startTime}–
-                {visit.endTime}
+                {visit.startTime}–{visit.endTime}
               </p>
             </TableCell>
 
             <TableCell>
-              <p className="font-semibold">
-                {visit.organization}
-              </p>
+              <p className="font-semibold">{visit.organization}</p>
 
               <p className="mt-0.5 text-xs text-[var(--text-faint)]">
                 {typeLabels[visit.type]}
@@ -572,9 +448,7 @@ function VisitsTable({
             </TableCell>
 
             <TableCell>
-              <p className="line-clamp-2">
-                {visit.subject}
-              </p>
+              <p className="line-clamp-2">{visit.subject}</p>
 
               <p className="mt-0.5 text-xs text-[var(--text-faint)]">
                 {visit.location}
@@ -582,18 +456,8 @@ function VisitsTable({
             </TableCell>
 
             <TableCell>
-              <Badge
-                variant={
-                  statusLabels[
-                    visit.status
-                  ].variant
-                }
-              >
-                {
-                  statusLabels[
-                    visit.status
-                  ].label
-                }
+              <Badge variant={statusLabels[visit.status].variant}>
+                {statusLabels[visit.status].label}
               </Badge>
             </TableCell>
           </TableRow>
@@ -615,55 +479,33 @@ function RoutineItem({
   return (
     <div className="flex items-center gap-4 px-5 py-4">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-        <Icon
-          aria-hidden="true"
-          size={18}
-        />
+        <Icon aria-hidden="true" size={18} />
       </span>
 
       <div>
-        <p className="text-sm font-bold">
-          {title}
-        </p>
+        <p className="text-sm font-bold">{title}</p>
 
-        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-          {description}
-        </p>
+        <p className="mt-0.5 text-xs text-[var(--text-muted)]">{description}</p>
       </div>
     </div>
   );
 }
 
-function Indicator({
-  value,
-  label,
-}: {
-  value: number;
-  label: string;
-}) {
+function Indicator({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] p-4">
-      <p className="text-2xl font-extrabold tabular-nums">
-        {value}
-      </p>
+      <p className="text-2xl font-extrabold tabular-nums">{value}</p>
 
-      <p className="mt-1 text-xs text-[var(--text-muted)]">
-        {label}
-      </p>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">{label}</p>
     </div>
   );
 }
 
 function formatDate(value: string) {
-  const date = new Date(
-    `${value}T12:00:00`,
-  );
+  const date = new Date(`${value}T12:00:00`);
 
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      day: "2-digit",
-      month: "2-digit",
-    },
-  ).format(date);
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
