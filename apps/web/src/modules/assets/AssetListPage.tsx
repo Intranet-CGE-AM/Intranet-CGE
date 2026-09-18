@@ -280,11 +280,12 @@ function changePage(
         "asc",
       );
 
-      next.set(
-        "page",
-        "1",
-      );
+
     }
+        next.set(
+          "page",
+          "1",
+        );
 
     setSearchParams(
       next,
