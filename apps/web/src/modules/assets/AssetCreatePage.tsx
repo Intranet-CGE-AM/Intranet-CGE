@@ -37,10 +37,16 @@ import {
   json,
 } from "../../lib/api";
 
+type OrganizationUnitType =
+  | "department"
+  | "sector"
+  | "subsector";
+
 type OrganizationUnit = {
   id: string;
   code: string;
   name: string;
+  type: OrganizationUnitType | null;
   parentId: string | null;
   active: boolean;
 };
@@ -67,6 +73,21 @@ export function AssetCreatePage() {
     units,
     setUnits,
   ] = useState<OrganizationUnit[]>([]);
+
+  const [
+  selectedDepartmentId,
+  setSelectedDepartmentId,
+  ] = useState("");
+
+  const [
+    selectedSectorId,
+    setSelectedSectorId,
+  ] = useState("");
+
+  const [
+    selectedSubsectorId,
+    setSelectedSubsectorId,
+  ] = useState("");
 
   const [
     error,
@@ -102,7 +123,7 @@ export function AssetCreatePage() {
         );
       } else {
         setError(
-          "Não foi possível carregar os setores.",
+          "Não foi possível carregar a estrutura organizacional.",
         );
       }
     } finally {
@@ -140,13 +161,6 @@ export function AssetCreatePage() {
       optionalString(
         data.get(
           "unitId",
-        ),
-      );
-
-    const room =
-      optionalString(
-        data.get(
-          "room",
         ),
       );
 
@@ -260,9 +274,25 @@ export function AssetCreatePage() {
       return;
     }
 
+    if (!selectedDepartmentId) {
+      setError(
+        "Selecione o departamento onde o bem está localizado.",
+      );
+
+      return;
+    }
+
+    if (!selectedSectorId) {
+      setError(
+        "Selecione o setor onde o bem está localizado.",
+      );
+
+      return;
+    }
+
     if (!unitId) {
       setError(
-        "Selecione o setor / localização do bem.",
+        "Selecione o subsetor onde o bem está localizado.",
       );
 
       return;
@@ -301,7 +331,7 @@ export function AssetCreatePage() {
 
         unitId,
 
-        room,
+        // room,
 
         brand,
         model,
@@ -359,6 +389,23 @@ export function AssetCreatePage() {
       setSaving(false);
     }
   }
+
+  const departments = units.filter(
+    (unit) =>
+      unit.type === "department",
+  );
+
+  const sectors = units.filter(
+    (unit) =>
+      unit.type === "sector" &&
+      unit.parentId === selectedDepartmentId,
+  );
+
+  const subsectors = units.filter(
+    (unit) =>
+      unit.type === "subsector" &&
+      unit.parentId === selectedSectorId,
+  );
 
   return (
     <div className="space-y-6">
@@ -501,41 +548,38 @@ export function AssetCreatePage() {
             <CardContent>
               <div className="grid gap-5 sm:grid-cols-2">
                 <FormField
-                  htmlFor="unitId"
-                  label="Setor / Localização"
+                  htmlFor="departmentId"
+                  label="Departamento"
                 >
                   <select
                     className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                    disabled={
-                      loadingUnits
-                    }
-                    id="unitId"
-                    name="unitId"
+                    disabled={loadingUnits}
+                    id="departmentId"
+                    value={selectedDepartmentId}
+                    onChange={(event) => {
+                      setSelectedDepartmentId(
+                        event.target.value,
+                      );
+
+                      setSelectedSectorId("");
+                      setSelectedSubsectorId("");
+                    }}
                     required
                   >
                     <option value="">
                       {loadingUnits
-                        ? "Carregando setores..."
-                        : "Selecione um setor"}
+                        ? "Carregando departamentos..."
+                        : "Selecione um departamento"}
                     </option>
 
-                    {units.map(
-                      (unit) => (
+                    {departments.map(
+                      (department) => (
                         <option
-                          key={
-                            unit.id
-                          }
-                          value={
-                            unit.id
-                          }
+                          key={department.id}
+                          value={department.id}
                         >
-                          {
-                            unit.code
-                          }{" "}
-                          -{" "}
-                          {
-                            unit.name
-                          }
+                          {department.code} -{" "}
+                          {department.name}
                         </option>
                       ),
                     )}
@@ -543,15 +587,84 @@ export function AssetCreatePage() {
                 </FormField>
 
                 <FormField
-                  htmlFor="room"
-                  label="Sala"
+                  htmlFor="sectorId"
+                  label="Setor"
                 >
-                  <Input
-                    id="room"
-                    name="room"
-                    placeholder="Ex.: Sala do DETINDE"
-                  />
+                  <select
+                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                    disabled={
+                      loadingUnits ||
+                      !selectedDepartmentId
+                    }
+                    id="sectorId"
+                    value={selectedSectorId}
+                    onChange={(event) => {
+                      setSelectedSectorId(
+                        event.target.value,
+                      );
+
+                      setSelectedSubsectorId("");
+                    }}
+                    required
+                  >
+                    <option value="">
+                      {!selectedDepartmentId
+                        ? "Selecione primeiro o departamento"
+                        : "Selecione um setor"}
+                    </option>
+
+                    {sectors.map((sector) => (
+                      <option
+                        key={sector.id}
+                        value={sector.id}
+                      >
+                        {sector.code} -{" "}
+                        {sector.name}
+                      </option>
+                    ))}
+                  </select>
                 </FormField>
+
+                <FormField
+                  htmlFor="unitId"
+                  label="Subsetor"
+                >
+                  <select
+                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                    disabled={
+                      loadingUnits ||
+                      !selectedSectorId
+                    }
+                    id="unitId"
+                    name="unitId"
+                    value={selectedSubsectorId}
+                    onChange={(event) =>
+                      setSelectedSubsectorId(
+                        event.target.value,
+                      )
+                    }
+                    required
+                  >
+                    <option value="">
+                      {!selectedSectorId
+                        ? "Selecione primeiro o setor"
+                        : "Selecione um subsetor"}
+                    </option>
+
+                    {subsectors.map(
+                      (subsector) => (
+                        <option
+                          key={subsector.id}
+                          value={subsector.id}
+                        >
+                          {subsector.code} -{" "}
+                          {subsector.name}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </FormField>
+
               </div>
             </CardContent>
           </Card>
