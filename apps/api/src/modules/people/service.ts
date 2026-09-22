@@ -325,8 +325,58 @@ export class PeopleService {
       .orderBy(organizationUnits.name);
   }
 
+
+private async validateUnitHierarchy(
+  input: OrganizationUnitInput,
+  currentUnitId?: string,
+) {
+  if (input.type === "department") {
+    if (input.parentId) {
+      throw new Error("DEPARTMENT_CANNOT_HAVE_PARENT");
+    }
+
+    return;
+  }
+
+  if (!input.parentId) {
+    throw new Error("ORGANIZATION_UNIT_PARENT_REQUIRED");
+  }
+
+  if (currentUnitId && input.parentId === currentUnitId) {
+    throw new Error("ORGANIZATION_UNIT_CANNOT_BE_OWN_PARENT");
+  }
+
+  const [parent] = await this.db
+    .select({
+      id: organizationUnits.id,
+      type: organizationUnits.type,
+      active: organizationUnits.active,
+    })
+    .from(organizationUnits)
+    .where(eq(organizationUnits.id, input.parentId))
+    .limit(1);
+
+  if (!parent) {
+    throw new Error("ORGANIZATION_UNIT_PARENT_NOT_FOUND");
+  }
+
+  if (!parent.active) {
+    throw new Error("ORGANIZATION_UNIT_PARENT_INACTIVE");
+  }
+
+  if (input.type === "sector" && parent.type !== "department") {
+    throw new Error("SECTOR_PARENT_MUST_BE_DEPARTMENT");
+  }
+
+  if (input.type === "subsector" && parent.type !== "sector") {
+    throw new Error("SUBSECTOR_PARENT_MUST_BE_SECTOR");
+  }
+}
+
 //Criar setor
   async createUnit(input: OrganizationUnitInput) {
+    await this.validateUnitHierarchy(input);
+
     const [unit] = await this.db
       .insert(organizationUnits)
       .values({
@@ -340,27 +390,25 @@ export class PeopleService {
     return unit;
   }
 
+
+
 //Atualizar setor
-  async updateUnit(
+async updateUnit(
   id: string,
   input: OrganizationUnitInput,
 ) {
-  const [unit] =
-    await this.db
-      .update(organizationUnits)
-      .set({
-        code: input.code,
-        name: input.name,
-        parentId:
-          input.parentId ?? null,
-      })
-      .where(
-        eq(
-          organizationUnits.id,
-          id,
-        ),
-      )
-      .returning();
+  await this.validateUnitHierarchy(input, id);
+
+  const [unit] = await this.db
+    .update(organizationUnits)
+    .set({
+      code: input.code,
+      name: input.name,
+      type: input.type,
+      parentId: input.parentId ?? null,
+    })
+    .where(eq(organizationUnits.id, id))
+    .returning();
 
   return unit ?? null;
 }

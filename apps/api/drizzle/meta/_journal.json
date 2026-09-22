@@ -71,6 +71,13 @@
       "when": 1789135901736,
       "tag": "0009_flimsy_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790001259360,
+      "tag": "0010_dusty_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

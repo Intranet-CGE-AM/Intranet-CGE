@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  pgEnum
 } from "drizzle-orm/pg-core";
 
 export const people = pgTable(
@@ -44,12 +45,22 @@ export const employmentCategories = pgTable(
   (table) => [uniqueIndex("employment_categories_name_unique").on(table.name)],
 );
 
+export const organizationUnitType = pgEnum(
+  "organization_unit_type",
+  [
+    "department",
+    "sector",
+    "subsector",
+  ],
+);
+
 export const organizationUnits = pgTable(
   "organization_units",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     code: varchar("code", { length: 30 }).notNull(),
     name: varchar("name", { length: 160 }).notNull(),
+    type: organizationUnitType("type"),
     parentId: uuid("parent_id").references(
       (): AnyPgColumn => organizationUnits.id,
     ),
