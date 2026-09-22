@@ -114,6 +114,23 @@ export function AssetSectorPage() {
     );
 
   const [
+    editType,
+    setEditType,
+  ] = useState<OrganizationUnitType>(
+    "department",
+  );
+
+  const [
+    editParentId,
+    setEditParentId,
+  ] = useState("");
+
+  const [
+    editDepartmentId,
+    setEditDepartmentId,
+  ] = useState("");
+
+  const [
     editCode,
     setEditCode,
   ] = useState("");
@@ -148,7 +165,7 @@ export function AssetSectorPage() {
             );
           } else {
             setError(
-              "Não foi possível carregar os setores.",
+              "Não foi possível carregar as unidades organizacionais.",
             );
           }
         } finally {
@@ -172,7 +189,7 @@ export function AssetSectorPage() {
       !name.trim()
     ) {
       setError(
-        "Informe o código e o nome do setor.",
+        "Informe o código e o nome da unidade organizacional.",
       );
 
       return;
@@ -243,7 +260,7 @@ export function AssetSectorPage() {
         );
       } else {
         setError(
-          "Não foi possível cadastrar o setor.",
+          "Não foi possível cadastrar a unidade organizacional.",
         );
       }
     } finally {
@@ -275,6 +292,30 @@ export function AssetSectorPage() {
       unit.name,
     );
 
+    setEditType(
+      unit.type,
+    );
+
+    setEditParentId(
+      unit.parentId ?? "",
+    );
+
+    if (
+      unit.type === "subsector" &&
+      unit.parentId
+    ) {
+      const parentSector = units.find(
+        (item) =>
+          item.id === unit.parentId,
+      );
+
+      setEditDepartmentId(
+        parentSector?.parentId ?? "",
+      );
+    } else {
+      setEditDepartmentId("");
+    }
+
     setError("");
     setSuccess("");
   }
@@ -288,6 +329,9 @@ export function AssetSectorPage() {
     setEditName("");
 
     setError("");
+    setEditType("department");
+    setEditParentId("");
+    setEditDepartmentId("");
   }
 
   async function handleUpdate(
@@ -306,7 +350,31 @@ export function AssetSectorPage() {
       !editName.trim()
     ) {
       setError(
-        "Informe o código e o nome do setor.",
+        "Informe o código e o nome da unidade organizacional.",
+      );
+
+      return;
+    }
+
+    if (
+    editType === "subsector" &&
+    !editDepartmentId
+    ) {
+      setError(
+        "Selecione o departamento ao qual o subsetor pertence.",
+      );
+
+      return;
+    }
+
+    if (
+      editType !== "department" &&
+      !editParentId
+    ) {
+      setError(
+        editType === "sector"
+          ? "Selecione o departamento ao qual o setor pertence."
+          : "Selecione o setor ao qual o subsetor pertence.",
       );
 
       return;
@@ -325,8 +393,11 @@ export function AssetSectorPage() {
           body: json({
           code: editCode.trim(),
           name: editName.trim(),
-          type: editingUnit.type,
-          parentId: editingUnit.parentId,
+          type: editType,
+          parentId:
+            editType === "department"
+              ? null
+              : editParentId || null,
         }),
         },
       );
@@ -335,11 +406,14 @@ export function AssetSectorPage() {
         null,
       );
 
+      setEditType("department");
+      setEditParentId("");
+      setEditDepartmentId("");
       setEditCode("");
       setEditName("");
 
       setSuccess(
-        "Setor atualizado com sucesso.",
+        "Unidade organizacional atualizada com sucesso.",
       );
 
       await loadUnits();
@@ -353,7 +427,7 @@ export function AssetSectorPage() {
         );
       } else {
         setError(
-          "Não foi possível atualizar o setor.",
+          "Não foi possível atualizar a unidade organizacional.",
         );
       }
     } finally {
@@ -386,8 +460,8 @@ export function AssetSectorPage() {
 
     setSuccess(
       newActive
-        ? "Setor ativado com sucesso."
-        : "Setor inativado com sucesso.",
+        ? "Unidade organizacional ativada com sucesso."
+        : "Unidade organizacional inativada com sucesso.",
     );
 
     await loadUnits();
@@ -402,8 +476,8 @@ export function AssetSectorPage() {
     } else {
       setError(
         newActive
-          ? "Não foi possível ativar o setor."
-          : "Não foi possível inativar o setor.",
+          ? "Não foi possível ativar a unidade organizacional."
+          : "Não foi possível inativar a unidade organizacional.",
       );
     }
   } finally {
@@ -471,10 +545,7 @@ export function AssetSectorPage() {
         </h1>
 
         <p className="text-sm text-[var(--text-muted)]">
-          Cadastre e consulte os
-          setores disponíveis para
-          localização dos bens
-          patrimoniais.
+          Cadastre e consulte departamentos, setores e subsetores disponíveis para localização dos bens patrimoniais.
         </p>
       </div>
 
@@ -504,8 +575,7 @@ export function AssetSectorPage() {
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Informe o código e
-              o nome do setor.
+              Informe o tipo, o código e o nome da unidade organizacional.
             </p>
           </div>
         </CardHeader>
@@ -567,7 +637,7 @@ export function AssetSectorPage() {
             </FormField>
 
             <FormField
-              label="Nome do setor"
+              label="Nome da unidade"
               htmlFor="name"
             >
               <Input
@@ -709,12 +779,11 @@ export function AssetSectorPage() {
           <CardHeader>
             <div>
               <h2 className="font-medium">
-                Editar setor
+                Editar unidade organizacional
               </h2>
 
               <p className="text-xs text-[var(--text-muted)]">
-                Atualize o código e
-                o nome do setor.
+                Atualize os dados da unidade organizacional.
               </p>
             </div>
           </CardHeader>
@@ -726,6 +795,38 @@ export function AssetSectorPage() {
                 handleUpdate
               }
             >
+              <FormField
+              label="Tipo"
+              htmlFor="edit-type"
+            >
+              <select
+                id="edit-type"
+                value={editType}
+                onChange={(event) => {
+                  setEditType(
+                    event.target
+                      .value as OrganizationUnitType,
+                  );
+
+                  setEditParentId("");
+                  setEditDepartmentId("");
+                }}
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+              >
+                <option value="department">
+                  Departamento
+                </option>
+
+                <option value="sector">
+                  Setor
+                </option>
+
+                <option value="subsector">
+                  Subsetor
+                </option>
+              </select>
+            </FormField>
+
               <FormField
                 label="Código"
                 htmlFor="edit-code"
@@ -747,7 +848,7 @@ export function AssetSectorPage() {
               </FormField>
 
               <FormField
-                label="Nome do setor"
+                label="Nome da unidade"
                 htmlFor="edit-name"
               >
                 <Input
@@ -765,6 +866,118 @@ export function AssetSectorPage() {
                   }
                 />
               </FormField>
+              {editType === "sector" ? (
+              <FormField
+                label="Departamento"
+                htmlFor="edit-parent-department"
+              >
+                <select
+                  id="edit-parent-department"
+                  value={editParentId}
+                  onChange={(event) =>
+                    setEditParentId(
+                      event.target.value,
+                    )
+                  }
+                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                >
+                  <option value="">
+                    Selecione...
+                  </option>
+
+                  {departments.map(
+                    (department) => (
+                      <option
+                        key={department.id}
+                        value={department.id}
+                      >
+                        {department.code} -{" "}
+                        {department.name}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </FormField>
+            ) : null}
+
+            {editType === "subsector" ? (
+  <>
+    <FormField
+      label="Departamento"
+      htmlFor="edit-subsector-department"
+    >
+      <select
+        id="edit-subsector-department"
+        value={editDepartmentId}
+        onChange={(event) => {
+          setEditDepartmentId(
+            event.target.value,
+          );
+
+          setEditParentId("");
+        }}
+        className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+      >
+        <option value="">
+          Selecione...
+        </option>
+
+        {departments.map(
+          (department) => (
+            <option
+              key={department.id}
+              value={department.id}
+            >
+              {department.code} -{" "}
+              {department.name}
+            </option>
+          ),
+        )}
+      </select>
+    </FormField>
+
+          <FormField
+            label="Setor"
+            htmlFor="edit-parent-sector"
+          >
+            <select
+              id="edit-parent-sector"
+              value={editParentId}
+              onChange={(event) =>
+                setEditParentId(
+                  event.target.value,
+                )
+              }
+              disabled={!editDepartmentId}
+              className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+            >
+              <option value="">
+                {editDepartmentId
+                  ? "Selecione..."
+                  : "Selecione primeiro o departamento"}
+              </option>
+
+              {units
+                .filter(
+                  (unit) =>
+                    unit.type === "sector" &&
+                    unit.active &&
+                    unit.parentId ===
+                      editDepartmentId,
+                )
+                .map((sector) => (
+                  <option
+                    key={sector.id}
+                    value={sector.id}
+                  >
+                    {sector.code} -{" "}
+                    {sector.name}
+                  </option>
+                ))}
+            </select>
+          </FormField>
+        </>
+      ) : null}
 
               <div className="flex items-end gap-2">
                 <Button
@@ -800,13 +1013,11 @@ export function AssetSectorPage() {
         <CardHeader>
           <div>
             <h2 className="font-medium">
-              Unidades Organizacionais cadastradas
+              Unidades organizacionais cadastradas
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Setores disponíveis
-              para utilização no
-              cadastro dos bens.
+              Departamentos, setores e subsetores disponíveis para utilização no cadastro dos bens.
             </p>
           </div>
         </CardHeader>
@@ -814,13 +1025,12 @@ export function AssetSectorPage() {
         <CardContent>
           {loading ? (
             <p className="text-sm text-[var(--text-muted)]">
-              Carregando setores...
+              Carregando unidades organizacionais...
             </p>
           ) : units.length ===
             0 ? (
             <p className="text-sm text-[var(--text-muted)]">
-              Nenhum setor
-              cadastrado.
+              Nenhuma unidade organizacional cadastrada.
             </p>
           ) : (
             <Table>
