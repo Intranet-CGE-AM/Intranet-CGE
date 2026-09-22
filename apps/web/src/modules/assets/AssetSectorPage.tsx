@@ -80,6 +80,10 @@ export function AssetSectorPage() {
     setParentId,
   ] = useState("");
 
+  const [
+  selectedDepartmentId,
+  setSelectedDepartmentId,
+  ] = useState("");
 
   const [
     loading,
@@ -175,6 +179,17 @@ export function AssetSectorPage() {
     }
 
     if (
+      unitType === "subsector" &&
+      !selectedDepartmentId
+    ) {
+      setError(
+        "Selecione o departamento ao qual o subsetor pertence.",
+      );
+
+      return;
+    }
+
+    if (
       unitType !== "department" &&
       !parentId
     ) {
@@ -213,11 +228,10 @@ export function AssetSectorPage() {
       setName("");
       setUnitType("department");
       setParentId("");
+      setSelectedDepartmentId("");
 
-      setSuccess(
-        "Unidade organizacional cadastrada com sucesso.",
-      );
-
+      setSuccess("Unidade organizacional cadastrada com sucesso.",);
+      
       await loadUnits();
     } catch (cause) {
       if (
@@ -406,14 +420,54 @@ export function AssetSectorPage() {
   const sectors = units.filter(
     (unit) =>
       unit.type === "sector" &&
-      unit.active,
+      unit.active &&
+      (
+        !selectedDepartmentId ||
+        unit.parentId === selectedDepartmentId
+      ),
   );
+
+  function getParentLabel(
+    unit: OrganizationUnit,
+  ) {
+    if (!unit.parentId) {
+      return "—";
+    }
+
+    const parent = units.find(
+      (item) =>
+        item.id === unit.parentId,
+    );
+
+    if (!parent) {
+      return "—";
+    }
+
+    return `${parent.code} - ${parent.name}`;
+  }
+  function getUnitTypeLabel(
+  type: OrganizationUnitType | null,
+  ) {
+    if (type === "department") {
+      return "Departamento";
+    }
+
+    if (type === "sector") {
+      return "Setor";
+    }
+
+    if (type === "subsector") {
+      return "Subsetor";
+    }
+
+    return "Não definido";
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-          Setores / Localizações
+          Estrutura Organizacional
         </h1>
 
         <p className="text-sm text-[var(--text-muted)]">
@@ -446,7 +500,7 @@ export function AssetSectorPage() {
         <CardHeader>
           <div>
             <h2 className="font-medium">
-              Novo setor
+              Nova unidade organizacional
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
@@ -471,11 +525,11 @@ export function AssetSectorPage() {
               value={unitType}
               onChange={(event) => {
                 setUnitType(
-                  event.target
-                    .value as OrganizationUnitType,
+                  event.target.value as OrganizationUnitType,
                 );
 
                 setParentId("");
+                setSelectedDepartmentId("");
               }}
               className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
             >
@@ -564,33 +618,70 @@ export function AssetSectorPage() {
           ) : null}
 
           {unitType === "subsector" ? (
-            <FormField
-              label="Setor"
-              htmlFor="parent-sector"
-            >
-              <select
-                id="parent-sector"
-                value={parentId}
-                onChange={(event) =>
-                  setParentId(event.target.value)
-                }
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+            <>
+              <FormField
+                label="Departamento"
+                htmlFor="subsector-department"
               >
-                <option value="">
-                  Selecione...
-                </option>
+                <select
+                  id="subsector-department"
+                  value={selectedDepartmentId}
+                  onChange={(event) => {
+                    setSelectedDepartmentId(
+                      event.target.value,
+                    );
 
-                {sectors.map((sector) => (
-                  <option
-                    key={sector.id}
-                    value={sector.id}
-                  >
-                    {sector.code} -{" "}
-                    {sector.name}
+                    setParentId("");
+                  }}
+                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                >
+                  <option value="">
+                    Selecione...
                   </option>
-                ))}
-              </select>
-            </FormField>
+
+                  {departments.map((department) => (
+                    <option
+                      key={department.id}
+                      value={department.id}
+                    >
+                      {department.code} -{" "}
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField
+                label="Setor"
+                htmlFor="parent-sector"
+              >
+                <select
+                  id="parent-sector"
+                  value={parentId}
+                  onChange={(event) =>
+                    setParentId(event.target.value)
+                  }
+                  disabled={!selectedDepartmentId}
+                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                >
+                  <option value="">
+                    {selectedDepartmentId
+                      ? "Selecione..."
+                      : "Selecione primeiro o departamento"}
+                  </option>
+
+                  {sectors.map((sector) => (
+                    <option
+                      key={sector.id}
+                      value={sector.id}
+                    >
+                      {sector.code} -{" "}
+                      {sector.name}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </>
           ) : null}
 
             <div className="flex items-end">
@@ -709,7 +800,7 @@ export function AssetSectorPage() {
         <CardHeader>
           <div>
             <h2 className="font-medium">
-              Setores cadastrados
+              Unidades Organizacionais cadastradas
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
@@ -740,7 +831,15 @@ export function AssetSectorPage() {
                   </TableHead>
 
                   <TableHead>
-                    Setor
+                    Nome
+                  </TableHead>
+
+                  <TableHead>
+                    Tipo
+                  </TableHead>
+
+                  <TableHead>
+                    Vinculado a
                   </TableHead>
 
                   <TableHead>
@@ -761,25 +860,33 @@ export function AssetSectorPage() {
                         unit.id
                       }
                     >
-                      <TableCell>
-                        <strong>
-                          {
-                            unit.code
-                          }
-                        </strong>
-                      </TableCell>
+                  <TableCell>
+                    <strong>
+                      {unit.code}
+                    </strong>
+                  </TableCell>
 
-                      <TableCell>
-                        {
-                          unit.name
-                        }
-                      </TableCell>
+                  <TableCell>
+                    {unit.name}
+                  </TableCell>
 
-                      <TableCell>
-                        {unit.active
-                          ? "Ativo"
-                          : "Inativo"}
-                      </TableCell>
+                  <TableCell>
+                    {getUnitTypeLabel(
+                      unit.type,
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    {getParentLabel(
+                      unit,
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    {unit.active
+                      ? "Ativo"
+                      : "Inativo"}
+                  </TableCell>
 
                       <TableCell>
                       <div className="flex flex-wrap gap-2">
