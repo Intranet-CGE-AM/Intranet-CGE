@@ -37,10 +37,16 @@ import {
 
 
 
+type OrganizationUnitType =
+  | "department"
+  | "sector"
+  | "subsector";
+
 type OrganizationUnit = {
   id: string;
   code: string;
   name: string;
+  type: OrganizationUnitType | null;
   parentId: string | null;
   active: boolean;
 };
@@ -84,13 +90,13 @@ export function AssetDetailPage() {
     null,
   );
 
-  const [
-    unit,
-    setUnit,
-  ] =
-    useState<OrganizationUnit | null>(
-      null,
-    );
+  // const [
+  //   unit,
+  //   setUnit,
+  // ] =
+  //   useState<OrganizationUnit | null>(
+  //     null,
+  //   );
 
   const [
     loading,
@@ -160,7 +166,7 @@ export function AssetDetailPage() {
         ),
 
         api<OrganizationUnitsResponse>(
-          "/api/organization-units", //Busca de setores
+          "/api/organization-units", // Busca de unidades organizacionais
         ),
 
         api<AssetMovementsResponse>(
@@ -199,18 +205,18 @@ export function AssetDetailPage() {
       }
 
 
-      const foundUnit =
-        assetResult.unitId
-          ? unitsResult.units.find(
-              (item) =>
-                item.id ===
-                assetResult.unitId,
-            ) ?? null
-          : null;
+      // const foundUnit =
+      //   assetResult.unitId
+      //     ? unitsResult.units.find(
+      //         (item) =>
+      //           item.id ===
+      //           assetResult.unitId,
+      //       ) ?? null
+      //     : null;
 
-      setUnit(
-        foundUnit,
-      );
+      // setUnit(
+      //   foundUnit,
+      // );
     } catch (cause) {
       if (
         cause instanceof
@@ -278,6 +284,58 @@ const unitsById =
       ],
     ),
   );
+
+
+  const currentUnit =
+  asset.unitId
+    ? unitsById.get(asset.unitId) ?? null
+    : null;
+
+  let department:
+    OrganizationUnit | null = null;
+
+  let sector:
+    OrganizationUnit | null = null;
+
+  let subsector:
+    OrganizationUnit | null = null;
+
+  if (currentUnit?.type === "subsector") {
+    subsector = currentUnit;
+
+    sector =
+      currentUnit.parentId
+        ? unitsById.get(
+            currentUnit.parentId,
+          ) ?? null
+        : null;
+
+    department =
+      sector?.parentId
+        ? unitsById.get(
+            sector.parentId,
+          ) ?? null
+        : null;
+  } else if (
+    currentUnit?.type === "sector"
+  ) {
+    // Compatibilidade com bens antigos.
+    sector = currentUnit;
+
+    department =
+      currentUnit.parentId
+        ? unitsById.get(
+            currentUnit.parentId,
+          ) ?? null
+        : null;
+  } else if (
+    currentUnit?.type === "department"
+  ) {
+    // Compatibilidade com registros antigos.
+    department = currentUnit;
+  }
+
+  
 
   async function handleStatusChange() {
   if (!asset) {
@@ -633,24 +691,36 @@ const unitsById =
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-3">
             <DetailItem
-              label="Setor / Localização"
+              label="Departamento"
               value={
-                unit
-                  ? `${unit.code} - ${unit.name}`
+                department
+                  ? `${department.code} - ${department.name}`
                   : null
               }
             />
 
             <DetailItem
-              label="Sala"
+              label="Setor"
               value={
-                asset.room
+                sector
+                  ? `${sector.code} - ${sector.name}`
+                  : null
+              }
+            />
+
+            <DetailItem
+              label="Subsetor"
+              value={
+                subsector
+                  ? `${subsector.code} - ${subsector.name}`
+                  : null
               }
             />
           </div>
         </CardContent>
+
       </Card>
 
       <Card>
@@ -764,8 +834,7 @@ const unitsById =
               </h2>
 
               <p className="text-xs text-[var(--text-muted)]">
-                Transferências realizadas
-                entre setores.
+                Transferências realizadas entre unidades organizacionais.
               </p>
             </div>
           </CardHeader>
@@ -929,7 +998,7 @@ function formatUnit(
   >,
 ) {
   if (!unitId) {
-    return "Sem setor anterior";
+    return "Sem localização anterior";
   }
 
   const unit =
@@ -938,7 +1007,7 @@ function formatUnit(
     );
 
   if (!unit) {
-    return "Setor não encontrado";
+    return "Unidade organizacional não encontrada";
   }
 
   return `${unit.code} - ${unit.name}`;

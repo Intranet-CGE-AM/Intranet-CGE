@@ -331,8 +331,6 @@ export function AssetCreatePage() {
 
         unitId,
 
-        // room,
-
         brand,
         model,
         serialNumber,
