@@ -39,10 +39,16 @@ import {
   ApiError,
 } from "../../lib/api";
 
+type OrganizationUnitType =
+  | "department"
+  | "sector"
+  | "subsector";
+
 type OrganizationUnit = {
   id: string;
   code: string;
   name: string;
+  type: OrganizationUnitType | null;
   parentId: string | null;
   active: boolean;
 };
@@ -138,6 +144,68 @@ const [
         ),
       [units],
     );
+
+    function getAssetLocation(
+  unitId: string | null,
+) {
+  if (!unitId) {
+    return "—";
+  }
+
+  const unit =
+    unitsById.get(unitId);
+
+  if (!unit) {
+    return "—";
+  }
+
+  if (unit.type === "subsector") {
+    const sector =
+      unit.parentId
+        ? unitsById.get(
+            unit.parentId,
+          )
+        : null;
+
+    const department =
+      sector?.parentId
+        ? unitsById.get(
+            sector.parentId,
+          )
+        : null;
+
+    return [
+      department?.code,
+      sector?.code,
+      unit.code,
+    ]
+      .filter(Boolean)
+      .join(" > ");
+  }
+
+  if (unit.type === "sector") {
+    const department =
+      unit.parentId
+        ? unitsById.get(
+            unit.parentId,
+          )
+        : null;
+
+    return [
+      department?.code,
+      unit.code,
+    ]
+      .filter(Boolean)
+      .join(" > ");
+  }
+
+  if (unit.type === "department") {
+    return unit.code;
+  }
+
+  // Compatibilidade com registros antigos
+  return `${unit.code} - ${unit.name}`;
+  }
 
   const selectedStatus =
     searchParams.get(
@@ -678,7 +746,7 @@ const loadData =
                     </TableHead>
 
                     <TableHead>
-                      <button
+                      {/* <button
                         type="button"
                         className="inline-flex items-center gap-1 font-medium hover:underline"
                         onClick={() =>
@@ -686,22 +754,22 @@ const loadData =
                             "unit",
                           )
                         }
-                      >
-                        Setor
+                      > */}
+                        Localização
 
-                        {sortBy ===
+                        {/* {sortBy ===
                           "unit"
                           ? sortDirection ===
                             "asc"
                             ? "↑"
                             : "↓"
                           : null}
-                      </button>
+                      </button> */}
                     </TableHead>
 
-                    <TableHead>
+                    {/* <TableHead>
                       Sala
-                    </TableHead>
+                    </TableHead> */}
 
                     <TableHead>
                       Marca / Modelo
@@ -791,15 +859,15 @@ const loadData =
                           </TableCell>
 
                           <TableCell>
-                            {unit
-                              ? `${unit.code} - ${unit.name}`
-                              : "—"}
+                            {getAssetLocation(
+                              asset.unitId,
+                            )}
                           </TableCell>
 
-                          <TableCell>
+                          {/* <TableCell>
                             {asset.room ??
                               "—"}
-                          </TableCell>
+                          </TableCell> */}
 
                           <TableCell>
                             {formatBrandModel(
