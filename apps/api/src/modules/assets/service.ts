@@ -28,6 +28,7 @@ import {
   eq,
   getTableColumns,
   ilike,
+  inArray,
   or,
 } from "drizzle-orm";
 
@@ -71,10 +72,54 @@ async list(
   }
 
   if (query.unitId) {
-    conditions.push(
-      eq(
-        assets.unitId,
+    const unitRows =
+      await this.db
+        .select({
+          id:
+            organizationUnits.id,
+
+          parentId:
+            organizationUnits.parentId,
+        })
+        .from(
+          organizationUnits,
+        );
+
+    const selectedUnitIds =
+      new Set<string>([
         query.unitId,
+      ]);
+
+    let foundNewUnit = true;
+
+    while (foundNewUnit) {
+      foundNewUnit = false;
+
+      for (const unit of unitRows) {
+        if (
+          unit.parentId &&
+          selectedUnitIds.has(
+            unit.parentId,
+          ) &&
+          !selectedUnitIds.has(
+            unit.id,
+          )
+        ) {
+          selectedUnitIds.add(
+            unit.id,
+          );
+
+          foundNewUnit = true;
+        }
+      }
+    }
+
+    conditions.push(
+      inArray(
+        assets.unitId,
+        Array.from(
+          selectedUnitIds,
+        ),
       ),
     );
   }

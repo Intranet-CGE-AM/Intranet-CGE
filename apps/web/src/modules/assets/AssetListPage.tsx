@@ -81,6 +81,7 @@ export function AssetListPage() {
     searchParams.get(
       "unitId",
     );
+
   const selectedConservationStatus =
     searchParams.get(
       "conservationStatus",
@@ -96,25 +97,25 @@ export function AssetListPage() {
     setAssets,
   ] = useState<Asset[]>([]);
 
-const [
-  total,
-  setTotal,
-] = useState(0);
+  const [
+    total,
+    setTotal,
+  ] = useState(0);
 
-const [
-  totalPages,
-  setTotalPages,
-] = useState(1);
+  const [
+    totalPages,
+    setTotalPages,
+  ] = useState(1);
 
-const [
-  currentPage,
-  setCurrentPage,
-] = useState(1);
+  const [
+    currentPage,
+    setCurrentPage,
+  ] = useState(1);
 
-const [
-  currentPageSize,
-  setCurrentPageSize,
-] = useState(10);
+  const [
+    currentPageSize,
+    setCurrentPageSize,
+  ] = useState(10);
 
   const [
     units,
@@ -145,66 +146,66 @@ const [
       [units],
     );
 
-    function getAssetLocation(
-  unitId: string | null,
-) {
-  if (!unitId) {
-    return "—";
-  }
+  function getAssetLocation(
+    unitId: string | null,
+  ) {
+    if (!unitId) {
+      return "—";
+    }
 
-  const unit =
-    unitsById.get(unitId);
+    const unit =
+      unitsById.get(unitId);
 
-  if (!unit) {
-    return "—";
-  }
+    if (!unit) {
+      return "—";
+    }
 
-  if (unit.type === "subsector") {
-    const sector =
-      unit.parentId
-        ? unitsById.get(
+    if (unit.type === "subsector") {
+      const sector =
+        unit.parentId
+          ? unitsById.get(
             unit.parentId,
           )
-        : null;
+          : null;
 
-    const department =
-      sector?.parentId
-        ? unitsById.get(
+      const department =
+        sector?.parentId
+          ? unitsById.get(
             sector.parentId,
           )
-        : null;
+          : null;
 
-    return [
-      department?.code,
-      sector?.code,
-      unit.code,
-    ]
-      .filter(Boolean)
-      .join(" > ");
-  }
+      return [
+        department?.code,
+        sector?.code,
+        unit.code,
+      ]
+        .filter(Boolean)
+        .join(" > ");
+    }
 
-  if (unit.type === "sector") {
-    const department =
-      unit.parentId
-        ? unitsById.get(
+    if (unit.type === "sector") {
+      const department =
+        unit.parentId
+          ? unitsById.get(
             unit.parentId,
           )
-        : null;
+          : null;
 
-    return [
-      department?.code,
-      unit.code,
-    ]
-      .filter(Boolean)
-      .join(" > ");
-  }
+      return [
+        department?.code,
+        unit.code,
+      ]
+        .filter(Boolean)
+        .join(" > ");
+    }
 
-  if (unit.type === "department") {
-    return unit.code;
-  }
+    if (unit.type === "department") {
+      return unit.code;
+    }
 
-  // Compatibilidade com registros antigos
-  return `${unit.code} - ${unit.name}`;
+    // Compatibilidade com registros antigos
+    return `${unit.code} - ${unit.name}`;
   }
 
   const selectedStatus =
@@ -236,6 +237,64 @@ const [
         selectedUnitId,
       ) ?? null
       : null;
+  const selectedSubsector =
+    selectedUnit?.type === "subsector"
+      ? selectedUnit
+      : null;
+
+  const selectedSector =
+    selectedUnit?.type === "sector"
+      ? selectedUnit
+      : selectedSubsector?.parentId
+        ? unitsById.get(
+          selectedSubsector.parentId,
+        ) ?? null
+        : null;
+
+  const selectedDepartment =
+    selectedUnit?.type === "department"
+      ? selectedUnit
+      : selectedSector?.parentId
+        ? unitsById.get(
+          selectedSector.parentId,
+        ) ?? null
+        : null;
+
+  const selectedDepartmentId =
+    selectedDepartment?.id ?? "";
+
+  const selectedSectorId =
+    selectedSector?.id ?? "";
+
+  const selectedSubsectorId =
+    selectedSubsector?.id ?? "";
+
+
+  const departments =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "department",
+    );
+
+  const sectors =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "sector" &&
+        unit.parentId ===
+        selectedDepartmentId,
+    );
+
+  const subsectors =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "subsector" &&
+        unit.parentId ===
+        selectedSectorId,
+    );
+
 
   function updateFilter(
     key: string,
@@ -267,23 +326,23 @@ const [
     );
   }
 
-function changePage(
-  page: number,
-) {
-  const next =
-    new URLSearchParams(
-      searchParams,
+  function changePage(
+    page: number,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    next.set(
+      "page",
+      String(page),
     );
 
-  next.set(
-    "page",
-    String(page),
-  );
-
-  setSearchParams(
-    next,
-  );
-}
+    setSearchParams(
+      next,
+    );
+  }
 
   function changePageSize(
     value: string,
@@ -350,10 +409,10 @@ function changePage(
 
 
     }
-        next.set(
-          "page",
-          "1",
-        );
+    next.set(
+      "page",
+      "1",
+    );
 
     setSearchParams(
       next,
@@ -361,78 +420,78 @@ function changePage(
   }
 
   const queryString =
-  searchParams.toString();
+    searchParams.toString();
 
-const loadData =
-  useCallback(
-    async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const loadData =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+          setError("");
 
-        const assetUrl =
-          queryString
-            ? `/api/assets?${queryString}`
-            : "/api/assets";
+          const assetUrl =
+            queryString
+              ? `/api/assets?${queryString}`
+              : "/api/assets";
 
-        const [
-          assetResult,
-          unitResult,
-        ] =
-          await Promise.all([
-            api<AssetListResponse>(
-              assetUrl,
-            ),
+          const [
+            assetResult,
+            unitResult,
+          ] =
+            await Promise.all([
+              api<AssetListResponse>(
+                assetUrl,
+              ),
 
-            api<OrganizationUnitsResponse>(
-              "/api/organization-units",
-            ),
-          ]);
+              api<OrganizationUnitsResponse>(
+                "/api/organization-units",
+              ),
+            ]);
 
-        setAssets(
-          assetResult.assets,
-        );
-
-        setTotal(
-          assetResult.total,
-        );
-
-        setTotalPages(
-          assetResult.totalPages,
-        );
-
-        setCurrentPage(
-          assetResult.page,
-        );
-
-        setCurrentPageSize(
-          assetResult.pageSize,
-        );
-
-        setUnits(
-          unitResult.units,
-        );
-      } catch (cause) {
-        if (
-          cause instanceof
-          ApiError
-        ) {
-          setError(
-            cause.message,
+          setAssets(
+            assetResult.assets,
           );
-        } else {
-          setError(
-            "Não foi possível carregar os bens patrimoniais.",
+
+          setTotal(
+            assetResult.total,
           );
+
+          setTotalPages(
+            assetResult.totalPages,
+          );
+
+          setCurrentPage(
+            assetResult.page,
+          );
+
+          setCurrentPageSize(
+            assetResult.pageSize,
+          );
+
+          setUnits(
+            unitResult.units,
+          );
+        } catch (cause) {
+          if (
+            cause instanceof
+            ApiError
+          ) {
+            setError(
+              cause.message,
+            );
+          } else {
+            setError(
+              "Não foi possível carregar os bens patrimoniais.",
+            );
+          }
+        } finally {
+          setLoading(false);
         }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [
-      queryString,
-    ],
-  );
+      },
+      [
+        queryString,
+      ],
+    );
 
   useEffect(() => {
     void loadData();
@@ -499,14 +558,13 @@ const loadData =
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Localize bens por tombo,
-              material, situação ou setor.
+              Localize bens por tombo, material, situação ou estrutura organizacional.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div>
               <label
                 className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
@@ -576,42 +634,127 @@ const loadData =
             <div>
               <label
                 className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="unit-filter"
+                htmlFor="department-filter"
               >
-                Setor / Localização
+                Departamento
               </label>
 
               <select
-                id="unit-filter"
+                id="department-filter"
                 className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={
-                  selectedUnitId ?? ""
-                }
-                onChange={(
-                  event,
-                ) =>
+                value={selectedDepartmentId}
+                onChange={(event) => {
                   updateFilter(
                     "unitId",
                     event.target.value,
-                  )
-                }
+                  );
+                }}
               >
                 <option value="">
-                  Todos os setores
+                  Todos os departamentos
                 </option>
 
-                {units.map(
-                  (unit) => (
+                {departments.map(
+                  (department) => (
                     <option
-                      key={
-                        unit.id
-                      }
-                      value={
-                        unit.id
-                      }
+                      key={department.id}
+                      value={department.id}
                     >
-                      {unit.code} -{" "}
-                      {unit.name}
+                      {department.code} -{" "}
+                      {department.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="sector-filter"
+              >
+                Setor
+              </label>
+
+              <select
+                id="sector-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={selectedSectorId}
+                disabled={!selectedDepartmentId}
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
+
+                  updateFilter(
+                    "unitId",
+                    value ||
+                    selectedDepartmentId,
+                  );
+                }}
+              >
+                <option value="">
+                  {!selectedDepartmentId
+                    ? "Selecione primeiro o departamento"
+                    : "Todos os setores"}
+                </option>
+
+                {sectors.map(
+                  (sector) => (
+                    <option
+                      key={sector.id}
+                      value={sector.id}
+                    >
+                      {sector.code} -{" "}
+                      {sector.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="subsector-filter"
+              >
+                Subsetor
+              </label>
+
+              <select
+                id="subsector-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={selectedSubsectorId}
+                disabled={
+                  !selectedSectorId ||
+                  subsectors.length === 0
+                }
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
+
+                  updateFilter(
+                    "unitId",
+                    value ||
+                    selectedSectorId,
+                  );
+                }}
+              >
+                <option value="">
+                  {!selectedSectorId
+                    ? "Selecione primeiro o setor"
+                    : subsectors.length === 0
+                      ? "Este setor não possui subsetores"
+                      : "Todos os subsetores"}
+                </option>
+
+                {subsectors.map(
+                  (subsector) => (
+                    <option
+                      key={subsector.id}
+                      value={subsector.id}
+                    >
+                      {subsector.code} -{" "}
+                      {subsector.name}
                     </option>
                   ),
                 )}
@@ -645,7 +788,7 @@ const loadData =
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-             {total} bem(ns) encontrado(s).
+              {total} bem(ns) encontrado(s).
             </p>
           </div>
 
@@ -661,7 +804,9 @@ const loadData =
               variant="secondary"
             >
               {selectedUnit
-                ? selectedUnit.code
+                ? getAssetLocation(
+                  selectedUnit.id,
+                )
                 : selectedConservationStatus
                   ? selectedConservationStatus
                   : selectedStatusLabel}
@@ -755,9 +900,9 @@ const loadData =
                           )
                         }
                       > */}
-                        Localização
+                      Localização
 
-                        {/* {sortBy ===
+                      {/* {sortBy ===
                           "unit"
                           ? sortDirection ===
                             "asc"
@@ -816,7 +961,7 @@ const loadData =
                 </thead>
 
                 <tbody>
-                 {assets.map(
+                  {assets.map(
                     (asset) => {
                       const unit =
                         asset.unitId
@@ -831,7 +976,7 @@ const loadData =
                             asset.id
                           }
                         >
-              
+
                           <TableCell>
                             <Link
                               className="font-semibold underline-offset-4 hover:underline"
@@ -853,11 +998,6 @@ const loadData =
                               asset.unitId,
                             )}
                           </TableCell>
-
-                          {/* <TableCell>
-                            {asset.room ??
-                              "—"}
-                          </TableCell> */}
 
                           <TableCell>
                             {formatBrandModel(
@@ -911,75 +1051,75 @@ const loadData =
               </Table>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-  <div className="text-sm text-[var(--text-muted)]">
-    Página{" "}
-    {currentPage} de{" "}
-    {totalPages}
-    {" · "}
-    {total} bem(ns)
-  </div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  Página{" "}
+                  {currentPage} de{" "}
+                  {totalPages}
+                  {" · "}
+                  {total} bem(ns)
+                </div>
 
-  <div className="flex flex-wrap items-center gap-2">
-    <select
-      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
-      value={
-        String(
-          currentPageSize,
-        )
-      }
-      onChange={(
-        event,
-      ) =>
-        changePageSize(
-          event.target.value,
-        )
-      }
-    >
-      <option value="10">
-        10 por página
-      </option>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+                    value={
+                      String(
+                        currentPageSize,
+                      )
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      changePageSize(
+                        event.target.value,
+                      )
+                    }
+                  >
+                    <option value="10">
+                      10 por página
+                    </option>
 
-      <option value="20">
-        20 por página
-      </option>
+                    <option value="20">
+                      20 por página
+                    </option>
 
-      <option value="50">
-        50 por página
-      </option>
-    </select>
+                    <option value="50">
+                      50 por página
+                    </option>
+                  </select>
 
-    <Button
-      type="button"
-      variant="secondary"
-      disabled={
-        currentPage <= 1
-      }
-      onClick={() =>
-        changePage(
-          currentPage - 1,
-        )
-      }
-    >
-      Anterior
-    </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      currentPage <= 1
+                    }
+                    onClick={() =>
+                      changePage(
+                        currentPage - 1,
+                      )
+                    }
+                  >
+                    Anterior
+                  </Button>
 
-    <Button
-      type="button"
-      variant="secondary"
-      disabled={
-        currentPage >=
-        totalPages
-      }
-      onClick={() =>
-        changePage(
-          currentPage + 1,
-        )
-      }
-    >
-      Próxima
-    </Button>
-  </div>
-</div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      currentPage >=
+                      totalPages
+                    }
+                    onClick={() =>
+                      changePage(
+                        currentPage + 1,
+                      )
+                    }
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
 
             </div>
           )}
