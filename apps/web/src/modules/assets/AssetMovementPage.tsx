@@ -216,7 +216,10 @@ export function AssetMovementPage() {
     return;
   }
 
-  if (!selectedSubsectorId) {
+  if (
+    sectorHasSubsectors &&
+    !selectedSubsectorId
+  ) {
     setError(
       "Selecione o subsetor de destino.",
     );
@@ -225,15 +228,16 @@ export function AssetMovementPage() {
   }
 
   if (
-  selectedSubsectorId ===
-  asset.unitId
-) {
-  setError(
-    "A nova localização deve ser diferente da localização atual.",
-  );
+    destinationUnitId ===
+    asset.unitId
+  ) {
+    setError(
+      "A nova localização deve ser diferente da localização atual.",
+    );
 
-  return;
-}
+    return;
+  } 
+
 
     const formData =
       new FormData(
@@ -266,7 +270,7 @@ export function AssetMovementPage() {
 
           body: json({
             toUnitId:
-            selectedSubsectorId,
+            destinationUnitId,
 
             movementDate,
 
@@ -354,70 +358,78 @@ export function AssetMovementPage() {
 
 
 
-const currentDepartment =
-  currentUnit?.type === "department"
-    ? currentUnit
-    : currentUnit?.type === "sector" &&
-        currentUnit.parentId
-      ? unitsById.get(
-          currentUnit.parentId,
-        ) ?? null
-      : currentUnit?.type === "subsector"
-        ? (() => {
-            const sector =
-              currentUnit.parentId
+  const currentDepartment =
+    currentUnit?.type === "department"
+      ? currentUnit
+      : currentUnit?.type === "sector" &&
+          currentUnit.parentId
+        ? unitsById.get(
+            currentUnit.parentId,
+          ) ?? null
+        : currentUnit?.type === "subsector"
+          ? (() => {
+              const sector =
+                currentUnit.parentId
+                  ? unitsById.get(
+                      currentUnit.parentId,
+                    ) ?? null
+                  : null;
+
+              return sector?.parentId
                 ? unitsById.get(
-                    currentUnit.parentId,
+                    sector.parentId,
                   ) ?? null
                 : null;
+            })()
+          : null;
 
-            return sector?.parentId
-              ? unitsById.get(
-                  sector.parentId,
-                ) ?? null
-              : null;
-          })()
+  const currentSector =
+    currentUnit?.type === "sector"
+      ? currentUnit
+      : currentUnit?.type === "subsector" &&
+          currentUnit.parentId
+        ? unitsById.get(
+            currentUnit.parentId,
+          ) ?? null
         : null;
 
-const currentSector =
-  currentUnit?.type === "sector"
-    ? currentUnit
-    : currentUnit?.type === "subsector" &&
-        currentUnit.parentId
-      ? unitsById.get(
-          currentUnit.parentId,
-        ) ?? null
+  const currentSubsector =
+    currentUnit?.type === "subsector"
+      ? currentUnit
       : null;
 
-const currentSubsector =
-  currentUnit?.type === "subsector"
-    ? currentUnit
-    : null;
+  const departments =
+    units.filter(
+      (unit) =>
+        unit.type === "department" &&
+        unit.active,
+    );
 
-const departments =
-  units.filter(
-    (unit) =>
-      unit.type === "department" &&
-      unit.active,
-  );
+  const sectors =
+    units.filter(
+      (unit) =>
+        unit.type === "sector" &&
+        unit.active &&
+        unit.parentId ===
+          selectedDepartmentId,
+    );
 
-const sectors =
-  units.filter(
-    (unit) =>
-      unit.type === "sector" &&
-      unit.active &&
-      unit.parentId ===
-        selectedDepartmentId,
-  );
+  const subsectors =
+    units.filter(
+      (unit) =>
+        unit.type === "subsector" &&
+        unit.active &&
+        unit.parentId ===
+          selectedSectorId,
+    );
 
-const subsectors =
-  units.filter(
-    (unit) =>
-      unit.type === "subsector" &&
-      unit.active &&
-      unit.parentId ===
-        selectedSectorId,
-  );
+  const sectorHasSubsectors =
+  subsectors.length > 0;
+
+  const destinationUnitId =
+  sectorHasSubsectors
+    ? selectedSubsectorId
+    : selectedSectorId;
 
   return (
     <div className="space-y-6">
@@ -609,14 +621,21 @@ const subsectors =
           event.target.value,
         )
       }
-      disabled={!selectedSectorId}
+      disabled={
+        !selectedSectorId ||
+        !sectorHasSubsectors
+      }
       className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-      required
+      required={
+        sectorHasSubsectors
+      }
     >
       <option value="">
         {!selectedSectorId
           ? "Selecione primeiro o setor"
-          : "Selecione um subsetor"}
+          : sectorHasSubsectors
+            ? "Selecione um subsetor"
+            : "Este setor não possui subsetores"}
       </option>
 
       {subsectors.map(
@@ -632,6 +651,7 @@ const subsectors =
       )}
     </select>
   </FormField>
+
 </div>
 
 <div className="grid gap-4 sm:grid-cols-2">
