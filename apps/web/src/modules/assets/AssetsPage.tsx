@@ -577,10 +577,10 @@ export function AssetsPage() {
                   Bens por setor
                 </h2>
 
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Distribuição dos bens
-                  por unidade
-                </p>
+               <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Distribuição dos bens por setor,
+                incluindo seus subsetores
+              </p>
               </div>
             </CardHeader>
 
@@ -622,7 +622,7 @@ export function AssetsPage() {
                             <p className="truncate text-sm font-bold">
                               {unit.code ||
                                 unit.name ||
-                                "Setor"}
+                                "Unidade"}
                             </p>
 
                             {unit.code &&
@@ -661,8 +661,7 @@ export function AssetsPage() {
                 </div>
               ) : (
                 <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhum bem vinculado
-                  a setor.
+                 Nenhum bem vinculado à estrutura organizacional.
                 </p>
               )}
             </CardContent>
@@ -936,9 +935,9 @@ export function AssetsPage() {
                   Movimentações recentes
                 </h2>
 
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Últimas transferências entre setores
-                </p>
+               <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Últimas transferências entre unidades organizacionais
+              </p>
               </div>
             </CardHeader>
 
@@ -972,15 +971,13 @@ export function AssetsPage() {
                               "Sem patrimônio"}
                           </p>
 
-                          <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-                            {movement.fromUnit?.code ||
-                              "Sem setor"}
+                          {movement.fromUnit?.code ||
+                            "Sem localização"}
 
-                            {" → "}
+                          {" → "}
 
-                            {movement.toUnit?.code ||
-                              "Sem setor"}
-                          </p>
+                          {movement.toUnit?.code ||
+                            "Sem localização"}
                         </div>
 
                         <div className="flex shrink-0 items-center gap-2">

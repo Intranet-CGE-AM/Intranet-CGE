@@ -308,19 +308,25 @@ async list(
       .from(assets),
 
     this.db
-      .select({
-        id:
-          organizationUnits.id,
+    .select({
+      id:
+        organizationUnits.id,
 
-        code:
-          organizationUnits.code,
+      code:
+        organizationUnits.code,
 
-        name:
-          organizationUnits.name,
-      })
-      .from(
-        organizationUnits,
-      ),
+      name:
+        organizationUnits.name,
+
+      type:
+        organizationUnits.type,
+
+      parentId:
+        organizationUnits.parentId,
+    })
+    .from(
+      organizationUnits,
+    ),
 
     this.db
       .select({
@@ -463,60 +469,78 @@ async list(
    * Bens por setor
    */
 
-  const unitTotals =
-    new Map<
-      string,
-      number
-    >();
+const unitTotals =
+  new Map<
+    string,
+    number
+  >();
 
-  for (
-    const asset of assetRows
-  ) {
-    if (!asset.unitId) {
-      continue;
-    }
-
-    unitTotals.set(
-      asset.unitId,
-      (
-        unitTotals.get(
-          asset.unitId,
-        ) ?? 0
-      ) + 1,
-    );
+for (
+  const asset of assetRows
+) {
+  if (!asset.unitId) {
+    continue;
   }
 
-  const byUnit =
-    Array.from(
-      unitTotals.entries(),
-    )
-      .map(
-        ([
-          unitId,
-          total,
-        ]) => {
-          const unit =
-            unitById.get(
-              unitId,
-            );
+  const unit =
+    unitById.get(
+      asset.unitId,
+    );
 
-          return {
+  if (!unit) {
+    continue;
+  }
+
+  const sectorId =
+    unit.type === "subsector" &&
+    unit.parentId
+      ? unit.parentId
+      : unit.id;
+
+  unitTotals.set(
+    sectorId,
+    (
+      unitTotals.get(
+        sectorId,
+      ) ?? 0
+    ) + 1,
+  );
+}
+
+const byUnit =
+  Array.from(
+    unitTotals.entries(),
+  )
+    .map(
+      ([
+        unitId,
+        total,
+      ]) => {
+        const unit =
+          unitById.get(
             unitId,
-            code:
-              unit?.code ??
-              null,
-            name:
-              unit?.name ??
-              null,
-            total,
-          };
-        },
-      )
-      .sort(
-        (a, b) =>
-          b.total -
-          a.total,
-      );
+          );
+
+        return {
+          unitId,
+
+          code:
+            unit?.code ??
+            null,
+
+          name:
+            unit?.name ??
+            null,
+
+          total,
+        };
+      },
+    )
+    .sort(
+      (a, b) =>
+        b.total -
+        a.total,
+    );
 
   /*
    * Estado de conservação
