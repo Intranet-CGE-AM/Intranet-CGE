@@ -767,10 +767,6 @@ const loadData =
                       </button> */}
                     </TableHead>
 
-                    {/* <TableHead>
-                      Sala
-                    </TableHead> */}
-
                     <TableHead>
                       Marca / Modelo
                     </TableHead>
@@ -835,13 +831,7 @@ const loadData =
                             asset.id
                           }
                         >
-                          {/* <TableCell>
-                            <strong>
-                              {
-                                asset.patrimonyNumber
-                              }
-                            </strong>
-                          </TableCell> */}
+              
                           <TableCell>
                             <Link
                               className="font-semibold underline-offset-4 hover:underline"
