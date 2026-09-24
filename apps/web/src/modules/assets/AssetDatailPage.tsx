@@ -35,8 +35,6 @@ import {
 } from "../../lib/api";
 
 
-
-
 type OrganizationUnitType =
   | "department"
   | "sector"
@@ -89,14 +87,6 @@ export function AssetDetailPage() {
   ] = useState<Asset | null>(
     null,
   );
-
-  // const [
-  //   unit,
-  //   setUnit,
-  // ] =
-  //   useState<OrganizationUnit | null>(
-  //     null,
-  //   );
 
   const [
     loading,
@@ -204,19 +194,6 @@ export function AssetDetailPage() {
         );
       }
 
-
-      // const foundUnit =
-      //   assetResult.unitId
-      //     ? unitsResult.units.find(
-      //         (item) =>
-      //           item.id ===
-      //           assetResult.unitId,
-      //       ) ?? null
-      //     : null;
-
-      // setUnit(
-      //   foundUnit,
-      // );
     } catch (cause) {
       if (
         cause instanceof
@@ -470,62 +447,6 @@ const unitsById =
           Voltar
         </Link>
       </Button>
-    {/* <Button asChild>
-      <Link
-        to={`/patrimonio/bens/${asset.id}/editar`}
-      >
-        <PencilSimple size={18} />
-
-        Editar
-      </Link>
-    </Button>
-
- 
-      <Button
-    asChild
-    variant="secondary"
-  >
-    <Link
-      to={`/patrimonio/bens/${asset.id}/movimentar`}
-    >
-      <ArrowsLeftRight
-        size={18}
-      />
-
-      Movimentar
-    </Link>
-  </Button>
-
- 
-      {asset.status !==
-    "disposed" ? (
-      <Button
-        asChild
-        variant="danger"
-      >
-        <Link
-          to={`/patrimonio/bens/${asset.id}/baixa`}
-        >
-          <TrashSimple
-            size={18}
-          />
-
-          Baixar
-        </Link>
-      </Button>
-    ) : null}
-
- 
-        <Button
-          asChild
-          variant="secondary"
-        >
-          <Link to="/patrimonio/bens">
-            <ArrowLeft size={18} />
-
-            Voltar
-          </Link>
-        </Button> */}
         
       </div>
     </div>

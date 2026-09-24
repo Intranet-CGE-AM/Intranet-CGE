@@ -36,10 +36,16 @@ import {
   json,
 } from "../../lib/api";
 
+type OrganizationUnitType =
+  | "department"
+  | "sector"
+  | "subsector";
+
 type OrganizationUnit = {
   id: string;
   code: string;
   name: string;
+  type: OrganizationUnitType | null;
   parentId: string | null;
   active: boolean;
 };
@@ -71,8 +77,18 @@ export function AssetMovementPage() {
   >([]);
 
   const [
-    toUnitId,
-    setToUnitId,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+  ] = useState("");
+
+  const [
+    selectedSectorId,
+    setSelectedSectorId,
+  ] = useState("");
+
+  const [
+    selectedSubsectorId,
+    setSelectedSubsectorId,
   ] = useState("");
 
   const [
@@ -152,13 +168,8 @@ export function AssetMovementPage() {
         );
 
         setUnits(
-        unitsResult.units.filter(
-          (unit) =>
-            unit.active &&
-            unit.id !==
-              assetResult.unitId,
-        ),
-      );
+        unitsResult.units
+        );
     } catch (cause) {
       if (
         cause instanceof
@@ -189,13 +200,40 @@ export function AssetMovementPage() {
       return;
     }
 
-    if (!toUnitId) {
-      setError(
-        "Selecione o setor de destino.",
-      );
+  if (!selectedDepartmentId) {
+    setError(
+      "Selecione o departamento de destino.",
+    );
 
-      return;
-    }
+    return;
+  }
+
+  if (!selectedSectorId) {
+    setError(
+      "Selecione o setor de destino.",
+    );
+
+    return;
+  }
+
+  if (!selectedSubsectorId) {
+    setError(
+      "Selecione o subsetor de destino.",
+    );
+
+    return;
+  }
+
+  if (
+  selectedSubsectorId ===
+  asset.unitId
+) {
+  setError(
+    "A nova localização deve ser diferente da localização atual.",
+  );
+
+  return;
+}
 
     const formData =
       new FormData(
@@ -227,7 +265,8 @@ export function AssetMovementPage() {
           method: "POST",
 
           body: json({
-            toUnitId,
+            toUnitId:
+            selectedSubsectorId,
 
             movementDate,
 
@@ -303,6 +342,82 @@ export function AssetMovementPage() {
     return null;
   }
 
+  const unitsById =
+  new Map(
+    units.map(
+      (unit) => [
+        unit.id,
+        unit,
+      ],
+    ),
+  );
+
+
+
+const currentDepartment =
+  currentUnit?.type === "department"
+    ? currentUnit
+    : currentUnit?.type === "sector" &&
+        currentUnit.parentId
+      ? unitsById.get(
+          currentUnit.parentId,
+        ) ?? null
+      : currentUnit?.type === "subsector"
+        ? (() => {
+            const sector =
+              currentUnit.parentId
+                ? unitsById.get(
+                    currentUnit.parentId,
+                  ) ?? null
+                : null;
+
+            return sector?.parentId
+              ? unitsById.get(
+                  sector.parentId,
+                ) ?? null
+              : null;
+          })()
+        : null;
+
+const currentSector =
+  currentUnit?.type === "sector"
+    ? currentUnit
+    : currentUnit?.type === "subsector" &&
+        currentUnit.parentId
+      ? unitsById.get(
+          currentUnit.parentId,
+        ) ?? null
+      : null;
+
+const currentSubsector =
+  currentUnit?.type === "subsector"
+    ? currentUnit
+    : null;
+
+const departments =
+  units.filter(
+    (unit) =>
+      unit.type === "department" &&
+      unit.active,
+  );
+
+const sectors =
+  units.filter(
+    (unit) =>
+      unit.type === "sector" &&
+      unit.active &&
+      unit.parentId ===
+        selectedDepartmentId,
+  );
+
+const subsectors =
+  units.filter(
+    (unit) =>
+      unit.type === "subsector" &&
+      unit.active &&
+      unit.parentId ===
+        selectedSectorId,
+  );
 
   return (
     <div className="space-y-6">
@@ -347,13 +462,11 @@ export function AssetMovementPage() {
         <CardHeader>
           <div>
             <h2 className="font-medium">
-              Transferência entre setores
+              Transferência entre unidades organizacionais
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Informe o novo setor
-              onde o bem ficará
-              localizado.
+              Informe a nova localização do bem.
             </p>
           </div>
         </CardHeader>
@@ -365,100 +478,191 @@ export function AssetMovementPage() {
               handleSubmit
             }
           >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                label="Setor atual"
-                htmlFor="currentUnit"
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField
+              label="Departamento atual"
+              htmlFor="currentDepartment"
+            >
+              <div
+                id="currentDepartment"
+                className="flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm"
               >
-                <div
-                  id="currentUnit"
-                  className="flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm"
-                >
-                  {currentUnit
-                    ? `${currentUnit.code} - ${currentUnit.name}`
-                    : "Não informado"}
-                </div>
-              </FormField>
-
-              <FormField
-                label="Novo setor"
-                htmlFor="toUnitId"
-              >
-                <select
-                  id="toUnitId"
-                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                  value={
-                    toUnitId
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setToUnitId(
-                      event.target
-                        .value,
-                    )
-                  }
-                >
-                  <option value="">
-                    Selecione...
-                  </option>
-
-                  {units.map(
-                    (unit) => (
-                      <option
-                        key={
-                          unit.id
-                        }
-                        value={
-                          unit.id
-                        }
-                      >
-                        {
-                          unit.code
-                        }{" "}
-                        -{" "}
-                        {
-                          unit.name
-                        }
-                      </option>
-                    ),
-                  )}
-                </select>
-              </FormField>
-
-              <FormField
-                label="Data da movimentação"
-                htmlFor="movementDate"
-              >
-                <DatePicker
-                  id="movementDate"
-                  name="movementDate"
-                />
-              </FormField>
-
-              <div className="sm:col-span-2">
-                <FormField
-                  label="Observação"
-                  htmlFor="notes"
-                >
-                  <Textarea
-                    id="notes"
-                    value={
-                      notes
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setNotes(
-                        event.target
-                          .value,
-                      )
-                    }
-                    placeholder="Ex.: Transferência para utilização pelo setor..."
-                  />
-                </FormField>
+                {currentDepartment
+                  ? `${currentDepartment.code} - ${currentDepartment.name}`
+                  : "Não informado"}
               </div>
-            </div>
+            </FormField>
+
+            <FormField
+              label="Setor atual"
+              htmlFor="currentSector"
+            >
+              <div
+                id="currentSector"
+                className="flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm"
+              >
+                {currentSector
+                  ? `${currentSector.code} - ${currentSector.name}`
+                  : "Não informado"}
+              </div>
+            </FormField>
+
+            <FormField
+              label="Subsetor atual"
+              htmlFor="currentSubsector"
+            >
+              <div
+                id="currentSubsector"
+                className="flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm"
+              >
+                {currentSubsector
+                  ? `${currentSubsector.code} - ${currentSubsector.name}`
+                  : "Não informado"}
+              </div>
+            </FormField>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+  <FormField
+    label="Novo departamento"
+    htmlFor="departmentId"
+  >
+    <select
+      id="departmentId"
+      value={selectedDepartmentId}
+      onChange={(event) => {
+        setSelectedDepartmentId(
+          event.target.value,
+        );
+
+        setSelectedSectorId("");
+        setSelectedSubsectorId("");
+      }}
+      className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+      required
+    >
+      <option value="">
+        Selecione um departamento
+      </option>
+
+      {departments.map(
+        (department) => (
+          <option
+            key={department.id}
+            value={department.id}
+          >
+            {department.code} -{" "}
+            {department.name}
+          </option>
+        ),
+      )}
+    </select>
+  </FormField>
+
+  <FormField
+    label="Novo setor"
+    htmlFor="sectorId"
+  >
+    <select
+      id="sectorId"
+      value={selectedSectorId}
+      onChange={(event) => {
+        setSelectedSectorId(
+          event.target.value,
+        );
+
+        setSelectedSubsectorId("");
+      }}
+      disabled={!selectedDepartmentId}
+      className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+      required
+    >
+      <option value="">
+        {!selectedDepartmentId
+          ? "Selecione primeiro o departamento"
+          : "Selecione um setor"}
+      </option>
+
+      {sectors.map(
+        (sector) => (
+          <option
+            key={sector.id}
+            value={sector.id}
+          >
+            {sector.code} -{" "}
+            {sector.name}
+          </option>
+        ),
+      )}
+    </select>
+  </FormField>
+
+  <FormField
+    label="Novo subsetor"
+    htmlFor="toUnitId"
+  >
+    <select
+      id="toUnitId"
+      value={selectedSubsectorId}
+      onChange={(event) =>
+        setSelectedSubsectorId(
+          event.target.value,
+        )
+      }
+      disabled={!selectedSectorId}
+      className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+      required
+    >
+      <option value="">
+        {!selectedSectorId
+          ? "Selecione primeiro o setor"
+          : "Selecione um subsetor"}
+      </option>
+
+      {subsectors.map(
+        (subsector) => (
+          <option
+            key={subsector.id}
+            value={subsector.id}
+          >
+            {subsector.code} -{" "}
+            {subsector.name}
+          </option>
+        ),
+      )}
+    </select>
+  </FormField>
+</div>
+
+<div className="grid gap-4 sm:grid-cols-2">
+  <FormField
+    label="Data da movimentação"
+    htmlFor="movementDate"
+  >
+    <DatePicker
+      id="movementDate"
+      name="movementDate"
+    />
+  </FormField>
+
+  <div className="sm:col-span-2">
+    <FormField
+      label="Observação"
+      htmlFor="notes"
+    >
+      <Textarea
+        id="notes"
+        value={notes}
+        onChange={(event) =>
+          setNotes(
+            event.target.value,
+          )
+        }
+        placeholder="Ex.: Transferência do bem para nova unidade organizacional..."
+      />
+    </FormField>
+  </div>
+</div>
 
             <div className="flex justify-end gap-2">
               <Button

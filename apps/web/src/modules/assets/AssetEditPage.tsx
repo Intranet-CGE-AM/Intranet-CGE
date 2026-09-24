@@ -38,6 +38,7 @@ import {
   json,
 } from "../../lib/api";
 
+
 export function AssetEditPage() {
   const {
     id,
@@ -52,6 +53,7 @@ export function AssetEditPage() {
   ] = useState<Asset | null>(
     null,
   );
+
 
   const [
     loading,
@@ -93,10 +95,6 @@ export function AssetEditPage() {
     setSerialNumber,
   ] = useState("");
 
-  const [
-    room,
-    setRoom,
-  ] = useState("");
 
   const [
     usageDate,
@@ -198,10 +196,6 @@ export function AssetEditPage() {
         result.serialNumber ?? "",
       );
 
-      setRoom(
-        result.room ?? "",
-      );
-
       setUsageDate(
         result.usageDate ?? "",
       );
@@ -269,30 +263,30 @@ export function AssetEditPage() {
     event.preventDefault();
 
     const formData =
-  new FormData(
-    event.currentTarget,
-  );
+    new FormData(
+      event.currentTarget,
+    );
 
-const submittedUsageDate =
-  String(
-    formData.get(
-      "usageDate",
-    ) ?? "",
-  );
+    const submittedUsageDate =
+      String(
+        formData.get(
+          "usageDate",
+        ) ?? "",
+      );
 
-const submittedAcquisitionDate =
-  String(
-    formData.get(
-      "acquisitionDate",
-    ) ?? "",
-  );
+    const submittedAcquisitionDate =
+      String(
+        formData.get(
+          "acquisitionDate",
+        ) ?? "",
+      );
 
-const submittedDocumentDate =
-  String(
-    formData.get(
-      "documentDate",
-    ) ?? "",
-  );
+    const submittedDocumentDate =
+      String(
+        formData.get(
+          "documentDate",
+        ) ?? "",
+      );
 
     if (!id) {
       return;
@@ -346,6 +340,7 @@ const submittedDocumentDate =
       description:
         description.trim(),
 
+
       brand:
         optionalString(
           brand,
@@ -361,19 +356,14 @@ const submittedDocumentDate =
           serialNumber,
         ),
 
-      room:
-        optionalString(
-          room,
-        ),
-
       usageDate:
         optionalString(
-          usageDate,
+          submittedUsageDate,
         ),
 
       acquisitionDate:
         optionalString(
-          acquisitionDate,
+          submittedAcquisitionDate,
         ),
 
       documentNumber:
@@ -383,7 +373,7 @@ const submittedDocumentDate =
 
       documentDate:
         optionalString(
-          documentDate,
+          submittedDocumentDate,
         ),
 
       acquisitionValue:
@@ -680,25 +670,6 @@ const submittedDocumentDate =
                 </select>
               </FormField>
 
-              <FormField
-                label="Sala"
-                htmlFor="room"
-              >
-                <Input
-                  id="room"
-                  value={
-                    room
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setRoom(
-                      event.target
-                        .value,
-                    )
-                  }
-                />
-              </FormField>
 
               <div className="sm:col-span-2 lg:col-span-3">
                 <FormField
