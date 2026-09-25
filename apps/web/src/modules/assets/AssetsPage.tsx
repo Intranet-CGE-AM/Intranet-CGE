@@ -53,12 +53,14 @@ type DashboardMovement = {
     id: string;
     code: string;
     name: string;
+    path: string | null;
   } | null;
 
   toUnit: {
     id: string;
     code: string;
     name: string;
+    path: string | null;
   } | null;
 };
 
@@ -627,7 +629,7 @@ export function AssetsPage() {
 
                             {unit.code &&
                             unit.name ? (
-                              <p className="mt-0.5 truncate text-xs text-[var(--text-faint)]">
+                              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                                 {unit.name}
                               </p>
                             ) : null}
@@ -971,13 +973,15 @@ export function AssetsPage() {
                               "Sem patrimônio"}
                           </p>
 
-                          {movement.fromUnit?.code ||
-                            "Sem localização"}
+                        {movement.fromUnit?.path ||
+                          movement.fromUnit?.code ||
+                          "Sem localização"}
 
-                          {" → "}
+                        {" → "}
 
-                          {movement.toUnit?.code ||
-                            "Sem localização"}
+                        {movement.toUnit?.path ||
+                          movement.toUnit?.code ||
+                          "Sem localização"}
                         </div>
 
                         <div className="flex shrink-0 items-center gap-2">

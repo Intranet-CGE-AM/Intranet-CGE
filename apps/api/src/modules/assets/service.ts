@@ -465,6 +465,51 @@ async list(
       ),
     );
 
+const formatUnitPath = (
+  unitId: string | null,
+) => {
+  if (!unitId) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  const visited =
+    new Set<string>();
+
+  let current =
+    unitById.get(
+      unitId,
+    );
+
+  while (
+    current &&
+    !visited.has(
+      current.id,
+    )
+  ) {
+    visited.add(
+      current.id,
+    );
+
+    parts.unshift(
+      current.code ??
+        current.name ??
+        "Unidade",
+    );
+
+    current =
+      current.parentId
+        ? unitById.get(
+            current.parentId,
+          )
+        : undefined;
+  }
+
+  return parts.length
+    ? parts.join(" > ")
+    : null;
+};
   /*
    * Bens por setor
    */
@@ -662,18 +707,23 @@ const byUnit =
             movement.movementDate,
 
           fromUnit:
-            fromUnit
-              ? {
-                  id:
+          fromUnit
+            ? {
+                id:
+                  fromUnit.id,
+
+                code:
+                  fromUnit.code,
+
+                name:
+                  fromUnit.name,
+
+                path:
+                  formatUnitPath(
                     fromUnit.id,
-
-                  code:
-                    fromUnit.code,
-
-                  name:
-                    fromUnit.name,
-                }
-              : null,
+                  ),
+              }
+            : null,
 
           toUnit:
             toUnit
@@ -686,6 +736,11 @@ const byUnit =
 
                   name:
                     toUnit.name,
+
+                  path:
+                    formatUnitPath(
+                      toUnit.id,
+                    ),
                 }
               : null,
         };
