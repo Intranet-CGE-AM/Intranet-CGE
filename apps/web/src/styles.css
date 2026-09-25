@@ -4,27 +4,48 @@
 @source "../../../packages/ui/src";
 
 :root {
-  --bg-page: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --border: #E2E8F0;
-  --text-primary: #0F172A;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #0f172a;
   --text-secondary: #475569;
-  --brand: #0F766E;
+  --brand: #0f766e;
   --radius-card: 12px;
   --radius-tag: 6px;
   --radius-pill: 999px;
 
   /* Status */
-  --st-open-bg: #EFF6FF;   --st-open-fg: #1D4ED8;   --st-open-bd: #BFDBFE;   --st-open-dot: #3B82F6;
-  --st-prog-bg: #FFFBEB;   --st-prog-fg: #92400E;   --st-prog-bd: #FDE68A;   --st-prog-dot: #F59E0B;
-  --st-pause-bg: #F1F5F9;  --st-pause-fg: #475569;  --st-pause-bd: #CBD5E1;  --st-pause-dot: #94A3B8;
-  --st-done-bg: #ECFDF5;   --st-done-fg: #047857;   --st-done-bd: #A7F3D0;   --st-done-dot: #10B981;
-  --st-danger-bg: #FEF2F2; --st-danger-fg: #B91C1C; --st-danger-bd: #FECACA; --st-danger-dot: #EF4444;
+  --st-open-bg: #eff6ff;
+  --st-open-fg: #1d4ed8;
+  --st-open-bd: #bfdbfe;
+  --st-open-dot: #3b82f6;
+  --st-prog-bg: #fffbeb;
+  --st-prog-fg: #92400e;
+  --st-prog-bd: #fde68a;
+  --st-prog-dot: #f59e0b;
+  --st-pause-bg: #f1f5f9;
+  --st-pause-fg: #475569;
+  --st-pause-bd: #cbd5e1;
+  --st-pause-dot: #94a3b8;
+  --st-done-bg: #ecfdf5;
+  --st-done-fg: #047857;
+  --st-done-bd: #a7f3d0;
+  --st-done-dot: #10b981;
+  --st-danger-bg: #fef2f2;
+  --st-danger-fg: #b91c1c;
+  --st-danger-bd: #fecaca;
+  --st-danger-dot: #ef4444;
 
   /* Modalidade */
-  --mod-onsite-bg: #F1F5F9; --mod-onsite-fg: #334155; --mod-onsite-bd: #E2E8F0;
-  --mod-remote-bg: #F5F3FF; --mod-remote-fg: #6D28D9; --mod-remote-bd: #DDD6FE;
-  --mod-hybrid-bg: #ECFEFF; --mod-hybrid-fg: #0E7490; --mod-hybrid-bd: #A5F3FC;
+  --mod-onsite-bg: #f1f5f9;
+  --mod-onsite-fg: #334155;
+  --mod-onsite-bd: #e2e8f0;
+  --mod-remote-bg: #f5f3ff;
+  --mod-remote-fg: #6d28d9;
+  --mod-remote-bd: #ddd6fe;
+  --mod-hybrid-bg: #ecfeff;
+  --mod-hybrid-fg: #0e7490;
+  --mod-hybrid-bd: #a5f3fc;
 }
 
 @theme {
@@ -136,7 +157,9 @@
 
 /* Efeito Hover na Linha da Tabela */
 .ticket-row-hover {
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .ticket-row-hover:hover {

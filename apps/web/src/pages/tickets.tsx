@@ -400,7 +400,9 @@ export function TicketsPage() {
                     {analytics.byUnit.map((unit) => (
                       <div key={unit.unitName} className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text-primary)]">{unit.unitName}</span>
+                          <span className="text-[var(--text-primary)]">
+                            {unit.unitName}
+                          </span>
                           <span className="text-[var(--text-secondary)]">
                             {unit.count}
                           </span>
@@ -488,7 +490,12 @@ export function TicketsPage() {
           ) : sortedTickets.length === 0 ? (
             <div className="p-8">
               <EmptyState
-                icon={<Headset size={44} className="mx-auto text-[var(--text-secondary)]" />}
+                icon={
+                  <Headset
+                    size={44}
+                    className="mx-auto text-[var(--text-secondary)]"
+                  />
+                }
                 title={
                   activeTab === "my"
                     ? "Você não possui chamados abertos"
@@ -552,7 +559,10 @@ export function TicketsPage() {
 
                     // Cálculo SLA simples para amostragem/exibição
                     let isSlaBreached = false;
-                    if (t.slaDeadline && !["completed", "cancelled"].includes(t.status)) {
+                    if (
+                      t.slaDeadline &&
+                      !["completed", "cancelled"].includes(t.status)
+                    ) {
                       isSlaBreached = new Date(t.slaDeadline) < new Date();
                     }
 
@@ -582,11 +592,17 @@ export function TicketsPage() {
                               {getInitials(t.requesterName)}
                             </div>
                             <div className="min-w-0">
-                              <div className="truncate text-xs font-medium text-[var(--text-primary)]" title={t.requesterName}>
+                              <div
+                                className="truncate text-xs font-medium text-[var(--text-primary)]"
+                                title={t.requesterName}
+                              >
                                 {t.requesterName}
                               </div>
                               {t.unitName && (
-                                <div className="truncate text-[11px] text-[var(--text-secondary)]" title={t.unitName}>
+                                <div
+                                  className="truncate text-[11px] text-[var(--text-secondary)]"
+                                  title={t.unitName}
+                                >
                                   {t.unitName}
                                 </div>
                               )}
@@ -613,7 +629,10 @@ export function TicketsPage() {
                               className="tag-modalidade"
                               data-modalidade="remote"
                             >
-                              <Desktop className="h-3.5 w-3.5" aria-hidden="true" />
+                              <Desktop
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
                               Remoto
                             </span>
                           ) : (
@@ -621,7 +640,10 @@ export function TicketsPage() {
                               className="tag-modalidade"
                               data-modalidade="onsite"
                             >
-                              <Buildings className="h-3.5 w-3.5" aria-hidden="true" />
+                              <Buildings
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
                               Presencial
                             </span>
                           )}
@@ -655,10 +677,7 @@ export function TicketsPage() {
                               {statusConf.label}
                             </span>
                             {t.approvalStatus === "pending" && (
-                              <span
-                                className="badge-status"
-                                data-status="prog"
-                              >
+                              <span className="badge-status" data-status="prog">
                                 Aguardando Chefia
                               </span>
                             )}
