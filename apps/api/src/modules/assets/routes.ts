@@ -307,7 +307,7 @@ typedApp.patch(
                       "ORGANIZATION_UNIT_NOT_FOUND",
 
                     message:
-                      "Setor de destino não encontrado.",
+                      "Unidade organizacional de destino não encontrada.",
                   });
 
               case "UNIT_INACTIVE":
@@ -318,7 +318,7 @@ typedApp.patch(
                       "ORGANIZATION_UNIT_INACTIVE",
 
                     message:
-                      "O setor de destino está inativo.",
+                      "A unidade organizacional de destino está inativa.",
                   });
 
               case "SAME_UNIT":
@@ -329,7 +329,7 @@ typedApp.patch(
                       "ASSET_ALREADY_IN_UNIT",
 
                     message:
-                      "O bem já está localizado nesse setor.",
+                      "O bem já está localizado nessa unidade organizacional.",
                   });
 
                   case "ASSET_DISPOSED":
