@@ -780,7 +780,7 @@ const unitsById =
                         }
                         className="rounded-md border border-[var(--border)] p-4"
                       >
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-4 lg:grid-cols-[140px_1fr_1fr]">
                           <DetailItem
                             label="Data"
                             value={formatDate(
@@ -788,21 +788,21 @@ const unitsById =
                             )}
                           />
 
-                          <DetailItem
-                            label="Origem"
-                            value={formatUnit(
-                              movement.fromUnitId,
-                              unitsById,
-                            )}
-                          />
+                        <DetailItem
+                          label="Origem"
+                          value={formatUnitPath(
+                            movement.fromUnitId,
+                            unitsById,
+                          )}
+                        />
 
-                          <DetailItem
-                            label="Destino"
-                            value={formatUnit(
-                              movement.toUnitId,
-                              unitsById,
-                            )}
-                          />
+                        <DetailItem
+                          label="Destino"
+                          value={formatUnitPath(
+                            movement.toUnitId,
+                            unitsById,
+                          )}
+                        />
                         </div>
 
                         {movement.notes ? (
@@ -911,25 +911,41 @@ function formatCurrency(
 }
 
 
-function formatUnit(
+function formatUnitPath(
   unitId: string | null,
-  unitsById: Map<
-    string,
-    OrganizationUnit
-  >,
+  unitsById: Map<string, OrganizationUnit>,
 ) {
   if (!unitId) {
     return "Sem localização anterior";
   }
 
-  const unit =
-    unitsById.get(
-      unitId,
+  const parts: string[] = [];
+  const visited = new Set<string>();
+
+  let current =
+    unitsById.get(unitId);
+
+  while (
+    current &&
+    !visited.has(current.id)
+  ) {
+    visited.add(current.id);
+
+    parts.unshift(
+      current.code ||
+        current.name ||
+        "Unidade",
     );
 
-  if (!unit) {
-    return "Unidade organizacional não encontrada";
+    current =
+      current.parentId
+        ? unitsById.get(
+            current.parentId,
+          )
+        : undefined;
   }
 
-  return `${unit.code} - ${unit.name}`;
+  return parts.length
+    ? parts.join(" > ")
+    : "Unidade organizacional não encontrada";
 }
