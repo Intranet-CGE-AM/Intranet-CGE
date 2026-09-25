@@ -9,6 +9,7 @@ coverage/
 .idea/
 *.log
 *.tsbuildinfo
+.idea/
 .DS_Store
 data/
 backups/

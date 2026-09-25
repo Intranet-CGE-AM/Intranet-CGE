@@ -3,6 +3,170 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 
+:root {
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --brand: #0f766e;
+  --radius-card: 12px;
+  --radius-tag: 6px;
+  --radius-pill: 999px;
+
+  /* Status */
+  --st-open-bg: #eff6ff;
+  --st-open-fg: #1d4ed8;
+  --st-open-bd: #bfdbfe;
+  --st-open-dot: #3b82f6;
+  --st-prog-bg: #fffbeb;
+  --st-prog-fg: #92400e;
+  --st-prog-bd: #fde68a;
+  --st-prog-dot: #f59e0b;
+  --st-pause-bg: #f1f5f9;
+  --st-pause-fg: #475569;
+  --st-pause-bd: #cbd5e1;
+  --st-pause-dot: #94a3b8;
+  --st-done-bg: #ecfdf5;
+  --st-done-fg: #047857;
+  --st-done-bd: #a7f3d0;
+  --st-done-dot: #10b981;
+  --st-danger-bg: #fef2f2;
+  --st-danger-fg: #b91c1c;
+  --st-danger-bd: #fecaca;
+  --st-danger-dot: #ef4444;
+
+  /* Modalidade */
+  --mod-onsite-bg: #f1f5f9;
+  --mod-onsite-fg: #334155;
+  --mod-onsite-bd: #e2e8f0;
+  --mod-remote-bg: #f5f3ff;
+  --mod-remote-fg: #6d28d9;
+  --mod-remote-bd: #ddd6fe;
+  --mod-hybrid-bg: #ecfeff;
+  --mod-hybrid-fg: #0e7490;
+  --mod-hybrid-bd: #a5f3fc;
+}
+
+@theme {
+  --color-bg-page: var(--bg-page);
+  --color-bg-card: var(--bg-card);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-brand: var(--brand);
+}
+
+/* Componente Tag Modalidade */
+.tag-modalidade {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-tag);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.tag-modalidade[data-modalidade="onsite"] {
+  background-color: var(--mod-onsite-bg);
+  color: var(--mod-onsite-fg);
+  border-color: var(--mod-onsite-bd);
+}
+
+.tag-modalidade[data-modalidade="remote"] {
+  background-color: var(--mod-remote-bg);
+  color: var(--mod-remote-fg);
+  border-color: var(--mod-remote-bd);
+}
+
+.tag-modalidade[data-modalidade="hybrid"] {
+  background-color: var(--mod-hybrid-bg);
+  color: var(--mod-hybrid-fg);
+  border-color: var(--mod-hybrid-bd);
+}
+
+/* Componente Badge Status */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.badge-status::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.badge-status[data-status="open"] {
+  background-color: var(--st-open-bg);
+  color: var(--st-open-fg);
+  border-color: var(--st-open-bd);
+}
+.badge-status[data-status="open"]::before {
+  background-color: var(--st-open-dot);
+}
+
+.badge-status[data-status="prog"] {
+  background-color: var(--st-prog-bg);
+  color: var(--st-prog-fg);
+  border-color: var(--st-prog-bd);
+}
+.badge-status[data-status="prog"]::before {
+  background-color: var(--st-prog-dot);
+}
+
+.badge-status[data-status="pause"] {
+  background-color: var(--st-pause-bg);
+  color: var(--st-pause-fg);
+  border-color: var(--st-pause-bd);
+}
+.badge-status[data-status="pause"]::before {
+  background-color: var(--st-pause-dot);
+}
+
+.badge-status[data-status="done"] {
+  background-color: var(--st-done-bg);
+  color: var(--st-done-fg);
+  border-color: var(--st-done-bd);
+}
+.badge-status[data-status="done"]::before {
+  background-color: var(--st-done-dot);
+}
+
+.badge-status[data-status="danger"] {
+  background-color: var(--st-danger-bg);
+  color: var(--st-danger-fg);
+  border-color: var(--st-danger-bd);
+}
+.badge-status[data-status="danger"]::before {
+  background-color: var(--st-danger-dot);
+}
+
+/* Efeito Hover na Linha da Tabela */
+.ticket-row-hover {
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.ticket-row-hover:hover {
+  background-color: var(--bg-page);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
 .auth-grid {
   background-image:
     linear-gradient(rgb(255 255 255 / 5%) 1px, transparent 1px),
