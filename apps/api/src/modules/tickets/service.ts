@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import {
+  ticketStatusLabels,
   type TechnicalArea,
   type TicketAnalyticsSummary,
   type TicketApprovalDecisionInput,
@@ -55,6 +56,13 @@ export class TicketError extends Error {
   ) {
     super(message);
   }
+}
+
+export function transitionNote(toStatus: TicketStatus, note?: string | null) {
+  return (
+    note?.trim() ||
+    `Status alterado para ${ticketStatusLabels[toStatus].toLocaleLowerCase("pt-BR")}.`
+  );
 }
 
 // Matriz de transições permitidas para técnicos
@@ -1127,7 +1135,7 @@ export class TicketService {
       throw new TicketError(
         400,
         "INVALID_TRANSITION",
-        `Transição não permitida: ${ticket.status} → ${input.toStatus}`,
+        `Transição não permitida: ${ticketStatusLabels[ticket.status]} → ${ticketStatusLabels[input.toStatus]}.`,
       );
     }
 
@@ -1174,7 +1182,7 @@ export class TicketService {
         actorAccountId,
         fromStatus: ticket.status,
         toStatus: input.toStatus,
-        note: input.note?.trim() || `Status alterado para ${input.toStatus}.`,
+        note: transitionNote(input.toStatus, input.note),
       });
     });
 

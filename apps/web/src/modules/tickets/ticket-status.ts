@@ -1,20 +1,24 @@
-import type { TicketStatus } from "@cge/contracts";
+import { ticketStatusLabels, type TicketStatus } from "@cge/contracts";
 
 type BadgeVariant = "neutral" | "success" | "warning" | "danger" | "brand";
 
-export const TICKET_STATUS: Record<
-  TicketStatus,
-  { label: string; variant: BadgeVariant }
-> = {
-  open: { label: "Aberto", variant: "brand" },
-  viewed: { label: "Visualizado", variant: "brand" },
-  en_route: { label: "A caminho", variant: "warning" },
-  in_service: { label: "Em atendimento", variant: "warning" },
-  paused: { label: "Pausado", variant: "neutral" },
-  maintenance: { label: "Manutenção externa", variant: "neutral" },
-  completed: { label: "Concluído", variant: "success" },
-  cancelled: { label: "Cancelado", variant: "danger" },
+const STATUS_VARIANTS: Record<TicketStatus, BadgeVariant> = {
+  open: "brand",
+  viewed: "brand",
+  en_route: "warning",
+  in_service: "warning",
+  paused: "neutral",
+  maintenance: "neutral",
+  completed: "success",
+  cancelled: "danger",
 };
+
+export const TICKET_STATUS = Object.fromEntries(
+  Object.entries(STATUS_VARIANTS).map(([status, variant]) => [
+    status,
+    { label: ticketStatusLabels[status as TicketStatus], variant },
+  ]),
+) as Record<TicketStatus, { label: string; variant: BadgeVariant }>;
 
 export function ticketStatus(status: string) {
   return (

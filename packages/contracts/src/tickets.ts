@@ -14,6 +14,17 @@ export const ticketStatusKeys = [
 export const ticketStatusSchema = z.enum(ticketStatusKeys);
 export type TicketStatus = z.infer<typeof ticketStatusSchema>;
 
+export const ticketStatusLabels: Record<TicketStatus, string> = {
+  open: "Aberto",
+  viewed: "Visualizado",
+  en_route: "A caminho",
+  in_service: "Em atendimento",
+  paused: "Pausado",
+  maintenance: "Manutenção externa",
+  completed: "Concluído",
+  cancelled: "Cancelado",
+};
+
 export const ticketPriorityKeys = ["low", "medium", "high", "urgent"] as const;
 export const ticketPrioritySchema = z.enum(ticketPriorityKeys);
 export type TicketPriority = z.infer<typeof ticketPrioritySchema>;
