@@ -26,6 +26,7 @@ import { useAuth } from "../auth";
 
 import { VisitStats } from "../components/visit-ui";
 import { api } from "../lib/api";
+import { manausGreeting } from "../lib/dates";
 import {
   formatVisitTime,
   visitErrorMessage,
@@ -91,7 +92,7 @@ export function VisitsPage() {
           </p>
 
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
-            {greeting()}, {firstName}
+            {manausGreeting()}, {firstName}
           </h1>
 
           <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -437,15 +438,4 @@ function formatDate(value: string) {
     day: "2-digit",
     month: "2-digit",
   }).format(date);
-}
-
-function greeting() {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: "America/Manaus",
-    }).format(new Date()),
-  );
-  return hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 }

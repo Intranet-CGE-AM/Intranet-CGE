@@ -15,6 +15,7 @@ import {
   availableSystemNavigation,
   canNavigate,
 } from "../navigation";
+import { manausGreeting } from "../lib/dates";
 
 const today = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -54,7 +55,7 @@ export function HubPage() {
           {today.format(new Date())} · Manaus
         </p>
         <h1 className="mt-2 text-[32px] font-extrabold leading-tight tracking-[-0.045em] sm:text-[38px]">
-          Bom dia, {firstName}
+          {manausGreeting()}, {firstName}
         </h1>
       </header>
 

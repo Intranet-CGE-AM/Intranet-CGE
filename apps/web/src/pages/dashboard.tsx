@@ -28,6 +28,7 @@ import { api, ApiError } from "../lib/api";
 import { can } from "../lib/permissions";
 import { InboxPanel } from "./inbox";
 import { CommunicationsPanel } from "./communications";
+import { manausGreeting } from "../lib/dates";
 
 const status: Record<
   VacationRequest["status"],
@@ -156,7 +157,7 @@ export function DashboardPage() {
             Recursos Humanos
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-            Bom dia, {firstName}
+            {manausGreeting()}, {firstName}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             Pessoas, solicitações e datas importantes do seu escopo.
