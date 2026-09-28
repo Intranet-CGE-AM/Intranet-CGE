@@ -333,7 +333,8 @@ export function TicketsPage() {
                       {analytics.completed}
                     </p>
                     <p className="mt-2 text-xs text-[var(--text-muted)]">
-                      {analytics.cancelled} cancelados
+                      {analytics.cancelled}{" "}
+                      {analytics.cancelled === 1 ? "cancelado" : "cancelados"}
                     </p>
                   </CardContent>
                 </Card>
@@ -358,7 +359,9 @@ export function TicketsPage() {
                       <Star aria-hidden="true" size={24} weight="fill" />
                     </p>
                     <p className="mt-2 text-xs text-[var(--text-muted)]">
-                      {analytics.totalFeedbacks} avaliações registradas
+                      {analytics.totalFeedbacks === 1
+                        ? "1 avaliação registrada"
+                        : `${analytics.totalFeedbacks} avaliações registradas`}
                     </p>
                   </CardContent>
                 </Card>

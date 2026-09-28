@@ -342,7 +342,9 @@ export function NewTicketPage() {
                 {cat.code === "REMOTE"
                   ? "Conexão remota imediata via AnyDesk na sua estação de trabalho"
                   : cat.subcategories.length > 0
-                    ? `${cat.subcategories.length} opções de atendimento disponíveis`
+                    ? cat.subcategories.length === 1
+                      ? "1 opção de atendimento disponível"
+                      : `${cat.subcategories.length} opções de atendimento disponíveis`
                     : "Suporte geral para este serviço"}
               </p>
             </button>
