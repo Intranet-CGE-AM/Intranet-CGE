@@ -1,6 +1,4 @@
-import type {
-  AuthenticatedUser,
-} from "@cge/contracts";
+import type { AuthenticatedUser } from "@cge/contracts";
 
 import {
   CalendarDots,
@@ -16,12 +14,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 
-import {
-  canAccess,
-  type AccessRule,
-} from "./lib/permissions";
-
-
+import { canAccess, type AccessRule } from "./lib/permissions";
 
 export type NavigationItem = {
   label: string;
@@ -32,58 +25,42 @@ export type NavigationItem = {
 
   end?: boolean;
 
-  access:
-    AccessRule;
+  access: AccessRule;
 };
 
-export type ModuleNavigation =
-  NavigationItem & {
-    id: string;
+export type ModuleNavigation = NavigationItem & {
+  id: string;
 
-    description:
-      string;
+  description: string;
 
-    routes:
-      NavigationItem[];
-  };
+  routes: NavigationItem[];
+};
 
-export const homeNavigation:
-  NavigationItem = {
+export const homeNavigation: NavigationItem = {
   access: {
     anyOf: [],
   },
 
-  label:
-    "Início",
+  label: "Início",
 
-  href:
-    "/",
+  href: "/",
 
-  icon:
-    SquaresFour,
+  icon: SquaresFour,
 
-  end:
-    true,
+  end: true,
 };
 
 export const accessRules = {
   administration: {
-    anyOf: [
-      "accounts.manage",
-      "access.manage",
-    ],
+    anyOf: ["accounts.manage", "access.manage"],
 
-    global:
-      true,
+    global: true,
   },
 
   audit: {
-    anyOf: [
-      "audit.read",
-    ],
+    anyOf: ["audit.read"],
 
-    global:
-      true,
+    global: true,
   },
 
   hr: {
@@ -113,9 +90,7 @@ export const accessRules = {
   },
 
   people: {
-    anyOf: [
-      "people.read",
-    ],
+    anyOf: ["people.read"],
   },
 
   metrics: {
@@ -154,32 +129,19 @@ export const accessRules = {
   },
 
   visits: {
-    anyOf: [
-      "visits.read",
-      "visits.create",
-      "visits.manage",
-      "visits.approve",
-    ],
+    anyOf: ["visits.read", "visits.create", "visits.manage", "visits.approve"],
   },
 
   visitsCreate: {
-    anyOf: [
-      "visits.create",
-      "visits.manage",
-    ],
+    anyOf: ["visits.create", "visits.manage"],
   },
 
   visitsManage: {
-    anyOf: [
-      "visits.manage",
-    ],
+    anyOf: ["visits.manage"],
   },
 
-  patrimony:{
-    anyOf: [
-      "assets.read",
-      "assets.manage",
-    ],
+  patrimony: {
+    anyOf: ["assets.read", "assets.manage"],
   },
 
   tickets: {
@@ -195,31 +157,21 @@ export const accessRules = {
   ticketsAttend: { anyOf: ["tickets.attend", "tickets.manage"] },
   ticketsApprove: { anyOf: ["tickets.approve", "tickets.manage"] },
   ticketsManage: { anyOf: ["tickets.manage", "tickets.attend"] },
-} as const satisfies Record<
-  string,
-  AccessRule
->;
+} as const satisfies Record<string, AccessRule>;
 
-export const moduleNavigation:
-  ModuleNavigation[] = [
+export const moduleNavigation: ModuleNavigation[] = [
   {
-    id:
-      "hr",
+    id: "hr",
 
-    access:
-      accessRules.hr,
+    access: accessRules.hr,
 
-    label:
-      "Recursos Humanos",
+    label: "Recursos Humanos",
 
-    description:
-      "Pessoas, aniversários e fluxo de férias",
+    description: "Pessoas, aniversários e fluxo de férias",
 
-    href:
-      "/rh",
+    href: "/rh",
 
-    icon:
-      UsersFour,
+    icon: UsersFour,
 
     routes: [
       {
@@ -297,233 +249,176 @@ export const moduleNavigation:
         icon: IdentificationCard,
       },
       {
-        access:
-          accessRules.hr,
+        access: accessRules.hr,
 
-        label:
-          "Visão geral",
+        label: "Visão geral",
 
-        href:
-          "/rh",
+        href: "/rh",
 
-        icon:
-          SquaresFour,
+        icon: SquaresFour,
 
-        end:
-          true,
+        end: true,
       },
 
       {
-        access:
-          accessRules.people,
+        access: accessRules.people,
 
-        label:
-          "Colaboradores",
+        label: "Colaboradores",
 
-        href:
-          "/rh/colaboradores",
+        href: "/rh/colaboradores",
 
-        icon:
-          IdentificationCard,
+        icon: IdentificationCard,
       },
 
       {
-        access:
-          accessRules.vacations,
+        access: accessRules.vacations,
 
-        label:
-          "Férias",
+        label: "Férias",
 
-        href:
-          "/rh/ferias",
+        href: "/rh/ferias",
 
-        icon:
-          CalendarDots,
+        icon: CalendarDots,
       },
     ],
   },
 
   {
-    id:
-      "visits",
+    id: "visits",
 
-    access:
-      accessRules.visits,
+    access: accessRules.visits,
 
-    label:
-      "Agendamento de Visitas",
+    label: "Agendamento de Visitas",
 
-    description:
-      "Visitas institucionais, reuniões e apoio técnico",
+    description: "Visitas institucionais, reuniões e apoio técnico",
 
-    href:
-      "/visitas",
+    href: "/visitas",
 
-    icon:
-      CalendarDots,
+    icon: CalendarDots,
 
     routes: [
       {
-        access:
-          accessRules.visits,
+        access: accessRules.visits,
 
-        label:
-          "Visão geral",
+        label: "Visão geral",
 
-        href:
-          "/visitas",
+        href: "/visitas",
 
-        icon:
-          SquaresFour,
+        icon: SquaresFour,
 
-        end:
-          true,
+        end: true,
       },
 
       {
-        access:
-          accessRules.visitsCreate,
+        access: accessRules.visitsCreate,
 
-        label:
-          "Nova visita",
+        label: "Nova visita",
 
-        href:
-          "/visitas/nova",
+        href: "/visitas/nova",
 
-        icon:
-          PlusCircle,
+        icon: PlusCircle,
       },
 
       {
-        access:
-          accessRules.visits,
+        access: accessRules.visits,
 
-        label:
-          "Agenda",
+        label: "Agenda",
 
-        href:
-          "/visitas/agenda",
+        href: "/visitas/agenda",
 
-        icon:
-          CalendarDots,
+        icon: CalendarDots,
       },
 
       {
-        access:
-          accessRules.visits,
+        access: accessRules.visits,
 
-        label:
-          "Histórico",
+        label: "Histórico",
 
-        href:
-          "/visitas/historico",
+        href: "/visitas/historico",
 
-        icon:
-          ClipboardText,
+        icon: ClipboardText,
       },
     ],
   },
 
-{
-  id: "patrimony",
+  {
+    id: "patrimony",
 
-  label: "Controle de Patrimônio",
+    label: "Controle de Patrimônio",
 
-  description:
-    "Gerenciamento dos bens patrimoniais da instituição.",
+    description: "Gerenciamento dos bens patrimoniais da instituição.",
 
-  href: "/patrimonio",
+    href: "/patrimonio",
 
-  icon: Package,
+    icon: Package,
 
-  access: {
-    anyOf: [
-      "assets.read",
-      "assets.manage",
+    access: {
+      anyOf: ["assets.read", "assets.manage"],
+    },
+
+    routes: [
+      {
+        label: "Visão Geral",
+
+        href: "/patrimonio",
+
+        icon: SquaresFour,
+
+        end: true,
+
+        access: {
+          anyOf: ["assets.read", "assets.manage"],
+        },
+      },
+
+      {
+        label: "Bens",
+
+        href: "/patrimonio/bens",
+
+        icon: Package,
+        end: true,
+        access: {
+          anyOf: ["assets.read", "assets.manage"],
+        },
+      },
+
+      {
+        label: "Novo Bem",
+
+        href: "/patrimonio/bens/novo",
+
+        icon: PlusCircle,
+
+        access: {
+          anyOf: ["assets.manage"],
+        },
+      },
+
+      {
+        label: "Setores",
+        href: "/patrimonio/setores",
+        icon: Buildings,
+        end: true,
+        access: {
+          anyOf: ["assets.read", "assets.manage"],
+        },
+      },
+      {
+        label: "Relatórios",
+
+        href: "/patrimonio/relatorios",
+
+        icon: ClipboardText,
+
+        end: true,
+
+        access: {
+          anyOf: ["assets.read", "assets.manage"],
+        },
+      },
     ],
   },
 
-  routes: [
-    {
-      label: "Visão Geral",
-
-      href: "/patrimonio",
-
-      icon: SquaresFour,
-
-      end: true,
-
-      access: {
-        anyOf: [
-          "assets.read",
-          "assets.manage",
-        ],
-      },
-    },
-
-    {
-      label: "Bens",
-
-      href: "/patrimonio/bens",
-
-      icon: Package,
-      end: true,
-      access: {
-        anyOf: [
-          "assets.read",
-          "assets.manage",
-        ],
-      },
-    },
-
-    {
-      label: "Novo Bem",
-
-      href: "/patrimonio/bens/novo",
-
-      icon: PlusCircle,
-
-      access: {
-        anyOf: [
-          "assets.manage",
-        ],
-      },
-    },
-
-    {
-      label: "Setores",
-      href: "/patrimonio/setores",
-      icon: Buildings,
-      end: true,
-      access: {
-        anyOf: [
-          "assets.read",
-          "assets.manage",
-        ],
-      },
-    },
-    {
-      label: "Relatórios",
-
-      href: "/patrimonio/relatorios",
-
-      icon: ClipboardText,
-
-      end: true,
-
-      access: {
-        anyOf: [
-          "assets.read",
-          "assets.manage",
-        ],
-      },
-    },
-
-
-  ],
-
-},
-  
   {
     id: "tickets",
     access: accessRules.tickets,
@@ -549,8 +444,7 @@ export const moduleNavigation:
   },
 ];
 
-export const systemNavigation:
-  NavigationItem[] = [
+export const systemNavigation: NavigationItem[] = [
   {
     access: { anyOf: [] },
     label: "Políticas e formulários",
@@ -564,73 +458,38 @@ export const systemNavigation:
     icon: ClipboardText,
   },
   {
-    access:
-      accessRules.administration,
+    access: accessRules.administration,
 
-    label:
-      "Administração",
+    label: "Administração",
 
-    href:
-      "/sistema/administracao",
+    href: "/sistema/administracao",
 
-    icon:
-      GearSix,
+    icon: GearSix,
   },
 
   {
-    access:
-      accessRules.audit,
+    access: accessRules.audit,
 
-    label:
-      "Auditoria",
+    label: "Auditoria",
 
-    href:
-      "/sistema/auditoria",
+    href: "/sistema/auditoria",
 
-    icon:
-      ClipboardText,
+    icon: ClipboardText,
   },
 ];
 
 export function canNavigate(
-  user:
-    AuthenticatedUser,
+  user: AuthenticatedUser,
 
-  item:
-    NavigationItem,
+  item: NavigationItem,
 ) {
-  return (
-    item.access.anyOf
-      .length === 0 ||
-    canAccess(
-      user,
-      item.access,
-    )
-  );
+  return item.access.anyOf.length === 0 || canAccess(user, item.access);
 }
 
-export function availableModules(
-  user:
-    AuthenticatedUser,
-) {
-  return moduleNavigation.filter(
-    (module) =>
-      canNavigate(
-        user,
-        module,
-      ),
-  );
+export function availableModules(user: AuthenticatedUser) {
+  return moduleNavigation.filter((module) => canNavigate(user, module));
 }
 
-export function availableSystemNavigation(
-  user:
-    AuthenticatedUser,
-) {
-  return systemNavigation.filter(
-    (item) =>
-      canNavigate(
-        user,
-        item,
-      ),
-  );
+export function availableSystemNavigation(user: AuthenticatedUser) {
+  return systemNavigation.filter((item) => canNavigate(user, item));
 }

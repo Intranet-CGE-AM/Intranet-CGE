@@ -1,6 +1,4 @@
-import type {
-  Asset,
-} from "@cge/contracts";
+import type { Asset } from "@cge/contracts";
 
 import {
   Alert,
@@ -17,32 +15,15 @@ import {
   TableRow,
 } from "@cge/ui";
 
-import {
-  ArrowClockwise,
-  PlusCircle,
-} from "@phosphor-icons/react";
+import { ArrowClockwise, PlusCircle } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import {
-  Link,
-  useSearchParams,
-} from "react-router";
+import { Link, useSearchParams } from "react-router";
 
-import {
-  api,
-  ApiError,
-} from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 
-type OrganizationUnitType =
-  | "department"
-  | "sector"
-  | "subsector";
+type OrganizationUnitType = "department" | "sector" | "subsector";
 
 type OrganizationUnit = {
   id: string;
@@ -72,132 +53,62 @@ const assetStatusLabels = {
 } as const;
 
 export function AssetListPage() {
-  const [
-    searchParams,
-    setSearchParams,
-  ] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const selectedUnitId =
-    searchParams.get(
-      "unitId",
-    );
+  const selectedUnitId = searchParams.get("unitId");
 
-  const selectedConservationStatus =
-    searchParams.get(
-      "conservationStatus",
-    );
+  const selectedConservationStatus = searchParams.get("conservationStatus");
 
-  const searchTerm =
-    searchParams.get(
-      "q",
-    ) ?? "";
+  const searchTerm = searchParams.get("q") ?? "";
 
-  const [
-    assets,
-    setAssets,
-  ] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
 
-  const [
-    total,
-    setTotal,
-  ] = useState(0);
+  const [total, setTotal] = useState(0);
 
-  const [
-    totalPages,
-    setTotalPages,
-  ] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const [
-    currentPage,
-    setCurrentPage,
-  ] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [
-    currentPageSize,
-    setCurrentPageSize,
-  ] = useState(10);
+  const [currentPageSize, setCurrentPageSize] = useState(10);
 
-  const [
-    units,
-    setUnits,
-  ] = useState<OrganizationUnit[]>([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [error, setError] = useState("");
 
-  const unitsById =
-    useMemo(
-      () =>
-        new Map(
-          units.map(
-            (unit) => [
-              unit.id,
-              unit,
-            ],
-          ),
-        ),
-      [units],
-    );
+  const unitsById = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit])),
+    [units],
+  );
 
-  function getAssetLocation(
-    unitId: string | null,
-  ) {
+  function getAssetLocation(unitId: string | null) {
     if (!unitId) {
       return "—";
     }
 
-    const unit =
-      unitsById.get(unitId);
+    const unit = unitsById.get(unitId);
 
     if (!unit) {
       return "—";
     }
 
     if (unit.type === "subsector") {
-      const sector =
-        unit.parentId
-          ? unitsById.get(
-            unit.parentId,
-          )
-          : null;
+      const sector = unit.parentId ? unitsById.get(unit.parentId) : null;
 
-      const department =
-        sector?.parentId
-          ? unitsById.get(
-            sector.parentId,
-          )
-          : null;
+      const department = sector?.parentId
+        ? unitsById.get(sector.parentId)
+        : null;
 
-      return [
-        department?.code,
-        sector?.code,
-        unit.code,
-      ]
+      return [department?.code, sector?.code, unit.code]
         .filter(Boolean)
         .join(" > ");
     }
 
     if (unit.type === "sector") {
-      const department =
-        unit.parentId
-          ? unitsById.get(
-            unit.parentId,
-          )
-          : null;
+      const department = unit.parentId ? unitsById.get(unit.parentId) : null;
 
-      return [
-        department?.code,
-        unit.code,
-      ]
-        .filter(Boolean)
-        .join(" > ");
+      return [department?.code, unit.code].filter(Boolean).join(" > ");
     }
 
     if (unit.type === "department") {
@@ -208,290 +119,150 @@ export function AssetListPage() {
     return `${unit.code} - ${unit.name}`;
   }
 
-  const selectedStatus =
-    searchParams.get(
-      "status",
-    );
+  const selectedStatus = searchParams.get("status");
 
-  const sortBy =
-    searchParams.get(
-      "sortBy",
-    ) ?? "patrimonyNumber";
+  const sortBy = searchParams.get("sortBy") ?? "patrimonyNumber";
 
-  const sortDirection =
-    searchParams.get(
-      "sortDirection",
-    ) ?? "asc";
+  const sortDirection = searchParams.get("sortDirection") ?? "asc";
 
+  const selectedStatusLabel = selectedStatus
+    ? (assetStatusLabels[selectedStatus as keyof typeof assetStatusLabels] ??
+      null)
+    : null;
 
-  const selectedStatusLabel =
-    selectedStatus
-      ? assetStatusLabels[
-      selectedStatus as keyof typeof assetStatusLabels
-      ] ?? null
-      : null;
-
-  const selectedUnit =
-    selectedUnitId
-      ? unitsById.get(
-        selectedUnitId,
-      ) ?? null
-      : null;
+  const selectedUnit = selectedUnitId
+    ? (unitsById.get(selectedUnitId) ?? null)
+    : null;
   const selectedSubsector =
-    selectedUnit?.type === "subsector"
-      ? selectedUnit
-      : null;
+    selectedUnit?.type === "subsector" ? selectedUnit : null;
 
   const selectedSector =
     selectedUnit?.type === "sector"
       ? selectedUnit
       : selectedSubsector?.parentId
-        ? unitsById.get(
-          selectedSubsector.parentId,
-        ) ?? null
+        ? (unitsById.get(selectedSubsector.parentId) ?? null)
         : null;
 
   const selectedDepartment =
     selectedUnit?.type === "department"
       ? selectedUnit
       : selectedSector?.parentId
-        ? unitsById.get(
-          selectedSector.parentId,
-        ) ?? null
+        ? (unitsById.get(selectedSector.parentId) ?? null)
         : null;
 
-  const selectedDepartmentId =
-    selectedDepartment?.id ?? "";
+  const selectedDepartmentId = selectedDepartment?.id ?? "";
 
-  const selectedSectorId =
-    selectedSector?.id ?? "";
+  const selectedSectorId = selectedSector?.id ?? "";
 
-  const selectedSubsectorId =
-    selectedSubsector?.id ?? "";
+  const selectedSubsectorId = selectedSubsector?.id ?? "";
 
+  const departments = units.filter(
+    (unit) => unit.active && unit.type === "department",
+  );
 
-  const departments =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "department",
-    );
+  const sectors = units.filter(
+    (unit) =>
+      unit.active &&
+      unit.type === "sector" &&
+      unit.parentId === selectedDepartmentId,
+  );
 
-  const sectors =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "sector" &&
-        unit.parentId ===
-        selectedDepartmentId,
-    );
+  const subsectors = units.filter(
+    (unit) =>
+      unit.active &&
+      unit.type === "subsector" &&
+      unit.parentId === selectedSectorId,
+  );
 
-  const subsectors =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "subsector" &&
-        unit.parentId ===
-        selectedSectorId,
-    );
-
-
-  function updateFilter(
-    key: string,
-    value: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function updateFilter(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
 
     if (value) {
-      next.set(
-        key,
-        value,
-      );
+      next.set(key, value);
     } else {
-      next.delete(
-        key,
-      );
+      next.delete(key);
     }
 
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function changePage(
-    page: number,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function changePage(page: number) {
+    const next = new URLSearchParams(searchParams);
 
-    next.set(
-      "page",
-      String(page),
-    );
+    next.set("page", String(page));
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function changePageSize(
-    value: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function changePageSize(value: string) {
+    const next = new URLSearchParams(searchParams);
 
-    next.set(
-      "pageSize",
-      value,
-    );
+    next.set("pageSize", value);
 
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function updateSort(
-    field: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function updateSort(field: string) {
+    const next = new URLSearchParams(searchParams);
 
-    const currentField =
-      next.get(
-        "sortBy",
-      );
+    const currentField = next.get("sortBy");
 
-    const currentDirection =
-      next.get(
-        "sortDirection",
-      ) ?? "asc";
+    const currentDirection = next.get("sortDirection") ?? "asc";
 
-    if (
-      currentField ===
-      field
-    ) {
-      next.set(
-        "sortDirection",
-        currentDirection ===
-          "asc"
-          ? "desc"
-          : "asc",
-      );
+    if (currentField === field) {
+      next.set("sortDirection", currentDirection === "asc" ? "desc" : "asc");
     } else {
-      next.set(
-        "sortBy",
-        field,
-      );
+      next.set("sortBy", field);
 
-      next.set(
-        "sortDirection",
-        "asc",
-      );
-
-
+      next.set("sortDirection", "asc");
     }
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  const queryString =
-    searchParams.toString();
+  const queryString = searchParams.toString();
 
-  const loadData =
-    useCallback(
-      async () => {
-        try {
-          setLoading(true);
-          setError("");
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-          const assetUrl =
-            queryString
-              ? `/api/assets?${queryString}`
-              : "/api/assets";
+      const assetUrl = queryString
+        ? `/api/assets?${queryString}`
+        : "/api/assets";
 
-          const [
-            assetResult,
-            unitResult,
-          ] =
-            await Promise.all([
-              api<AssetListResponse>(
-                assetUrl,
-              ),
+      const [assetResult, unitResult] = await Promise.all([
+        api<AssetListResponse>(assetUrl),
 
-              api<OrganizationUnitsResponse>(
-                "/api/organization-units",
-              ),
-            ]);
+        api<OrganizationUnitsResponse>("/api/organization-units"),
+      ]);
 
-          setAssets(
-            assetResult.assets,
-          );
+      setAssets(assetResult.assets);
 
-          setTotal(
-            assetResult.total,
-          );
+      setTotal(assetResult.total);
 
-          setTotalPages(
-            assetResult.totalPages,
-          );
+      setTotalPages(assetResult.totalPages);
 
-          setCurrentPage(
-            assetResult.page,
-          );
+      setCurrentPage(assetResult.page);
 
-          setCurrentPageSize(
-            assetResult.pageSize,
-          );
+      setCurrentPageSize(assetResult.pageSize);
 
-          setUnits(
-            unitResult.units,
-          );
-        } catch (cause) {
-          if (
-            cause instanceof
-            ApiError
-          ) {
-            setError(
-              cause.message,
-            );
-          } else {
-            setError(
-              "Não foi possível carregar os bens patrimoniais.",
-            );
-          }
-        } finally {
-          setLoading(false);
-        }
-      },
-      [
-        queryString,
-      ],
-    );
+      setUnits(unitResult.units);
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setError(cause.message);
+      } else {
+        setError("Não foi possível carregar os bens patrimoniais.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [queryString]);
 
   useEffect(() => {
     void loadData();
@@ -506,35 +277,24 @@ export function AssetListPage() {
           </h1>
 
           <p className="text-sm text-[var(--text-muted)]">
-            Consulte os bens
-            patrimoniais cadastrados.
+            Consulte os bens patrimoniais cadastrados.
           </p>
         </div>
 
         <div className="flex gap-2">
           <Button
             disabled={loading}
-            onClick={() =>
-              void loadData()
-            }
+            onClick={() => void loadData()}
             type="button"
             variant="secondary"
           >
-            <ArrowClockwise
-              size={18}
-            />
-
+            <ArrowClockwise size={18} />
             Atualizar
           </Button>
 
           <Button asChild>
-            <Link
-              to="/patrimonio/bens/novo"
-            >
-              <PlusCircle
-                size={18}
-              />
-
+            <Link to="/patrimonio/bens/novo">
+              <PlusCircle size={18} />
               Novo bem
             </Link>
           </Button>
@@ -542,10 +302,7 @@ export function AssetListPage() {
       </div>
 
       {error ? (
-        <Alert
-          tone="danger"
-          title="Não foi possível carregar os bens"
-        >
+        <Alert tone="danger" title="Não foi possível carregar os bens">
           {error}
         </Alert>
       ) : null}
@@ -553,12 +310,11 @@ export function AssetListPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Filtros
-            </h2>
+            <h2 className="font-medium">Filtros</h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Localize bens por tombo, material, situação ou estrutura organizacional.
+              Localize bens por tombo, material, situação ou estrutura
+              organizacional.
             </p>
           </div>
         </CardHeader>
@@ -575,17 +331,8 @@ export function AssetListPage() {
 
               <Input
                 id="asset-search"
-                value={
-                  searchTerm
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateFilter(
-                    "q",
-                    event.target.value,
-                  )
-                }
+                value={searchTerm}
+                onChange={(event) => updateFilter("q", event.target.value)}
                 placeholder="Ex.: 335 ou Notebook"
               />
             </div>
@@ -601,33 +348,16 @@ export function AssetListPage() {
               <select
                 id="status-filter"
                 className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={
-                  selectedStatus ?? ""
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateFilter(
-                    "status",
-                    event.target.value,
-                  )
-                }
+                value={selectedStatus ?? ""}
+                onChange={(event) => updateFilter("status", event.target.value)}
               >
-                <option value="">
-                  Todas
-                </option>
+                <option value="">Todas</option>
 
-                <option value="active">
-                  Em uso
-                </option>
+                <option value="active">Em uso</option>
 
-                <option value="maintenance">
-                  Em manutenção
-                </option>
+                <option value="maintenance">Em manutenção</option>
 
-                <option value="disposed">
-                  Baixados
-                </option>
+                <option value="disposed">Baixados</option>
               </select>
             </div>
 
@@ -644,27 +374,16 @@ export function AssetListPage() {
                 className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
                 value={selectedDepartmentId}
                 onChange={(event) => {
-                  updateFilter(
-                    "unitId",
-                    event.target.value,
-                  );
+                  updateFilter("unitId", event.target.value);
                 }}
               >
-                <option value="">
-                  Todos os departamentos
-                </option>
+                <option value="">Todos os departamentos</option>
 
-                {departments.map(
-                  (department) => (
-                    <option
-                      key={department.id}
-                      value={department.id}
-                    >
-                      {department.code} -{" "}
-                      {department.name}
-                    </option>
-                  ),
-                )}
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.code} - {department.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -682,14 +401,9 @@ export function AssetListPage() {
                 value={selectedSectorId}
                 disabled={!selectedDepartmentId}
                 onChange={(event) => {
-                  const value =
-                    event.target.value;
+                  const value = event.target.value;
 
-                  updateFilter(
-                    "unitId",
-                    value ||
-                    selectedDepartmentId,
-                  );
+                  updateFilter("unitId", value || selectedDepartmentId);
                 }}
               >
                 <option value="">
@@ -698,17 +412,11 @@ export function AssetListPage() {
                     : "Todos os setores"}
                 </option>
 
-                {sectors.map(
-                  (sector) => (
-                    <option
-                      key={sector.id}
-                      value={sector.id}
-                    >
-                      {sector.code} -{" "}
-                      {sector.name}
-                    </option>
-                  ),
-                )}
+                {sectors.map((sector) => (
+                  <option key={sector.id} value={sector.id}>
+                    {sector.code} - {sector.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -724,19 +432,11 @@ export function AssetListPage() {
                 id="subsector-filter"
                 className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
                 value={selectedSubsectorId}
-                disabled={
-                  !selectedSectorId ||
-                  subsectors.length === 0
-                }
+                disabled={!selectedSectorId || subsectors.length === 0}
                 onChange={(event) => {
-                  const value =
-                    event.target.value;
+                  const value = event.target.value;
 
-                  updateFilter(
-                    "unitId",
-                    value ||
-                    selectedSectorId,
-                  );
+                  updateFilter("unitId", value || selectedSectorId);
                 }}
               >
                 <option value="">
@@ -747,17 +447,11 @@ export function AssetListPage() {
                       : "Todos os subsetores"}
                 </option>
 
-                {subsectors.map(
-                  (subsector) => (
-                    <option
-                      key={subsector.id}
-                      value={subsector.id}
-                    >
-                      {subsector.code} -{" "}
-                      {subsector.name}
-                    </option>
-                  ),
-                )}
+                {subsectors.map((subsector) => (
+                  <option key={subsector.id} value={subsector.id}>
+                    {subsector.code} - {subsector.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -766,11 +460,7 @@ export function AssetListPage() {
                 className="w-full"
                 type="button"
                 variant="secondary"
-                onClick={() =>
-                  setSearchParams(
-                    {},
-                  )
-                }
+                onClick={() => setSearchParams({})}
               >
                 Limpar filtros
               </Button>
@@ -779,22 +469,17 @@ export function AssetListPage() {
         </CardContent>
       </Card>
 
-
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Bens cadastrados
-            </h2>
+            <h2 className="font-medium">Bens cadastrados</h2>
 
             <p className="text-xs text-[var(--text-muted)]">
               {total} bem(ns) encontrado(s).
             </p>
           </div>
 
-          {selectedUnit ||
-            selectedConservationStatus ||
-            selectedStatusLabel ? (
+          {selectedUnit || selectedConservationStatus || selectedStatusLabel ? (
             <Button
               onClick={() => {
                 setSearchParams({});
@@ -804,13 +489,10 @@ export function AssetListPage() {
               variant="secondary"
             >
               {selectedUnit
-                ? getAssetLocation(
-                  selectedUnit.id,
-                )
+                ? getAssetLocation(selectedUnit.id)
                 : selectedConservationStatus
                   ? selectedConservationStatus
                   : selectedStatusLabel}
-
               {" · "}
               Limpar filtro
             </Button>
@@ -835,8 +517,8 @@ export function AssetListPage() {
               }
               title={
                 selectedUnit ||
-                  selectedConservationStatus ||
-                  selectedStatusLabel
+                selectedConservationStatus ||
+                selectedStatusLabel
                   ? "Nenhum bem encontrado"
                   : "Nenhum bem cadastrado"
               }
@@ -850,18 +532,11 @@ export function AssetListPage() {
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "patrimonyNumber",
-                          )
-                        }
+                        onClick={() => updateSort("patrimonyNumber")}
                       >
                         Tombo
-
-                        {sortBy ===
-                          "patrimonyNumber"
-                          ? sortDirection ===
-                            "asc"
+                        {sortBy === "patrimonyNumber"
+                          ? sortDirection === "asc"
                             ? "↑"
                             : "↓"
                           : null}
@@ -872,18 +547,11 @@ export function AssetListPage() {
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "description",
-                          )
-                        }
+                        onClick={() => updateSort("description")}
                       >
                         Material
-
-                        {sortBy ===
-                          "description"
-                          ? sortDirection ===
-                            "asc"
+                        {sortBy === "description"
+                          ? sortDirection === "asc"
                             ? "↑"
                             : "↓"
                           : null}
@@ -901,7 +569,6 @@ export function AssetListPage() {
                         }
                       > */}
                       Localização
-
                       {/* {sortBy ===
                           "unit"
                           ? sortDirection ===
@@ -912,149 +579,94 @@ export function AssetListPage() {
                       </button> */}
                     </TableHead>
 
-                    <TableHead>
-                      Marca / Modelo
-                    </TableHead>
+                    <TableHead>Marca / Modelo</TableHead>
 
-                    <TableHead>
-                      Nº Série
-                    </TableHead>
+                    <TableHead>Nº Série</TableHead>
 
-                    <TableHead>
-                      Documento
-                    </TableHead>
+                    <TableHead>Documento</TableHead>
 
-                    <TableHead>
-                      Empenho
-                    </TableHead>
+                    <TableHead>Empenho</TableHead>
 
-                    <TableHead>
-                      Conservação
-                    </TableHead>
+                    <TableHead>Conservação</TableHead>
 
                     <TableHead>
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "value",
-                          )
-                        }
+                        onClick={() => updateSort("value")}
                       >
                         Valor
-
-                        {sortBy ===
-                          "value"
-                          ? sortDirection ===
-                            "asc"
+                        {sortBy === "value"
+                          ? sortDirection === "asc"
                             ? "↑"
                             : "↓"
                           : null}
                       </button>
                     </TableHead>
 
-                    <TableHead>
-                      Situação
-                    </TableHead>
+                    <TableHead>Situação</TableHead>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {assets.map(
-                    (asset) => {
-                      const unit =
-                        asset.unitId
-                          ? unitsById.get(
-                            asset.unitId,
-                          )
-                          : null;
+                  {assets.map((asset) => {
+                    const unit = asset.unitId
+                      ? unitsById.get(asset.unitId)
+                      : null;
 
-                      return (
-                        <TableRow
-                          key={
-                            asset.id
-                          }
-                        >
+                    return (
+                      <TableRow key={asset.id}>
+                        <TableCell>
+                          <Link
+                            className="font-semibold underline-offset-4 hover:underline"
+                            to={`/patrimonio/bens/${asset.id}`}
+                          >
+                            {asset.patrimonyNumber}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[320px]">
+                            {asset.description}
+                          </div>
+                        </TableCell>
 
-                          <TableCell>
-                            <Link
-                              className="font-semibold underline-offset-4 hover:underline"
-                              to={`/patrimonio/bens/${asset.id}`}
-                            >
-                              {asset.patrimonyNumber}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-[320px]">
-                              {
-                                asset.description
-                              }
-                            </div>
-                          </TableCell>
+                        <TableCell>{getAssetLocation(asset.unitId)}</TableCell>
 
-                          <TableCell>
-                            {getAssetLocation(
-                              asset.unitId,
-                            )}
-                          </TableCell>
+                        <TableCell>
+                          {formatBrandModel(asset.brand, asset.model)}
+                        </TableCell>
 
-                          <TableCell>
-                            {formatBrandModel(
-                              asset.brand,
-                              asset.model,
-                            )}
-                          </TableCell>
+                        <TableCell>{asset.serialNumber ?? "—"}</TableCell>
 
-                          <TableCell>
-                            {asset.serialNumber ??
-                              "—"}
-                          </TableCell>
+                        <TableCell>
+                          {formatDocument(
+                            asset.documentNumber,
+                            asset.documentDate,
+                          )}
+                        </TableCell>
 
-                          <TableCell>
-                            {formatDocument(
-                              asset.documentNumber,
-                              asset.documentDate,
-                            )}
-                          </TableCell>
+                        <TableCell>{asset.commitmentNumber ?? "—"}</TableCell>
 
-                          <TableCell>
-                            {asset.commitmentNumber ??
-                              "—"}
-                          </TableCell>
+                        <TableCell>{asset.conservationStatus ?? "—"}</TableCell>
 
-                          <TableCell>
-                            {asset.conservationStatus ??
-                              "—"}
-                          </TableCell>
+                        <TableCell>
+                          {formatCurrency(asset.acquisitionValue)}
+                        </TableCell>
 
-                          <TableCell>
-                            {formatCurrency(
-                              asset.acquisitionValue,
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            <Badge variant="neutral">
-                              {
-                                assetStatusLabels[
-                                asset.status
-                                ]
-                              }
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    },
-                  )}
+                        <TableCell>
+                          <Badge variant="neutral">
+                            {assetStatusLabels[asset.status]}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </tbody>
               </Table>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-[var(--text-muted)]">
-                  Página{" "}
-                  {currentPage} de{" "}
-                  {totalPages}
+                  Página {currentPage} de {totalPages}
                   {" · "}
                   {total} bem(ns)
                 </div>
@@ -1062,43 +674,21 @@ export function AssetListPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
-                    value={
-                      String(
-                        currentPageSize,
-                      )
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      changePageSize(
-                        event.target.value,
-                      )
-                    }
+                    value={String(currentPageSize)}
+                    onChange={(event) => changePageSize(event.target.value)}
                   >
-                    <option value="10">
-                      10 por página
-                    </option>
+                    <option value="10">10 por página</option>
 
-                    <option value="20">
-                      20 por página
-                    </option>
+                    <option value="20">20 por página</option>
 
-                    <option value="50">
-                      50 por página
-                    </option>
+                    <option value="50">50 por página</option>
                   </select>
 
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={
-                      currentPage <= 1
-                    }
-                    onClick={() =>
-                      changePage(
-                        currentPage - 1,
-                      )
-                    }
+                    disabled={currentPage <= 1}
+                    onClick={() => changePage(currentPage - 1)}
                   >
                     Anterior
                   </Button>
@@ -1106,21 +696,13 @@ export function AssetListPage() {
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={
-                      currentPage >=
-                      totalPages
-                    }
-                    onClick={() =>
-                      changePage(
-                        currentPage + 1,
-                      )
-                    }
+                    disabled={currentPage >= totalPages}
+                    onClick={() => changePage(currentPage + 1)}
                   >
                     Próxima
                   </Button>
                 </div>
               </div>
-
             </div>
           )}
         </CardContent>
@@ -1129,104 +711,57 @@ export function AssetListPage() {
   );
 }
 
-function formatBrandModel(
-  brand: string | null,
-  model: string | null,
-) {
-  if (
-    !brand &&
-    !model
-  ) {
+function formatBrandModel(brand: string | null, model: string | null) {
+  if (!brand && !model) {
     return "—";
   }
 
-  if (
-    brand &&
-    model
-  ) {
+  if (brand && model) {
     return `${brand} / ${model}`;
   }
 
   return brand ?? model ?? "—";
 }
 
-function formatDocument(
-  number: string | null,
-  date: string | null,
-) {
-  if (
-    !number &&
-    !date
-  ) {
+function formatDocument(number: string | null, date: string | null) {
+  if (!number && !date) {
     return "—";
   }
 
-  if (
-    number &&
-    date
-  ) {
-    return `${number} - ${formatDate(
-      date,
-    )}`;
+  if (number && date) {
+    return `${number} - ${formatDate(date)}`;
   }
 
-  return (
-    number ??
-    formatDate(date)
-  );
+  return number ?? formatDate(date);
 }
 
-function formatDate(
-  value: string | null,
-) {
+function formatDate(value: string | null) {
   if (!value) {
     return "—";
   }
 
-  const [
-    year,
-    month,
-    day,
-  ] = value.split("-");
+  const [year, month, day] = value.split("-");
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value;
   }
 
   return `${day}/${month}/${year}`;
 }
 
-function formatCurrency(
-  value:
-    | number
-    | string
-    | null,
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
+function formatCurrency(value: number | string | null) {
+  if (value === null || value === undefined) {
     return "—";
   }
 
-  const number =
-    Number(value);
+  const number = Number(value);
 
-  if (
-    Number.isNaN(number)
-  ) {
+  if (Number.isNaN(number)) {
     return "—";
   }
 
-  return new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    },
-  ).format(number);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(number);
 }

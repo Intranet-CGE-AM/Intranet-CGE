@@ -1,124 +1,62 @@
-import {
-  lazy,
-  Suspense,
-} from "react";
+import { lazy, Suspense } from "react";
 
-import {
-  Navigate,
-  Route,
-  Routes,
-} from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 
-import {
-  RequireAuth,
-} from "./auth";
+import { RequireAuth } from "./auth";
 
-import {
-  AppShell,
-} from "./components/app-shell";
+import { AppShell } from "./components/app-shell";
 
-import {
-  RequireAccess,
-} from "./components/require-access";
+import { RequireAccess } from "./components/require-access";
 
-import {
-  accessRules,
-} from "./navigation";
+import { accessRules } from "./navigation";
 
-import {
-  ChangePasswordPage,
-} from "./pages/change-password";
+import { ChangePasswordPage } from "./pages/change-password";
 
-import {
-  LoginPage,
-} from "./pages/login";
+import { LoginPage } from "./pages/login";
 
 import { NotificationsPage } from "./pages/notifications";
 
+const AccountPage = lazy(() =>
+  import("./pages/account").then((module) => ({
+    default: module.AccountPage,
+  })),
+);
 
-const AccountPage =
-  lazy(() =>
-    import(
-      "./pages/account"
-    ).then(
-      (module) => ({
-        default:
-          module.AccountPage,
-      }),
-    ),
-  );
+const AdminPage = lazy(() =>
+  import("./pages/admin").then((module) => ({
+    default: module.AdminPage,
+  })),
+);
 
-const AdminPage =
-  lazy(() =>
-    import(
-      "./pages/admin"
-    ).then(
-      (module) => ({
-        default:
-          module.AdminPage,
-      }),
-    ),
-  );
+const AuditPage = lazy(() =>
+  import("./pages/audit").then((module) => ({
+    default: module.AuditPage,
+  })),
+);
 
-const AuditPage =
-  lazy(() =>
-    import(
-      "./pages/audit"
-    ).then(
-      (module) => ({
-        default:
-          module.AuditPage,
-      }),
-    ),
-  );
+const DashboardPage = lazy(() =>
+  import("./pages/dashboard").then((module) => ({
+    default: module.DashboardPage,
+  })),
+);
 
-const DashboardPage =
-  lazy(() =>
-    import(
-      "./pages/dashboard"
-    ).then(
-      (module) => ({
-        default:
-          module.DashboardPage,
-      }),
-    ),
-  );
+const HubPage = lazy(() =>
+  import("./pages/hub").then((module) => ({
+    default: module.HubPage,
+  })),
+);
 
-const HubPage =
-  lazy(() =>
-    import(
-      "./pages/hub"
-    ).then(
-      (module) => ({
-        default:
-          module.HubPage,
-      }),
-    ),
-  );
+const PeoplePage = lazy(() =>
+  import("./pages/people").then((module) => ({
+    default: module.PeoplePage,
+  })),
+);
 
-const PeoplePage =
-  lazy(() =>
-    import(
-      "./pages/people"
-    ).then(
-      (module) => ({
-        default:
-          module.PeoplePage,
-      }),
-    ),
-  );
-
-const UiKitPage =
-  lazy(() =>
-    import(
-      "./pages/ui-kit"
-    ).then(
-      (module) => ({
-        default:
-          module.UiKitPage,
-      }),
-    ),
-  );
+const UiKitPage = lazy(() =>
+  import("./pages/ui-kit").then((module) => ({
+    default: module.UiKitPage,
+  })),
+);
 
 const ResourcesPage = lazy(() =>
   import("./pages/resources").then((module) => ({
@@ -185,17 +123,11 @@ const HrRequestsPage = lazy(() =>
   })),
 );
 
-const VacationsPage =
-  lazy(() =>
-    import(
-      "./pages/vacations"
-    ).then(
-      (module) => ({
-        default:
-          module.VacationsPage,
-      }),
-    ),
-  );
+const VacationsPage = lazy(() =>
+  import("./pages/vacations").then((module) => ({
+    default: module.VacationsPage,
+  })),
+);
 
 const TicketsPage = lazy(() =>
   import("./pages/tickets").then((module) => ({
@@ -208,190 +140,99 @@ const NewTicketPage = lazy(() =>
   })),
 );
 
-const VisitsPage =
-  lazy(() =>
-    import(
-      "./pages/visits"
-    ).then(
-      (module) => ({
-        default:
-          module.VisitsPage,
-      }),
-    ),
-  );
-
-const VisitManagePage =
-  lazy(() =>
-    import(
-      "./pages/visit-manage"
-    ).then(
-      (module) => ({
-        default:
-          module.VisitManagePage,
-      }),
-    ),
-  );
-
-const VisitAgendaPage =
-  lazy(() =>
-    import(
-      "./pages/visit-agenda"
-    ).then(
-      (module) => ({
-        default:
-          module.VisitAgendaPage,
-      }),
-    ),
-  );
-
-const VisitHistoryPage =
-  lazy(() =>
-    import(
-      "./pages/visit-history"
-    ).then(
-      (module) => ({
-        default:
-          module.VisitHistoryPage,
-      }),
-    ),
-  );
-
-const AssetsPage =
-  lazy(() =>
-    import(
-      "./modules/assets/AssetsPage"
-    ).then(
-      (module) => ({
-        default:
-          module.AssetsPage,
-      }),
-    ),
-  );
-
-const AssetListPage = 
-  lazy(()=>
-    import(
-      "./modules/assets/AssetListPage"
-    ).then(
-      (module)=> ({
-        default:
-          module.AssetListPage,
-      }),
-    ),
-  );
-
-const AssetDetailPage =
-  lazy(async () => {
-    const module =
-      await import(
-        "./modules/assets/AssetDatailPage"
-      );
-
-    return {
-      default:
-        module.AssetDetailPage,
-    };
-  });
-
-const AssetCreatePage = 
-lazy(()=>
-  import(
-    "./modules/assets/AssetCreatePage"    
-  ).then(
-    (module)=> ({
-      default:
-        module.AssetCreatePage,
-    }),
-  ),
+const VisitsPage = lazy(() =>
+  import("./pages/visits").then((module) => ({
+    default: module.VisitsPage,
+  })),
 );
 
-const AssetEditPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetEditPage"
-    ).then((module) => ({
-      default:
-        module.AssetEditPage,
-    })),
+const VisitManagePage = lazy(() =>
+  import("./pages/visit-manage").then((module) => ({
+    default: module.VisitManagePage,
+  })),
 );
 
-
-const AssetMovementPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetMovementPage"
-    ).then((module) => ({
-      default:
-        module.AssetMovementPage,
-    })),
+const VisitAgendaPage = lazy(() =>
+  import("./pages/visit-agenda").then((module) => ({
+    default: module.VisitAgendaPage,
+  })),
 );
 
-
-const AssetSectorPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetSectorPage"
-    ).then((module) => ({
-      default:
-        module.AssetSectorPage,
-    })),
+const VisitHistoryPage = lazy(() =>
+  import("./pages/visit-history").then((module) => ({
+    default: module.VisitHistoryPage,
+  })),
 );
 
-const AssetDisposalPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetDisposalPage"
-    ).then((module) => ({
-      default:
-        module.AssetDisposalPage,
-    })),
+const AssetsPage = lazy(() =>
+  import("./modules/assets/AssetsPage").then((module) => ({
+    default: module.AssetsPage,
+  })),
 );
 
-const AssetReportsPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetReportsPage"
-    ).then((module) => ({
-      default:
-        module.AssetReportsPage,
-    })),
+const AssetListPage = lazy(() =>
+  import("./modules/assets/AssetListPage").then((module) => ({
+    default: module.AssetListPage,
+  })),
+);
+
+const AssetDetailPage = lazy(async () => {
+  const module = await import("./modules/assets/AssetDatailPage");
+
+  return {
+    default: module.AssetDetailPage,
+  };
+});
+
+const AssetCreatePage = lazy(() =>
+  import("./modules/assets/AssetCreatePage").then((module) => ({
+    default: module.AssetCreatePage,
+  })),
+);
+
+const AssetEditPage = lazy(() =>
+  import("./modules/assets/AssetEditPage").then((module) => ({
+    default: module.AssetEditPage,
+  })),
+);
+
+const AssetMovementPage = lazy(() =>
+  import("./modules/assets/AssetMovementPage").then((module) => ({
+    default: module.AssetMovementPage,
+  })),
+);
+
+const AssetSectorPage = lazy(() =>
+  import("./modules/assets/AssetSectorPage").then((module) => ({
+    default: module.AssetSectorPage,
+  })),
+);
+
+const AssetDisposalPage = lazy(() =>
+  import("./modules/assets/AssetDisposalPage").then((module) => ({
+    default: module.AssetDisposalPage,
+  })),
+);
+
+const AssetReportsPage = lazy(() =>
+  import("./modules/assets/AssetReportsPage").then((module) => ({
+    default: module.AssetReportsPage,
+  })),
 );
 
 export function App() {
   return (
     <Routes>
-      <Route
-        path="login"
-        element={
-          <LoginPage />
-        }
-      />
+      <Route path="login" element={<LoginPage />} />
 
-      <Route
-        path="alterar-senha"
-        element={
-          <ChangePasswordPage />
-        }
-      />
+      <Route path="alterar-senha" element={<ChangePasswordPage />} />
 
-      <Route
-        element={
-          <RequireAuth />
-        }
-      >
-        <Route
-          element={
-            <AppShell />
-          }
-        >
+      <Route element={<RequireAuth />}>
+        <Route element={<AppShell />}>
           <Route
             index
             element={
-              <Suspense
-                fallback={
-                  <PageFallback />
-                }
-              >
+              <Suspense fallback={<PageFallback />}>
                 <HubPage />
               </Suspense>
             }
@@ -400,16 +241,8 @@ export function App() {
           <Route
             path="rh"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.hr
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.hr}>
+                <Suspense fallback={<PageFallback />}>
                   <DashboardPage />
                 </Suspense>
               </RequireAccess>
@@ -419,16 +252,8 @@ export function App() {
           <Route
             path="rh/colaboradores"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.people
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.people}>
+                <Suspense fallback={<PageFallback />}>
                   <PeoplePage />
                 </Suspense>
               </RequireAccess>
@@ -438,16 +263,8 @@ export function App() {
           <Route
             path="rh/ferias"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.vacations
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.vacations}>
+                <Suspense fallback={<PageFallback />}>
                   <VacationsPage />
                 </Suspense>
               </RequireAccess>
@@ -459,16 +276,8 @@ export function App() {
           <Route
             path="visitas"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.visits
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.visits}>
+                <Suspense fallback={<PageFallback />}>
                   <VisitsPage />
                 </Suspense>
               </RequireAccess>
@@ -478,16 +287,8 @@ export function App() {
           <Route
             path="visitas/nova"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.visitsCreate
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.visitsCreate}>
+                <Suspense fallback={<PageFallback />}>
                   <VisitManagePage />
                 </Suspense>
               </RequireAccess>
@@ -497,16 +298,8 @@ export function App() {
           <Route
             path="visitas/agenda"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.visits
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.visits}>
+                <Suspense fallback={<PageFallback />}>
                   <VisitAgendaPage />
                 </Suspense>
               </RequireAccess>
@@ -516,22 +309,13 @@ export function App() {
           <Route
             path="visitas/historico"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.visits
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.visits}>
+                <Suspense fallback={<PageFallback />}>
                   <VisitHistoryPage />
                 </Suspense>
               </RequireAccess>
             }
           />
-
 
           <Route
             path="suporte"
@@ -573,7 +357,11 @@ export function App() {
           <Route
             path="rh/estrutura"
             element={
-              <RequireAccess rule={{ anyOf: ["organization.read", "organization.manage_positions"] }}>
+              <RequireAccess
+                rule={{
+                  anyOf: ["organization.read", "organization.manage_positions"],
+                }}
+              >
                 <Suspense fallback={<PageFallback />}>
                   <OrganizationPage />
                 </Suspense>
@@ -583,7 +371,9 @@ export function App() {
           <Route
             path="rh/substituicoes"
             element={
-              <RequireAccess rule={{ anyOf: ["workflows.manage_substitutions"] }}>
+              <RequireAccess
+                rule={{ anyOf: ["workflows.manage_substitutions"] }}
+              >
                 <Suspense fallback={<PageFallback />}>
                   <SubstitutionsPage />
                 </Suspense>
@@ -658,7 +448,9 @@ export function App() {
           <Route
             path="rh/documentos"
             element={
-              <RequireAccess rule={{ anyOf: ["documents.read", "documents.manage"] }}>
+              <RequireAccess
+                rule={{ anyOf: ["documents.read", "documents.manage"] }}
+              >
                 <Suspense fallback={<PageFallback />}>
                   <DocumentsPage />
                 </Suspense>
@@ -683,20 +475,12 @@ export function App() {
           />
 
           {/*Rotas Gestão Patrimonial*/}
-        
+
           <Route
             path="patrimonio"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.patrimony
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.patrimony}>
+                <Suspense fallback={<PageFallback />}>
                   <AssetsPage />
                 </Suspense>
               </RequireAccess>
@@ -704,26 +488,18 @@ export function App() {
           />
 
           <Route
-            path="patrimonio/bens" 
+            path="patrimonio/bens"
             element={
               <RequireAccess
-                  rule={
-                   {
-                    anyOf:[
-                      "assets.read",
-                      "assets.manage"
-                    ]
-                   }
-                  }
-                  >
-                  <Suspense
-                    fallback={
-                      <PageFallback/>
-                    }>
-                    <AssetListPage/>
-                  </Suspense>
+                rule={{
+                  anyOf: ["assets.read", "assets.manage"],
+                }}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <AssetListPage />
+                </Suspense>
               </RequireAccess>
-          }
+            }
           />
 
           <Route
@@ -733,22 +509,14 @@ export function App() {
                 // rule={
                 //   accessRules.patrimony
                 // }
-                rule={
-                   {
-                    anyOf:[
-                      "assets.manage"
-                    ]
-                   }
-                  }
-                >
-                  <Suspense
-                  fallback={
-                    <PageFallback/>
-                  }>
-                  <AssetCreatePage/>
-                  </Suspense>
+                rule={{
+                  anyOf: ["assets.manage"],
+                }}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <AssetCreatePage />
+                </Suspense>
               </RequireAccess>
-
             }
           />
 
@@ -757,10 +525,7 @@ export function App() {
             element={
               <RequireAccess
                 rule={{
-                  anyOf: [
-                    "assets.read",
-                    "assets.manage",
-                  ],
+                  anyOf: ["assets.read", "assets.manage"],
                 }}
               >
                 <AssetDetailPage />
@@ -769,29 +534,24 @@ export function App() {
           />
 
           <Route
-              path="patrimonio/bens/:id/editar"
-              element={
-                <RequireAccess
-                  rule={{
-                    anyOf: [
-                      "assets.manage",
-                    ],
-                  }}
-                >
-                  <AssetEditPage />
-                </RequireAccess>
-              }
-            />
+            path="patrimonio/bens/:id/editar"
+            element={
+              <RequireAccess
+                rule={{
+                  anyOf: ["assets.manage"],
+                }}
+              >
+                <AssetEditPage />
+              </RequireAccess>
+            }
+          />
 
           <Route
             path="patrimonio/setores"
             element={
               <RequireAccess
                 rule={{
-                  anyOf: [
-                    "assets.read",
-                    "assets.manage",
-                  ],
+                  anyOf: ["assets.read", "assets.manage"],
                 }}
               >
                 <AssetSectorPage />
@@ -803,17 +563,10 @@ export function App() {
             element={
               <RequireAccess
                 rule={{
-                  anyOf: [
-                    "assets.read",
-                    "assets.manage",
-                  ],
+                  anyOf: ["assets.read", "assets.manage"],
                 }}
               >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+                <Suspense fallback={<PageFallback />}>
                   <AssetReportsPage />
                 </Suspense>
               </RequireAccess>
@@ -825,9 +578,7 @@ export function App() {
             element={
               <RequireAccess
                 rule={{
-                  anyOf: [
-                    "assets.manage",
-                  ],
+                  anyOf: ["assets.manage"],
                 }}
               >
                 <AssetMovementPage />
@@ -840,9 +591,7 @@ export function App() {
             element={
               <RequireAccess
                 rule={{
-                  anyOf: [
-                    "assets.manage",
-                  ],
+                  anyOf: ["assets.manage"],
                 }}
               >
                 <AssetDisposalPage />
@@ -850,23 +599,13 @@ export function App() {
             }
           />
 
-
-
           {/* SISTEMA */}
 
           <Route
             path="sistema/administracao"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.administration
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.administration}>
+                <Suspense fallback={<PageFallback />}>
                   <AdminPage />
                 </Suspense>
               </RequireAccess>
@@ -876,16 +615,8 @@ export function App() {
           <Route
             path="sistema/auditoria"
             element={
-              <RequireAccess
-                rule={
-                  accessRules.audit
-                }
-              >
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+              <RequireAccess rule={accessRules.audit}>
+                <Suspense fallback={<PageFallback />}>
                   <AuditPage />
                 </Suspense>
               </RequireAccess>
@@ -895,11 +626,7 @@ export function App() {
           <Route
             path="conta"
             element={
-              <Suspense
-                fallback={
-                  <PageFallback />
-                }
-              >
+              <Suspense fallback={<PageFallback />}>
                 <AccountPage />
               </Suspense>
             }
@@ -909,11 +636,7 @@ export function App() {
             <Route
               path="dev/ui"
               element={
-                <Suspense
-                  fallback={
-                    <PageFallback />
-                  }
-                >
+                <Suspense fallback={<PageFallback />}>
                   <UiKitPage />
                 </Suspense>
               }
@@ -922,45 +645,19 @@ export function App() {
 
           <Route
             path="pessoas"
-            element={
-              <Navigate
-                to="/rh/colaboradores"
-                replace
-              />
-            }
+            element={<Navigate to="/rh/colaboradores" replace />}
           />
 
-          <Route
-            path="ferias"
-            element={
-              <Navigate
-                to="/rh/ferias"
-                replace
-              />
-            }
-          />
+          <Route path="ferias" element={<Navigate to="/rh/ferias" replace />} />
 
           <Route path="chamados" element={<Navigate to="/suporte" replace />} />
 
           <Route
             path="administracao"
-            element={
-              <Navigate
-                to="/sistema/administracao"
-                replace
-              />
-            }
+            element={<Navigate to="/sistema/administracao" replace />}
           />
 
-          <Route
-            path="*"
-            element={
-              <Navigate
-                to="/"
-                replace
-              />
-            }
-          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
     </Routes>
@@ -969,11 +666,7 @@ export function App() {
 
 function PageFallback() {
   return (
-    <div
-      className="space-y-4"
-      aria-label="Carregando página"
-      role="status"
-    >
+    <div className="space-y-4" aria-label="Carregando página" role="status">
       <div className="h-8 w-56 animate-pulse rounded-lg bg-[var(--surface-subtle)]" />
 
       <div className="h-48 animate-pulse rounded-[14px] bg-[var(--surface-subtle)]" />

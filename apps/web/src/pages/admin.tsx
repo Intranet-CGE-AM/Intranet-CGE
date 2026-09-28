@@ -180,7 +180,13 @@ const permissionDescriptions: Record<PermissionKey, string> = {
 };
 
 type PermissionModule =
-  "administration" | "audit" | "people" | "vacations" | "tickets" | "visits" | "patrimony";
+  | "administration"
+  | "audit"
+  | "people"
+  | "vacations"
+  | "tickets"
+  | "visits"
+  | "patrimony";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "occurrences.create": "people",

@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import {
   ClipboardText,
@@ -11,7 +8,7 @@ import {
 
 import { api } from "../../lib/api";
 
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx";
 
 type ReportType =
   | "inventory"
@@ -25,14 +22,8 @@ type OrganizationUnit = {
   id: string;
   code: string;
   name: string;
-  type:
-    | "department"
-    | "sector"
-    | "subsector"
-    | null;
-  parentId:
-    | string
-    | null;
+  type: "department" | "sector" | "subsector" | null;
+  parentId: string | null;
   active: boolean;
 };
 
@@ -43,21 +34,14 @@ type ReportAsset = {
   brand: string | null;
   model: string | null;
   serialNumber: string | null;
-  status:
-    | "active"
-    | "maintenance"
-    | "disposed";
+  status: "active" | "maintenance" | "disposed";
   conservationStatus: string | null;
   acquisitionDate: string | null;
   acquisitionValue: string | null;
   unitId: string | null;
   unitCode: string | null;
   unitName: string | null;
-  unitType:
-    | "department"
-    | "sector"
-    | "subsector"
-    | null;
+  unitType: "department" | "sector" | "subsector" | null;
 };
 
 type AssetReportResponse = {
@@ -69,20 +53,10 @@ type AssetReportResponse = {
   };
 };
 
-function formatDateForSpreadsheet(
-  value: string,
-) {
-  const [
-    year,
-    month,
-    day,
-  ] = value.split("-");
+function formatDateForSpreadsheet(value: string) {
+  const [year, month, day] = value.split("-");
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value;
   }
 
@@ -90,241 +64,152 @@ function formatDateForSpreadsheet(
 }
 
 export function AssetReportsPage() {
-  const [reportType, setReportType] =
-    useState<ReportType>("inventory");
+  const [reportType, setReportType] = useState<ReportType>("inventory");
 
-  const [
-  departmentId,
-  setDepartmentId,
-  ] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
 
-  const [
-    sectorId,
-    setSectorId,
-  ] = useState("");
+  const [sectorId, setSectorId] = useState("");
 
-  const [
-    subsectorId,
-    setSubsectorId,
-  ] = useState("");
+  const [subsectorId, setSubsectorId] = useState("");
 
-  const [units, setUnits] =
-  useState<OrganizationUnit[]>([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [loadingUnits, setLoadingUnits] =
-    useState(true);
+  const [loadingUnits, setLoadingUnits] = useState(true);
 
-  const [unitsError, setUnitsError] =
-    useState<string | null>(null);
+  const [unitsError, setUnitsError] = useState<string | null>(null);
 
-  const [status, setStatus] =
-    useState("");
+  const [status, setStatus] = useState("");
 
-  const [
-    conservationStatus,
-    setConservationStatus,
-  ] = useState("");
+  const [conservationStatus, setConservationStatus] = useState("");
 
-  const [startDate, setStartDate] =
-    useState("");
+  const [startDate, setStartDate] = useState("");
 
-  const [endDate, setEndDate] =
-    useState("");
+  const [endDate, setEndDate] = useState("");
 
-  const [
-    report,
-    setReport,
-  ] = useState<AssetReportResponse | null>(
-    null,
-  );
+  const [report, setReport] = useState<AssetReportResponse | null>(null);
 
-  const [
-    loadingReport,
-    setLoadingReport,
-  ] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
 
-  const [
-    reportError,
-    setReportError,
-  ] = useState<string | null>(
-    null,
-  );
+  const [reportError, setReportError] = useState<string | null>(null);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function loadUnits() {
-    try {
-      setLoadingUnits(true);
-      setUnitsError(null);
+    async function loadUnits() {
+      try {
+        setLoadingUnits(true);
+        setUnitsError(null);
 
-      const result =
-        await api<
+        const result = await api<
           | OrganizationUnit[]
           | {
               units: OrganizationUnit[];
             }
         >("/api/organization-units");
 
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      const loadedUnits =
-        Array.isArray(result)
-          ? result
-          : result.units;
+        const loadedUnits = Array.isArray(result) ? result : result.units;
 
-      setUnits(
-        loadedUnits.filter(
-          (unit) => unit.active,
-        ),
-      );
+        setUnits(loadedUnits.filter((unit) => unit.active));
       } catch (error) {
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      console.error(
-        "Erro ao carregar setores:",
-        error,
-      );
+        console.error("Erro ao carregar setores:", error);
 
-      setUnitsError(
-        "Não foi possível carregar a estrutura organizacional.",
-      );
-    } finally {
-      if (!cancelled) {
-        setLoadingUnits(false);
+        setUnitsError("Não foi possível carregar a estrutura organizacional.");
+      } finally {
+        if (!cancelled) {
+          setLoadingUnits(false);
+        }
       }
     }
-  }
 
-  void loadUnits();
+    void loadUnits();
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-const departments =
-  units.filter(
-    (unit) =>
-      unit.type === "department" &&
-      unit.active,
+  const departments = units.filter(
+    (unit) => unit.type === "department" && unit.active,
   );
 
-const sectors =
-  units.filter(
+  const sectors = units.filter(
     (unit) =>
       unit.type === "sector" &&
       unit.active &&
-      (
-        !departmentId ||
-        unit.parentId === departmentId
-      ),
+      (!departmentId || unit.parentId === departmentId),
   );
 
-const subsectors =
-  units.filter(
+  const subsectors = units.filter(
     (unit) =>
       unit.type === "subsector" &&
       unit.active &&
-      (
-        !sectorId ||
-        unit.parentId === sectorId
-      ),
+      (!sectorId || unit.parentId === sectorId),
   );
 
-{unitsError ? (
-  <p className="text-sm text-red-600">
-    {unitsError}
-  </p>
-) : null}
+  {
+    unitsError ? <p className="text-sm text-red-600">{unitsError}</p> : null;
+  }
 
-async function handleGenerateReport() {
-  try {
-    setLoadingReport(true);
-    setReportError(null);
+  async function handleGenerateReport() {
+    try {
+      setLoadingReport(true);
+      setReportError(null);
 
-    const params =
-      new URLSearchParams();
+      const params = new URLSearchParams();
 
-    if (departmentId) {
-      params.set(
-        "departmentId",
-        departmentId,
-      );
-    }
+      if (departmentId) {
+        params.set("departmentId", departmentId);
+      }
 
-    if (sectorId) {
-      params.set(
-        "sectorId",
-        sectorId,
-      );
-    }
+      if (sectorId) {
+        params.set("sectorId", sectorId);
+      }
 
-    if (subsectorId) {
-      params.set(
-        "subsectorId",
-        subsectorId,
-      );
-    }
+      if (subsectorId) {
+        params.set("subsectorId", subsectorId);
+      }
 
-    if (status) {
-      params.set(
-        "status",
-        status,
-      );
-    }
+      if (status) {
+        params.set("status", status);
+      }
 
-    if (
-      conservationStatus
-    ) {
-      params.set(
-        "conservationStatus",
-        conservationStatus,
-      );
-    }
+      if (conservationStatus) {
+        params.set("conservationStatus", conservationStatus);
+      }
 
-    if (startDate) {
-      params.set(
-        "startDate",
-        startDate,
-      );
-    }
+      if (startDate) {
+        params.set("startDate", startDate);
+      }
 
-    if (endDate) {
-      params.set(
-        "endDate",
-        endDate,
-      );
-    }
+      if (endDate) {
+        params.set("endDate", endDate);
+      }
 
-    const queryString =
-      params.toString();
+      const queryString = params.toString();
 
-    const result =
-      await api<AssetReportResponse>(
+      const result = await api<AssetReportResponse>(
         queryString
           ? `/api/assets/reports?${queryString}`
           : "/api/assets/reports",
       );
 
-    setReport(result);
-  } catch (error) {
-    console.error(
-      "Erro ao gerar relatório:",
-      error,
-    );
+      setReport(result);
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
 
-    setReportError(
-      "Não foi possível gerar o relatório.",
-    );
-  } finally {
-    setLoadingReport(false);
+      setReportError("Não foi possível gerar o relatório.");
+    } finally {
+      setLoadingReport(false);
+    }
   }
-}
 
   function handleExportPdf() {
     console.log("Exportar PDF");
@@ -332,80 +217,53 @@ async function handleGenerateReport() {
 
   function handleExportXlsx() {
     if (!report) {
-      setReportError(
-        "Gere o relatório antes de exportar.",
-      );
+      setReportError("Gere o relatório antes de exportar.");
 
       return;
     }
 
-    if (
-      report.assets.length === 0
-    ) {
-      setReportError(
-        "Não há dados para exportar.",
-      );
+    if (report.assets.length === 0) {
+      setReportError("Não há dados para exportar.");
 
       return;
     }
 
     setReportError(null);
 
-    const rows =
-      report.assets.map(
-        (asset) => ({
-          Patrimônio:
-            asset.patrimonyNumber,
+    const rows = report.assets.map((asset) => ({
+      Patrimônio: asset.patrimonyNumber,
 
-          Descrição:
-            asset.description,
+      Descrição: asset.description,
 
-          Marca:
-            asset.brand ?? "",
+      Marca: asset.brand ?? "",
 
-          Modelo:
-            asset.model ?? "",
+      Modelo: asset.model ?? "",
 
-          "Número de série":
-            asset.serialNumber ?? "",
+      "Número de série": asset.serialNumber ?? "",
 
-          Localização:
-            asset.unitCode
-              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-              : "Não informado",
+      Localização: asset.unitCode
+        ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+        : "Não informado",
 
-          Situação:
-            asset.status === "active"
-              ? "Ativo"
-              : asset.status ===
-                  "maintenance"
-                ? "Em manutenção"
-                : "Baixado",
+      Situação:
+        asset.status === "active"
+          ? "Ativo"
+          : asset.status === "maintenance"
+            ? "Em manutenção"
+            : "Baixado",
 
-          Conservação:
-            asset.conservationStatus ??
-            "Não informado",
+      Conservação: asset.conservationStatus ?? "Não informado",
 
-          "Data de aquisição":
-            asset.acquisitionDate
-              ? formatDateForSpreadsheet(
-                  asset.acquisitionDate,
-                )
-              : "",
+      "Data de aquisição": asset.acquisitionDate
+        ? formatDateForSpreadsheet(asset.acquisitionDate)
+        : "",
 
-          "Valor de aquisição":
-            asset.acquisitionValue
-              ? Number(
-                  asset.acquisitionValue,
-                )
-              : "",
-        }),
-      );
+      "Valor de aquisição": asset.acquisitionValue
+        ? Number(asset.acquisitionValue)
+        : "",
+    }));
 
-    const worksheet =
-      XLSX.utils.json_to_sheet(
-        rows,
-      );
+    const worksheet = XLSX.utils.json_to_sheet(rows);
 
     worksheet["!cols"] = [
       { wch: 15 },
@@ -420,67 +278,39 @@ async function handleGenerateReport() {
       { wch: 20 },
     ];
 
-    const workbook =
-      XLSX.utils.book_new();
+    const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Inventário",
-    );
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventário");
 
     const summaryRows = [
       {
-        Informação:
-          "Quantidade de bens",
+        Informação: "Quantidade de bens",
 
-        Valor:
-          report.summary.total,
+        Valor: report.summary.total,
       },
 
       {
-        Informação:
-          "Valor patrimonial total",
+        Informação: "Valor patrimonial total",
 
-        Valor:
-          report.summary.totalValue,
+        Valor: report.summary.totalValue,
       },
     ];
 
-    const summaryWorksheet =
-      XLSX.utils.json_to_sheet(
-        summaryRows,
-      );
+    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryRows);
 
-    summaryWorksheet["!cols"] = [
-      { wch: 30 },
-      { wch: 25 },
-    ];
+    summaryWorksheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      summaryWorksheet,
-      "Resumo",
-    );
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Resumo");
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    const date =
-      [
-        now.getFullYear(),
-        String(
-          now.getMonth() + 1,
-        ).padStart(2, "0"),
-        String(
-          now.getDate(),
-        ).padStart(2, "0"),
-      ].join("-");
+    const date = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
 
-    XLSX.writeFile(
-      workbook,
-      `relatorio-patrimonial-${date}.xlsx`,
-    );
+    XLSX.writeFile(workbook, `relatorio-patrimonial-${date}.xlsx`);
   }
 
   return (
@@ -491,13 +321,10 @@ async function handleGenerateReport() {
           Controle de Patrimônio
         </p>
 
-        <h1 className="text-2xl font-semibold">
-          Relatórios patrimoniais
-        </h1>
+        <h1 className="text-2xl font-semibold">Relatórios patrimoniais</h1>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          Consulte informações patrimoniais e exporte
-          relatórios em PDF ou XLSX.
+          Consulte informações patrimoniais e exporte relatórios em PDF ou XLSX.
         </p>
       </div>
 
@@ -507,13 +334,10 @@ async function handleGenerateReport() {
           <FunnelSimple size={22} />
 
           <div>
-            <h2 className="font-semibold">
-              Filtros do relatório
-            </h2>
+            <h2 className="font-semibold">Filtros do relatório</h2>
 
             <p className="text-sm text-muted-foreground">
-              Selecione o tipo de relatório e os
-              filtros desejados.
+              Selecione o tipo de relatório e os filtros desejados.
             </p>
           </div>
         </div>
@@ -521,58 +345,38 @@ async function handleGenerateReport() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {/* TIPO */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Tipo de relatório
-            </span>
+            <span className="text-sm font-medium">Tipo de relatório</span>
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={reportType}
               onChange={(event) =>
-                setReportType(
-                  event.target.value as ReportType,
-                )
+                setReportType(event.target.value as ReportType)
               }
             >
-              <option value="inventory">
-                Inventário geral
-              </option>
+              <option value="inventory">Inventário geral</option>
 
-              <option value="sector">
-                Bens por setor
-              </option>
+              <option value="sector">Bens por setor</option>
 
-              <option value="status">
-                Bens por situação
-              </option>
+              <option value="status">Bens por situação</option>
 
-              <option value="conservation">
-                Estado de conservação
-              </option>
+              <option value="conservation">Estado de conservação</option>
 
-              <option value="movements">
-                Movimentações
-              </option>
+              <option value="movements">Movimentações</option>
 
-              <option value="financial">
-                Relatório financeiro
-              </option>
+              <option value="financial">Relatório financeiro</option>
             </select>
           </label>
 
           {/* Departamento */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Departamento
-            </span>
+            <span className="text-sm font-medium">Departamento</span>
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={departmentId}
               onChange={(event) => {
-                setDepartmentId(
-                  event.target.value,
-                );
+                setDepartmentId(event.target.value);
 
                 setSectorId("");
                 setSubsectorId("");
@@ -580,46 +384,32 @@ async function handleGenerateReport() {
               disabled={loadingUnits}
             >
               <option value="">
-                {loadingUnits
-                  ? "Carregando..."
-                  : "Todos os departamentos"}
+                {loadingUnits ? "Carregando..." : "Todos os departamentos"}
               </option>
 
-              {departments.map(
-                (department) => (
-                  <option
-                    key={department.id}
-                    value={department.id}
-                  >
-                    {department.code}
-                    {" - "}
-                    {department.name}
-                  </option>
-                ),
-              )}
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.code}
+                  {" - "}
+                  {department.name}
+                </option>
+              ))}
             </select>
           </label>
 
           {/* SETOR */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Setor
-            </span>
+            <span className="text-sm font-medium">Setor</span>
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={sectorId}
               onChange={(event) => {
-                setSectorId(
-                  event.target.value,
-                );
+                setSectorId(event.target.value);
 
                 setSubsectorId("");
               }}
-              disabled={
-                loadingUnits ||
-                !departmentId
-              }
+              disabled={loadingUnits || !departmentId}
             >
               <option value="">
                 {!departmentId
@@ -627,162 +417,105 @@ async function handleGenerateReport() {
                   : "Todos os setores"}
               </option>
 
-              {sectors.map(
-                (sector) => (
-                  <option
-                    key={sector.id}
-                    value={sector.id}
-                  >
-                    {sector.code}
-                    {" - "}
-                    {sector.name}
-                  </option>
-                ),
-              )}
+              {sectors.map((sector) => (
+                <option key={sector.id} value={sector.id}>
+                  {sector.code}
+                  {" - "}
+                  {sector.name}
+                </option>
+              ))}
             </select>
           </label>
 
-        {/* SUBSETOR */}
-        <label className="space-y-1">
-          <span className="text-sm font-medium">
-            Subsetor
-          </span>
+          {/* SUBSETOR */}
+          <label className="space-y-1">
+            <span className="text-sm font-medium">Subsetor</span>
 
-          <select
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            value={subsectorId}
-            onChange={(event) =>
-              setSubsectorId(
-                event.target.value,
-              )
-            }
-            disabled={
-              loadingUnits ||
-              !sectorId
-            }
-          >
-            <option value="">
-              {!sectorId
-                ? "Selecione primeiro o setor"
-                : "Todos os subsetores"}
-            </option>
+            <select
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={subsectorId}
+              onChange={(event) => setSubsectorId(event.target.value)}
+              disabled={loadingUnits || !sectorId}
+            >
+              <option value="">
+                {!sectorId
+                  ? "Selecione primeiro o setor"
+                  : "Todos os subsetores"}
+              </option>
 
-            {subsectors.map(
-              (subsector) => (
-                <option
-                  key={subsector.id}
-                  value={subsector.id}
-                >
+              {subsectors.map((subsector) => (
+                <option key={subsector.id} value={subsector.id}>
                   {subsector.code}
                   {" - "}
                   {subsector.name}
                 </option>
-              ),
-            )}
-          </select>
-        </label>
+              ))}
+            </select>
+          </label>
 
           {/* STATUS */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Situação
-            </span>
+            <span className="text-sm font-medium">Situação</span>
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={status}
-              onChange={(event) =>
-                setStatus(event.target.value)
-              }
+              onChange={(event) => setStatus(event.target.value)}
             >
-              <option value="">
-                Todas
-              </option>
+              <option value="">Todas</option>
 
-              <option value="active">
-                Ativo
-              </option>
+              <option value="active">Ativo</option>
 
-              <option value="maintenance">
-                Em manutenção
-              </option>
+              <option value="maintenance">Em manutenção</option>
 
-              <option value="disposed">
-                Baixado
-              </option>
+              <option value="disposed">Baixado</option>
             </select>
           </label>
 
           {/* CONSERVAÇÃO */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Conservação
-            </span>
+            <span className="text-sm font-medium">Conservação</span>
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={conservationStatus}
-              onChange={(event) =>
-                setConservationStatus(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setConservationStatus(event.target.value)}
             >
-              <option value="">
-                Todas
-              </option>
+              <option value="">Todas</option>
 
-              <option value="Ótimo">
-                Ótimo
-              </option>
+              <option value="Ótimo">Ótimo</option>
 
-              <option value="Bom">
-                Bom
-              </option>
+              <option value="Bom">Bom</option>
 
-              <option value="Regular">
-                Regular
-              </option>
+              <option value="Regular">Regular</option>
 
-              <option value="Ruim">
-                Ruim
-              </option>
+              <option value="Ruim">Ruim</option>
 
-              <option value="Inservível">
-                Inservível
-              </option>
+              <option value="Inservível">Inservível</option>
             </select>
           </label>
 
           {/* DATA INICIAL */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Data inicial
-            </span>
+            <span className="text-sm font-medium">Data inicial</span>
 
             <input
               type="date"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={startDate}
-              onChange={(event) =>
-                setStartDate(event.target.value)
-              }
+              onChange={(event) => setStartDate(event.target.value)}
             />
           </label>
 
           {/* DATA FINAL */}
           <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Data final
-            </span>
+            <span className="text-sm font-medium">Data final</span>
 
             <input
               type="date"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={endDate}
-              onChange={(event) =>
-                setEndDate(event.target.value)
-              }
+              onChange={(event) => setEndDate(event.target.value)}
             />
           </label>
         </div>
@@ -799,9 +532,7 @@ async function handleGenerateReport() {
           >
             <ClipboardText size={18} />
 
-            {loadingReport
-              ? "Gerando..."
-              : "Gerar relatório"}
+            {loadingReport ? "Gerando..." : "Gerar relatório"}
           </button>
 
           <button
@@ -810,7 +541,6 @@ async function handleGenerateReport() {
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
           >
             <FileArrowDown size={18} />
-
             Exportar PDF
           </button>
 
@@ -820,7 +550,6 @@ async function handleGenerateReport() {
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
           >
             <FileArrowDown size={18} />
-
             Exportar XLSX
           </button>
         </div>
@@ -829,13 +558,10 @@ async function handleGenerateReport() {
       {/* RESULTADO */}
       <div className="rounded-lg border bg-background p-6">
         <div className="mb-4">
-          <h2 className="font-semibold">
-            Resultado
-          </h2>
+          <h2 className="font-semibold">Resultado</h2>
 
           <p className="text-sm text-muted-foreground">
-            Os dados do relatório serão exibidos aqui
-            após a consulta.
+            Os dados do relatório serão exibidos aqui após a consulta.
           </p>
         </div>
 
@@ -868,15 +594,10 @@ async function handleGenerateReport() {
                 </p>
 
                 <p className="mt-1 text-2xl font-semibold">
-                  {new Intl.NumberFormat(
-                    "pt-BR",
-                    {
-                      style: "currency",
-                      currency: "BRL",
-                    },
-                  ).format(
-                    report.summary.totalValue,
-                  )}
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(report.summary.totalValue)}
                 </p>
               </div>
             </div>
@@ -890,25 +611,15 @@ async function handleGenerateReport() {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="px-3 py-3 font-medium">
-                        Patrimônio
-                      </th>
+                      <th className="px-3 py-3 font-medium">Patrimônio</th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Descrição
-                      </th>
+                      <th className="px-3 py-3 font-medium">Descrição</th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Localização
-                      </th>
+                      <th className="px-3 py-3 font-medium">Localização</th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Situação
-                      </th>
+                      <th className="px-3 py-3 font-medium">Situação</th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Conservação
-                      </th>
+                      <th className="px-3 py-3 font-medium">Conservação</th>
 
                       <th className="px-3 py-3 text-right font-medium">
                         Valor
@@ -917,59 +628,40 @@ async function handleGenerateReport() {
                   </thead>
 
                   <tbody>
-                    {report.assets.map(
-                      (asset) => (
-                        <tr
-                          key={asset.id}
-                          className="border-b"
-                        >
-                          <td className="px-3 py-3">
-                            {asset.patrimonyNumber}
-                          </td>
+                    {report.assets.map((asset) => (
+                      <tr key={asset.id} className="border-b">
+                        <td className="px-3 py-3">{asset.patrimonyNumber}</td>
 
-                          <td className="px-3 py-3">
-                            {asset.description}
-                          </td>
+                        <td className="px-3 py-3">{asset.description}</td>
 
-                          <td className="px-3 py-3">
-                            {asset.unitCode
-                              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                              : "Não informado"}
-                          </td>
+                        <td className="px-3 py-3">
+                          {asset.unitCode
+                            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                            : "Não informado"}
+                        </td>
 
-                          <td className="px-3 py-3">
-                            {asset.status === "active"
-                              ? "Ativo"
-                              : asset.status === "maintenance"
-                                ? "Em manutenção"
-                                : "Baixado"}
-                          </td>
+                        <td className="px-3 py-3">
+                          {asset.status === "active"
+                            ? "Ativo"
+                            : asset.status === "maintenance"
+                              ? "Em manutenção"
+                              : "Baixado"}
+                        </td>
 
-                          <td className="px-3 py-3">
-                            {asset.conservationStatus ??
-                              "Não informado"}
-                          </td>
+                        <td className="px-3 py-3">
+                          {asset.conservationStatus ?? "Não informado"}
+                        </td>
 
-                          <td className="px-3 py-3 text-right">
-                            {asset.acquisitionValue
-                              ? new Intl.NumberFormat(
-                                  "pt-BR",
-                                  {
-                                    style:
-                                      "currency",
-                                    currency:
-                                      "BRL",
-                                  },
-                                ).format(
-                                  Number(
-                                    asset.acquisitionValue,
-                                  ),
-                                )
-                              : "—"}
-                          </td>
-                        </tr>
-                      ),
-                    )}
+                        <td className="px-3 py-3 text-right">
+                          {asset.acquisitionValue
+                            ? new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              }).format(Number(asset.acquisitionValue))
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -977,10 +669,7 @@ async function handleGenerateReport() {
           </>
         ) : (
           <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Selecione os filtros e clique em{" "}
-            <strong>
-              Gerar relatório
-            </strong>.
+            Selecione os filtros e clique em <strong>Gerar relatório</strong>.
           </div>
         )}
       </div>

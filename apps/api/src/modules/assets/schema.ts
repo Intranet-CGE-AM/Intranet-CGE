@@ -8,197 +8,116 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import {
-  organizationUnits,
-  people,
-} from "../people/schema.js";
+import { organizationUnits, people } from "../people/schema.js";
 
-export const assetStatus = pgEnum(
-  "asset_status",
-  [
-    "active",
-    "maintenance",
-    "disposed",
-  ],
-);
-
+export const assetStatus = pgEnum("asset_status", [
+  "active",
+  "maintenance",
+  "disposed",
+]);
 
 //Patrimonio
-export const assets = pgTable(
-  "assets",
-  {
-    id:
-      uuid("id")
-        .primaryKey()
-        .defaultRandom(),
+export const assets = pgTable("assets", {
+  id: uuid("id").primaryKey().defaultRandom(),
 
-    patrimonyNumber:
-      text("patrimony_number")
-        .notNull()
-        .unique(),
+  patrimonyNumber: text("patrimony_number").notNull().unique(),
 
-    description:
-      text("description")
-        .notNull(),
+  description: text("description").notNull(),
 
-    brand:
-      text("brand"),
+  brand: text("brand"),
 
-    model:
-      text("model"),
+  model: text("model"),
 
-    serialNumber:
-      text("serial_number"),
+  serialNumber: text("serial_number"),
 
-    status:
-      assetStatus("status")
-        .notNull()
-        .default("active"),
+  status: assetStatus("status").notNull().default("active"),
 
-    unitId:
-      uuid("unit_id")
-        .references(
-          () => organizationUnits.id,
-        ),
+  unitId: uuid("unit_id").references(() => organizationUnits.id),
 
-    responsiblePersonId:
-      uuid("responsible_person_id")
-        .references(
-          () => people.id,
-        ),
-    
-    room:
-      text("room"),
+  responsiblePersonId: uuid("responsible_person_id").references(
+    () => people.id,
+  ),
 
-    usageDate:
-      date("usage_date"),
+  room: text("room"),
 
-    documentNumber:
-      text("document_number"),
+  usageDate: date("usage_date"),
 
-    documentDate:
-      date("document_date"),
+  documentNumber: text("document_number"),
 
-    commitmentNumber:
-      text("commitment_number"),
+  documentDate: date("document_date"),
 
-    conservationStatus:
-      text("conservation_status"),
+  commitmentNumber: text("commitment_number"),
 
-    renavam:
-      text("renavam"),
+  conservationStatus: text("conservation_status"),
 
-    chassis:
-      text("chassis"),
+  renavam: text("renavam"),
 
-    acquisitionDate:
-      date("acquisition_date"),
+  chassis: text("chassis"),
 
-    acquisitionValue:
-      numeric(
-        "acquisition_value",
-        {
-          precision: 14,
-          scale: 2,
-        },
-      ),
+  acquisitionDate: date("acquisition_date"),
 
-    notes:
-      text("notes"),
+  acquisitionValue: numeric("acquisition_value", {
+    precision: 14,
+    scale: 2,
+  }),
 
-    createdAt:
-      timestamp("created_at", {
-        withTimezone: true,
-      })
-        .notNull()
-        .defaultNow(),
+  notes: text("notes"),
 
-    updatedAt:
-      timestamp("updated_at", {
-        withTimezone: true,
-      })
-        .notNull()
-        .defaultNow(),
-  },
-);
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+});
 
 //Movimentação do patrimonio
-export const assetMovements = pgTable(
-  "asset_movements",
-  {
-    id:
-      uuid("id")
-        .primaryKey()
-        .defaultRandom(),
+export const assetMovements = pgTable("asset_movements", {
+  id: uuid("id").primaryKey().defaultRandom(),
 
-    assetId:
-      uuid("asset_id")
-        .notNull()
-        .references(
-          () => assets.id,
-        ),
+  assetId: uuid("asset_id")
+    .notNull()
+    .references(() => assets.id),
 
-    fromUnitId:
-      uuid("from_unit_id")
-        .references(
-          () => organizationUnits.id,
-        ),
+  fromUnitId: uuid("from_unit_id").references(() => organizationUnits.id),
 
-    toUnitId:
-      uuid("to_unit_id")
-        .notNull()
-        .references(
-          () => organizationUnits.id,
-        ),
+  toUnitId: uuid("to_unit_id")
+    .notNull()
+    .references(() => organizationUnits.id),
 
-    movementDate:
-      date("movement_date")
-        .notNull(),
+  movementDate: date("movement_date").notNull(),
 
-    notes:
-      text("notes"),
+  notes: text("notes"),
 
-    createdAt:
-      timestamp("created_at", {
-        withTimezone: true,
-      })
-        .notNull()
-        .defaultNow(),
-  },
-);
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+});
 
 //Disponibilidade o Patrimonio
-export const assetDisposals = pgTable(
-  "asset_disposals",
-  {
-    id:
-      uuid("id")
-        .primaryKey()
-        .defaultRandom(),
+export const assetDisposals = pgTable("asset_disposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
 
-    assetId:
-      uuid("asset_id")
-        .notNull()
-        .references(
-          () => assets.id,
-        ),
+  assetId: uuid("asset_id")
+    .notNull()
+    .references(() => assets.id),
 
-    disposalDate:
-      date("disposal_date")
-        .notNull(),
+  disposalDate: date("disposal_date").notNull(),
 
-    reason:
-      text("reason")
-        .notNull(),
+  reason: text("reason").notNull(),
 
-    notes:
-      text("notes"),
+  notes: text("notes"),
 
-    createdAt:
-      timestamp("created_at", {
-        withTimezone: true,
-      })
-        .notNull()
-        .defaultNow(),
-  },
-);
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+});

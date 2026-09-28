@@ -13,8 +13,8 @@ import { MinioObjectStorage } from "./modules/storage/object-storage.js";
 import { VacationService } from "./modules/vacations/service.js";
 import { TicketService } from "./modules/tickets/service.js";
 import { VisitService } from "./modules/visits/service.js";
-import { assetRoutes, } from "./modules/assets/routes.js";
-import { AssetService, } from "./modules/assets/service.js";
+import { assetRoutes } from "./modules/assets/routes.js";
+import { AssetService } from "./modules/assets/service.js";
 
 const config = loadConfig();
 const { client, db } = createDatabase(config.DATABASE_URL);
@@ -55,14 +55,11 @@ const app = await buildApp({
   visitService,
 });
 
-await app.register(
-  assetRoutes,
-  {
-    accessService,
-    authenticationService,
-    assetService,
-  },
-);
+await app.register(assetRoutes, {
+  accessService,
+  authenticationService,
+  assetService,
+});
 
 const shutdown = async () => {
   await app.close();

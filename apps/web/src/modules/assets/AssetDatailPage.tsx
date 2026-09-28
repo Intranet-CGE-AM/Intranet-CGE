@@ -1,16 +1,6 @@
-import type {
-  Asset,
-  AssetMovement,
-} from "@cge/contracts";
+import type { Asset, AssetMovement } from "@cge/contracts";
 
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-} from "@cge/ui";
+import { Alert, Badge, Button, Card, CardContent, CardHeader } from "@cge/ui";
 
 import {
   ArrowLeft,
@@ -19,26 +9,13 @@ import {
   TrashSimple,
 } from "@phosphor-icons/react";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-  Link,
-  useParams,
-} from "react-router";
+import { Link, useParams } from "react-router";
 
-import {
-  api,
-  ApiError,
-} from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 
-
-type OrganizationUnitType =
-  | "department"
-  | "sector"
-  | "subsector";
+type OrganizationUnitType = "department" | "sector" | "subsector";
 
 type OrganizationUnit = {
   id: string;
@@ -77,59 +54,25 @@ const assetStatusLabels = {
 } as const;
 
 export function AssetDetailPage() {
-  const {
-    id,
-  } = useParams();
+  const { id } = useParams();
 
-  const [
-    asset,
-    setAsset,
-  ] = useState<Asset | null>(
-    null,
-  );
+  const [asset, setAsset] = useState<Asset | null>(null);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [error, setError] = useState("");
 
-  const [
-    movements,
-    setMovements,
-  ] = useState<
-    AssetMovement[]
-  >([]);
+  const [movements, setMovements] = useState<AssetMovement[]>([]);
 
-  const [
-    units,
-    setUnits,
-  ] = useState<
-    OrganizationUnit[]
-  >([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  
-  const [
-    changingStatus,
-    setChangingStatus,
-  ] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
 
-  const [
-    disposal,
-    setDisposal,
-  ] = useState<AssetDisposal | null>(
-    null,
-  );
+  const [disposal, setDisposal] = useState<AssetDisposal | null>(null);
 
   useEffect(() => {
     if (!id) {
-      setError(
-        "Identificador do bem não informado.",
-      );
+      setError("Identificador do bem não informado.");
 
       setLoading(false);
 
@@ -139,18 +82,12 @@ export function AssetDetailPage() {
     void loadAsset(id);
   }, [id]);
 
-  async function loadAsset(
-    assetId: string,
-  ) {
+  async function loadAsset(assetId: string) {
     try {
       setLoading(true);
       setError("");
 
-      const [
-        assetResult,
-        unitsResult,
-        movementsResult,
-      ] = await Promise.all([
+      const [assetResult, unitsResult, movementsResult] = await Promise.all([
         api<Asset>(
           `/api/assets/${assetId}`, //Busca de Bem
         ),
@@ -164,48 +101,26 @@ export function AssetDetailPage() {
         ),
       ]);
 
-      setUnits(
-      unitsResult.units,
-      );
+      setUnits(unitsResult.units);
 
-      setAsset(
-        assetResult,
-      );
+      setAsset(assetResult);
 
-      setMovements(
-        movementsResult.movements,
-      );
+      setMovements(movementsResult.movements);
 
-      if (
-        assetResult.status ===
-        "disposed"
-      ) {
-        const disposalResult =
-          await api<AssetDisposalResponse>(
-            `/api/assets/${assetId}/disposal`,
-          );
-
-        setDisposal(
-          disposalResult.disposal,
+      if (assetResult.status === "disposed") {
+        const disposalResult = await api<AssetDisposalResponse>(
+          `/api/assets/${assetId}/disposal`,
         );
+
+        setDisposal(disposalResult.disposal);
       } else {
-        setDisposal(
-          null,
-        );
+        setDisposal(null);
       }
-
     } catch (cause) {
-      if (
-        cause instanceof
-        ApiError
-      ) {
-        setError(
-          cause.message,
-        );
+      if (cause instanceof ApiError) {
+        setError(cause.message);
       } else {
-        setError(
-          "Não foi possível carregar os dados do bem patrimonial.",
-        );
+        setError("Não foi possível carregar os dados do bem patrimonial.");
       }
     } finally {
       setLoading(false);
@@ -220,393 +135,236 @@ export function AssetDetailPage() {
     );
   }
 
-  if (
-    error ||
-    !asset
-  ) {
+  if (error || !asset) {
     return (
       <div className="space-y-6">
-        <Button
-          asChild
-          variant="secondary"
-        >
-          <Link
-            to="/patrimonio/bens"
-          >
-            <ArrowLeft
-              size={18}
-            />
-
+        <Button asChild variant="secondary">
+          <Link to="/patrimonio/bens">
+            <ArrowLeft size={18} />
             Voltar
           </Link>
         </Button>
 
-        <Alert
-          tone="danger"
-          title="Não foi possível carregar o bem"
-        >
-          {error ||
-            "Bem patrimonial não encontrado."}
+        <Alert tone="danger" title="Não foi possível carregar o bem">
+          {error || "Bem patrimonial não encontrado."}
         </Alert>
       </div>
     );
   }
 
-const unitsById =
-  new Map(
-    units.map(
-      (unit) => [
-        unit.id,
-        unit,
-      ],
-    ),
-  );
+  const unitsById = new Map(units.map((unit) => [unit.id, unit]));
 
-
-  const currentUnit =
-  asset.unitId
-    ? unitsById.get(asset.unitId) ?? null
+  const currentUnit = asset.unitId
+    ? (unitsById.get(asset.unitId) ?? null)
     : null;
 
-  let department:
-    OrganizationUnit | null = null;
+  let department: OrganizationUnit | null = null;
 
-  let sector:
-    OrganizationUnit | null = null;
+  let sector: OrganizationUnit | null = null;
 
-  let subsector:
-    OrganizationUnit | null = null;
+  let subsector: OrganizationUnit | null = null;
 
   if (currentUnit?.type === "subsector") {
     subsector = currentUnit;
 
-    sector =
-      currentUnit.parentId
-        ? unitsById.get(
-            currentUnit.parentId,
-          ) ?? null
-        : null;
+    sector = currentUnit.parentId
+      ? (unitsById.get(currentUnit.parentId) ?? null)
+      : null;
 
-    department =
-      sector?.parentId
-        ? unitsById.get(
-            sector.parentId,
-          ) ?? null
-        : null;
-  } else if (
-    currentUnit?.type === "sector"
-  ) {
+    department = sector?.parentId
+      ? (unitsById.get(sector.parentId) ?? null)
+      : null;
+  } else if (currentUnit?.type === "sector") {
     // Compatibilidade com bens antigos.
     sector = currentUnit;
 
-    department =
-      currentUnit.parentId
-        ? unitsById.get(
-            currentUnit.parentId,
-          ) ?? null
-        : null;
-  } else if (
-    currentUnit?.type === "department"
-  ) {
+    department = currentUnit.parentId
+      ? (unitsById.get(currentUnit.parentId) ?? null)
+      : null;
+  } else if (currentUnit?.type === "department") {
     // Compatibilidade com registros antigos.
     department = currentUnit;
   }
 
-  
-
   async function handleStatusChange() {
-  if (!asset) {
-    return;
-  }
-
-  const newStatus =
-    asset.status === "maintenance"
-      ? "active"
-      : "maintenance";
-
-  try {
-    setChangingStatus(true);
-    setError("");
-
-    const updated =
-      await api<Asset>(
-        `/api/assets/${asset.id}/status`,
-        {
-          method: "PATCH",
-
-          body: JSON.stringify({
-            status:
-              newStatus,
-          }),
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-        },
-      );
-
-    setAsset(
-      updated,
-    );
-  } catch (cause) {
-    if (
-      cause instanceof
-      ApiError
-    ) {
-      setError(
-        cause.message,
-      );
-    } else {
-      setError(
-        "Não foi possível alterar a situação do bem.",
-      );
+    if (!asset) {
+      return;
     }
-  } finally {
-    setChangingStatus(false);
-  }
-}
 
+    const newStatus = asset.status === "maintenance" ? "active" : "maintenance";
+
+    try {
+      setChangingStatus(true);
+      setError("");
+
+      const updated = await api<Asset>(`/api/assets/${asset.id}/status`, {
+        method: "PATCH",
+
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      setAsset(updated);
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setError(cause.message);
+      } else {
+        setError("Não foi possível alterar a situação do bem.");
+      }
+    } finally {
+      setChangingStatus(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-  <div>
-    <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-      Bem Patrimonial{" "}
-      {asset.patrimonyNumber}
-    </h1>
+        <div>
+          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
+            Bem Patrimonial {asset.patrimonyNumber}
+          </h1>
 
-    <p className="text-sm text-[var(--text-muted)]">
-      Consulte as informações
-      completas do patrimônio.
-    </p>
-  </div>
+          <p className="text-sm text-[var(--text-muted)]">
+            Consulte as informações completas do patrimônio.
+          </p>
+        </div>
 
-  <div className="flex items-center gap-2">
-  {/* Botão Editar */}
+        <div className="flex items-center gap-2">
+          {/* Botão Editar */}
 
-    {asset.status !==
-  "disposed" ? (
-    <>
-      <Button asChild>
-        <Link
-          to={`/patrimonio/bens/${asset.id}/editar`}
-        >
-          <PencilSimple
-            size={18}
-          />
+          {asset.status !== "disposed" ? (
+            <>
+              <Button asChild>
+                <Link to={`/patrimonio/bens/${asset.id}/editar`}>
+                  <PencilSimple size={18} />
+                  Editar
+                </Link>
+              </Button>
 
-          Editar
-        </Link>
-      </Button>
+              <Button asChild variant="secondary">
+                <Link to={`/patrimonio/bens/${asset.id}/movimentar`}>
+                  <ArrowsLeftRight size={18} />
+                  Movimentar
+                </Link>
+              </Button>
 
-      <Button
-        asChild
-        variant="secondary"
-      >
-        <Link
-          to={`/patrimonio/bens/${asset.id}/movimentar`}
-        >
-          <ArrowsLeftRight
-            size={18}
-          />
+              <Button asChild variant="danger">
+                <Link to={`/patrimonio/bens/${asset.id}/baixa`}>
+                  <TrashSimple size={18} />
+                  Baixar
+                </Link>
+              </Button>
+            </>
+          ) : null}
 
-          Movimentar
-        </Link>
-      </Button>
-
-      <Button
-        asChild
-        variant="danger"
-      >
-        <Link
-          to={`/patrimonio/bens/${asset.id}/baixa`}
-        >
-          <TrashSimple
-            size={18}
-          />
-
-          Baixar
-        </Link>
-      </Button>
-    </>
-  ) : null}
-
-      <Button
-        asChild
-        variant="secondary"
-      >
-        <Link
-          to="/patrimonio/bens"
-        >
-          <ArrowLeft
-            size={18}
-          />
-
-          Voltar
-        </Link>
-      </Button>
-        
+          <Button asChild variant="secondary">
+            <Link to="/patrimonio/bens">
+              <ArrowLeft size={18} />
+              Voltar
+            </Link>
+          </Button>
+        </div>
       </div>
-    </div>
 
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Identificação
-            </h2>
+            <h2 className="font-medium">Identificação</h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Dados de identificação
-              do bem.
+              Dados de identificação do bem.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem
-              label="Número do Tombo"
-              value={
-                asset.patrimonyNumber
-              }
-            />
+            <DetailItem label="Número do Tombo" value={asset.patrimonyNumber} />
 
-        <DetailItem
-          label="Situação"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">
-              {
-                assetStatusLabels[
-                  asset.status
-                ]
-              }
-            </Badge>
+            <DetailItem label="Situação">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="neutral">
+                  {assetStatusLabels[asset.status]}
+                </Badge>
 
-            {asset.status !==
-            "disposed" ? (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={
-                  changingStatus
-                }
-                onClick={() =>
-                  void handleStatusChange()
-                }
-              >
-                {changingStatus
-                  ? "Atualizando..."
-                  : asset.status ===
-                      "maintenance"
-                    ? "Retornar ao uso"
-                    : "Enviar para manutenção"}
-              </Button>
-            ) : null}
-          </div>
-        </DetailItem>
+                {asset.status !== "disposed" ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={changingStatus}
+                    onClick={() => void handleStatusChange()}
+                  >
+                    {changingStatus
+                      ? "Atualizando..."
+                      : asset.status === "maintenance"
+                        ? "Retornar ao uso"
+                        : "Enviar para manutenção"}
+                  </Button>
+                ) : null}
+              </div>
+            </DetailItem>
 
-            <DetailItem
-              label="Conservação"
-              value={
-                asset.conservationStatus
-              }
-            />
+            <DetailItem label="Conservação" value={asset.conservationStatus} />
 
             <div className="sm:col-span-2 lg:col-span-3">
               <DetailItem
                 label="Material / Descrição"
-                value={
-                  asset.description
-                }
+                value={asset.description}
               />
             </div>
 
-            <DetailItem
-              label="Marca"
-              value={
-                asset.brand
-              }
-            />
+            <DetailItem label="Marca" value={asset.brand} />
 
-            <DetailItem
-              label="Modelo"
-              value={
-                asset.model
-              }
-            />
+            <DetailItem label="Modelo" value={asset.model} />
 
-            <DetailItem
-              label="Número de série"
-              value={
-                asset.serialNumber
-              }
-            />
+            <DetailItem label="Número de série" value={asset.serialNumber} />
           </div>
         </CardContent>
       </Card>
 
-      {asset.status ===
-          "disposed" &&
-        disposal ? (
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-medium">
-                  Baixa Patrimonial
-                </h2>
+      {asset.status === "disposed" && disposal ? (
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-medium">Baixa Patrimonial</h2>
 
-                <p className="text-xs text-[var(--text-muted)]">
-                  Informações registradas
-                  no processo de baixa do bem.
-                </p>
+              <p className="text-xs text-[var(--text-muted)]">
+                Informações registradas no processo de baixa do bem.
+              </p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailItem
+                label="Data da baixa"
+                value={formatDate(disposal.disposalDate)}
+              />
+
+              <div className="sm:col-span-2">
+                <DetailItem label="Motivo da baixa" value={disposal.reason} />
               </div>
-            </CardHeader>
 
-            <CardContent>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <DetailItem
-                  label="Data da baixa"
-                  value={formatDate(
-                    disposal.disposalDate,
-                  )}
-                />
-
-                <div className="sm:col-span-2">
-                  <DetailItem
-                    label="Motivo da baixa"
-                    value={
-                      disposal.reason
-                    }
-                  />
-                </div>
-
-                <div className="sm:col-span-2 lg:col-span-3">
-                  <DetailItem
-                    label="Observação"
-                    value={
-                      disposal.notes
-                    }
-                  />
-                </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <DetailItem label="Observação" value={disposal.notes} />
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Localização
-            </h2>
+            <h2 className="font-medium">Localização</h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Localização atual
-              do patrimônio.
+              Localização atual do patrimônio.
             </p>
           </div>
         </CardHeader>
@@ -616,32 +374,21 @@ const unitsById =
             <DetailItem
               label="Departamento"
               value={
-                department
-                  ? `${department.code} - ${department.name}`
-                  : null
+                department ? `${department.code} - ${department.name}` : null
               }
             />
 
             <DetailItem
               label="Setor"
-              value={
-                sector
-                  ? `${sector.code} - ${sector.name}`
-                  : null
-              }
+              value={sector ? `${sector.code} - ${sector.name}` : null}
             />
 
             <DetailItem
               label="Subsetor"
-              value={
-                subsector
-                  ? `${subsector.code} - ${subsector.name}`
-                  : null
-              }
+              value={subsector ? `${subsector.code} - ${subsector.name}` : null}
             />
           </div>
         </CardContent>
-
       </Card>
 
       <Card>
@@ -652,8 +399,7 @@ const unitsById =
             </h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Informações relacionadas
-              à aquisição e documentação.
+              Informações relacionadas à aquisição e documentação.
             </p>
           </div>
         </CardHeader>
@@ -662,45 +408,27 @@ const unitsById =
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem
               label="Data de utilização"
-              value={formatDate(
-                asset.usageDate,
-              )}
+              value={formatDate(asset.usageDate)}
             />
 
             <DetailItem
               label="Data de aquisição"
-              value={formatDate(
-                asset.acquisitionDate,
-              )}
+              value={formatDate(asset.acquisitionDate)}
             />
 
             <DetailItem
               label="Valor de aquisição"
-              value={formatCurrency(
-                asset.acquisitionValue,
-              )}
+              value={formatCurrency(asset.acquisitionValue)}
             />
 
-            <DetailItem
-              label="Documento"
-              value={
-                asset.documentNumber
-              }
-            />
+            <DetailItem label="Documento" value={asset.documentNumber} />
 
             <DetailItem
               label="Data do documento"
-              value={formatDate(
-                asset.documentDate,
-              )}
+              value={formatDate(asset.documentDate)}
             />
 
-            <DetailItem
-              label="Empenho"
-              value={
-                asset.commitmentNumber
-              }
-            />
+            <DetailItem label="Empenho" value={asset.commitmentNumber} />
           </div>
         </CardContent>
       </Card>
@@ -708,120 +436,78 @@ const unitsById =
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Informações complementares
-            </h2>
+            <h2 className="font-medium">Informações complementares</h2>
 
             <p className="text-xs text-[var(--text-muted)]">
-              Dados adicionais
-              do patrimônio.
+              Dados adicionais do patrimônio.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
           <div className="grid gap-6 sm:grid-cols-2">
-            <DetailItem
-              label="RENAVAM"
-              value={
-                asset.renavam
-              }
-            />
+            <DetailItem label="RENAVAM" value={asset.renavam} />
 
-            <DetailItem
-              label="Chassi"
-              value={
-                asset.chassis
-              }
-            />
+            <DetailItem label="Chassi" value={asset.chassis} />
 
             <div className="sm:col-span-2">
-              <DetailItem
-                label="Observações"
-                value={
-                  asset.notes
-                }
-              />
+              <DetailItem label="Observações" value={asset.notes} />
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-          <CardHeader>
-            <div>
-              <h2 className="font-medium">
-                Histórico de movimentações
-              </h2>
+        <CardHeader>
+          <div>
+            <h2 className="font-medium">Histórico de movimentações</h2>
 
-              <p className="text-xs text-[var(--text-muted)]">
-                Transferências realizadas entre unidades organizacionais.
-              </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              Transferências realizadas entre unidades organizacionais.
+            </p>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          {movements.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">
+              Nenhuma movimentação registrada para este bem.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {[...movements].reverse().map((movement) => (
+                <div
+                  key={movement.id}
+                  className="rounded-md border border-[var(--border)] p-4"
+                >
+                  <div className="grid gap-4 lg:grid-cols-[140px_1fr_1fr]">
+                    <DetailItem
+                      label="Data"
+                      value={formatDate(movement.movementDate)}
+                    />
+
+                    <DetailItem
+                      label="Origem"
+                      value={formatUnitPath(movement.fromUnitId, unitsById)}
+                    />
+
+                    <DetailItem
+                      label="Destino"
+                      value={formatUnitPath(movement.toUnitId, unitsById)}
+                    />
+                  </div>
+
+                  {movement.notes ? (
+                    <div className="mt-4">
+                      <DetailItem label="Observação" value={movement.notes} />
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
-          </CardHeader>
-
-          <CardContent>
-            {movements.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)]">
-                Nenhuma movimentação
-                registrada para este bem.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {[...movements]
-                  .reverse()
-                  .map(
-                    (
-                      movement,
-                    ) => (
-                      <div
-                        key={
-                          movement.id
-                        }
-                        className="rounded-md border border-[var(--border)] p-4"
-                      >
-                        <div className="grid gap-4 lg:grid-cols-[140px_1fr_1fr]">
-                          <DetailItem
-                            label="Data"
-                            value={formatDate(
-                              movement.movementDate,
-                            )}
-                          />
-
-                        <DetailItem
-                          label="Origem"
-                          value={formatUnitPath(
-                            movement.fromUnitId,
-                            unitsById,
-                          )}
-                        />
-
-                        <DetailItem
-                          label="Destino"
-                          value={formatUnitPath(
-                            movement.toUnitId,
-                            unitsById,
-                          )}
-                        />
-                        </div>
-
-                        {movement.notes ? (
-                          <div className="mt-4">
-                            <DetailItem
-                              label="Observação"
-                              value={
-                                movement.notes
-                              }
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    ),
-                  )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -833,12 +519,9 @@ function DetailItem({
 }: {
   label: string;
 
-  value?:
-    | string
-    | null;
+  value?: string | null;
 
-  children?:
-    React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
@@ -846,70 +529,41 @@ function DetailItem({
         {label}
       </p>
 
-      {children ?? (
-        <p className="text-sm">
-          {value || "—"}
-        </p>
-      )}
+      {children ?? <p className="text-sm">{value || "—"}</p>}
     </div>
   );
 }
 
-function formatDate(
-  value: string | null,
-) {
+function formatDate(value: string | null) {
   if (!value) {
     return "—";
   }
 
-  const [
-    year,
-    month,
-    day,
-  ] = value.split("-");
+  const [year, month, day] = value.split("-");
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value;
   }
 
   return `${day}/${month}/${year}`;
 }
 
-function formatCurrency(
-  value:
-    | number
-    | string
-    | null,
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
+function formatCurrency(value: number | string | null) {
+  if (value === null || value === undefined) {
     return "—";
   }
 
-  const number =
-    Number(value);
+  const number = Number(value);
 
-  if (
-    Number.isNaN(number)
-  ) {
+  if (Number.isNaN(number)) {
     return "—";
   }
 
-  return new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    },
-  ).format(number);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(number);
 }
-
 
 function formatUnitPath(
   unitId: string | null,
@@ -922,27 +576,14 @@ function formatUnitPath(
   const parts: string[] = [];
   const visited = new Set<string>();
 
-  let current =
-    unitsById.get(unitId);
+  let current = unitsById.get(unitId);
 
-  while (
-    current &&
-    !visited.has(current.id)
-  ) {
+  while (current && !visited.has(current.id)) {
     visited.add(current.id);
 
-    parts.unshift(
-      current.code ||
-        current.name ||
-        "Unidade",
-    );
+    parts.unshift(current.code || current.name || "Unidade");
 
-    current =
-      current.parentId
-        ? unitsById.get(
-            current.parentId,
-          )
-        : undefined;
+    current = current.parentId ? unitsById.get(current.parentId) : undefined;
   }
 
   return parts.length

@@ -6,763 +6,531 @@ import {
   assetUpdateSchema,
 } from "@cge/contracts";
 
-import type {
-  FastifyPluginAsync,
-} from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 
-import type {
-  ZodTypeProvider,
-} from "fastify-type-provider-zod";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
-import {
-  requireAnyPermission,
-} from "../access/authorize.js";
+import { requireAnyPermission } from "../access/authorize.js";
 
-import type {
-  AccessService,
-} from "../access/service.js";
+import type { AccessService } from "../access/service.js";
 
-import type {
-  AuthenticationService,
-} from "../auth/service.js";
+import type { AuthenticationService } from "../auth/service.js";
 
-import type {
-  AssetService,
-} from "./service.js";
+import type { AssetService } from "./service.js";
 
-import {
-  z,
-} from "zod";
+import { z } from "zod";
 
+export const assetRoutes: FastifyPluginAsync<{
+  accessService: AccessService;
 
-export const assetRoutes:
-  FastifyPluginAsync<{
-    accessService:
-      AccessService;
+  authenticationService: AuthenticationService;
 
-    authenticationService:
-      AuthenticationService;
+  assetService: AssetService;
+}> = async (app, options) => {
+  const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
-    assetService:
-      AssetService;
-  }> =
-  async (
-    app,
-    options,
-  ) => {
-    const typedApp =
-      app.withTypeProvider<ZodTypeProvider>();
+  /* LISTAR BENS */
 
-          /* LISTAR BENS */
+  typedApp.get(
+    "/api/assets",
 
-typedApp.get(
-  "/api/assets",
-
-  {
-    schema: {
-      querystring:
-        assetListQuerySchema,
+    {
+      schema: {
+        querystring: assetListQuerySchema,
+      },
     },
-  },
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "assets.read",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    return options
-      .assetService
-      .list(
-        request.query,
+      return options.assetService.list(request.query);
+    },
+  );
+
+  /* DASHBOARD DO PATRIMÔNIO */
+
+  typedApp.get(
+    "/api/assets/dashboard",
+
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
       );
-  },
-);
 
-          /* DASHBOARD DO PATRIMÔNIO */
+      if (!user) {
+        return;
+      }
 
-          typedApp.get(
-            "/api/assets/dashboard",
+      return options.assetService.getDashboard();
+    },
+  );
 
-            async (
-              request,
-              reply,
-            ) => {
-              const user =
-                await requireAnyPermission(
-                  request,
-                  reply,
-                  options.authenticationService,
-                  "assets.read",
-                );
+  /* RELATÓRIO PATRIMONIAL */
 
-              if (!user) {
-                return;
-              }
+  typedApp.get(
+    "/api/assets/reports",
 
-              return options
-                .assetService
-                .getDashboard();
-            },
-          );
+    {
+      schema: {
+        querystring: z.object({
+          departmentId: z.uuid().optional(),
 
-          /* RELATÓRIO PATRIMONIAL */
+          sectorId: z.uuid().optional(),
 
-          typedApp.get(
-            "/api/assets/reports",
+          subsectorId: z.uuid().optional(),
 
-            {
-              schema: {
-                querystring:
-                  z.object({
-                    departmentId:
-                      z.uuid()
-                        .optional(),
+          status: z.enum(["active", "maintenance", "disposed"]).optional(),
 
-                    sectorId:
-                      z.uuid()
-                        .optional(),
+          conservationStatus: z.string().optional(),
 
-                    subsectorId:
-                      z.uuid()
-                        .optional(),
+          startDate: z.string().optional(),
 
-                    status:
-                      z.enum([
-                        "active",
-                        "maintenance",
-                        "disposed",
-                      ])
-                        .optional(),
+          endDate: z.string().optional(),
+        }),
+      },
+    },
 
-                    conservationStatus:
-                      z.string()
-                        .optional(),
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
+      );
 
-                    startDate:
-                      z.string()
-                        .optional(),
+      if (!user) {
+        return;
+      }
 
-                    endDate:
-                      z.string()
-                        .optional(),
-                  }),
-              },
-            },
+      return options.assetService.getReport(request.query);
+    },
+  );
 
-            async (
-              request,
-              reply,
-            ) => {
-              const user =
-                await requireAnyPermission(
-                  request,
-                  reply,
-                  options.authenticationService,
-                  "assets.read",
-                );
+  /* CONSULTAR BEM */
 
-              if (!user) {
-                return;
-              }
+  typedApp.get(
+    "/api/assets/:id",
 
-              return options
-                .assetService
-                .getReport(
-                  request.query,
-                );
-            },
-          );
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
+      },
+    },
 
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
+      );
 
-          /* CONSULTAR BEM */
+      if (!user) {
+        return;
+      }
 
-          typedApp.get(
-            "/api/assets/:id",
+      const asset = await options.assetService.findById(request.params.id);
 
-            {
-              schema: {
-                params:
-                  z.object({
-                    id: z.uuid(),
-                  }),
-              },
-            },
+      if (!asset) {
+        return reply.status(404).send({
+          code: "ASSET_NOT_FOUND",
 
-            async (
-              request,
-              reply,
-            ) => {
-              const user =
-                await requireAnyPermission(
-                  request,
-                  reply,
-                  options.authenticationService,
-                  "assets.read",
-                );
+          message: "Bem patrimonial não encontrado.",
+        });
+      }
 
-              if (!user) {
-                return;
-              }
+      return asset;
+    },
+  );
 
-              const asset =
-                await options
-                  .assetService
-                  .findById(
-                    request.params.id,
-                  );
+  /* EDITAR BEM */
 
-              if (!asset) {
-                return reply
-                  .status(404)
-                  .send({
-                    code:
-                      "ASSET_NOT_FOUND",
+  typedApp.patch(
+    "/api/assets/:id",
 
-                    message:
-                      "Bem patrimonial não encontrado.",
-                  });
-              }
-
-              return asset;
-            },
-          );
-
-/* EDITAR BEM */
-
-typedApp.patch(
-  "/api/assets/:id",
-
-  {
-    schema: {
-      params:
-        z.object({
+    {
+      schema: {
+        params: z.object({
           id: z.uuid(),
         }),
 
-      body:
-        assetUpdateSchema,
+        body: assetUpdateSchema,
+      },
     },
-  },
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "assets.manage",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    const result =
-      await options
-        .assetService
-        .update(
-          request.params.id,
-          request.body,
-        );
+      const result = await options.assetService.update(
+        request.params.id,
+        request.body,
+      );
 
-    if (!result.success) {
-      switch (
-        result.reason
-      ) {
-        case "ASSET_NOT_FOUND":
-          return reply
-            .status(404)
-            .send({
-              code:
-                "ASSET_NOT_FOUND",
+      if (!result.success) {
+        switch (result.reason) {
+          case "ASSET_NOT_FOUND":
+            return reply.status(404).send({
+              code: "ASSET_NOT_FOUND",
 
-              message:
-                "Bem patrimonial não encontrado.",
+              message: "Bem patrimonial não encontrado.",
             });
 
-        case "ASSET_DISPOSED":
-          return reply
-            .status(400)
-            .send({
-              code:
-                "ASSET_DISPOSED",
+          case "ASSET_DISPOSED":
+            return reply.status(400).send({
+              code: "ASSET_DISPOSED",
 
               message:
                 "Não é possível editar um bem que já possui baixa patrimonial.",
             });
+        }
       }
-    }
 
-    return result.asset;
-  },
-);
+      return result.asset;
+    },
+  );
 
-        /* MOVIMENTAR BEM */
+  /* MOVIMENTAR BEM */
 
-      typedApp.post(
-        "/api/assets/:id/movements",
+  typedApp.post(
+    "/api/assets/:id/movements",
 
-        {
-          schema: {
-            params:
-              z.object({
-                id: z.uuid(),
-              }),
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
 
-            body:
-              assetMovementCreateSchema,
-          },
-        },
-
-        async (
-          request,
-          reply,
-        ) => {
-          const user =
-            await requireAnyPermission(
-              request,
-              reply,
-              options.authenticationService,
-              "assets.manage",
-            );
-
-          if (!user) {
-            return;
-          }
-
-          const result =
-            await options
-              .assetService
-              .move(
-                request.params.id,
-                request.body,
-              );
-
-          if (!result.success) {
-            switch (
-              result.reason
-            ) {
-              case "ASSET_NOT_FOUND":
-                return reply
-                  .status(404)
-                  .send({
-                    code:
-                      "ASSET_NOT_FOUND",
-
-                    message:
-                      "Bem patrimonial não encontrado.",
-                  });
-
-              case "UNIT_NOT_FOUND":
-                return reply
-                  .status(404)
-                  .send({
-                    code:
-                      "ORGANIZATION_UNIT_NOT_FOUND",
-
-                    message:
-                      "Unidade organizacional de destino não encontrada.",
-                  });
-
-              case "UNIT_INACTIVE":
-                return reply
-                  .status(400)
-                  .send({
-                    code:
-                      "ORGANIZATION_UNIT_INACTIVE",
-
-                    message:
-                      "A unidade organizacional de destino está inativa.",
-                  });
-
-              case "SAME_UNIT":
-                return reply
-                  .status(400)
-                  .send({
-                    code:
-                      "ASSET_ALREADY_IN_UNIT",
-
-                    message:
-                      "O bem já está localizado nessa unidade organizacional.",
-                  });
-
-                  case "ASSET_DISPOSED":
-                  return reply
-                    .status(400)
-                    .send({
-                      code:
-                        "ASSET_DISPOSED",
-
-                      message:
-                        "Não é possível movimentar um bem que já possui baixa patrimonial.",
-                    });
-            }
-          }
-
-          return reply
-            .status(201)
-            .send({
-              movement:
-                result.movement,
-
-              asset:
-                result.asset,
-            });
-        },
-      );
-
-
-    /* CADASTRAR BEM */
-
-    typedApp.post(
-      "/api/assets",
-
-      {
-        schema: {
-          body:
-            assetCreateSchema,
-        },
+        body: assetMovementCreateSchema,
       },
+    },
 
-      async (
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
-      ) => {
-        const user =
-          await requireAnyPermission(
-            request,
-            reply,
-            options.authenticationService,
-            "assets.manage",
-          );
-
-        if (!user) {
-          return;
-        }
-
-        const created =
-          await options
-            .assetService
-            .create(
-              request.body,
-            );
-
-        return reply
-          .status(201)
-          .send(
-            created,
-          );
-      },
-    );
-
-    /* HISTÓRICO DE MOVIMENTAÇÕES */
-
-      typedApp.get(
-        "/api/assets/:id/movements",
-
-        {
-          schema: {
-            params:
-              z.object({
-                id: z.uuid(),
-              }),
-          },
-        },
-
-        async (
-          request,
-          reply,
-        ) => {
-          const user =
-            await requireAnyPermission(
-              request,
-              reply,
-              options.authenticationService,
-              "assets.read",
-            );
-
-          if (!user) {
-            return;
-          }
-
-          const asset =
-            await options
-              .assetService
-              .findById(
-                request.params.id,
-              );
-
-          if (!asset) {
-            return reply
-              .status(404)
-              .send({
-                code:
-                  "ASSET_NOT_FOUND",
-
-                message:
-                  "Bem patrimonial não encontrado.",
-              });
-          }
-
-          const movements =
-            await options
-              .assetService
-              .listMovements(
-                request.params.id,
-              );
-
-          return {
-            movements,
-          };
-        },
+        options.authenticationService,
+        "assets.manage",
       );
 
-      /* ALTERAR SITUAÇÃO DO BEM */
+      if (!user) {
+        return;
+      }
 
-      typedApp.patch(
-        "/api/assets/:id/status",
-
-        {
-          schema: {
-            params:
-              z.object({
-                id: z.uuid(),
-              }),
-
-            body:
-              z.object({
-                status:
-                  z.enum([
-                    "active",
-                    "maintenance",
-                  ]),
-              }),
-          },
-        },
-
-        async (
-          request,
-          reply,
-        ) => {
-          const user =
-            await requireAnyPermission(
-              request,
-              reply,
-              options.authenticationService,
-              "assets.manage",
-            );
-
-          if (!user) {
-            return;
-          }
-
-        const result =
-          await options
-            .assetService
-            .setStatus(
-              request.params.id,
-              request.body.status,
-            );
-
-        if (!result.success) {
-          switch (
-            result.reason
-          ) {
-            case "ASSET_NOT_FOUND":
-              return reply
-                .status(404)
-                .send({
-                  code:
-                    "ASSET_NOT_FOUND",
-
-                  message:
-                    "Bem patrimonial não encontrado.",
-                });
-
-            case "ASSET_DISPOSED":
-              return reply
-                .status(400)
-                .send({
-                  code:
-                    "ASSET_DISPOSED",
-
-                  message:
-                    "Não é possível alterar a situação de um bem que já possui baixa patrimonial.",
-                });
-          }
-        }
-
-        return result.asset;
-        },
+      const result = await options.assetService.move(
+        request.params.id,
+        request.body,
       );
 
-      /* BAIXA PATRIMONIAL */
+      if (!result.success) {
+        switch (result.reason) {
+          case "ASSET_NOT_FOUND":
+            return reply.status(404).send({
+              code: "ASSET_NOT_FOUND",
 
-      typedApp.post(
-        "/api/assets/:id/disposal",
-
-        {
-          schema: {
-            params:
-              z.object({
-                id: z.uuid(),
-              }),
-
-            body:
-              assetDisposalCreateSchema,
-          },
-        },
-
-        async (
-          request,
-          reply,
-        ) => {
-          const user =
-            await requireAnyPermission(
-              request,
-              reply,
-              options.authenticationService,
-              "assets.manage",
-            );
-
-          if (!user) {
-            return;
-          }
-
-          const result =
-            await options
-              .assetService
-              .dispose(
-                request.params.id,
-                request.body,
-              );
-
-          if (!result.success) {
-            switch (
-              result.reason
-            ) {
-              case "ASSET_NOT_FOUND":
-                return reply
-                  .status(404)
-                  .send({
-                    code:
-                      "ASSET_NOT_FOUND",
-
-                    message:
-                      "Bem patrimonial não encontrado.",
-                  });
-
-              case "ALREADY_DISPOSED":
-                return reply
-                  .status(400)
-                  .send({
-                    code:
-                      "ASSET_ALREADY_DISPOSED",
-
-                    message:
-                      "Este bem já possui baixa patrimonial.",
-                  });
-            }
-          }
-
-          return reply
-            .status(201)
-            .send({
-              disposal:
-                result.disposal,
-
-              asset:
-                result.asset,
+              message: "Bem patrimonial não encontrado.",
             });
-        },
+
+          case "UNIT_NOT_FOUND":
+            return reply.status(404).send({
+              code: "ORGANIZATION_UNIT_NOT_FOUND",
+
+              message: "Unidade organizacional de destino não encontrada.",
+            });
+
+          case "UNIT_INACTIVE":
+            return reply.status(400).send({
+              code: "ORGANIZATION_UNIT_INACTIVE",
+
+              message: "A unidade organizacional de destino está inativa.",
+            });
+
+          case "SAME_UNIT":
+            return reply.status(400).send({
+              code: "ASSET_ALREADY_IN_UNIT",
+
+              message: "O bem já está localizado nessa unidade organizacional.",
+            });
+
+          case "ASSET_DISPOSED":
+            return reply.status(400).send({
+              code: "ASSET_DISPOSED",
+
+              message:
+                "Não é possível movimentar um bem que já possui baixa patrimonial.",
+            });
+        }
+      }
+
+      return reply.status(201).send({
+        movement: result.movement,
+
+        asset: result.asset,
+      });
+    },
+  );
+
+  /* CADASTRAR BEM */
+
+  typedApp.post(
+    "/api/assets",
+
+    {
+      schema: {
+        body: assetCreateSchema,
+      },
+    },
+
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.manage",
       );
 
-      /* CONSULTAR BAIXA PATRIMONIAL */
+      if (!user) {
+        return;
+      }
 
-      typedApp.get(
-        "/api/assets/:id/disposal",
+      const created = await options.assetService.create(request.body);
 
-        {
-          schema: {
-            params:
-              z.object({
-                id: z.uuid(),
-              }),
-          },
-        },
+      return reply.status(201).send(created);
+    },
+  );
 
-        async (
-          request,
-          reply,
-        ) => {
-          const user =
-            await requireAnyPermission(
-              request,
-              reply,
-              options.authenticationService,
-              "assets.read",
-            );
+  /* HISTÓRICO DE MOVIMENTAÇÕES */
 
-          if (!user) {
-            return;
-          }
+  typedApp.get(
+    "/api/assets/:id/movements",
 
-          const asset =
-            await options
-              .assetService
-              .findById(
-                request.params.id,
-              );
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
+      },
+    },
 
-          if (!asset) {
-            return reply
-              .status(404)
-              .send({
-                code:
-                  "ASSET_NOT_FOUND",
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
+      );
 
-                message:
-                  "Bem patrimonial não encontrado.",
-              });
-          }
+      if (!user) {
+        return;
+      }
 
-          const disposal =
-                await options
-                  .assetService
-                  .getDisposal(
-                    request.params.id,
-                  );
+      const asset = await options.assetService.findById(request.params.id);
 
-              if (!disposal) {
-                return reply
-                  .status(404)
-                  .send({
-                    code:
-                      "ASSET_DISPOSAL_NOT_FOUND",
+      if (!asset) {
+        return reply.status(404).send({
+          code: "ASSET_NOT_FOUND",
 
-                    message:
-                      "Este bem não possui baixa patrimonial.",
-                  });
-              }
+          message: "Bem patrimonial não encontrado.",
+        });
+      }
 
-              return {
-                disposal,
-              };
-        },
-        );
+      const movements = await options.assetService.listMovements(
+        request.params.id,
+      );
 
-  };
+      return {
+        movements,
+      };
+    },
+  );
+
+  /* ALTERAR SITUAÇÃO DO BEM */
+
+  typedApp.patch(
+    "/api/assets/:id/status",
+
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
+
+        body: z.object({
+          status: z.enum(["active", "maintenance"]),
+        }),
+      },
+    },
+
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.manage",
+      );
+
+      if (!user) {
+        return;
+      }
+
+      const result = await options.assetService.setStatus(
+        request.params.id,
+        request.body.status,
+      );
+
+      if (!result.success) {
+        switch (result.reason) {
+          case "ASSET_NOT_FOUND":
+            return reply.status(404).send({
+              code: "ASSET_NOT_FOUND",
+
+              message: "Bem patrimonial não encontrado.",
+            });
+
+          case "ASSET_DISPOSED":
+            return reply.status(400).send({
+              code: "ASSET_DISPOSED",
+
+              message:
+                "Não é possível alterar a situação de um bem que já possui baixa patrimonial.",
+            });
+        }
+      }
+
+      return result.asset;
+    },
+  );
+
+  /* BAIXA PATRIMONIAL */
+
+  typedApp.post(
+    "/api/assets/:id/disposal",
+
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
+
+        body: assetDisposalCreateSchema,
+      },
+    },
+
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.manage",
+      );
+
+      if (!user) {
+        return;
+      }
+
+      const result = await options.assetService.dispose(
+        request.params.id,
+        request.body,
+      );
+
+      if (!result.success) {
+        switch (result.reason) {
+          case "ASSET_NOT_FOUND":
+            return reply.status(404).send({
+              code: "ASSET_NOT_FOUND",
+
+              message: "Bem patrimonial não encontrado.",
+            });
+
+          case "ALREADY_DISPOSED":
+            return reply.status(400).send({
+              code: "ASSET_ALREADY_DISPOSED",
+
+              message: "Este bem já possui baixa patrimonial.",
+            });
+        }
+      }
+
+      return reply.status(201).send({
+        disposal: result.disposal,
+
+        asset: result.asset,
+      });
+    },
+  );
+
+  /* CONSULTAR BAIXA PATRIMONIAL */
+
+  typedApp.get(
+    "/api/assets/:id/disposal",
+
+    {
+      schema: {
+        params: z.object({
+          id: z.uuid(),
+        }),
+      },
+    },
+
+    async (request, reply) => {
+      const user = await requireAnyPermission(
+        request,
+        reply,
+        options.authenticationService,
+        "assets.read",
+      );
+
+      if (!user) {
+        return;
+      }
+
+      const asset = await options.assetService.findById(request.params.id);
+
+      if (!asset) {
+        return reply.status(404).send({
+          code: "ASSET_NOT_FOUND",
+
+          message: "Bem patrimonial não encontrado.",
+        });
+      }
+
+      const disposal = await options.assetService.getDisposal(
+        request.params.id,
+      );
+
+      if (!disposal) {
+        return reply.status(404).send({
+          code: "ASSET_DISPOSAL_NOT_FOUND",
+
+          message: "Este bem não possui baixa patrimonial.",
+        });
+      }
+
+      return {
+        disposal,
+      };
+    },
+  );
+};

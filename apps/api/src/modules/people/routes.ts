@@ -675,114 +675,90 @@ export const peopleRoutes: FastifyPluginAsync<{
   );
 
   typedApp.patch(
-  "/api/organization-units/:id",
+    "/api/organization-units/:id",
 
-  {
-    schema: {
-      params:
-        z.object({
+    {
+      schema: {
+        params: z.object({
           id: z.uuid(),
         }),
 
-      body:
-        organizationUnitInputSchema,
+        body: organizationUnitInputSchema,
+      },
     },
-  },
-  
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "people.manage",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    const updated =
-      await options.peopleService.updateUnit(
+      const updated = await options.peopleService.updateUnit(
         request.params.id,
         request.body,
       );
 
-    if (!updated) {
-      return reply
-        .status(404)
-        .send({
-          code:
-            "ORGANIZATION_UNIT_NOT_FOUND",
+      if (!updated) {
+        return reply.status(404).send({
+          code: "ORGANIZATION_UNIT_NOT_FOUND",
 
-          message:
-            "Setor não encontrado.",
+          message: "Setor não encontrado.",
         });
-    }
+      }
 
-    return updated;
-  },
-);
+      return updated;
+    },
+  );
 
-typedApp.patch(
-  "/api/organization-units/:id/active",
+  typedApp.patch(
+    "/api/organization-units/:id/active",
 
-  {
-    schema: {
-      params:
-        z.object({
+    {
+      schema: {
+        params: z.object({
           id: z.uuid(),
         }),
 
-      body:
-        z.object({
-          active:
-            z.boolean(),
+        body: z.object({
+          active: z.boolean(),
         }),
+      },
     },
-  },
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "people.manage",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    const updated =
-      await options.peopleService.setUnitActive(
+      const updated = await options.peopleService.setUnitActive(
         request.params.id,
         request.body.active,
       );
 
-    if (!updated) {
-      return reply
-        .status(404)
-        .send({
-          code:
-            "ORGANIZATION_UNIT_NOT_FOUND",
+      if (!updated) {
+        return reply.status(404).send({
+          code: "ORGANIZATION_UNIT_NOT_FOUND",
 
-          message:
-            "Setor não encontrado.",
+          message: "Setor não encontrado.",
         });
-    }
+      }
 
-    return updated;
-  },
-);
+      return updated;
+    },
+  );
 
   typedApp.post(
     "/api/imports/people",
