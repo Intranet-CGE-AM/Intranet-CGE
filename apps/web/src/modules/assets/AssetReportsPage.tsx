@@ -1,18 +1,41 @@
 import { useEffect, useState } from "react";
 
+import { FilePdf, FileXls, FunnelSimple } from "@phosphor-icons/react";
+
 import {
-  ClipboardText,
-  FileArrowDown,
-  FunnelSimple,
-} from "@phosphor-icons/react";
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  DateRangePicker,
+  EmptyState,
+  FormField,
+  Select,
+  SearchableSelect,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSkeleton,
+} from "@cge/ui";
 
-import { DateInput } from "@cge/ui";
-
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+
+import {
+  ALL,
+  assetStatusMeta,
+  conservationOptions,
+  formatCurrency,
+  PageHeader,
+  unitOptions,
+  type OrganizationUnit,
+} from "./shared";
 
 type ReportType =
   | "inventory"
@@ -21,15 +44,6 @@ type ReportType =
   | "conservation"
   | "movements"
   | "financial";
-
-type OrganizationUnit = {
-  id: string;
-  code: string;
-  name: string;
-  type: "department" | "sector" | "subsector" | null;
-  parentId: string | null;
-  active: boolean;
-};
 
 type ReportAsset = {
   id: string;
@@ -178,14 +192,16 @@ export function AssetReportsPage() {
         const loadedUnits = Array.isArray(result) ? result : result.units;
 
         setUnits(loadedUnits.filter((unit) => unit.active));
-      } catch (error) {
+      } catch (cause) {
         if (cancelled) {
           return;
         }
 
-        console.error("Erro ao carregar setores:", error);
-
-        setUnitsError("Não foi possível carregar a estrutura organizacional.");
+        setUnitsError(
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível carregar a estrutura organizacional.",
+        );
       } finally {
         if (!cancelled) {
           setLoadingUnits(false);
@@ -262,10 +278,12 @@ export function AssetReportsPage() {
       );
 
       setReport(result);
-    } catch (error) {
-      console.error("Erro ao gerar relatório:", error);
-
-      setReportError("Não foi possível gerar o relatório.");
+    } catch (cause) {
+      setReportError(
+        cause instanceof ApiError
+          ? cause.message
+          : "Não foi possível gerar o relatório.",
+      );
     } finally {
       setLoadingReport(false);
     }
@@ -465,366 +483,284 @@ export function AssetReportsPage() {
     XLSX.writeFile(workbook, `relatorio-patrimonial-${fileDate()}.xlsx`);
   }
 
+  const statusOptions = [
+    { label: "Todas", value: ALL },
+    ...(Object.keys(assetStatusMeta) as ReportAsset["status"][]).map(
+      (value) => ({ label: assetStatusMeta[value].label, value }),
+    ),
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* CABEÇALHO */}
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Controle de Patrimônio
-        </p>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        description="Consulte informações patrimoniais e exporte relatórios em PDF ou XLSX."
+        title="Relatórios"
+      />
 
-        <h1 className="text-2xl font-semibold">Relatórios patrimoniais</h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Consulte informações patrimoniais e exporte relatórios em PDF ou XLSX.
-        </p>
-      </div>
-
-      {/* FILTROS */}
-      <div className="rounded-lg border bg-background p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <FunnelSimple size={22} />
-
-          <div>
-            <h2 className="font-semibold">Filtros do relatório</h2>
-
-            <p className="text-sm text-muted-foreground">
-              Selecione o tipo de relatório e os filtros desejados.
-            </p>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <FunnelSimple aria-hidden="true" size={20} />
+            <div>
+              <h2 className="font-bold">Filtros do relatório</h2>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Selecione o tipo de relatório e os filtros desejados.
+              </p>
+            </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {unitsError ? (
+            <Alert title="Não foi possível carregar as unidades" tone="danger">
+              {unitsError}
+            </Alert>
+          ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {/* TIPO */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Tipo de relatório</span>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <FormField htmlFor="reportType" label="Tipo de relatório">
+              <Select
+                id="reportType"
+                name="reportType"
+                onValueChange={(value) => setReportType(value as ReportType)}
+                options={Object.entries(reportTypeLabels).map(
+                  ([value, label]) => ({ label, value }),
+                )}
+                value={reportType}
+              />
+            </FormField>
 
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={reportType}
-              onChange={(event) =>
-                setReportType(event.target.value as ReportType)
-              }
+            <FormField htmlFor="departmentId" label="Departamento">
+              <SearchableSelect
+                disabled={loadingUnits}
+                id="departmentId"
+                name="departmentId"
+                onValueChange={(value) => {
+                  setDepartmentId(value === ALL ? "" : value);
+                  setSectorId("");
+                  setSubsectorId("");
+                }}
+                options={[
+                  { label: "Todos os departamentos", value: ALL },
+                  ...unitOptions(departments),
+                ]}
+                placeholder={loadingUnits ? "Carregando..." : undefined}
+                value={departmentId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="sectorId" label="Setor">
+              <SearchableSelect
+                disabled={loadingUnits || !departmentId}
+                id="sectorId"
+                name="sectorId"
+                onValueChange={(value) => {
+                  setSectorId(value === ALL ? "" : value);
+                  setSubsectorId("");
+                }}
+                options={[
+                  { label: "Todos os setores", value: ALL },
+                  ...unitOptions(sectors),
+                ]}
+                placeholder="Selecione primeiro o departamento"
+                value={sectorId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="subsectorId" label="Subsetor">
+              <SearchableSelect
+                disabled={loadingUnits || !sectorId}
+                id="subsectorId"
+                name="subsectorId"
+                onValueChange={(value) =>
+                  setSubsectorId(value === ALL ? "" : value)
+                }
+                options={[
+                  { label: "Todos os subsetores", value: ALL },
+                  ...unitOptions(subsectors),
+                ]}
+                placeholder="Selecione primeiro o setor"
+                value={subsectorId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="status" label="Situação">
+              <Select
+                id="status"
+                name="status"
+                onValueChange={(value) => setStatus(value === ALL ? "" : value)}
+                options={statusOptions}
+                value={status || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="conservationStatus" label="Conservação">
+              <Select
+                id="conservationStatus"
+                name="conservationStatus"
+                onValueChange={(value) =>
+                  setConservationStatus(value === ALL ? "" : value)
+                }
+                options={[
+                  { label: "Todas", value: ALL },
+                  ...conservationOptions,
+                ]}
+                value={conservationStatus || ALL}
+              />
+            </FormField>
+
+            <FormField
+              className="sm:col-span-2 lg:col-span-1"
+              htmlFor="reportRange"
+              label="Período de aquisição"
             >
-              <option value="inventory">Inventário geral</option>
+              <DateRangePicker
+                id="reportRange"
+                onChange={(range) => {
+                  setStartDate(range.from);
+                  setEndDate(range.to);
+                }}
+                placeholder="Todas as datas"
+                value={{ from: startDate, to: endDate }}
+              />
+            </FormField>
+          </div>
 
-              <option value="sector">Bens por setor</option>
-
-              <option value="status">Bens por situação</option>
-
-              <option value="conservation">Estado de conservação</option>
-
-              <option value="movements">Movimentações</option>
-
-              <option value="financial">Relatório financeiro</option>
-            </select>
-          </label>
-
-          {/* Departamento */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Departamento</span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={departmentId}
-              onChange={(event) => {
-                setDepartmentId(event.target.value);
-
-                setSectorId("");
-                setSubsectorId("");
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={loadingReport}
+              onClick={() => {
+                void handleGenerateReport();
               }}
-              disabled={loadingUnits}
+              type="button"
+              variant="primary"
             >
-              <option value="">
-                {loadingUnits ? "Carregando..." : "Todos os departamentos"}
-              </option>
-
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.code}
-                  {" - "}
-                  {department.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* SETOR */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Setor</span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={sectorId}
-              onChange={(event) => {
-                setSectorId(event.target.value);
-
-                setSubsectorId("");
-              }}
-              disabled={loadingUnits || !departmentId}
+              {loadingReport ? "Gerando..." : "Gerar relatório"}
+            </Button>
+            <Button
+              disabled={!report}
+              onClick={handleExportPdf}
+              type="button"
+              variant="secondary"
             >
-              <option value="">
-                {!departmentId
-                  ? "Selecione primeiro o departamento"
-                  : "Todos os setores"}
-              </option>
-
-              {sectors.map((sector) => (
-                <option key={sector.id} value={sector.id}>
-                  {sector.code}
-                  {" - "}
-                  {sector.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* SUBSETOR */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Subsetor</span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={subsectorId}
-              onChange={(event) => setSubsectorId(event.target.value)}
-              disabled={loadingUnits || !sectorId}
+              <FilePdf aria-hidden="true" size={16} />
+              Exportar PDF
+            </Button>
+            <Button
+              disabled={!report}
+              onClick={handleExportXlsx}
+              type="button"
+              variant="secondary"
             >
-              <option value="">
-                {!sectorId
-                  ? "Selecione primeiro o setor"
-                  : "Todos os subsetores"}
-              </option>
-
-              {subsectors.map((subsector) => (
-                <option key={subsector.id} value={subsector.id}>
-                  {subsector.code}
-                  {" - "}
-                  {subsector.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* STATUS */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Situação</span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Todas</option>
-
-              <option value="active">Ativo</option>
-
-              <option value="maintenance">Em manutenção</option>
-
-              <option value="disposed">Baixado</option>
-            </select>
-          </label>
-
-          {/* CONSERVAÇÃO */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Conservação</span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={conservationStatus}
-              onChange={(event) => setConservationStatus(event.target.value)}
-            >
-              <option value="">Todas</option>
-
-              <option value="Ótimo">Ótimo</option>
-
-              <option value="Bom">Bom</option>
-
-              <option value="Regular">Regular</option>
-
-              <option value="Ruim">Ruim</option>
-
-              <option value="Inservível">Inservível</option>
-            </select>
-          </label>
-
-          {/* DATA INICIAL */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Data inicial</span>
-
-            <DateInput
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </label>
-
-          {/* DATA FINAL */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">Data final</span>
-
-            <DateInput
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </label>
-        </div>
-
-        {unitsError ? (
-          <p className="mt-4 text-sm text-red-600">{unitsError}</p>
-        ) : null}
-
-        {/* BOTÕES */}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              void handleGenerateReport();
-            }}
-            disabled={loadingReport}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <ClipboardText size={18} />
-
-            {loadingReport ? "Gerando..." : "Gerar relatório"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <FileArrowDown size={18} />
-            Exportar PDF
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportXlsx}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <FileArrowDown size={18} />
-            Exportar XLSX
-          </button>
-        </div>
-      </div>
-
-      {/* RESULTADO */}
-      <div className="rounded-lg border bg-background p-6">
-        <div className="mb-4">
-          <h2 className="font-semibold">Resultado</h2>
-
-          <p className="text-sm text-muted-foreground">
-            Os dados do relatório serão exibidos aqui após a consulta.
-          </p>
-        </div>
-
-        {reportError ? (
-          <div className="rounded-md border p-4 text-sm text-red-600">
-            {reportError}
+              <FileXls aria-hidden="true" size={16} />
+              Exportar XLSX
+            </Button>
           </div>
-        ) : null}
+        </CardContent>
+      </Card>
 
-        {loadingReport ? (
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Carregando relatório...
-          </div>
-        ) : report ? (
-          <>
-            <div className="mb-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-md border p-4">
-                <p className="text-sm text-muted-foreground">
-                  Quantidade de bens
-                </p>
+      {reportError ? (
+        <Alert title="Erro no relatório" tone="danger">
+          {reportError}
+        </Alert>
+      ) : null}
 
-                <p className="mt-1 text-2xl font-semibold">
+      {loadingReport ? (
+        <TableSkeleton
+          ariaLabel="Carregando relatório"
+          headers={[
+            "Patrimônio",
+            "Descrição",
+            "Localização",
+            "Situação",
+            "Conservação",
+            "Valor",
+          ]}
+        />
+      ) : report ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardContent>
+                <p className="text-2xl font-extrabold tabular-nums">
                   {report.summary.total}
                 </p>
-              </div>
-
-              <div className="rounded-md border p-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Quantidade de bens
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent>
+                <p className="text-2xl font-extrabold tabular-nums">
+                  {formatCurrency(report.summary.totalValue)}
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Valor patrimonial
                 </p>
-
-                <p className="mt-1 text-2xl font-semibold">
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(report.summary.totalValue)}
-                </p>
-              </div>
-            </div>
-
-            {report.assets.length === 0 ? (
-              <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Nenhum bem encontrado com os filtros informados.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b text-left">
-                      <th className="px-3 py-3 font-medium">Patrimônio</th>
-
-                      <th className="px-3 py-3 font-medium">Descrição</th>
-
-                      <th className="px-3 py-3 font-medium">Localização</th>
-
-                      <th className="px-3 py-3 font-medium">Situação</th>
-
-                      <th className="px-3 py-3 font-medium">Conservação</th>
-
-                      <th className="px-3 py-3 text-right font-medium">
-                        Valor
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {report.assets.map((asset) => (
-                      <tr key={asset.id} className="border-b">
-                        <td className="px-3 py-3">{asset.patrimonyNumber}</td>
-
-                        <td className="px-3 py-3">{asset.description}</td>
-
-                        <td className="px-3 py-3">
-                          {asset.unitCode
-                            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                            : "Não informado"}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          {asset.status === "active"
-                            ? "Ativo"
-                            : asset.status === "maintenance"
-                              ? "Em manutenção"
-                              : "Baixado"}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          {asset.conservationStatus ?? "Não informado"}
-                        </td>
-
-                        <td className="px-3 py-3 text-right">
-                          {asset.acquisitionValue
-                            ? new Intl.NumberFormat("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              }).format(Number(asset.acquisitionValue))
-                            : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Selecione os filtros e clique em <strong>Gerar relatório</strong>.
+              </CardContent>
+            </Card>
           </div>
-        )}
-      </div>
+
+          {report.assets.length === 0 ? (
+            <EmptyState
+              description="Ajuste os filtros e gere o relatório novamente."
+              title="Nenhum bem encontrado"
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <div>
+                  <h2 className="font-bold">Resultado</h2>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {reportTypeLabels[reportType]}
+                  </p>
+                </div>
+              </CardHeader>
+              <Table>
+                <thead>
+                  <tr>
+                    <TableHead>Patrimônio</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Localização</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead>Conservação</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.assets.map((asset) => (
+                    <TableRow key={asset.id}>
+                      <TableCell>{asset.patrimonyNumber}</TableCell>
+                      <TableCell>{asset.description}</TableCell>
+                      <TableCell>
+                        {asset.unitCode
+                          ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                          : "Não informado"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={assetStatusMeta[asset.status].variant}>
+                          {assetStatusMeta[asset.status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {asset.conservationStatus ?? "Não informado"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(asset.acquisitionValue)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </tbody>
+              </Table>
+            </Card>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          description="Selecione os filtros e clique em Gerar relatório."
+          title="Gere um relatório"
+        />
+      )}
     </div>
   );
 }
