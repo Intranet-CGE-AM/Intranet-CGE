@@ -97,7 +97,7 @@ function buildExportRows(assets: ReportAsset[]) {
       ? `${asset.unitCode} - ${asset.unitName ?? ""}`
       : "Não informado",
 
-    Situação: statusLabels[asset.status],
+    Situação: assetStatusMeta[asset.status].label,
 
     Conservação: asset.conservationStatus ?? "Não informado",
 
@@ -110,12 +110,6 @@ function buildExportRows(assets: ReportAsset[]) {
       : "",
   }));
 }
-
-const statusLabels: Record<ReportAsset["status"], string> = {
-  active: "Ativo",
-  maintenance: "Em manutenção",
-  disposed: "Baixado",
-};
 
 const reportTypeLabels: Record<ReportType, string> = {
   inventory: "Inventário geral",
@@ -316,7 +310,7 @@ export function AssetReportsPage() {
       sectorId && `Setor: ${unitName(sectorId)}`,
       subsectorId && `Subsetor: ${unitName(subsectorId)}`,
       status &&
-        `Situação: ${statusLabels[status as ReportAsset["status"]] ?? status}`,
+        `Situação: ${assetStatusMeta[status as ReportAsset["status"]]?.label ?? status}`,
       conservationStatus && `Conservação: ${conservationStatus}`,
       startDate && `De: ${formatDateForSpreadsheet(startDate)}`,
       endDate && `Até: ${formatDateForSpreadsheet(endDate)}`,
