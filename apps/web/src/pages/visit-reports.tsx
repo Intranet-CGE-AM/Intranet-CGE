@@ -830,7 +830,7 @@ function createGeneralXlsx(
   const workbook = utils.book_new();
 
   const summary = utils.aoa_to_sheet([
-    ["RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS"],
+    [getReportTitle("general")],
 
     ["Controladoria-Geral do Estado do Amazonas"],
 
@@ -921,7 +921,7 @@ function createGroupedXlsx(
   const workbook = utils.book_new();
 
   const summary = utils.aoa_to_sheet([
-    [title.toUpperCase()],
+    [title],
 
     ["Controladoria-Geral do Estado do Amazonas"],
 
@@ -988,7 +988,7 @@ function createGeneralPdf(
 
   document.setFontSize(15);
 
-  document.text("RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS", 14, 15);
+  document.text(getReportTitle("general"), 14, 15);
 
   document.setFont("helvetica", "normal");
 
@@ -1115,7 +1115,7 @@ function createGroupedPdf(
 
   document.setFontSize(15);
 
-  document.text(title.toUpperCase(), 14, 15);
+  document.text(title, 14, 15);
 
   document.setFont("helvetica", "normal");
 
@@ -1179,26 +1179,26 @@ function getGroupedReportData(
     case "type":
       return {
         rows: groups.type,
-        title: "Relatório por Tipo de Visita",
+        title: getReportTitle("type"),
       };
 
     case "status":
       return {
         rows: groups.status,
-        title: "Relatório por Situação",
+        title: getReportTitle("status"),
       };
 
     case "organization":
       return {
         rows: groups.organization,
-        title: "Relatório por Órgão ou Instituição",
+        title: getReportTitle("organization"),
       };
 
     case "location":
     default:
       return {
         rows: groups.location,
-        title: "Relatório por Sala",
+        title: getReportTitle("location"),
       };
   }
 }
@@ -1219,11 +1219,11 @@ function getReportTitle(kind: ReportKind) {
       return "Relatório por sala";
 
     case "organization":
-      return "Relatório por órgão / instituição";
+      return "Relatório por órgão ou instituição";
 
     case "general":
     default:
-      return "Relatório geral de agendamentos";
+      return "Relatório geral de agendamentos de visitas";
   }
 }
 
