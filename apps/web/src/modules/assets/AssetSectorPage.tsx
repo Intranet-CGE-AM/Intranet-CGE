@@ -432,8 +432,8 @@ export function AssetSectorPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          {units.length > 0 ? (
+        {units.length > 0 ? (
+          <CardContent className="border-b border-[var(--border)] py-4">
             <Input
               type="search"
               aria-label="Buscar por código ou nome"
@@ -441,120 +441,125 @@ export function AssetSectorPage() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-          ) : null}
+          </CardContent>
+        ) : null}
 
-          {loading ? (
-            <TableSkeleton
-              ariaLabel="Carregando unidades organizacionais"
-              headers={[
-                "Código",
-                "Nome",
-                "Tipo",
-                "Vinculado a",
-                "Situação",
-                "Ações",
-              ]}
-            />
-          ) : visibleUnits.length === 0 ? (
-            <EmptyState
-              title={
-                units.length === 0
-                  ? "Nenhuma unidade organizacional cadastrada"
-                  : "Nenhuma unidade encontrada"
-              }
-              description={
-                units.length === 0
-                  ? "Cadastre a primeira unidade para usá-la na localização dos bens."
-                  : "Nenhuma unidade corresponde à busca."
-              }
-            />
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <TableHead>Código</TableHead>
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando unidades organizacionais"
+            headers={[
+              "Código",
+              "Nome",
+              "Tipo",
+              "Vinculado a",
+              "Situação",
+              "Ações",
+            ]}
+          />
+        ) : visibleUnits.length === 0 ? (
+          <EmptyState
+            title={
+              units.length === 0
+                ? "Nenhuma unidade organizacional cadastrada"
+                : "Nenhuma unidade encontrada"
+            }
+            description={
+              units.length === 0
+                ? "Cadastre a primeira unidade para usá-la na localização dos bens."
+                : "Nenhuma unidade corresponde à busca."
+            }
+          />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <TableHead>Código</TableHead>
 
-                  <TableHead>Nome</TableHead>
+                <TableHead>Nome</TableHead>
 
-                  <TableHead>Tipo</TableHead>
+                <TableHead className="hidden xl:table-cell">Tipo</TableHead>
 
-                  <TableHead>Vinculado a</TableHead>
+                <TableHead>Vinculado a</TableHead>
 
-                  <TableHead>Situação</TableHead>
+                <TableHead>Situação</TableHead>
 
-                  <TableHead>Ações</TableHead>
-                </tr>
-              </thead>
+                <TableHead className="text-right">Ações</TableHead>
+              </tr>
+            </thead>
 
-              <tbody>
-                {visibleUnits.map((unit) => (
-                  <TableRow key={unit.id}>
-                    <TableCell>
-                      <span className="font-bold">{unit.code}</span>
-                    </TableCell>
+            <tbody>
+              {visibleUnits.map((unit) => (
+                <TableRow key={unit.id}>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="font-bold">{unit.code}</span>
+                  </TableCell>
 
-                    <TableCell>{unit.name}</TableCell>
+                  <TableCell>{unit.name}</TableCell>
 
-                    <TableCell>{getUnitTypeLabel(unit.type)}</TableCell>
+                  <TableCell className="hidden xl:table-cell">
+                    {getUnitTypeLabel(unit.type)}
+                  </TableCell>
 
-                    <TableCell>{getParentLabel(unit)}</TableCell>
+                  <TableCell>{getParentLabel(unit)}</TableCell>
 
-                    <TableCell>
-                      <Badge variant={unit.active ? "success" : "neutral"}>
-                        {unit.active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
+                  <TableCell>
+                    <Badge variant={unit.active ? "success" : "neutral"}>
+                      {unit.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </TableCell>
 
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="quiet"
-                          disabled={saving}
-                          onClick={() => startEdit(unit)}
+                  <TableCell className="py-2">
+                    <div className="flex justify-end gap-1 whitespace-nowrap">
+                      <Button
+                        type="button"
+                        aria-label={`Editar ${unit.code}`}
+                        size="icon"
+                        title="Editar"
+                        variant="quiet"
+                        disabled={saving}
+                        onClick={() => startEdit(unit)}
+                      >
+                        <PencilSimple aria-hidden="true" size={16} />
+                      </Button>
+
+                      {unit.active ? (
+                        <ConfirmDialog
+                          title="Inativar unidade?"
+                          description={`A unidade ${unit.code} - ${unit.name} deixará de estar disponível para novos cadastros e movimentações de bens.`}
+                          confirmLabel="Inativar"
+                          onConfirm={() => handleToggleActive(unit)}
                         >
-                          <PencilSimple aria-hidden="true" size={16} />
-                          Editar
-                        </Button>
-
-                        {unit.active ? (
-                          <ConfirmDialog
-                            title="Inativar unidade?"
-                            description={`A unidade ${unit.code} - ${unit.name} deixará de estar disponível para novos cadastros e movimentações de bens.`}
-                            confirmLabel="Inativar"
-                            onConfirm={() => handleToggleActive(unit)}
-                          >
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="quiet"
-                              disabled={saving}
-                            >
-                              <Prohibit aria-hidden="true" size={16} />
-                              Inativar
-                            </Button>
-                          </ConfirmDialog>
-                        ) : (
                           <Button
                             type="button"
-                            size="sm"
+                            aria-label={`Inativar ${unit.code}`}
+                            size="icon"
+                            title="Inativar"
                             variant="quiet"
                             disabled={saving}
-                            onClick={() => void handleToggleActive(unit)}
                           >
-                            <CheckCircle aria-hidden="true" size={16} />
-                            Ativar
+                            <Prohibit aria-hidden="true" size={16} />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </CardContent>
+                        </ConfirmDialog>
+                      ) : (
+                        <Button
+                          type="button"
+                          aria-label={`Ativar ${unit.code}`}
+                          size="icon"
+                          title="Ativar"
+                          variant="quiet"
+                          disabled={saving}
+                          onClick={() => void handleToggleActive(unit)}
+                        >
+                          <CheckCircle aria-hidden="true" size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </Card>
 
       <Dialog
