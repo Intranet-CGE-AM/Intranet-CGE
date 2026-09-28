@@ -1,10 +1,15 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   ClipboardText,
   FileArrowDown,
   FunnelSimple,
 } from "@phosphor-icons/react";
+
+import { api } from "../../lib/api";
 
 type ReportType =
   | "inventory"
@@ -14,12 +19,48 @@ type ReportType =
   | "movements"
   | "financial";
 
+type OrganizationUnit = {
+  id: string;
+  code: string;
+  name: string;
+  type:
+    | "department"
+    | "sector"
+    | "subsector"
+    | null;
+  parentId:
+    | string
+    | null;
+  active: boolean;
+};
+
 export function AssetReportsPage() {
   const [reportType, setReportType] =
     useState<ReportType>("inventory");
 
-  const [unitId, setUnitId] =
-    useState("");
+  const [
+  departmentId,
+  setDepartmentId,
+  ] = useState("");
+
+  const [
+    sectorId,
+    setSectorId,
+  ] = useState("");
+
+  const [
+    subsectorId,
+    setSubsectorId,
+  ] = useState("");
+
+  const [units, setUnits] =
+  useState<OrganizationUnit[]>([]);
+
+  const [loadingUnits, setLoadingUnits] =
+    useState(true);
+
+  const [unitsError, setUnitsError] =
+    useState<string | null>(null);
 
   const [status, setStatus] =
     useState("");
@@ -35,10 +76,104 @@ export function AssetReportsPage() {
   const [endDate, setEndDate] =
     useState("");
 
+  useEffect(() => {
+  let cancelled = false;
+
+  async function loadUnits() {
+    try {
+      setLoadingUnits(true);
+      setUnitsError(null);
+
+      const result =
+        await api<
+          | OrganizationUnit[]
+          | {
+              units: OrganizationUnit[];
+            }
+        >("/api/organization-units");
+
+      if (cancelled) {
+        return;
+      }
+
+      const loadedUnits =
+        Array.isArray(result)
+          ? result
+          : result.units;
+
+      setUnits(
+        loadedUnits.filter(
+          (unit) => unit.active,
+        ),
+      );
+      } catch (error) {
+      if (cancelled) {
+        return;
+      }
+
+      console.error(
+        "Erro ao carregar setores:",
+        error,
+      );
+
+      setUnitsError(
+        "Não foi possível carregar a estrutura organizacional.",
+      );
+    } finally {
+      if (!cancelled) {
+        setLoadingUnits(false);
+      }
+    }
+  }
+
+  void loadUnits();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+const departments =
+  units.filter(
+    (unit) =>
+      unit.type === "department" &&
+      unit.active,
+  );
+
+const sectors =
+  units.filter(
+    (unit) =>
+      unit.type === "sector" &&
+      unit.active &&
+      (
+        !departmentId ||
+        unit.parentId === departmentId
+      ),
+  );
+
+const subsectors =
+  units.filter(
+    (unit) =>
+      unit.type === "subsector" &&
+      unit.active &&
+      (
+        !sectorId ||
+        unit.parentId === sectorId
+      ),
+  );
+
+{unitsError ? (
+  <p className="text-sm text-red-600">
+    {unitsError}
+  </p>
+) : null}
+
   function handleGenerateReport() {
     console.log({
       reportType,
-      unitId,
+      departmentId,
+      sectorId,
+      subsectorId,
       status,
       conservationStatus,
       startDate,
@@ -131,6 +266,46 @@ export function AssetReportsPage() {
             </select>
           </label>
 
+          {/* Departamento */}
+          <label className="space-y-1">
+            <span className="text-sm font-medium">
+              Departamento
+            </span>
+
+            <select
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={departmentId}
+              onChange={(event) => {
+                setDepartmentId(
+                  event.target.value,
+                );
+
+                setSectorId("");
+                setSubsectorId("");
+              }}
+              disabled={loadingUnits}
+            >
+              <option value="">
+                {loadingUnits
+                  ? "Carregando..."
+                  : "Todos os departamentos"}
+              </option>
+
+              {departments.map(
+                (department) => (
+                  <option
+                    key={department.id}
+                    value={department.id}
+                  >
+                    {department.code}
+                    {" - "}
+                    {department.name}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+
           {/* SETOR */}
           <label className="space-y-1">
             <span className="text-sm font-medium">
@@ -139,16 +314,79 @@ export function AssetReportsPage() {
 
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={unitId}
-              onChange={(event) =>
-                setUnitId(event.target.value)
+              value={sectorId}
+              onChange={(event) => {
+                setSectorId(
+                  event.target.value,
+                );
+
+                setSubsectorId("");
+              }}
+              disabled={
+                loadingUnits ||
+                !departmentId
               }
             >
               <option value="">
-                Todos os setores
+                {!departmentId
+                  ? "Selecione primeiro o departamento"
+                  : "Todos os setores"}
               </option>
+
+              {sectors.map(
+                (sector) => (
+                  <option
+                    key={sector.id}
+                    value={sector.id}
+                  >
+                    {sector.code}
+                    {" - "}
+                    {sector.name}
+                  </option>
+                ),
+              )}
             </select>
           </label>
+
+        {/* SUBSETOR */}
+        <label className="space-y-1">
+          <span className="text-sm font-medium">
+            Subsetor
+          </span>
+
+          <select
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={subsectorId}
+            onChange={(event) =>
+              setSubsectorId(
+                event.target.value,
+              )
+            }
+            disabled={
+              loadingUnits ||
+              !sectorId
+            }
+          >
+            <option value="">
+              {!sectorId
+                ? "Selecione primeiro o setor"
+                : "Todos os subsetores"}
+            </option>
+
+            {subsectors.map(
+              (subsector) => (
+                <option
+                  key={subsector.id}
+                  value={subsector.id}
+                >
+                  {subsector.code}
+                  {" - "}
+                  {subsector.name}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
 
           {/* STATUS */}
           <label className="space-y-1">
