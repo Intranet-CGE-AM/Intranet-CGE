@@ -18,3 +18,14 @@ export function manausGreeting(now = new Date()) {
   );
   return hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 }
+
+/** "Segunda-feira, 28 de setembro" (sentence case, Manaus time). */
+export function manausLongDate(now = new Date()) {
+  const text = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    timeZone: "America/Manaus",
+  }).format(now);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

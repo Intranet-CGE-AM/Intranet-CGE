@@ -28,7 +28,7 @@ import { api, ApiError } from "../lib/api";
 import { can } from "../lib/permissions";
 import { InboxPanel } from "./inbox";
 import { CommunicationsPanel } from "./communications";
-import { manausGreeting } from "../lib/dates";
+import { manausGreeting, manausLongDate } from "../lib/dates";
 
 const status: Record<
   VacationRequest["status"],
@@ -163,12 +163,8 @@ export function DashboardPage() {
             Pessoas, solicitações e datas importantes do seu escopo.
           </p>
         </div>
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {new Intl.DateTimeFormat("pt-BR", {
-            weekday: "long",
-            day: "2-digit",
-            month: "long",
-          }).format(new Date())}
+        <p className="text-xs font-semibold text-[var(--text-faint)]">
+          {manausLongDate()}
         </p>
       </div>
 

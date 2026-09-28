@@ -26,7 +26,7 @@ import { useAuth } from "../auth";
 
 import { VisitStats } from "../components/visit-ui";
 import { api } from "../lib/api";
-import { manausGreeting } from "../lib/dates";
+import { manausGreeting, manausLongDate } from "../lib/dates";
 import {
   formatVisitTime,
   visitErrorMessage,
@@ -100,13 +100,8 @@ export function VisitsPage() {
           </p>
         </div>
 
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {new Intl.DateTimeFormat("pt-BR", {
-            weekday: "long",
-            day: "2-digit",
-            month: "long",
-            timeZone: "America/Manaus",
-          }).format(new Date())}
+        <p className="text-xs font-semibold text-[var(--text-faint)]">
+          {manausLongDate()}
         </p>
       </div>
 
