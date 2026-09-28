@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Person } from "@cge/contracts";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 const password = "Homolog-Password-2026";
 const accounts = {
@@ -1344,32 +1344,12 @@ async function chooseFirstOption(page: Page, field: string) {
 
 async function chooseDateRange(
   page: Page,
-  field: string,
+  _field: string,
   start: string,
   end: string,
 ) {
-  await page.getByRole("button", { name: field, exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Selecionar período" });
-  for (const [index, date] of [start, end].entries()) {
-    const dateButton = dialog.getByRole("button", {
-      name: `Selecionar ${date}`,
-      exact: true,
-    });
-    for (
-      let month = 0;
-      month < 36 && !(await dateButton.isVisible());
-      month++
-    ) {
-      await dialog.getByRole("button", { name: "Próximo mês" }).click();
-    }
-    if (index === 1) {
-      await dateButton.hover();
-      await expect(
-        dialog.locator(".cge-range-preview-middle").first(),
-      ).toBeVisible();
-    }
-    await dateButton.click();
-  }
+  await page.getByLabel("Data inicial", { exact: true }).fill(start);
+  await page.getByLabel("Data final", { exact: true }).fill(end);
 }
 
 async function chooseDate(page: Page, field: string, date: string) {

@@ -14,6 +14,13 @@ import {
   people,
 } from "./schema.js";
 import { avatarUrl } from "./avatar.js";
+import {
+  changeEmployment,
+  recordAdmission,
+  recordManualFields,
+  type MovementContext,
+  type Transaction,
+} from "./history.js";
 
 export class PeopleService {
   constructor(private readonly db: Database) {}
@@ -22,6 +29,7 @@ export class PeopleService {
     unitIds: string[] | null,
     includeSensitive: boolean,
     options: {
+      personId?: string;
       employmentId?: string;
       limit?: number;
       offset?: number;
@@ -48,6 +56,7 @@ export class PeopleService {
     const where = and(
       scope,
       search,
+      options.personId ? eq(people.id, options.personId) : undefined,
       options.employmentId
         ? eq(employmentRelationships.id, options.employmentId)
         : undefined,
@@ -154,7 +163,7 @@ export class PeopleService {
     };
   }
 
-  async createPerson(input: PersonInput) {
+  async createPerson(input: PersonInput, actorAccountId: string) {
     return this.db.transaction(async (transaction) => {
       const [person] = await transaction
         .insert(people)
@@ -177,12 +186,54 @@ export class PeopleService {
           supervisorRelationshipId:
             input.employment.supervisorRelationshipId ?? null,
         })
-        .returning({ id: employmentRelationships.id });
+        .returning();
       if (!employment) {
         throw new Error("Employment was not created");
       }
+      await recordAdmission(transaction, employment, actorAccountId);
       return { personId: person.id, employmentId: employment.id };
     });
+  }
+
+  async getDossier(personId: string) {
+    const result = await this.listPeople(null, true, { personId, limit: 1 });
+    const current = result.people[0];
+    if (!current) {
+      const [person] = await this.db
+        .select({
+          id: people.id,
+          fullName: people.fullName,
+          preferredName: people.preferredName,
+          birthDate: people.birthDate,
+          birthdayVisible: people.birthdayVisible,
+          avatarObjectKey: people.avatarObjectKey,
+          avatarUpdatedAt: people.avatarUpdatedAt,
+        })
+        .from(people)
+        .where(eq(people.id, personId));
+      if (!person) return null;
+      return {
+        id: person.id,
+        fullName: person.fullName,
+        preferredName: person.preferredName,
+        birthDate: person.birthDate,
+        birthdayVisible: person.birthdayVisible,
+        avatarUrl: person.avatarObjectKey
+          ? avatarUrl(person.id, person.avatarUpdatedAt)
+          : null,
+        employment: null,
+        supervisorName: null,
+      };
+    }
+    const supervisorId = current.employment?.supervisorRelationshipId;
+    const [supervisor] = supervisorId
+      ? await this.db
+          .select({ name: people.fullName })
+          .from(employmentRelationships)
+          .innerJoin(people, eq(people.id, employmentRelationships.personId))
+          .where(eq(employmentRelationships.id, supervisorId))
+      : [];
+    return { ...current, supervisorName: supervisor?.name ?? null };
   }
 
   async getActiveUnitId(personId: string) {
@@ -238,8 +289,19 @@ export class PeopleService {
     return person ?? null;
   }
 
-  async updatePerson(personId: string, input: PersonUpdate) {
-    return this.db.transaction(async (transaction) => {
+  async updatePerson(
+    personId: string,
+    input: PersonUpdate,
+    context: MovementContext,
+    transaction?: Transaction,
+  ) {
+    const update = async (transaction: Transaction) => {
+      const [before] = await transaction
+        .select()
+        .from(people)
+        .where(eq(people.id, personId))
+        .for("update");
+      if (!before) return null;
       const personChanges = {
         ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
         ...(input.preferredName !== undefined
@@ -261,43 +323,46 @@ export class PeopleService {
       if (!person) {
         return null;
       }
-      if (input.employment) {
-        await transaction
-          .update(employmentRelationships)
-          .set({
-            ...input.employment,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(employmentRelationships.personId, personId),
-              isNull(employmentRelationships.endDate),
-            ),
-          );
-      }
-      return person;
-    });
-  }
-
-  async deactivatePerson(personId: string, endDate: string) {
-    const [person] = await this.db
-      .select({ id: people.id })
-      .from(people)
-      .where(eq(people.id, personId))
-      .limit(1);
-    if (!person) {
-      return null;
-    }
-    await this.db
-      .update(employmentRelationships)
-      .set({ endDate, updatedAt: new Date() })
-      .where(
-        and(
-          eq(employmentRelationships.personId, personId),
-          isNull(employmentRelationships.endDate),
+      const personalFields = [
+        "fullName",
+        "preferredName",
+        "birthDate",
+        "birthdayVisible",
+      ] as const;
+      await recordManualFields(
+        transaction,
+        personId,
+        Object.fromEntries(
+          personalFields
+            .filter(
+              (field) =>
+                input[field] !== undefined && input[field] !== before[field],
+            )
+            .map((field) => [field, input[field] ?? null]),
         ),
       );
-    return person;
+      if (input.employment) {
+        await changeEmployment(
+          transaction,
+          personId,
+          input.employment,
+          context,
+        );
+      }
+      return person;
+    };
+    return transaction ? update(transaction) : this.db.transaction(update);
+  }
+
+  async deactivatePerson(
+    personId: string,
+    endDate: string,
+    context: MovementContext,
+  ) {
+    return this.db.transaction(async (tx) => {
+      await changeEmployment(tx, personId, { endDate }, context);
+      return { id: personId };
+    });
   }
 
   listCategories() {

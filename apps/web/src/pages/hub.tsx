@@ -5,10 +5,11 @@ import {
   CardHeader,
   DashboardBanner,
 } from "@cge/ui";
-import { ArrowRight, Files, Megaphone, Monitor } from "@phosphor-icons/react";
+import { ArrowRight, Monitor } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { useAuth } from "../auth";
+import { CommunicationsPanel } from "./communications";
 import {
   availableModules,
   availableSystemNavigation,
@@ -23,16 +24,6 @@ const today = new Intl.DateTimeFormat("pt-BR", {
 });
 
 const futureSpaces = [
-  {
-    description: "Avisos e notícias da instituição",
-    icon: Megaphone,
-    label: "Mural e comunicados",
-  },
-  {
-    description: "Normas, manuais e formulários",
-    icon: Files,
-    label: "Documentos internos",
-  },
   {
     description: "Atalhos para os sistemas da CGE",
     icon: Monitor,
@@ -105,6 +96,7 @@ export function HubPage() {
 
       <div className="grid items-start gap-5 lg:grid-cols-2" data-reveal>
         <div className="space-y-5">
+          <CommunicationsPanel />
           <Card aria-labelledby="modules-title">
             <CardHeader>
               <div>

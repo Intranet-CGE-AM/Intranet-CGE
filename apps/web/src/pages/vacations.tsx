@@ -6,7 +6,7 @@ import {
   Card,
   CardHeader,
   ConfirmDialog,
-  DateRangePicker,
+  DateInput,
   Dialog,
   DialogContent,
   EmptyState,
@@ -19,7 +19,8 @@ import {
   TableSkeleton,
   Textarea,
 } from "@cge/ui";
-import { ArrowRight, CalendarPlus, Info } from "@phosphor-icons/react";
+import { ArrowRight, CalendarPlus } from "@phosphor-icons/react";
+import { useSearchParams } from "react-router";
 import {
   useCallback,
   useEffect,
@@ -55,6 +56,7 @@ type Decision = {
 };
 
 export function VacationsPage() {
+  const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const [mine, setMine] = useState<VacationRequest[]>([]);
   const [supervisor, setSupervisor] = useState<VacationRequest[]>([]);
@@ -110,6 +112,31 @@ export function VacationsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const requestId = params.get("requestId");
+    if (!requestId || loading || error) return;
+    const chiefRequest = supervisor.find(
+      (item) => item.id === requestId && item.status === "submitted",
+    );
+    const finalRequest = finalReview.find(
+      (item) => item.id === requestId && item.status === "supervisor_approved",
+    );
+    if (chiefRequest)
+      setDecision({ request: chiefRequest, stage: "supervisor" });
+    else if (finalRequest)
+      setDecision({ request: finalRequest, stage: "final" });
+    else {
+      const selected = [...mine, ...supervisor, ...finalReview].find(
+        (item) => item.id === requestId,
+      );
+      if (selected) setHistory(selected);
+      else setError("Solicitação indisponível ou fora do seu escopo.");
+    }
+    const next = new URLSearchParams(params);
+    next.delete("requestId");
+    setParams(next, { replace: true });
+  }, [params, setParams, loading, error, mine, supervisor, finalReview]);
 
   async function createRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -238,14 +265,11 @@ export function VacationsPage() {
     <div className="page-enter space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-            Recursos Humanos
-          </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
             Férias
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Solicitações e decisões internas, sem cálculo de saldo.
+            Solicite um período e acompanhe a aprovação da chefia e do RH.
           </p>
         </div>
         {creates && user?.employment ? (
@@ -266,18 +290,6 @@ export function VacationsPage() {
           {success}
         </Alert>
       ) : null}
-
-      <div className="flex gap-3 py-1 text-sm text-[var(--text-muted)]">
-        <Info
-          aria-hidden="true"
-          className="mt-0.5 shrink-0 text-[var(--brand)]"
-          size={18}
-        />
-        <p>
-          A intranet organiza solicitações e decisões. O registro funcional e o
-          saldo oficial permanecem no sistema de pessoal competente.
-        </p>
-      </div>
 
       <ol
         aria-label="Etapas do fluxo de férias"
@@ -412,7 +424,7 @@ export function VacationsPage() {
       >
         <DialogContent
           title="Nova solicitação"
-          description="Salve como rascunho ou envie o período para análise da chefia."
+          description="Informe o primeiro e o último dia das férias."
         >
           <form className="space-y-4" onSubmit={createRequest}>
             {dialogError ? (
@@ -420,22 +432,53 @@ export function VacationsPage() {
                 {dialogError}
               </Alert>
             ) : null}
-            <FormField
-              htmlFor="vacationRange"
-              label="Período das férias"
-              hint="Selecione a data inicial e depois a data final."
-            >
-              <DateRangePicker
-                fromName="startDate"
-                id="vacationRange"
-                min={manausToday()}
-                onChange={setVacationRange}
-                required
-                toName="endDate"
-                value={vacationRange}
-              />
-            </FormField>
-            <div className="flex justify-end gap-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField htmlFor="vacationStart" label="Data inicial">
+                <DateInput
+                  id="vacationStart"
+                  name="startDate"
+                  required
+                  min={manausToday()}
+                  value={vacationRange.from}
+                  onChange={(event) =>
+                    setVacationRange({
+                      ...vacationRange,
+                      from: event.target.value,
+                    })
+                  }
+                />
+              </FormField>
+              <FormField htmlFor="vacationEnd" label="Data final">
+                <DateInput
+                  id="vacationEnd"
+                  name="endDate"
+                  required
+                  min={vacationRange.from || manausToday()}
+                  value={vacationRange.to}
+                  onChange={(event) =>
+                    setVacationRange({
+                      ...vacationRange,
+                      to: event.target.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
+            {vacationRange.from && vacationRange.to >= vacationRange.from ? (
+              <p role="status" className="text-sm font-semibold">
+                {Math.round(
+                  (Date.parse(vacationRange.to) -
+                    Date.parse(vacationRange.from)) /
+                    86_400_000,
+                ) + 1}{" "}
+                dias corridos
+              </p>
+            ) : null}
+            <p className="text-sm text-[var(--text-muted)]">
+              O saldo oficial é conferido pela Gestão de Pessoas; não é
+              calculado pela intranet.
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 variant="quiet"

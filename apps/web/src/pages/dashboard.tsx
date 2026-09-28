@@ -26,6 +26,8 @@ import { Link } from "react-router";
 import { useAuth } from "../auth";
 import { api, ApiError } from "../lib/api";
 import { can } from "../lib/permissions";
+import { InboxPanel } from "./inbox";
+import { CommunicationsPanel } from "./communications";
 
 const status: Record<
   VacationRequest["status"],
@@ -175,6 +177,9 @@ export function DashboardPage() {
         </Alert>
       ) : null}
 
+      <InboxPanel compact />
+      <CommunicationsPanel />
+
       <DashboardBanner
         action={
           <Button asChild size="sm" variant="quiet">
@@ -205,7 +210,7 @@ export function DashboardPage() {
         eyebrow="Sua rotina no RH"
         title={
           loading ? (
-            <Skeleton className="h-8 w-64" />
+            <span role="status">Carregando seu resumo</span>
           ) : reviewPending.length ? (
             `${reviewPending.length} ${
               reviewPending.length === 1
@@ -219,7 +224,7 @@ export function DashboardPage() {
                 : "solicitações em andamento"
             }`
           ) : (
-            "Nenhuma pendência aberta"
+            "Nenhuma pendência de férias aberta"
           )
         }
       />
