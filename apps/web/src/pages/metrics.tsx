@@ -6,8 +6,19 @@ import {
   occurrenceStatuses,
   type HrMetrics,
 } from "@cge/contracts";
-import { Alert, Button, DateInput, FormField } from "@cge/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  DateInput,
+  EmptyState,
+  FormField,
+} from "@cge/ui";
 import { useEffect, useState, type FormEvent } from "react";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
 import { api, ApiError } from "../lib/api";
 
 const requestLabels: Record<string, string> = {
@@ -33,9 +44,10 @@ function Counts({
           Sem acesso a este indicador.
         </p>
       ) : !rows.length ? (
-        <p className="text-sm text-[var(--text-muted)]">
-          Nenhum registro no período.
-        </p>
+        <EmptyState
+          title="Nenhum registro"
+          description="Nenhum registro no período."
+        />
       ) : (
         <dl className="divide-y divide-[var(--border)]">
           {rows.map((row) => (
@@ -119,77 +131,69 @@ export function MetricsPage() {
     setQuery({ ...filters });
   }
   return (
-    <div className="space-y-6 pb-6">
-      <header>
-        <h1 className="text-2xl font-extrabold tracking-tight">
-          Indicadores de Gestão de Pessoas
-        </h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Acompanhe o volume de trabalho e os prazos dentro das suas unidades
-          autorizadas.
-        </p>
-      </header>
-      <form
-        onSubmit={consult}
-        className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-      >
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField label="Data inicial" htmlFor="metricsStart">
-            <DateInput
-              id="metricsStart"
-              required
-              value={filters.startDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  startDate: event.target.value,
-                }))
-              }
-            />
-          </FormField>
-          <FormField label="Data final" htmlFor="metricsEnd">
-            <DateInput
-              id="metricsEnd"
-              required
-              min={filters.startDate}
-              value={filters.endDate}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  endDate: event.target.value,
-                }))
-              }
-            />
-          </FormField>
-          <FormField label="Unidade" htmlFor="metricsUnit">
-            <select
-              id="metricsUnit"
-              className="min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-              value={filters.unitId}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  unitId: event.target.value,
-                }))
-              }
-            >
-              <option value="">Todas as unidades autorizadas</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </div>
-        <Button type="submit" disabled={loading}>
-          Consultar indicadores
-        </Button>
-        <p className="text-xs text-[var(--text-muted)]">
-          Até 366 dias por consulta, no fuso de Manaus. Cada indicador respeita
-          sua permissão específica.
-        </p>
-      </form>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Indicadores de Gestão de Pessoas"
+        description="Acompanhe o volume de trabalho e os prazos dentro das suas unidades autorizadas."
+      />
+      <Card>
+        <CardContent>
+          <form onSubmit={consult} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <FormField label="Data inicial" htmlFor="metricsStart">
+                <DateInput
+                  id="metricsStart"
+                  required
+                  value={filters.startDate}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      startDate: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Data final" htmlFor="metricsEnd">
+                <DateInput
+                  id="metricsEnd"
+                  required
+                  min={filters.startDate}
+                  value={filters.endDate}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      endDate: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+              <FormField label="Unidade" htmlFor="metricsUnit">
+                <FieldSelect
+                  id="metricsUnit"
+                  emptyLabel="Todas as unidades autorizadas"
+                  options={units.map((unit) => ({
+                    value: unit.id,
+                    label: unit.name,
+                  }))}
+                  value={filters.unitId}
+                  onValueChange={(unitId) =>
+                    setFilters((current) => ({ ...current, unitId }))
+                  }
+                />
+              </FormField>
+            </div>
+            <p className="text-xs text-[var(--text-faint)]">
+              Até 366 dias por consulta, no fuso de Manaus. Cada indicador
+              respeita sua permissão específica.
+            </p>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={loading}>
+                Consultar indicadores
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
       {error && (
         <Alert title="Consulta não realizada" tone="danger">
           <p>{error}</p>
@@ -204,7 +208,7 @@ export function MetricsPage() {
           )}
         </Alert>
       )}
-      {loading && <p role="status">Consultando indicadores…</p>}
+      {loading && <LoadingState label="Consultando indicadores…" />}
       {data && (
         <div className="space-y-8">
           <div>

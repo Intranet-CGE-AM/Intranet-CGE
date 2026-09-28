@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 
 test("RH consulta a estrutura e mantém cargos com associação simples, confirmação e recuperação", async ({
   page,
@@ -45,7 +45,7 @@ test("RH consulta a estrutura e mantém cargos com associação simples, confirm
   await expect(
     page.getByRole("heading", { name: "Estrutura e cargos", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Unidade consultada").selectOption(unit.id);
+  await chooseOption(page, "Unidade consultada", unit.name);
   await page.getByRole("button", { name: "Tabela", exact: true }).click();
   await expect(
     page.getByRole("table", { name: "Estrutura por unidade" }),
@@ -77,9 +77,11 @@ test("RH consulta a estrutura e mantém cargos com associação simples, confirm
   const person = page
     .getByRole("row")
     .filter({ hasText: "Pessoa de demonstração do quadro" });
-  await person
-    .getByLabel("Cargo do quadro")
-    .selectOption({ label: "ORG-UI — Analista institucional" });
+  await chooseOption(
+    person,
+    "Cargo do quadro",
+    "ORG-UI — Analista institucional",
+  );
   await person.getByRole("button", { name: "Salvar associação" }).click();
   await expect(
     page.getByText("Associação salva.", { exact: true }),
@@ -129,12 +131,14 @@ test("RH consulta a estrutura e mantém cargos com associação simples, confirm
     page.getByText("Serviço temporariamente indisponível."),
   ).toBeVisible();
   await expect(page.getByLabel("Quantidade prevista")).toHaveValue("0");
-  await expect(page.getByLabel("Unidade consultada")).toBeDisabled();
+  await expect(
+    page.getByRole("combobox", { name: "Unidade consultada", exact: true }),
+  ).toBeDisabled();
   await page.getByRole("button", { name: "Salvar cargo", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Quantidade prevista")).toBeHidden();
   await expect(position).toContainText("1 acima do previsto");
-  await person.getByLabel("Cargo do quadro").selectOption("");
+  await chooseOption(person, "Cargo do quadro", "Sem associação");
   await person.getByRole("button", { name: "Salvar associação" }).click();
   await expect(
     person.getByRole("button", { name: "Salvar associação" }),
@@ -144,9 +148,7 @@ test("RH consulta a estrutura e mantém cargos com associação simples, confirm
   await page.getByRole("button", { name: "Salvar cargo", exact: true }).click();
   await expect(position).toContainText("Inativo");
   await page.getByRole("button", { name: "Alterar unidade superior" }).click();
-  await page
-    .getByLabel("Unidade superior")
-    .selectOption({ label: "Tecnologia da Informação" });
+  await chooseOption(page, "Unidade superior", "Tecnologia da Informação");
   await page.getByRole("button", { name: "Salvar hierarquia" }).click();
   await expect(
     page.getByText("Hierarquia salva.", { exact: true }),

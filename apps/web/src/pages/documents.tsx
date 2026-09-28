@@ -2,18 +2,21 @@ import type { DocumentType, FunctionalDocument } from "@cge/contracts";
 import {
   Alert,
   Button,
+  Card,
   ConfirmDialog,
   DateInput,
+  EmptyState,
   FormField,
   Input,
+  SearchableSelect,
 } from "@cge/ui";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
 import { api, ApiError, json } from "../lib/api";
 import { can, canGlobally } from "../lib/permissions";
-
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm";
 
 export function DocumentsSection({
   personId,
@@ -157,12 +160,12 @@ export function DocumentsSection({
       {error ? (
         <Alert title="Não foi possível concluir" tone="danger">
           {error}
-          <Button variant="quiet" onClick={() => void load()}>
+          <Button variant="secondary" onClick={() => void load()}>
             Tentar novamente
           </Button>
         </Alert>
       ) : null}
-      {success ? <p role="status">{success}</p> : null}
+      {success ? <Alert tone="success" title={success} /> : null}
       {manage ? (
         <details className="border-b border-[var(--border)] pb-4">
           <summary className="cursor-pointer py-2 font-semibold">
@@ -175,23 +178,17 @@ export function DocumentsSection({
           ) : (
             <form onSubmit={upload} className="mt-4 max-w-2xl space-y-4">
               <FormField htmlFor="documentType" label="Tipo de documento">
-                <select
+                <FieldSelect
                   id="documentType"
                   name="typeId"
-                  className={selectClass}
                   required
+                  placeholder="Selecione um tipo"
                   defaultValue=""
-                >
-                  <option value="" disabled>
-                    Selecione um tipo
-                  </option>
-                  {types.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                      {type.sensitive ? " · Sensível" : ""}
-                    </option>
-                  ))}
-                </select>
+                  options={types.map((type) => ({
+                    value: type.id,
+                    label: `${type.name}${type.sensitive ? " · Sensível" : ""}`,
+                  }))}
+                />
               </FormField>
               <FormField htmlFor="documentTitle" label="Título">
                 <Input
@@ -250,11 +247,12 @@ export function DocumentsSection({
         </details>
       ) : null}
       {documents === null && !error ? (
-        <p role="status">Carregando documentos…</p>
+        <LoadingState label="Carregando documentos…" />
       ) : !documents?.length ? (
-        <p className="text-sm text-[var(--text-muted)]">
-          Nenhum documento disponível.
-        </p>
+        <EmptyState
+          title="Nenhum documento"
+          description="Nenhum documento disponível."
+        />
       ) : (
         <ul className="divide-y divide-[var(--border)]">
           {documents.map((item) => (
@@ -265,13 +263,14 @@ export function DocumentsSection({
                   {item.archivedAt ? " · Arquivado" : ""}
                 </h3>
                 {!item.archivedAt ? (
-                  <a
-                    className="text-sm font-semibold underline underline-offset-4"
-                    href={`/api/documents/${item.id}/file`}
-                    aria-label={`Baixar ${item.title}`}
-                  >
-                    Baixar PDF
-                  </a>
+                  <Button asChild variant="secondary" size="sm">
+                    <a
+                      href={`/api/documents/${item.id}/file`}
+                      aria-label={`Baixar ${item.title}`}
+                    >
+                      Baixar PDF
+                    </a>
+                  </Button>
                 ) : null}
               </div>
               <p className="text-sm text-[var(--text-muted)]">
@@ -386,12 +385,11 @@ export function DocumentsPage() {
     };
   }, [query]);
   return (
-    <div className="max-w-4xl space-y-6 pb-8">
-      <h1 className="text-2xl font-extrabold">Documentos privados</h1>
-      <p className="text-sm text-[var(--text-muted)]">
-        Publique documentos no dossiê do titular, respeitando as permissões da
-        unidade.
-      </p>
+    <div className="page-enter max-w-4xl space-y-5">
+      <PageHeader
+        title="Documentos privados"
+        description="Publique documentos no dossiê do titular, respeitando as permissões da unidade."
+      />
       {user && canGlobally(user, "documents.manage") ? (
         <DocumentTypeForm
           onCreated={() => setTypesVersion((value) => value + 1)}
@@ -415,19 +413,20 @@ export function DocumentsPage() {
         />
       </FormField>
       <FormField htmlFor="documentPerson" label="Titular">
-        <select
+        <SearchableSelect
           id="documentPerson"
-          className={selectClass}
+          name="documentPerson"
+          placeholder="Selecione uma pessoa"
           value={personId}
-          onChange={(event) => setPersonId(event.target.value)}
-        >
-          <option value="">Selecione uma pessoa</option>
-          {people.map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.name}
-            </option>
-          ))}
-        </select>
+          onValueChange={setPersonId}
+          options={[
+            { label: "Selecione uma pessoa", value: "" },
+            ...people.map((person) => ({
+              label: person.name,
+              value: person.id,
+            })),
+          ]}
+        />
       </FormField>
       {personId ? (
         <DocumentsSection
@@ -436,9 +435,12 @@ export function DocumentsPage() {
           manage={Boolean(user && can(user, "documents.manage"))}
         />
       ) : (
-        <p className="text-sm">
-          Selecione o titular para consultar ou publicar documentos.
-        </p>
+        <Card>
+          <EmptyState
+            title="Nenhum titular selecionado"
+            description="Selecione o titular para consultar ou publicar documentos."
+          />
+        </Card>
       )}
     </div>
   );
@@ -450,7 +452,7 @@ function DocumentTypeForm({ onCreated }: { onCreated: () => void }) {
   const [busy, setBusy] = useState(false);
   return (
     <div>
-      {success ? <p role="status">{success}</p> : null}
+      {success ? <Alert tone="success" title={success} /> : null}
       <details className="border-b border-[var(--border)] pb-4">
         <summary className="cursor-pointer py-2 font-semibold">
           Cadastrar tipo e política documental

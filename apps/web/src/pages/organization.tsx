@@ -6,14 +6,21 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
   FormField,
   Input,
   Table,
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { FieldSelect } from "../components/field-select";
+import { PageHeader } from "../components/page-header";
 import { api, ApiError, json } from "../lib/api";
 
 type Unit = Organization["units"][number];
@@ -31,8 +38,6 @@ type Editor =
       member: Unit["employments"][number];
       positionId: string;
     };
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm disabled:opacity-50";
 const errorMessage = (cause: unknown) =>
   cause instanceof ApiError
     ? cause.message
@@ -113,7 +118,7 @@ export function OrganizationPage() {
   const [conflict, setConflict] = useState(false);
   const [referenceUpdated, setReferenceUpdated] = useState(false);
   const [message, setMessage] = useState("");
-  const statusRef = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -297,26 +302,15 @@ export function OrganizationPage() {
     </div>
   );
   return (
-    <div className="min-w-0 space-y-6 pb-6">
-      <header>
-        <h1 className="text-2xl font-extrabold tracking-tight">
-          Estrutura e cargos
-        </h1>
-        <p className="mt-1 max-w-prose text-sm text-[var(--text-muted)]">
-          Consulte suas unidades autorizadas e associe vínculos ao quadro de
-          cargos. Vagas são a diferença entre quantidade prevista e ocupação
-          atual.
-        </p>
-      </header>
+    <div className="page-enter min-w-0 space-y-5">
+      <PageHeader
+        title="Estrutura e cargos"
+        description="Consulte suas unidades autorizadas e associe vínculos ao quadro de cargos. Vagas são a diferença entre quantidade prevista e ocupação atual."
+      />
       {message && (
-        <p
-          ref={statusRef}
-          tabIndex={-1}
-          role="status"
-          className="text-sm font-semibold text-[var(--success)]"
-        >
-          {message}
-        </p>
+        <div ref={statusRef} tabIndex={-1}>
+          <Alert tone="success" title={message} />
+        </div>
       )}
       {loadError && (
         <Alert
@@ -337,35 +331,31 @@ export function OrganizationPage() {
           </Button>
         </Alert>
       )}
-      {loading && (
-        <p role="status" className="text-sm">
-          Atualizando estrutura…
-        </p>
+      {loading && !data && (
+        <TableSkeleton
+          ariaLabel="Atualizando estrutura…"
+          headers={["Unidade", "Chefia", "Pessoas", "Vagas"]}
+        />
       )}
       {data && (
         <>
           <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
               <FormField label="Unidade consultada" htmlFor="organization-unit">
-                <select
+                <FieldSelect
                   id="organization-unit"
-                  className={selectClass}
                   value={selected}
                   disabled={blocked}
-                  onChange={(event) => {
-                    setSelected(event.target.value);
+                  placeholder="Nenhuma unidade disponível"
+                  onValueChange={(value) => {
+                    setSelected(value);
                     setMessage("");
                   }}
-                >
-                  {!data.units.length && (
-                    <option value="">Nenhuma unidade disponível</option>
-                  )}
-                  {data.units.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                  options={data.units.map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  }))}
+                />
               </FormField>
             </div>
             <Button
@@ -378,7 +368,12 @@ export function OrganizationPage() {
             </Button>
           </div>
           {!data.units.length ? (
-            <p>Nenhuma unidade no seu escopo.</p>
+            <Card>
+              <EmptyState
+                title="Nenhuma unidade"
+                description="Nenhuma unidade no seu escopo."
+              />
+            </Card>
           ) : (
             <section
               className="space-y-3"
@@ -388,7 +383,7 @@ export function OrganizationPage() {
                 <h2 className="mr-auto text-lg font-bold">Unidades</h2>
                 <Button
                   className="min-h-11"
-                  variant="secondary"
+                  variant={view === "tree" ? "primary" : "secondary"}
                   aria-pressed={view === "tree"}
                   disabled={blocked}
                   onClick={() => setView("tree")}
@@ -397,7 +392,7 @@ export function OrganizationPage() {
                 </Button>
                 <Button
                   className="min-h-11"
-                  variant="secondary"
+                  variant={view === "table" ? "primary" : "secondary"}
                   aria-pressed={view === "table"}
                   disabled={blocked}
                   onClick={() => setView("table")}
@@ -531,11 +526,11 @@ export function OrganizationPage() {
               )}
               {referenceUpdated && (
                 <Alert title="Revise antes de salvar" tone="warning">
-                  <p ref={statusRef} tabIndex={-1}>
+                  <div ref={statusRef} tabIndex={-1}>
                     Dados atuais carregados. Sua edição foi mantida. Compare com
                     os dados atuais exibidos nesta consulta e salve novamente
                     apenas se desejar aplicar suas alterações.
-                  </p>
+                  </div>
                 </Alert>
               )}
               {editor?.kind === "parent" && (
@@ -545,28 +540,25 @@ export function OrganizationPage() {
                       label="Unidade superior"
                       htmlFor="organization-parent"
                     >
-                      <select
+                      <FieldSelect
                         id="organization-parent"
-                        className={selectClass}
+                        emptyLabel="Sem unidade superior"
                         value={editor.parentId}
-                        onChange={(event) =>
-                          setEditor({ ...editor, parentId: event.target.value })
+                        onValueChange={(parentId) =>
+                          setEditor({ ...editor, parentId })
                         }
-                      >
-                        <option value="">Sem unidade superior</option>
-                        {data.units
+                        options={data.units
                           .filter(
                             (item) =>
                               item.id !== unit.id &&
                               item.canManage &&
                               item.active,
                           )
-                          .map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
-                            </option>
-                          ))}
-                      </select>
+                          .map((item) => ({
+                            value: item.id,
+                            label: item.name,
+                          }))}
+                      />
                     </FormField>
                     <p className="text-sm text-[var(--text-muted)]">
                       A alteração não transfere pessoas. Uma unidade não pode
@@ -602,125 +594,133 @@ export function OrganizationPage() {
                 )}
               </div>
               {editor?.kind === "position" && (
-                <form
-                  onSubmit={save}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-                >
-                  <fieldset disabled={saving} className="space-y-4">
-                    <legend className="mb-4 font-bold">
+                <Card>
+                  <CardHeader>
+                    <h3 className="font-bold">
                       {editor.initial ? "Editar cargo" : "Cadastrar cargo"}
-                    </legend>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        label="Código do cargo"
-                        htmlFor="position-code"
-                      >
-                        <Input
-                          id="position-code"
-                          required
-                          maxLength={30}
-                          value={editor.input.code}
-                          onChange={(event) =>
-                            setEditor({
-                              ...editor,
-                              input: {
-                                ...editor.input,
-                                code: event.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </FormField>
-                      <FormField label="Nome do cargo" htmlFor="position-title">
-                        <Input
-                          id="position-title"
-                          required
-                          minLength={2}
-                          maxLength={160}
-                          value={editor.input.title}
-                          onChange={(event) =>
-                            setEditor({
-                              ...editor,
-                              input: {
-                                ...editor.input,
-                                title: event.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </FormField>
-                      <FormField
-                        label="Quantidade prevista"
-                        htmlFor="position-count"
-                      >
-                        <Input
-                          id="position-count"
-                          type="number"
-                          required
-                          min={0}
-                          max={2147483647}
-                          step={1}
-                          value={editor.input.plannedCount}
-                          onChange={(event) =>
-                            setEditor({
-                              ...editor,
-                              confirmed: false,
-                              input: {
-                                ...editor.input,
-                                plannedCount: event.target.valueAsNumber,
-                              },
-                            })
-                          }
-                        />
-                      </FormField>
-                      <label className="flex min-h-11 items-center gap-3 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={editor.input.active}
-                          onChange={(event) =>
-                            setEditor({
-                              ...editor,
-                              input: {
-                                ...editor.input,
-                                active: event.target.checked,
-                              },
-                            })
-                          }
-                        />
-                        Cargo ativo
-                      </label>
-                    </div>
-                    {excess > 0 && (
-                      <div className="space-y-2 text-sm">
-                        <p>
-                          {excess}{" "}
-                          {excess === 1 ? "vínculo ficará" : "vínculos ficarão"}{" "}
-                          acima da quantidade prevista. Nenhum vínculo será
-                          excluído.
+                    </h3>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={save}>
+                      <fieldset disabled={saving} className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <FormField
+                            label="Código do cargo"
+                            htmlFor="position-code"
+                          >
+                            <Input
+                              id="position-code"
+                              required
+                              maxLength={30}
+                              value={editor.input.code}
+                              onChange={(event) =>
+                                setEditor({
+                                  ...editor,
+                                  input: {
+                                    ...editor.input,
+                                    code: event.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </FormField>
+                          <FormField
+                            label="Nome do cargo"
+                            htmlFor="position-title"
+                          >
+                            <Input
+                              id="position-title"
+                              required
+                              minLength={2}
+                              maxLength={160}
+                              value={editor.input.title}
+                              onChange={(event) =>
+                                setEditor({
+                                  ...editor,
+                                  input: {
+                                    ...editor.input,
+                                    title: event.target.value,
+                                  },
+                                })
+                              }
+                            />
+                          </FormField>
+                          <FormField
+                            label="Quantidade prevista"
+                            htmlFor="position-count"
+                          >
+                            <Input
+                              id="position-count"
+                              type="number"
+                              required
+                              min={0}
+                              max={2147483647}
+                              step={1}
+                              value={editor.input.plannedCount}
+                              onChange={(event) =>
+                                setEditor({
+                                  ...editor,
+                                  confirmed: false,
+                                  input: {
+                                    ...editor.input,
+                                    plannedCount: event.target.valueAsNumber,
+                                  },
+                                })
+                              }
+                            />
+                          </FormField>
+                          <label className="flex min-h-11 items-center gap-3 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={editor.input.active}
+                              onChange={(event) =>
+                                setEditor({
+                                  ...editor,
+                                  input: {
+                                    ...editor.input,
+                                    active: event.target.checked,
+                                  },
+                                })
+                              }
+                            />
+                            Cargo ativo
+                          </label>
+                        </div>
+                        {excess > 0 && (
+                          <div className="space-y-2 text-sm">
+                            <p>
+                              {excess}{" "}
+                              {excess === 1
+                                ? "vínculo ficará"
+                                : "vínculos ficarão"}{" "}
+                              acima da quantidade prevista. Nenhum vínculo será
+                              excluído.
+                            </p>
+                            <label className="flex min-h-11 items-center gap-3">
+                              <input
+                                type="checkbox"
+                                required
+                                checked={editor.confirmed}
+                                onChange={(event) =>
+                                  setEditor({
+                                    ...editor,
+                                    confirmed: event.target.checked,
+                                  })
+                                }
+                              />
+                              Confirmo a redução sem excluir vínculos
+                            </label>
+                          </div>
+                        )}
+                        <p className="text-sm text-[var(--text-muted)]">
+                          Um cargo ocupado não pode ser inativado. O cargo
+                          informado no cadastro de cada pessoa será preservado.
                         </p>
-                        <label className="flex min-h-11 items-center gap-3">
-                          <input
-                            type="checkbox"
-                            required
-                            checked={editor.confirmed}
-                            onChange={(event) =>
-                              setEditor({
-                                ...editor,
-                                confirmed: event.target.checked,
-                              })
-                            }
-                          />
-                          Confirmo a redução sem excluir vínculos
-                        </label>
-                      </div>
-                    )}
-                    <p className="text-sm text-[var(--text-muted)]">
-                      Um cargo ocupado não pode ser inativado. O cargo informado
-                      no cadastro de cada pessoa será preservado.
-                    </p>
-                    {formActions}
-                  </fieldset>
-                </form>
+                        {formActions}
+                      </fieldset>
+                    </form>
+                  </CardContent>
+                </Card>
               )}
               {unit.positions.length ? (
                 <Table aria-label="Cargos da unidade">
@@ -786,9 +786,10 @@ export function OrganizationPage() {
                   </tbody>
                 </Table>
               ) : (
-                <p className="text-sm text-[var(--text-muted)]">
-                  Nenhum cargo cadastrado nesta unidade.
-                </p>
+                <EmptyState
+                  title="Nenhum cargo"
+                  description="Nenhum cargo cadastrado nesta unidade."
+                />
               )}
               <h3 className="pt-3 font-bold">Pessoas e associações</h3>
               <p className="text-sm text-[var(--text-muted)]">
@@ -825,9 +826,10 @@ export function OrganizationPage() {
                                 onSubmit={save}
                                 className="min-w-56 space-y-2"
                               >
-                                <select
+                                <FieldSelect
+                                  id={`position-assignment-${member.id}`}
                                   aria-label="Cargo do quadro"
-                                  className={selectClass}
+                                  emptyLabel="Sem associação"
                                   disabled={
                                     saving ||
                                     loading ||
@@ -838,16 +840,14 @@ export function OrganizationPage() {
                                       ? editor.positionId
                                       : (member.positionId ?? "")
                                   }
-                                  onChange={(event) =>
+                                  onValueChange={(positionId) =>
                                     edit({
                                       kind: "assignment",
                                       member,
-                                      positionId: event.target.value,
+                                      positionId,
                                     })
                                   }
-                                >
-                                  <option value="">Sem associação</option>
-                                  {unit.positions
+                                  options={unit.positions
                                     .filter(
                                       (job) =>
                                         job.active ||
@@ -855,16 +855,12 @@ export function OrganizationPage() {
                                         (editing &&
                                           job.id === editor.positionId),
                                     )
-                                    .map((job) => (
-                                      <option
-                                        key={job.id}
-                                        value={job.id}
-                                        disabled={!job.active}
-                                      >
-                                        {job.code} — {job.title}
-                                      </option>
-                                    ))}
-                                </select>
+                                    .map((job) => ({
+                                      value: job.id,
+                                      label: `${job.code} — ${job.title}`,
+                                      disabled: !job.active,
+                                    }))}
+                                />
                                 {editing && referenceUpdated && (
                                   <p className="text-sm">
                                     Associação atual:{" "}
@@ -908,9 +904,10 @@ export function OrganizationPage() {
                   </tbody>
                 </Table>
               ) : (
-                <p className="text-sm text-[var(--text-muted)]">
-                  Nenhuma pessoa com vínculo ativo nesta unidade.
-                </p>
+                <EmptyState
+                  title="Nenhuma pessoa"
+                  description="Nenhuma pessoa com vínculo ativo nesta unidade."
+                />
               )}
             </section>
           )}

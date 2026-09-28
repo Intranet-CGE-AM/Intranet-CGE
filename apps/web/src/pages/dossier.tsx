@@ -2,6 +2,8 @@ import type { Dossier } from "@cge/contracts";
 import { Alert, Avatar, Button } from "@cge/ui";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
 import { api } from "../lib/api";
 import { DocumentsSection } from "./documents";
 import { EmploymentHistorySection } from "./employment-history";
@@ -31,24 +33,20 @@ export function DossierPage() {
     value ? value.split("-").reverse().join("/") : null;
   const employment = dossier?.employment;
   return (
-    <div className="max-w-4xl space-y-8 pb-8">
-      <header>
-        <h1 className="text-2xl font-extrabold tracking-[-0.03em]">
-          Meu dossiê
-        </h1>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Confira seus dados pessoais e seu vínculo com a CGE.
-        </p>
-      </header>
+    <div className="page-enter max-w-4xl space-y-5">
+      <PageHeader
+        title="Meu dossiê"
+        description="Confira seus dados pessoais e seu vínculo com a CGE."
+      />
       {error ? (
         <Alert title="Não foi possível carregar" tone="danger">
           {error}
-          <Button onClick={() => setAttempt(attempt + 1)}>
+          <Button variant="secondary" onClick={() => setAttempt(attempt + 1)}>
             Tentar novamente
           </Button>
         </Alert>
       ) : !dossier ? (
-        <p role="status">Carregando seu dossiê…</p>
+        <LoadingState label="Carregando seu dossiê…" />
       ) : (
         <>
           <div className="flex items-center gap-4">

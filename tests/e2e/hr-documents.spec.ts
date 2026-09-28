@@ -1,4 +1,4 @@
-import { clientHeaders } from "./fixtures";
+import { chooseOption, clientHeaders } from "./fixtures";
 import { expect, test } from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 import AxeBuilder from "@axe-core/playwright";
@@ -15,9 +15,7 @@ test("RH publica documento pela interface sem precisar recarregar tipos", async 
     page.getByRole("heading", { name: /Bom dia, Administrador/ }),
   ).toBeVisible();
   await page.goto("/rh/documentos");
-  await page
-    .getByLabel("Titular", { exact: true })
-    .selectOption({ label: "Caio Nascimento Almeida" });
+  await chooseOption(page, "Titular", "Caio Nascimento Almeida");
   await page
     .getByText("Cadastrar tipo e política documental", { exact: true })
     .click();
@@ -36,9 +34,7 @@ test("RH publica documento pela interface sem precisar recarregar tipos", async 
     page.getByText("Tipo cadastrado.", { exact: true }),
   ).toBeVisible();
   await page.getByText("Publicar documento", { exact: true }).first().click();
-  await page
-    .getByLabel("Tipo de documento")
-    .selectOption({ label: "Certidão E2E da interface" });
+  await chooseOption(page, "Tipo de documento", "Certidão E2E da interface");
   await page
     .getByLabel("Título", { exact: true })
     .fill("Certidão publicada pela interface");
@@ -83,7 +79,9 @@ test("RH publica documento pela interface sem precisar recarregar tipos", async 
   await expect(
     page.getByRole("heading", { name: "Documentos funcionais", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("Titular", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByRole("combobox", { name: "Titular", exact: true }),
+  ).toHaveText("Selecione uma pessoa");
   await page.request.post("/api/auth/logout");
   await page.request.post("/api/auth/login", {
     data: {
