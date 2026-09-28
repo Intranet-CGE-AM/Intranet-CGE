@@ -358,7 +358,7 @@ export const moduleNavigation: ModuleNavigation[] = [
   {
     id: "patrimony",
 
-    label: "Controle de Patrimônio",
+    label: "Controle de patrimônio",
 
     description: "Gerenciamento dos bens patrimoniais da instituição.",
 
@@ -372,7 +372,7 @@ export const moduleNavigation: ModuleNavigation[] = [
 
     routes: [
       {
-        label: "Visão Geral",
+        label: "Visão geral",
 
         href: "/patrimonio",
 
@@ -398,7 +398,7 @@ export const moduleNavigation: ModuleNavigation[] = [
       },
 
       {
-        label: "Novo Bem",
+        label: "Novo bem",
 
         href: "/patrimonio/bens/novo",
 

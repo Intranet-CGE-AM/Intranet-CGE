@@ -183,13 +183,11 @@ const AssetListPage = lazy(() =>
   })),
 );
 
-const AssetDetailPage = lazy(async () => {
-  const module = await import("./modules/assets/AssetDatailPage");
-
-  return {
+const AssetDetailPage = lazy(() =>
+  import("./modules/assets/AssetDetailPage").then((module) => ({
     default: module.AssetDetailPage,
-  };
-});
+  })),
+);
 
 const AssetCreatePage = lazy(() =>
   import("./modules/assets/AssetCreatePage").then((module) => ({
