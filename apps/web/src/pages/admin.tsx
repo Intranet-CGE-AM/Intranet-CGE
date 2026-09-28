@@ -1799,7 +1799,11 @@ export function AdminPage() {
 
 function LoadingRows() {
   return (
-    <CardContent className="space-y-3" aria-label="Carregando conteúdo">
+    <CardContent
+      aria-label="Carregando conteúdo"
+      className="space-y-3"
+      role="status"
+    >
       <Skeleton className="h-12" />
       <Skeleton className="h-12" />
       <Skeleton className="h-12" />
