@@ -50,6 +50,13 @@
       "when": 1789665739545,
       "tag": "0006_green_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790626902528,
+      "tag": "0007_keen_vampiro",
+      "breakpoints": true
     }
   ]
 }
