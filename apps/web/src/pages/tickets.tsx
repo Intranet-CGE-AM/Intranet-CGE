@@ -7,6 +7,7 @@ import type {
 } from "@cge/contracts";
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -37,23 +38,7 @@ import { useAuth } from "../auth";
 import { TicketDetailModal } from "../components/ticket-detail-modal";
 import { api } from "../lib/api";
 import { canAccess } from "../lib/permissions";
-
-const STATUS_CONFIG: Record<
-  TicketStatus,
-  {
-    label: string;
-    dataStatus: "open" | "prog" | "pause" | "done" | "danger";
-  }
-> = {
-  open: { label: "Aberto", dataStatus: "open" },
-  viewed: { label: "Visualizado", dataStatus: "prog" },
-  en_route: { label: "A Caminho", dataStatus: "prog" },
-  in_service: { label: "Em Atendimento", dataStatus: "prog" },
-  paused: { label: "Pausado", dataStatus: "pause" },
-  maintenance: { label: "Manutenção", dataStatus: "pause" },
-  completed: { label: "Concluído", dataStatus: "done" },
-  cancelled: { label: "Cancelado", dataStatus: "danger" },
-};
+import { ticketStatus } from "../modules/tickets/ticket-status";
 
 function getInitials(name: string): string {
   if (!name) return "?";
@@ -191,10 +176,10 @@ export function TicketsPage() {
             <Headset className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
               Suporte e Chamados TI
             </h1>
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Atendimento técnico da Assessoria Técnica (ATEC)
             </p>
           </div>
@@ -223,7 +208,7 @@ export function TicketsPage() {
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
             activeTab === "my"
               ? "bg-[var(--brand)] text-white shadow-sm"
-              : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)] hover:text-[var(--text-primary)]"
+              : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
           }`}
         >
           <User className="h-4 w-4" /> Meus Chamados
@@ -236,7 +221,7 @@ export function TicketsPage() {
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               activeTab === "queue"
                 ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)] hover:text-[var(--text-primary)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
             }`}
           >
             <ListBullets className="h-4 w-4" /> Fila de Atendimento ATEC
@@ -250,7 +235,7 @@ export function TicketsPage() {
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               activeTab === "approvals"
                 ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)] hover:text-[var(--text-primary)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
             }`}
           >
             <ShieldCheck className="h-4 w-4" /> Aprovações Pendentes
@@ -264,7 +249,7 @@ export function TicketsPage() {
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               activeTab === "metrics"
                 ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)] hover:text-[var(--text-primary)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
             }`}
           >
             <ChartBar className="h-4 w-4" /> Métricas e SLA
@@ -286,7 +271,7 @@ export function TicketsPage() {
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-28 animate-pulse rounded-2xl bg-[var(--bg-page)]"
+                  className="h-28 animate-pulse rounded-2xl bg-[var(--surface-subtle)]"
                 />
               ))}
             </div>
@@ -295,13 +280,13 @@ export function TicketsPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card className="border-[var(--border)]">
                   <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                       Total de Chamados
                     </span>
-                    <div className="mt-2 text-3xl font-black text-[var(--text-primary)]">
+                    <div className="mt-2 text-3xl font-black text-[var(--text)]">
                       {analytics.total}
                     </div>
-                    <div className="mt-2 text-xs text-[var(--text-secondary)]">
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.open} em aberto • {analytics.inService} em
                       atendimento
                     </div>
@@ -310,13 +295,13 @@ export function TicketsPage() {
 
                 <Card className="border-[var(--border)]">
                   <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                       Concluídos
                     </span>
                     <div className="mt-2 text-3xl font-black text-[#047857]">
                       {analytics.completed}
                     </div>
-                    <div className="mt-2 text-xs text-[var(--text-secondary)]">
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.cancelled} cancelados
                     </div>
                   </CardContent>
@@ -324,13 +309,13 @@ export function TicketsPage() {
 
                 <Card className="border-[var(--border)]">
                   <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                       Cumprimento de SLA
                     </span>
                     <div className="mt-2 text-3xl font-black text-[#1D4ED8]">
                       {analytics.slaCompliancePercentage}%
                     </div>
-                    <div className="mt-2 text-xs text-[var(--text-secondary)]">
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.slaBreachedCount} com SLA expirado
                     </div>
                   </CardContent>
@@ -338,7 +323,7 @@ export function TicketsPage() {
 
                 <Card className="border-[var(--border)]">
                   <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                       Satisfação dos Usuários
                     </span>
                     <div className="mt-2 flex items-center gap-2">
@@ -347,7 +332,7 @@ export function TicketsPage() {
                       </span>
                       <Star className="h-6 w-6 fill-amber-400 text-amber-500" />
                     </div>
-                    <div className="mt-2 text-xs text-[var(--text-secondary)]">
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.totalFeedbacks} avaliações registradas
                     </div>
                   </CardContent>
@@ -358,7 +343,7 @@ export function TicketsPage() {
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Card>
                   <CardHeader className="border-b border-[var(--border)]">
-                    <h3 className="font-semibold text-[var(--text-primary)]">
+                    <h3 className="font-semibold text-[var(--text)]">
                       Chamados por Categoria
                     </h3>
                   </CardHeader>
@@ -366,10 +351,10 @@ export function TicketsPage() {
                     {analytics.byCategory.map((cat) => (
                       <div key={cat.categoryId} className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text-primary)]">
+                          <span className="text-[var(--text)]">
                             {cat.categoryName}
                           </span>
-                          <span className="text-[var(--text-secondary)]">
+                          <span className="text-[var(--text-muted)]">
                             {cat.count} (
                             {analytics.total > 0
                               ? Math.round((cat.count / analytics.total) * 100)
@@ -377,7 +362,7 @@ export function TicketsPage() {
                             %)
                           </span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-page)]">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                           <div
                             className="h-full bg-[var(--brand)]"
                             style={{
@@ -392,7 +377,7 @@ export function TicketsPage() {
 
                 <Card>
                   <CardHeader className="border-b border-[var(--border)]">
-                    <h3 className="font-semibold text-[var(--text-primary)]">
+                    <h3 className="font-semibold text-[var(--text)]">
                       Chamados por Unidade Solicitante
                     </h3>
                   </CardHeader>
@@ -400,14 +385,14 @@ export function TicketsPage() {
                     {analytics.byUnit.map((unit) => (
                       <div key={unit.unitName} className="space-y-1">
                         <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text-primary)]">
+                          <span className="text-[var(--text)]">
                             {unit.unitName}
                           </span>
-                          <span className="text-[var(--text-secondary)]">
+                          <span className="text-[var(--text-muted)]">
                             {unit.count}
                           </span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-page)]">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                           <div
                             className="h-full bg-emerald-500"
                             style={{
@@ -427,17 +412,17 @@ export function TicketsPage() {
 
       {/* ── Visualização: Listagens (Meus Chamados, Fila, Aprovações) ──────── */}
       {activeTab !== "metrics" && (
-        <Card className="overflow-hidden border-[var(--border)] bg-[var(--bg-card)]">
+        <Card className="overflow-hidden border-[var(--border)] bg-[var(--surface)]">
           {/* Barra de Filtros e Busca */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-4">
             <div className="relative min-w-[260px] flex-1">
-              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
                 placeholder="Buscar por protocolo, solicitante, categoria..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-card)] py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
               />
             </div>
 
@@ -446,7 +431,7 @@ export function TicketsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[var(--brand)]"
                 >
                   <option value="all">Todos os Status</option>
                   <option value="open">Abertos</option>
@@ -460,7 +445,7 @@ export function TicketsPage() {
                 <select
                   value={areaFilter}
                   onChange={(e) => setAreaFilter(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand)]"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[var(--brand)]"
                 >
                   <option value="all">Todas as Áreas</option>
                   <option value="sistemas">Sistemas</option>
@@ -493,7 +478,7 @@ export function TicketsPage() {
                 icon={
                   <Headset
                     size={44}
-                    className="mx-auto text-[var(--text-secondary)]"
+                    className="mx-auto text-[var(--text-muted)]"
                   />
                 }
                 title={
@@ -525,36 +510,33 @@ export function TicketsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <thead>
-                  <tr className="border-b border-[var(--border)] bg-[var(--bg-card)]">
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Protocolo / Data
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Solicitante
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Categoria / Serviço
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Modalidade
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Técnico ATEC
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Status / SLA
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--bg-card)] text-left text-xs uppercase tracking-wide text-[var(--text-secondary)] font-semibold">
+                    <TableHead className="sticky top-0 bg-[var(--surface)] text-left text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
                       Ação
                     </TableHead>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {sortedTickets.map((t) => {
-                    const statusConf = STATUS_CONFIG[t.status] || {
-                      label: t.status,
-                      dataStatus: "open",
-                    };
+                    const statusConf = ticketStatus(t.status);
                     const cleanProtocol = t.ticketNumber.replace(/^#+/, "");
 
                     // Cálculo SLA simples para amostragem/exibição
@@ -569,7 +551,7 @@ export function TicketsPage() {
                     return (
                       <TableRow
                         key={t.id}
-                        className="ticket-row-hover group cursor-pointer"
+                        className="cursor-pointer"
                         onClick={() => setSelectedTicketId(t.id)}
                       >
                         {/* Protocolo / Data */}
@@ -577,7 +559,7 @@ export function TicketsPage() {
                           <div className="font-mono text-xs font-semibold text-[var(--brand)]">
                             #{cleanProtocol}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)]">
+                          <div className="text-[11px] text-[var(--text-muted)]">
                             {new Date(t.openedAt).toLocaleString("pt-BR", {
                               dateStyle: "short",
                               timeStyle: "short",
@@ -593,14 +575,14 @@ export function TicketsPage() {
                             </div>
                             <div className="min-w-0">
                               <div
-                                className="truncate text-xs font-medium text-[var(--text-primary)]"
+                                className="truncate text-xs font-medium text-[var(--text)]"
                                 title={t.requesterName}
                               >
                                 {t.requesterName}
                               </div>
                               {t.unitName && (
                                 <div
-                                  className="truncate text-[11px] text-[var(--text-secondary)]"
+                                  className="truncate text-[11px] text-[var(--text-muted)]"
                                   title={t.unitName}
                                 >
                                   {t.unitName}
@@ -612,11 +594,11 @@ export function TicketsPage() {
 
                         {/* Categoria / Serviço */}
                         <TableCell>
-                          <div className="text-xs font-medium text-[var(--text-primary)]">
+                          <div className="text-xs font-medium text-[var(--text)]">
                             {t.categoryName}
                           </div>
                           {t.subcategoryName && (
-                            <div className="text-[11px] text-[var(--text-secondary)]">
+                            <div className="text-[11px] text-[var(--text-muted)]">
                               {t.subcategoryName}
                             </div>
                           )}
@@ -625,43 +607,37 @@ export function TicketsPage() {
                         {/* Modalidade */}
                         <TableCell>
                           {t.isRemote ? (
-                            <span
-                              className="tag-modalidade"
-                              data-modalidade="remote"
-                            >
+                            <Badge variant="brand" className="gap-1.5">
                               <Desktop
                                 className="h-3.5 w-3.5"
                                 aria-hidden="true"
                               />
                               Remoto
-                            </span>
+                            </Badge>
                           ) : (
-                            <span
-                              className="tag-modalidade"
-                              data-modalidade="onsite"
-                            >
+                            <Badge variant="neutral" className="gap-1.5">
                               <Buildings
                                 className="h-3.5 w-3.5"
                                 aria-hidden="true"
                               />
                               Presencial
-                            </span>
+                            </Badge>
                           )}
                         </TableCell>
 
                         {/* Técnico ATEC */}
                         <TableCell>
                           {t.technicianName ? (
-                            <div className="text-xs font-medium text-[var(--text-primary)]">
+                            <div className="text-xs font-medium text-[var(--text)]">
                               {t.technicianName}
                             </div>
                           ) : (
-                            <div className="text-xs italic text-[var(--text-secondary)]">
+                            <div className="text-xs italic text-[var(--text-muted)]">
                               Não atribuído
                             </div>
                           )}
                           {t.areaResponsavel && (
-                            <div className="text-[11px] capitalize text-[var(--text-secondary)]">
+                            <div className="text-[11px] capitalize text-[var(--text-muted)]">
                               {t.areaResponsavel}
                             </div>
                           )}
@@ -670,16 +646,11 @@ export function TicketsPage() {
                         {/* Status / SLA */}
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
-                            <span
-                              className="badge-status"
-                              data-status={statusConf.dataStatus}
-                            >
+                            <Badge variant={statusConf.variant}>
                               {statusConf.label}
-                            </span>
+                            </Badge>
                             {t.approvalStatus === "pending" && (
-                              <span className="badge-status" data-status="prog">
-                                Aguardando Chefia
-                              </span>
+                              <Badge variant="warning">Aguardando chefia</Badge>
                             )}
                             {/* SLA status badge */}
                             {isSlaBreached && (
@@ -696,7 +667,7 @@ export function TicketsPage() {
                           <Button
                             variant="quiet"
                             size="sm"
-                            className="hover:bg-[var(--bg-page)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            className="hover:bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedTicketId(t.id);
