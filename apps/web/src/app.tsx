@@ -164,6 +164,12 @@ const VisitHistoryPage = lazy(() =>
   })),
 );
 
+const VisitReportsPage = lazy(() =>
+  import("./pages/visit-reports").then((module) => ({
+    default: module.VisitReportsPage,
+  })),
+);
+
 const AssetsPage = lazy(() =>
   import("./modules/assets/AssetsPage").then((module) => ({
     default: module.AssetsPage,
@@ -312,6 +318,17 @@ export function App() {
               <RequireAccess rule={accessRules.visits}>
                 <Suspense fallback={<PageFallback />}>
                   <VisitHistoryPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+
+          <Route
+            path="visitas/relatorios"
+            element={
+              <RequireAccess rule={accessRules.visitsReports}>
+                <Suspense fallback={<PageFallback />}>
+                  <VisitReportsPage />
                 </Suspense>
               </RequireAccess>
             }
