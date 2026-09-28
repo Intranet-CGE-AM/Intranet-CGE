@@ -25,6 +25,7 @@ import type { Database } from "../../db/client.js";
 import {
   requireAuthenticatedUser,
   requireAnyPermission,
+  requireOneOfPermissions,
   requirePermission,
 } from "../access/authorize.js";
 import type { AccessService } from "../access/service.js";
@@ -632,11 +633,11 @@ export const peopleRoutes: FastifyPluginAsync<{
 
   typedApp.get("/api/organization-units", {}, async (request, reply) => {
     if (
-      !(await requireAnyPermission(
+      !(await requireOneOfPermissions(
         request,
         reply,
         options.authenticationService,
-        "people.read",
+        ["people.read", "assets.read", "assets.manage"],
       ))
     ) {
       return;
