@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { chooseOption, clientHeaders, expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 test("RH inicia checklist, registra desligamento com alerta e conclui providências", async ({
@@ -53,7 +53,7 @@ test("RH inicia checklist, registra desligamento com alerta e conclui providênc
     await page
       .getByLabel("Nome do modelo")
       .fill("Saída administrativa da interface");
-    await page.getByLabel("Tipo do checklist").selectOption("exit");
+    await chooseOption(page, "Tipo do checklist", "Desligamento");
     await page
       .getByLabel("Título do item 1", { exact: true })
       .fill("Conferir devolução de acessos");
@@ -95,22 +95,19 @@ test("RH inicia checklist, registra desligamento com alerta e conclui providênc
       .getByRole("button", { name: "Iniciar checklist", exact: true })
       .click();
     await page.getByLabel("Buscar colaborador").fill("Pessoa do checklist E2E");
-    await page
-      .getByLabel("Colaborador", { exact: true })
-      .selectOption(person.employmentId);
-    await page
-      .getByLabel("Modelo", { exact: true })
-      .selectOption({ label: "Saída administrativa da interface" });
-    await page
-      .getByLabel("Responsável por: Conferir devolução de acessos", {
-        exact: true,
-      })
-      .selectOption(admin.account.id);
-    await page
-      .getByLabel("Responsável por: Acolher orientações finais", {
-        exact: true,
-      })
-      .selectOption(admin.account.id);
+    await chooseOption(page, "Colaborador", /^Pessoa do checklist E2E/);
+    await chooseOption(page, "Modelo", "Saída administrativa da interface");
+    const adminName = new RegExp(`^${admin.person.displayName}`);
+    await chooseOption(
+      page,
+      "Responsável por: Conferir devolução de acessos",
+      adminName,
+    );
+    await chooseOption(
+      page,
+      "Responsável por: Acolher orientações finais",
+      adminName,
+    );
     await page
       .getByRole("button", { name: "Iniciar execução", exact: true })
       .click();
@@ -145,7 +142,7 @@ test("RH inicia checklist, registra desligamento com alerta e conclui providênc
       });
     }
     await page.goto(`/rh/historico?personId=${person.personId}`);
-    await page.getByLabel("Tipo de movimentação").selectOption("endDate");
+    await chooseOption(page, "Tipo de movimentação", "Desligamento");
     await expect(
       page.getByText("Checklist com providências pendentes", { exact: true }),
     ).toBeVisible();
