@@ -743,7 +743,7 @@ export function ChecklistsPage() {
             </p>
           </div>
         </CardHeader>
-        <div className="grid items-end gap-3 border-b border-[var(--border)] px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid items-end gap-3 border-b border-[var(--border)] px-5 py-4 sm:grid-cols-[minmax(0,20rem)_auto]">
           <FormField label="Exibir checklists" htmlFor="checklistScope">
             <FieldSelect
               id="checklistScope"
