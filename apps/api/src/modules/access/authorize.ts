@@ -80,6 +80,41 @@ export async function requireAnyPermission(
   return user;
 }
 
+export async function requireOneOfPermissions(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  authenticationService: AuthenticationService,
+  permissions: PermissionKey[],
+) {
+  const user =
+    await requireAuthenticatedUser(
+      request,
+      reply,
+      authenticationService,
+    );
+
+  if (!user) {
+    return null;
+  }
+
+  if (
+    !anyPermissionAllows(
+      user.permissions,
+      permissions,
+    )
+  ) {
+    await reply.status(403).send({
+      code: "FORBIDDEN",
+      message:
+        "Você não possui permissão para esta ação.",
+    });
+
+    return null;
+  }
+
+  return user;
+}
+
 export async function requireAnyGlobalPermission(
   request: FastifyRequest,
   reply: FastifyReply,

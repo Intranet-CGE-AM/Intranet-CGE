@@ -70,17 +70,28 @@ export const employmentCategorySchema = employmentCategoryInputSchema.extend({
   active: z.boolean(),
 });
 
+export const organizationUnitTypeSchema = z.enum([
+  "department",
+  "sector",
+  "subsector",
+]);
+
 export const organizationUnitInputSchema = z.object({
   code: z.string().trim().min(1).max(30),
   name: z.string().trim().min(2).max(160),
+  type: organizationUnitTypeSchema,
   parentId: z.uuid().nullable().optional(),
 });
 
 export const organizationUnitSchema = organizationUnitInputSchema.extend({
   id: z.uuid(),
+  code: z.string().trim().min(1).max(30),
+  name: z.string().trim().min(2).max(160),
+  type: organizationUnitTypeSchema.nullable(),
   active: z.boolean(),
   parentId: z.uuid().nullable(),
 });
+
 
 export const peopleImportRequestSchema = z.object({
   filename: z.string().trim().min(1).max(255),

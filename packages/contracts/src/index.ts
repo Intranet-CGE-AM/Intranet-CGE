@@ -7,3 +7,4 @@ export * from "./vacations.js";
 export * from "./tickets.js";
 export * from "./system.js";
 export * from "./visits.js";
+export * from "./assets.js";

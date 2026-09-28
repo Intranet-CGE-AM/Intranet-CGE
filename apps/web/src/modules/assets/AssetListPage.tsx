@@ -1,0 +1,1232 @@
+import type {
+  Asset,
+} from "@cge/contracts";
+
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
+  Input,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+} from "@cge/ui";
+
+import {
+  ArrowClockwise,
+  PlusCircle,
+} from "@phosphor-icons/react";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useSearchParams,
+} from "react-router";
+
+import {
+  api,
+  ApiError,
+} from "../../lib/api";
+
+type OrganizationUnitType =
+  | "department"
+  | "sector"
+  | "subsector";
+
+type OrganizationUnit = {
+  id: string;
+  code: string;
+  name: string;
+  type: OrganizationUnitType | null;
+  parentId: string | null;
+  active: boolean;
+};
+
+type OrganizationUnitsResponse = {
+  units: OrganizationUnit[];
+};
+
+type AssetListResponse = {
+  assets: Asset[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+const assetStatusLabels = {
+  active: "Em uso",
+  maintenance: "Em manutenção",
+  disposed: "Baixado",
+} as const;
+
+export function AssetListPage() {
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
+  const selectedUnitId =
+    searchParams.get(
+      "unitId",
+    );
+
+  const selectedConservationStatus =
+    searchParams.get(
+      "conservationStatus",
+    );
+
+  const searchTerm =
+    searchParams.get(
+      "q",
+    ) ?? "";
+
+  const [
+    assets,
+    setAssets,
+  ] = useState<Asset[]>([]);
+
+  const [
+    total,
+    setTotal,
+  ] = useState(0);
+
+  const [
+    totalPages,
+    setTotalPages,
+  ] = useState(1);
+
+  const [
+    currentPage,
+    setCurrentPage,
+  ] = useState(1);
+
+  const [
+    currentPageSize,
+    setCurrentPageSize,
+  ] = useState(10);
+
+  const [
+    units,
+    setUnits,
+  ] = useState<OrganizationUnit[]>([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const unitsById =
+    useMemo(
+      () =>
+        new Map(
+          units.map(
+            (unit) => [
+              unit.id,
+              unit,
+            ],
+          ),
+        ),
+      [units],
+    );
+
+  function getAssetLocation(
+    unitId: string | null,
+  ) {
+    if (!unitId) {
+      return "—";
+    }
+
+    const unit =
+      unitsById.get(unitId);
+
+    if (!unit) {
+      return "—";
+    }
+
+    if (unit.type === "subsector") {
+      const sector =
+        unit.parentId
+          ? unitsById.get(
+            unit.parentId,
+          )
+          : null;
+
+      const department =
+        sector?.parentId
+          ? unitsById.get(
+            sector.parentId,
+          )
+          : null;
+
+      return [
+        department?.code,
+        sector?.code,
+        unit.code,
+      ]
+        .filter(Boolean)
+        .join(" > ");
+    }
+
+    if (unit.type === "sector") {
+      const department =
+        unit.parentId
+          ? unitsById.get(
+            unit.parentId,
+          )
+          : null;
+
+      return [
+        department?.code,
+        unit.code,
+      ]
+        .filter(Boolean)
+        .join(" > ");
+    }
+
+    if (unit.type === "department") {
+      return unit.code;
+    }
+
+    // Compatibilidade com registros antigos
+    return `${unit.code} - ${unit.name}`;
+  }
+
+  const selectedStatus =
+    searchParams.get(
+      "status",
+    );
+
+  const sortBy =
+    searchParams.get(
+      "sortBy",
+    ) ?? "patrimonyNumber";
+
+  const sortDirection =
+    searchParams.get(
+      "sortDirection",
+    ) ?? "asc";
+
+
+  const selectedStatusLabel =
+    selectedStatus
+      ? assetStatusLabels[
+      selectedStatus as keyof typeof assetStatusLabels
+      ] ?? null
+      : null;
+
+  const selectedUnit =
+    selectedUnitId
+      ? unitsById.get(
+        selectedUnitId,
+      ) ?? null
+      : null;
+  const selectedSubsector =
+    selectedUnit?.type === "subsector"
+      ? selectedUnit
+      : null;
+
+  const selectedSector =
+    selectedUnit?.type === "sector"
+      ? selectedUnit
+      : selectedSubsector?.parentId
+        ? unitsById.get(
+          selectedSubsector.parentId,
+        ) ?? null
+        : null;
+
+  const selectedDepartment =
+    selectedUnit?.type === "department"
+      ? selectedUnit
+      : selectedSector?.parentId
+        ? unitsById.get(
+          selectedSector.parentId,
+        ) ?? null
+        : null;
+
+  const selectedDepartmentId =
+    selectedDepartment?.id ?? "";
+
+  const selectedSectorId =
+    selectedSector?.id ?? "";
+
+  const selectedSubsectorId =
+    selectedSubsector?.id ?? "";
+
+
+  const departments =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "department",
+    );
+
+  const sectors =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "sector" &&
+        unit.parentId ===
+        selectedDepartmentId,
+    );
+
+  const subsectors =
+    units.filter(
+      (unit) =>
+        unit.active &&
+        unit.type === "subsector" &&
+        unit.parentId ===
+        selectedSectorId,
+    );
+
+
+  function updateFilter(
+    key: string,
+    value: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    if (value) {
+      next.set(
+        key,
+        value,
+      );
+    } else {
+      next.delete(
+        key,
+      );
+    }
+
+    next.set(
+      "page",
+      "1",
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  function changePage(
+    page: number,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    next.set(
+      "page",
+      String(page),
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  function changePageSize(
+    value: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    next.set(
+      "pageSize",
+      value,
+    );
+
+    next.set(
+      "page",
+      "1",
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  function updateSort(
+    field: string,
+  ) {
+    const next =
+      new URLSearchParams(
+        searchParams,
+      );
+
+    const currentField =
+      next.get(
+        "sortBy",
+      );
+
+    const currentDirection =
+      next.get(
+        "sortDirection",
+      ) ?? "asc";
+
+    if (
+      currentField ===
+      field
+    ) {
+      next.set(
+        "sortDirection",
+        currentDirection ===
+          "asc"
+          ? "desc"
+          : "asc",
+      );
+    } else {
+      next.set(
+        "sortBy",
+        field,
+      );
+
+      next.set(
+        "sortDirection",
+        "asc",
+      );
+
+
+    }
+    next.set(
+      "page",
+      "1",
+    );
+
+    setSearchParams(
+      next,
+    );
+  }
+
+  const queryString =
+    searchParams.toString();
+
+  const loadData =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+          setError("");
+
+          const assetUrl =
+            queryString
+              ? `/api/assets?${queryString}`
+              : "/api/assets";
+
+          const [
+            assetResult,
+            unitResult,
+          ] =
+            await Promise.all([
+              api<AssetListResponse>(
+                assetUrl,
+              ),
+
+              api<OrganizationUnitsResponse>(
+                "/api/organization-units",
+              ),
+            ]);
+
+          setAssets(
+            assetResult.assets,
+          );
+
+          setTotal(
+            assetResult.total,
+          );
+
+          setTotalPages(
+            assetResult.totalPages,
+          );
+
+          setCurrentPage(
+            assetResult.page,
+          );
+
+          setCurrentPageSize(
+            assetResult.pageSize,
+          );
+
+          setUnits(
+            unitResult.units,
+          );
+        } catch (cause) {
+          if (
+            cause instanceof
+            ApiError
+          ) {
+            setError(
+              cause.message,
+            );
+          } else {
+            setError(
+              "Não foi possível carregar os bens patrimoniais.",
+            );
+          }
+        } finally {
+          setLoading(false);
+        }
+      },
+      [
+        queryString,
+      ],
+    );
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
+            Bens Patrimoniais
+          </h1>
+
+          <p className="text-sm text-[var(--text-muted)]">
+            Consulte os bens
+            patrimoniais cadastrados.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            disabled={loading}
+            onClick={() =>
+              void loadData()
+            }
+            type="button"
+            variant="secondary"
+          >
+            <ArrowClockwise
+              size={18}
+            />
+
+            Atualizar
+          </Button>
+
+          <Button asChild>
+            <Link
+              to="/patrimonio/bens/novo"
+            >
+              <PlusCircle
+                size={18}
+              />
+
+              Novo bem
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {error ? (
+        <Alert
+          tone="danger"
+          title="Não foi possível carregar os bens"
+        >
+          {error}
+        </Alert>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-medium">
+              Filtros
+            </h2>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              Localize bens por tombo, material, situação ou estrutura organizacional.
+            </p>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="asset-search"
+              >
+                Tombo / Material
+              </label>
+
+              <Input
+                id="asset-search"
+                value={
+                  searchTerm
+                }
+                onChange={(
+                  event,
+                ) =>
+                  updateFilter(
+                    "q",
+                    event.target.value,
+                  )
+                }
+                placeholder="Ex.: 335 ou Notebook"
+              />
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="status-filter"
+              >
+                Situação
+              </label>
+
+              <select
+                id="status-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={
+                  selectedStatus ?? ""
+                }
+                onChange={(
+                  event,
+                ) =>
+                  updateFilter(
+                    "status",
+                    event.target.value,
+                  )
+                }
+              >
+                <option value="">
+                  Todas
+                </option>
+
+                <option value="active">
+                  Em uso
+                </option>
+
+                <option value="maintenance">
+                  Em manutenção
+                </option>
+
+                <option value="disposed">
+                  Baixados
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="department-filter"
+              >
+                Departamento
+              </label>
+
+              <select
+                id="department-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={selectedDepartmentId}
+                onChange={(event) => {
+                  updateFilter(
+                    "unitId",
+                    event.target.value,
+                  );
+                }}
+              >
+                <option value="">
+                  Todos os departamentos
+                </option>
+
+                {departments.map(
+                  (department) => (
+                    <option
+                      key={department.id}
+                      value={department.id}
+                    >
+                      {department.code} -{" "}
+                      {department.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="sector-filter"
+              >
+                Setor
+              </label>
+
+              <select
+                id="sector-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={selectedSectorId}
+                disabled={!selectedDepartmentId}
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
+
+                  updateFilter(
+                    "unitId",
+                    value ||
+                    selectedDepartmentId,
+                  );
+                }}
+              >
+                <option value="">
+                  {!selectedDepartmentId
+                    ? "Selecione primeiro o departamento"
+                    : "Todos os setores"}
+                </option>
+
+                {sectors.map(
+                  (sector) => (
+                    <option
+                      key={sector.id}
+                      value={sector.id}
+                    >
+                      {sector.code} -{" "}
+                      {sector.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
+                htmlFor="subsector-filter"
+              >
+                Subsetor
+              </label>
+
+              <select
+                id="subsector-filter"
+                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                value={selectedSubsectorId}
+                disabled={
+                  !selectedSectorId ||
+                  subsectors.length === 0
+                }
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
+
+                  updateFilter(
+                    "unitId",
+                    value ||
+                    selectedSectorId,
+                  );
+                }}
+              >
+                <option value="">
+                  {!selectedSectorId
+                    ? "Selecione primeiro o setor"
+                    : subsectors.length === 0
+                      ? "Este setor não possui subsetores"
+                      : "Todos os subsetores"}
+                </option>
+
+                {subsectors.map(
+                  (subsector) => (
+                    <option
+                      key={subsector.id}
+                      value={subsector.id}
+                    >
+                      {subsector.code} -{" "}
+                      {subsector.name}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                className="w-full"
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setSearchParams(
+                    {},
+                  )
+                }
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-medium">
+              Bens cadastrados
+            </h2>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              {total} bem(ns) encontrado(s).
+            </p>
+          </div>
+
+          {selectedUnit ||
+            selectedConservationStatus ||
+            selectedStatusLabel ? (
+            <Button
+              onClick={() => {
+                setSearchParams({});
+              }}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              {selectedUnit
+                ? getAssetLocation(
+                  selectedUnit.id,
+                )
+                : selectedConservationStatus
+                  ? selectedConservationStatus
+                  : selectedStatusLabel}
+
+              {" · "}
+              Limpar filtro
+            </Button>
+          ) : null}
+        </CardHeader>
+
+        <CardContent>
+          {loading ? (
+            <p className="py-10 text-center text-sm text-[var(--text-muted)]">
+              Carregando bens...
+            </p>
+          ) : assets.length === 0 ? (
+            <EmptyState
+              description={
+                selectedUnit
+                  ? `Não existem bens vinculados ao setor ${selectedUnit.code} - ${selectedUnit.name}.`
+                  : selectedConservationStatus
+                    ? `Não existem bens com estado de conservação "${selectedConservationStatus}".`
+                    : selectedStatusLabel
+                      ? `Não existem bens com situação "${selectedStatusLabel}".`
+                      : "Ainda não existem bens patrimoniais cadastrados."
+              }
+              title={
+                selectedUnit ||
+                  selectedConservationStatus ||
+                  selectedStatusLabel
+                  ? "Nenhum bem encontrado"
+                  : "Nenhum bem cadastrado"
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <thead>
+                  <tr>
+                    <TableHead>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "patrimonyNumber",
+                          )
+                        }
+                      >
+                        Tombo
+
+                        {sortBy ===
+                          "patrimonyNumber"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
+                    </TableHead>
+
+                    <TableHead>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "description",
+                          )
+                        }
+                      >
+                        Material
+
+                        {sortBy ===
+                          "description"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
+                    </TableHead>
+
+                    <TableHead>
+                      {/* <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "unit",
+                          )
+                        }
+                      > */}
+                      Localização
+
+                      {/* {sortBy ===
+                          "unit"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button> */}
+                    </TableHead>
+
+                    <TableHead>
+                      Marca / Modelo
+                    </TableHead>
+
+                    <TableHead>
+                      Nº Série
+                    </TableHead>
+
+                    <TableHead>
+                      Documento
+                    </TableHead>
+
+                    <TableHead>
+                      Empenho
+                    </TableHead>
+
+                    <TableHead>
+                      Conservação
+                    </TableHead>
+
+                    <TableHead>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium hover:underline"
+                        onClick={() =>
+                          updateSort(
+                            "value",
+                          )
+                        }
+                      >
+                        Valor
+
+                        {sortBy ===
+                          "value"
+                          ? sortDirection ===
+                            "asc"
+                            ? "↑"
+                            : "↓"
+                          : null}
+                      </button>
+                    </TableHead>
+
+                    <TableHead>
+                      Situação
+                    </TableHead>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {assets.map(
+                    (asset) => {
+                      const unit =
+                        asset.unitId
+                          ? unitsById.get(
+                            asset.unitId,
+                          )
+                          : null;
+
+                      return (
+                        <TableRow
+                          key={
+                            asset.id
+                          }
+                        >
+
+                          <TableCell>
+                            <Link
+                              className="font-semibold underline-offset-4 hover:underline"
+                              to={`/patrimonio/bens/${asset.id}`}
+                            >
+                              {asset.patrimonyNumber}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[320px]">
+                              {
+                                asset.description
+                              }
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            {getAssetLocation(
+                              asset.unitId,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {formatBrandModel(
+                              asset.brand,
+                              asset.model,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {asset.serialNumber ??
+                              "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            {formatDocument(
+                              asset.documentNumber,
+                              asset.documentDate,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {asset.commitmentNumber ??
+                              "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            {asset.conservationStatus ??
+                              "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            {formatCurrency(
+                              asset.acquisitionValue,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge variant="neutral">
+                              {
+                                assetStatusLabels[
+                                asset.status
+                                ]
+                              }
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    },
+                  )}
+                </tbody>
+              </Table>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-[var(--text-muted)]">
+                  Página{" "}
+                  {currentPage} de{" "}
+                  {totalPages}
+                  {" · "}
+                  {total} bem(ns)
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+                    value={
+                      String(
+                        currentPageSize,
+                      )
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      changePageSize(
+                        event.target.value,
+                      )
+                    }
+                  >
+                    <option value="10">
+                      10 por página
+                    </option>
+
+                    <option value="20">
+                      20 por página
+                    </option>
+
+                    <option value="50">
+                      50 por página
+                    </option>
+                  </select>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      currentPage <= 1
+                    }
+                    onClick={() =>
+                      changePage(
+                        currentPage - 1,
+                      )
+                    }
+                  >
+                    Anterior
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      currentPage >=
+                      totalPages
+                    }
+                    onClick={() =>
+                      changePage(
+                        currentPage + 1,
+                      )
+                    }
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function formatBrandModel(
+  brand: string | null,
+  model: string | null,
+) {
+  if (
+    !brand &&
+    !model
+  ) {
+    return "—";
+  }
+
+  if (
+    brand &&
+    model
+  ) {
+    return `${brand} / ${model}`;
+  }
+
+  return brand ?? model ?? "—";
+}
+
+function formatDocument(
+  number: string | null,
+  date: string | null,
+) {
+  if (
+    !number &&
+    !date
+  ) {
+    return "—";
+  }
+
+  if (
+    number &&
+    date
+  ) {
+    return `${number} - ${formatDate(
+      date,
+    )}`;
+  }
+
+  return (
+    number ??
+    formatDate(date)
+  );
+}
+
+function formatDate(
+  value: string | null,
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] = value.split("-");
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+function formatCurrency(
+  value:
+    | number
+    | string
+    | null,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "—";
+  }
+
+  const number =
+    Number(value);
+
+  if (
+    Number.isNaN(number)
+  ) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    },
+  ).format(number);
+}

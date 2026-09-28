@@ -79,6 +79,8 @@ const permissionLabels: Record<PermissionKey, string> = {
   "visits.export": "Exportar visitas",
   "visits.manage": "Administrar módulo de visitas",
   "visits.confirmation.manage": "Gerenciar confirmações de visitas",
+  "assets.read": "Visualizar patrimônio",
+  "assets.manage": "Gerenciar patrimônio",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
@@ -118,10 +120,12 @@ const permissionDescriptions: Record<PermissionKey, string> = {
   "visits.export": "Exporta dados de visitas em formatos PDF e Excel.",
   "visits.manage": "Administra parâmetros e configurações gerais de visitas.",
   "visits.confirmation.manage": "Envia e gerencia confirmações aos visitantes.",
+  "assets.read": "Permite consultar os bens patrimoniais.",
+  "assets.manage": "Permite cadastrar, editar e gerenciar bens patrimoniais.",
 };
 
 type PermissionModule =
-  "administration" | "audit" | "people" | "vacations" | "tickets" | "visits";
+  "administration" | "audit" | "people" | "vacations" | "tickets" | "visits" | "patrimony";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "access.manage": "administration",
@@ -151,6 +155,8 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "visits.export": "visits",
   "visits.manage": "visits",
   "visits.confirmation.manage": "visits",
+  "assets.read": "patrimony",
+  "assets.manage": "patrimony",
 };
 
 const permissionGroups = (
@@ -184,6 +190,11 @@ const permissionGroups = (
       key: "visits",
       title: "Visitas",
       description: "Agendamentos, portaria e relatórios",
+    },
+    {
+      key: "patrimony",
+      title: "Controle de patrimônio",
+      description: "Consulta e gerenciamento de bens patrimoniais",
     },
   ] as const
 ).map((group) => ({

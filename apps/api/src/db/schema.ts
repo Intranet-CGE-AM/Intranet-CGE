@@ -6,3 +6,4 @@ export * from "../modules/people/schema.js";
 export * from "../modules/vacations/schema.js";
 export * from "../modules/tickets/schema.js";
 export * from "../modules/visits/schema.js";
+export * from "../modules/assets/schema.js";

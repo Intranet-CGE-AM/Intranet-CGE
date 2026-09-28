@@ -28,6 +28,8 @@ export const permissionKeys = [
   "visits.export",
   "visits.manage",
   "visits.confirmation.manage",
+  "assets.read",
+  "assets.manage",
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
@@ -65,6 +67,8 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
   "visits.export": "global",
   "visits.manage": "global",
   "visits.confirmation.manage": "global",
+  "assets.read": "global-or-unit",
+  "assets.manage": "global-or-unit",
 };
 
 export type PermissionGrant = {
