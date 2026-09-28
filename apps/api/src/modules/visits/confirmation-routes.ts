@@ -2,7 +2,6 @@ import { visitorConfirmationResponseSchema } from "@cge/contracts";
 
 import type { FastifyInstance, FastifyReply } from "fastify";
 
-import type { Database } from "../../db/client.js";
 
 import {
   VisitConfirmationError,
@@ -14,7 +13,7 @@ import {
  * ======================================================= */
 
 type VisitConfirmationRoutesOptions = {
-  db: Database;
+  confirmationService: VisitConfirmationService;
 };
 
 /* =========================================================
@@ -43,7 +42,7 @@ export async function visitConfirmationRoutes(
    * SERVICE
    * ===================================================== */
 
-  const confirmationService = new VisitConfirmationService(options.db);
+  const { confirmationService } = options;
 
   /* =======================================================
    * GET

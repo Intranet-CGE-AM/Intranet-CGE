@@ -44,7 +44,8 @@ import { ticketRoutes } from "./modules/tickets/routes.js";
 import type { TicketService } from "./modules/tickets/service.js";
 import { visitRoutes } from "./modules/visits/routes.js";
 import type { VisitService } from "./modules/visits/service.js";
-import { VisitConfirmationService } from "./modules/visits/confirmation-services.js";
+import { visitConfirmationRoutes } from "./modules/visits/confirmation-routes.js";
+import type { VisitConfirmationService } from "./modules/visits/confirmation-services.js";
 
 export async function buildApp({
   config,
@@ -56,6 +57,7 @@ export async function buildApp({
   vacationService,
   ticketService,
   visitService,
+  visitConfirmationService,
   readinessCheck,
   logger = false,
 }: {
@@ -68,6 +70,7 @@ export async function buildApp({
   vacationService?: VacationService;
   ticketService?: TicketService;
   visitService?: VisitService;
+  visitConfirmationService?: VisitConfirmationService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
@@ -133,6 +136,11 @@ export async function buildApp({
     }
   });
   await app.register(systemRoutes, { readinessCheck });
+  if (visitConfirmationService) {
+    await app.register(visitConfirmationRoutes, {
+      confirmationService: visitConfirmationService,
+    });
+  }
   if (authenticationService) {
     await app.register(authRoutes, {
       authenticationService,
@@ -218,13 +226,13 @@ export async function buildApp({
       });
     }
 
-    if (visitService) {
+    if (visitService && visitConfirmationService) {
       await app.register(visitRoutes, {
         accessService,
         authenticationService,
         db,
         visitService,
-        confirmationService: new VisitConfirmationService(db),
+        confirmationService: visitConfirmationService,
       });
     }
   }

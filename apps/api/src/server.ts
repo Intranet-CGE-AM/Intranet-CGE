@@ -12,6 +12,7 @@ import { PeopleService } from "./modules/people/service.js";
 import { MinioObjectStorage } from "./modules/storage/object-storage.js";
 import { VacationService } from "./modules/vacations/service.js";
 import { TicketService } from "./modules/tickets/service.js";
+import { VisitConfirmationService } from "./modules/visits/confirmation-services.js";
 import { VisitService } from "./modules/visits/service.js";
 import { assetRoutes } from "./modules/assets/routes.js";
 import { AssetService } from "./modules/assets/service.js";
@@ -29,6 +30,7 @@ const objectStorage = new MinioObjectStorage(
 const vacationService = new VacationService(db);
 const ticketService = new TicketService(db);
 const visitService = new VisitService(db);
+const visitConfirmationService = new VisitConfirmationService(db);
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
@@ -53,6 +55,7 @@ const app = await buildApp({
   vacationService,
   ticketService,
   visitService,
+  visitConfirmationService,
 });
 
 await app.register(assetRoutes, {
