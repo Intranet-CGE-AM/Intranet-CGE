@@ -32,7 +32,7 @@ import {
   tickets,
   ticketSubcategories,
 } from "../modules/tickets/schema.js";
-import { TicketService } from "../modules/tickets/service.js";
+import { nextTicketNumber, TicketService } from "../modules/tickets/service.js";
 
 const confirmation = "SEED_CGE_HOMOLOG";
 const accountDomain = "homolog.cge.am.gov.br";
@@ -949,13 +949,11 @@ async function seedHomologTickets(
   const personWorker = required(seededPeople.get("HOM-003")).personId;
   const personViewer = required(seededPeople.get("HOM-004")).personId;
 
-  const todayClean = today.replace(/-/g, "");
-
   // 1. Chamado Aberto (Hardware - Caio Nascimento)
   const [t1] = await tx
     .insert(tickets)
     .values({
-      ticketNumber: `#${todayClean}-0001`,
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
       trackToken: "homolog-token-0001",
       requesterAccountId: accounts.worker.id,
       requesterPersonId: personWorker,
@@ -990,7 +988,7 @@ async function seedHomologTickets(
   const [t2] = await tx
     .insert(tickets)
     .values({
-      ticketNumber: `#${todayClean}-0002`,
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
       trackToken: "homolog-token-0002",
       requesterAccountId: accounts.viewer.id,
       requesterPersonId: personViewer,
@@ -1031,7 +1029,7 @@ async function seedHomologTickets(
   const [t3] = await tx
     .insert(tickets)
     .values({
-      ticketNumber: `#${todayClean}-0003`,
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
       trackToken: "homolog-token-0003",
       requesterAccountId: accounts.hr.id,
       requesterPersonId: personHr,
@@ -1100,7 +1098,7 @@ async function seedHomologTickets(
   const [t4] = await tx
     .insert(tickets)
     .values({
-      ticketNumber: `#${todayClean}-0004`,
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
       trackToken: "homolog-token-0004",
       requesterAccountId: accounts.worker.id,
       requesterPersonId: personWorker,
@@ -1156,7 +1154,7 @@ async function seedHomologTickets(
   const [t5] = await tx
     .insert(tickets)
     .values({
-      ticketNumber: `#${todayClean}-0005`,
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
       trackToken: "homolog-token-0005",
       requesterAccountId: accounts.worker.id,
       requesterPersonId: personWorker,
