@@ -15,14 +15,7 @@ import {
   availableSystemNavigation,
   canNavigate,
 } from "../navigation";
-import { manausGreeting } from "../lib/dates";
-
-const today = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "long",
-  timeZone: "America/Manaus",
-  weekday: "long",
-});
+import { manausGreeting, manausLongDate } from "../lib/dates";
 
 const futureSpaces = [
   {
@@ -51,8 +44,8 @@ export function HubPage() {
   return (
     <div className="hub-page space-y-6 pb-6">
       <header className="pt-2" data-reveal>
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {today.format(new Date())} · Manaus
+        <p className="text-xs font-semibold text-[var(--text-faint)]">
+          {manausLongDate()} · Manaus
         </p>
         <h1 className="mt-2 text-[32px] font-extrabold leading-tight tracking-[-0.045em] sm:text-[38px]">
           {manausGreeting()}, {firstName}
