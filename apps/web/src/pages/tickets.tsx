@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import type {
-  TicketAnalyticsSummary,
-  TicketStatus,
-  TicketSummary,
-} from "@cge/contracts";
+import { Link, useSearchParams } from "react-router";
+import type { TicketAnalyticsSummary, TicketSummary } from "@cge/contracts";
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   EmptyState,
+  FormField,
+  Input,
+  Select,
+  Skeleton,
   Table,
   TableCell,
   TableHead,
@@ -25,10 +26,9 @@ import {
   ChartBar,
   Desktop,
   Eye,
-  Headset,
   ListBullets,
   MagnifyingGlass,
-  PlusCircle,
+  Plus,
   ShieldCheck,
   Star,
   User,
@@ -38,57 +38,94 @@ import { useAuth } from "../auth";
 import { TicketDetailModal } from "../components/ticket-detail-modal";
 import { api } from "../lib/api";
 import { canAccess } from "../lib/permissions";
-import { ticketStatus } from "../modules/tickets/ticket-status";
+import { TICKET_STATUS, ticketStatus } from "../modules/tickets/ticket-status";
 
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0] ?? "";
-  if (parts.length === 1) return first.substring(0, 2).toUpperCase();
-  const last = parts[parts.length - 1] ?? "";
-  const fChar = first[0] ?? "";
-  const lChar = last[0] ?? "";
-  return (fChar + lChar).toUpperCase() || "?";
-}
+type Tab = "my" | "queue" | "approvals" | "metrics";
+
+const TABLE_HEADERS = [
+  "Protocolo / data",
+  "Solicitante",
+  "Categoria / serviço",
+  "Modalidade",
+  "Técnico ATEC",
+  "Status / SLA",
+  "Ação",
+];
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "Todas" },
+  ...Object.entries(TICKET_STATUS).map(([value, { label }]) => ({
+    value,
+    label,
+  })),
+];
+
+const AREA_OPTIONS = [
+  { value: "all", label: "Todas" },
+  { value: "sistemas", label: "Sistemas" },
+  { value: "redes", label: "Redes" },
+  { value: "manutencao", label: "Manutenção" },
+];
+
+const METRIC_LABEL =
+  "text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]";
 
 export function TicketsPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  if (!user) {
-    return null;
-  }
+  const isStaff = user
+    ? canAccess(user, { anyOf: ["tickets.attend", "tickets.manage"] })
+    : false;
+  const canApprove = user
+    ? canAccess(user, { anyOf: ["tickets.approve", "tickets.manage"] })
+    : false;
 
-  const isStaff = canAccess(user, {
-    anyOf: ["tickets.attend", "tickets.manage"],
-  });
-  const canApprove = canAccess(user, {
-    anyOf: ["tickets.approve", "tickets.manage"],
-  });
+  const allowedTabs: Tab[] = [
+    "my",
+    ...(isStaff ? (["queue"] as const) : []),
+    ...(canApprove ? (["approvals"] as const) : []),
+    ...(isStaff ? (["metrics"] as const) : []),
+  ];
+  const requestedTab = searchParams.get("tab") as Tab | null;
+  const activeTab: Tab =
+    requestedTab && allowedTabs.includes(requestedTab)
+      ? requestedTab
+      : isStaff
+        ? "queue"
+        : "my";
 
-  // Tab State: "my" | "queue" | "approvals" | "metrics"
-  const defaultTab = searchParams.get("tab") || (isStaff ? "queue" : "my");
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  // Filters live in the URL so reloading or sharing keeps them.
+  const searchTerm = searchParams.get("q") ?? "";
+  const statusFilter = searchParams.get("status") ?? "all";
+  const areaFilter = searchParams.get("area") ?? "all";
 
-  // Tickets list
+  const updateParams = (changes: Record<string, string | null>) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null || value === "" || value === "all") {
+            next.delete(key);
+          } else {
+            next.set(key, value);
+          }
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [areaFilter, setAreaFilter] = useState<string>("all");
-
-  // Analytics
   const [analytics, setAnalytics] = useState<TicketAnalyticsSummary | null>(
     null,
   );
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-  // Modal Detail
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
   const loadData = useCallback(
@@ -141,9 +178,12 @@ export function TicketsPage() {
     void loadData();
   }, [loadData]);
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    setSearchParams({ tab });
+  if (!user) {
+    return null;
+  }
+
+  const handleTabChange = (tab: Tab) => {
+    updateParams({ tab });
   };
 
   const filteredTickets = tickets.filter((t) => {
@@ -167,536 +207,487 @@ export function TicketsPage() {
     return b.ticketNumber.localeCompare(a.ticketNumber);
   });
 
-  return (
-    <div className="space-y-6">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--brand)] text-white shadow-sm">
-            <Headset className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
-              Suporte e Chamados TI
-            </h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              Atendimento técnico da Assessoria Técnica (ATEC)
-            </p>
-          </div>
-        </div>
+  const hasFilters =
+    searchTerm.trim() !== "" ||
+    (activeTab === "queue" && (statusFilter !== "all" || areaFilter !== "all"));
 
-        <div className="flex items-center gap-2">
+  const tabs: Array<{ key: Tab; label: string; icon: typeof User }> = [
+    { key: "my", label: "Meus chamados", icon: User },
+    { key: "queue", label: "Fila da ATEC", icon: ListBullets },
+    { key: "approvals", label: "Aprovações pendentes", icon: ShieldCheck },
+    { key: "metrics", label: "Métricas e SLA", icon: ChartBar },
+  ];
+
+  const emptyCopy = hasFilters
+    ? {
+        title: "Nenhum resultado",
+        description: "Tente outro termo de busca ou ajuste os filtros.",
+      }
+    : activeTab === "my"
+      ? {
+          title: "Nenhum chamado ainda",
+          description:
+            "Quando precisar de suporte de informática, internet, sistemas ou equipamentos, abra um chamado.",
+        }
+      : activeTab === "approvals"
+        ? {
+            title: "Nenhuma aprovação pendente",
+            description:
+              "Os chamados que dependem da sua aprovação aparecem aqui.",
+          }
+        : {
+            title: "Nenhum chamado na fila",
+            description: "Os chamados abertos para a ATEC aparecem aqui.",
+          };
+
+  return (
+    <div className="page-enter space-y-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Suporte
+          </p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            Suporte e chamados de TI
+          </h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Atendimento técnico da Assessoria Técnica (ATEC).
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="quiet"
-            size="sm"
+            size="icon"
+            aria-label="Atualizar lista"
             onClick={() => void loadData()}
-            title="Atualizar lista"
           >
-            <ArrowClockwise className="h-4 w-4" />
+            <ArrowClockwise aria-hidden="true" size={16} />
           </Button>
-          <Button variant="primary" onClick={() => navigate("/suporte/novo")}>
-            <PlusCircle className="mr-1.5 h-4 w-4" /> Abrir Novo Chamado
+          <Button asChild>
+            <Link to="/suporte/novo">
+              <Plus aria-hidden="true" size={16} />
+              Novo chamado
+            </Link>
           </Button>
         </div>
       </div>
 
-      {/* ── Tabs Bar ────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2 border-b border-[var(--border)] pb-1">
-        <button
-          type="button"
-          onClick={() => handleTabChange("my")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-            activeTab === "my"
-              ? "bg-[var(--brand)] text-white shadow-sm"
-              : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
-          }`}
-        >
-          <User className="h-4 w-4" /> Meus Chamados
-        </button>
-
-        {isStaff && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("queue")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeTab === "queue"
-                ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
-            }`}
-          >
-            <ListBullets className="h-4 w-4" /> Fila de Atendimento ATEC
-          </button>
-        )}
-
-        {canApprove && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("approvals")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeTab === "approvals"
-                ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
-            }`}
-          >
-            <ShieldCheck className="h-4 w-4" /> Aprovações Pendentes
-          </button>
-        )}
-
-        {isStaff && (
-          <button
-            type="button"
-            onClick={() => handleTabChange("metrics")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeTab === "metrics"
-                ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"
-            }`}
-          >
-            <ChartBar className="h-4 w-4" /> Métricas e SLA
-          </button>
-        )}
-      </div>
+      <nav aria-label="Visões de chamados" className="flex flex-wrap gap-2">
+        {tabs
+          .filter((tab) => allowedTabs.includes(tab.key))
+          .map(({ key, label, icon: TabIcon }) => (
+            <Button
+              key={key}
+              variant={activeTab === key ? "primary" : "secondary"}
+              aria-pressed={activeTab === key}
+              onClick={() => handleTabChange(key)}
+            >
+              <TabIcon aria-hidden="true" size={16} />
+              {label}
+            </Button>
+          ))}
+      </nav>
 
       {error && (
-        <Alert tone="danger" title="Erro ao carregar dados">
-          {error}
+        <Alert tone="danger" title="Não foi possível carregar os dados">
+          <p>{error}</p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="secondary"
+            onClick={() => void loadData()}
+          >
+            Tentar novamente
+          </Button>
         </Alert>
       )}
 
-      {/* ── Visualização: Métricas e Analytics ────────────────────────── */}
       {activeTab === "metrics" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {loadingAnalytics ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="h-28 animate-pulse rounded-2xl bg-[var(--surface-subtle)]"
-                />
+                <Skeleton key={i} className="h-28 rounded-[14px]" />
               ))}
             </div>
           ) : analytics ? (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Card className="border-[var(--border)]">
-                  <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Total de Chamados
-                    </span>
-                    <div className="mt-2 text-3xl font-black text-[var(--text)]">
+                <Card>
+                  <CardContent>
+                    <p className={METRIC_LABEL}>Total de chamados</p>
+                    <p className="mt-2 text-3xl font-extrabold tabular-nums">
                       {analytics.total}
-                    </div>
-                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.open} em aberto • {analytics.inService} em
                       atendimento
-                    </div>
+                    </p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-[var(--border)]">
-                  <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Concluídos
-                    </span>
-                    <div className="mt-2 text-3xl font-black text-[#047857]">
+                <Card>
+                  <CardContent>
+                    <p className={METRIC_LABEL}>Concluídos</p>
+                    <p className="mt-2 text-3xl font-extrabold tabular-nums text-[var(--success-strong)]">
                       {analytics.completed}
-                    </div>
-                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.cancelled} cancelados
-                    </div>
+                    </p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-[var(--border)]">
-                  <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Cumprimento de SLA
-                    </span>
-                    <div className="mt-2 text-3xl font-black text-[#1D4ED8]">
+                <Card>
+                  <CardContent>
+                    <p className={METRIC_LABEL}>Cumprimento de SLA</p>
+                    <p className="mt-2 text-3xl font-extrabold tabular-nums text-[var(--brand)]">
                       {analytics.slaCompliancePercentage}%
-                    </div>
-                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.slaBreachedCount} com SLA expirado
-                    </div>
+                    </p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-[var(--border)]">
-                  <CardContent className="p-5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Satisfação dos Usuários
-                    </span>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-3xl font-black text-amber-500">
-                        {analytics.averageRating ?? "—"}
-                      </span>
-                      <Star className="h-6 w-6 fill-amber-400 text-amber-500" />
-                    </div>
-                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                <Card>
+                  <CardContent>
+                    <p className={METRIC_LABEL}>Satisfação dos usuários</p>
+                    <p className="mt-2 flex items-center gap-2 text-3xl font-extrabold tabular-nums text-[var(--warning-strong)]">
+                      {analytics.averageRating ?? "—"}
+                      <Star aria-hidden="true" size={24} weight="fill" />
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">
                       {analytics.totalFeedbacks} avaliações registradas
-                    </div>
+                    </p>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Gráficos / Distribuições */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <Card>
-                  <CardHeader className="border-b border-[var(--border)]">
-                    <h3 className="font-semibold text-[var(--text)]">
-                      Chamados por Categoria
-                    </h3>
-                  </CardHeader>
-                  <CardContent className="space-y-3 p-5">
-                    {analytics.byCategory.map((cat) => (
-                      <div key={cat.categoryId} className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text)]">
-                            {cat.categoryName}
-                          </span>
-                          <span className="text-[var(--text-muted)]">
-                            {cat.count} (
-                            {analytics.total > 0
-                              ? Math.round((cat.count / analytics.total) * 100)
-                              : 0}
-                            %)
-                          </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
-                          <div
-                            className="h-full bg-[var(--brand)]"
-                            style={{
-                              width: `${analytics.total > 0 ? (cat.count / analytics.total) * 100 : 0}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="border-b border-[var(--border)]">
-                    <h3 className="font-semibold text-[var(--text)]">
-                      Chamados por Unidade Solicitante
-                    </h3>
-                  </CardHeader>
-                  <CardContent className="space-y-3 p-5">
-                    {analytics.byUnit.map((unit) => (
-                      <div key={unit.unitName} className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[var(--text)]">
-                            {unit.unitName}
-                          </span>
-                          <span className="text-[var(--text-muted)]">
-                            {unit.count}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]">
-                          <div
-                            className="h-full bg-emerald-500"
-                            style={{
-                              width: `${analytics.total > 0 ? (unit.count / analytics.total) * 100 : 0}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <DistributionCard
+                  title="Chamados por categoria"
+                  total={analytics.total}
+                  barClassName="bg-[var(--brand)]"
+                  rows={analytics.byCategory.map((cat) => ({
+                    key: cat.categoryId,
+                    label: cat.categoryName,
+                    count: cat.count,
+                    showPercentage: true,
+                  }))}
+                />
+                <DistributionCard
+                  title="Chamados por unidade solicitante"
+                  total={analytics.total}
+                  barClassName="bg-[var(--success)]"
+                  rows={analytics.byUnit.map((unit) => ({
+                    key: unit.unitName,
+                    label: unit.unitName,
+                    count: unit.count,
+                    showPercentage: false,
+                  }))}
+                />
               </div>
             </>
+          ) : !error ? (
+            <Card>
+              <EmptyState
+                title="Sem métricas"
+                description="Ainda não há dados de chamados para calcular os indicadores."
+              />
+            </Card>
           ) : null}
         </div>
       )}
 
-      {/* ── Visualização: Listagens (Meus Chamados, Fila, Aprovações) ──────── */}
       {activeTab !== "metrics" && (
-        <Card className="overflow-hidden border-[var(--border)] bg-[var(--surface)]">
-          {/* Barra de Filtros e Busca */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-4">
-            <div className="relative min-w-[260px] flex-1">
-              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                placeholder="Buscar por protocolo, solicitante, categoria..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
-              />
+        <Card>
+          <CardContent className="border-b border-[var(--border)] py-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <FormField
+                htmlFor="ticketSearch"
+                label="Buscar chamados"
+                className="sm:col-span-2"
+              >
+                <div className="relative">
+                  <MagnifyingGlass
+                    aria-hidden="true"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+                    size={16}
+                  />
+                  <Input
+                    id="ticketSearch"
+                    type="search"
+                    autoComplete="off"
+                    className="pl-9"
+                    placeholder="Protocolo, solicitante ou categoria…"
+                    value={searchTerm}
+                    onChange={(e) => updateParams({ q: e.target.value })}
+                  />
+                </div>
+              </FormField>
+
+              {activeTab === "queue" && (
+                <>
+                  <FormField htmlFor="ticketStatus" label="Situação">
+                    <Select
+                      id="ticketStatus"
+                      name="ticketStatus"
+                      options={STATUS_OPTIONS}
+                      value={statusFilter}
+                      onValueChange={(value) => updateParams({ status: value })}
+                    />
+                  </FormField>
+                  <FormField htmlFor="ticketArea" label="Área">
+                    <Select
+                      id="ticketArea"
+                      name="ticketArea"
+                      options={AREA_OPTIONS}
+                      value={areaFilter}
+                      onValueChange={(value) => updateParams({ area: value })}
+                    />
+                  </FormField>
+                </>
+              )}
             </div>
-
-            {activeTab === "queue" && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[var(--brand)]"
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="open">Abertos</option>
-                  <option value="viewed">Visualizados</option>
-                  <option value="in_service">Em Atendimento</option>
-                  <option value="paused">Pausados</option>
-                  <option value="completed">Concluídos</option>
-                  <option value="cancelled">Cancelados</option>
-                </select>
-
-                <select
-                  value={areaFilter}
-                  onChange={(e) => setAreaFilter(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text)] outline-none focus:border-[var(--brand)]"
-                >
-                  <option value="all">Todas as Áreas</option>
-                  <option value="sistemas">Sistemas</option>
-                  <option value="redes">Redes</option>
-                  <option value="manutencao">Manutenção</option>
-                </select>
-              </div>
-            )}
-          </div>
+          </CardContent>
 
           {loading ? (
-            <div className="p-4">
-              <TableSkeleton
-                ariaLabel="Carregando chamados"
-                headers={[
-                  "Protocolo / Data",
-                  "Solicitante",
-                  "Categoria / Serviço",
-                  "Modalidade",
-                  "Técnico ATEC",
-                  "Status / SLA",
-                  "Ação",
-                ]}
-                rows={5}
-              />
-            </div>
+            <TableSkeleton
+              ariaLabel="Carregando chamados"
+              headers={TABLE_HEADERS}
+              rows={5}
+            />
           ) : sortedTickets.length === 0 ? (
-            <div className="p-8">
-              <EmptyState
-                icon={
-                  <Headset
-                    size={44}
-                    className="mx-auto text-[var(--text-muted)]"
-                  />
-                }
-                title={
-                  activeTab === "my"
-                    ? "Você não possui chamados abertos"
-                    : activeTab === "approvals"
-                      ? "Nenhuma aprovação pendente no momento"
-                      : "Nenhum chamado encontrado"
-                }
-                description={
-                  activeTab === "my"
-                    ? "Quando precisar de suporte de informática, internet, sistemas ou equipamentos, clique no botão abaixo."
-                    : "Todos os chamados foram atendidos ou não correspondem aos filtros selecionados."
-                }
-                action={
-                  activeTab === "my" ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => navigate("/suporte/novo")}
-                    >
-                      <PlusCircle className="mr-1.5 h-4 w-4" /> Abrir Meu
-                      Primeiro Chamado
-                    </Button>
-                  ) : undefined
-                }
-              />
-            </div>
+            <EmptyState
+              title={emptyCopy.title}
+              description={emptyCopy.description}
+              action={
+                activeTab === "my" && !hasFilters ? (
+                  <Button asChild>
+                    <Link to="/suporte/novo">
+                      <Plus aria-hidden="true" size={16} />
+                      Novo chamado
+                    </Link>
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <thead>
-                  <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Protocolo / Data
+            <Table aria-label="Chamados">
+              <thead>
+                <tr>
+                  {TABLE_HEADERS.map((header) => (
+                    <TableHead key={header} className="whitespace-nowrap">
+                      {header}
                     </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Solicitante
-                    </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Categoria / Serviço
-                    </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Modalidade
-                    </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Técnico ATEC
-                    </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Status / SLA
-                    </TableHead>
-                    <TableHead className="sticky top-0 bg-[var(--surface)] text-left text-xs uppercase tracking-wide text-[var(--text-muted)] font-semibold">
-                      Ação
-                    </TableHead>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {sortedTickets.map((t) => {
-                    const statusConf = ticketStatus(t.status);
-                    const cleanProtocol = t.ticketNumber.replace(/^#+/, "");
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTickets.map((t) => {
+                  const statusConf = ticketStatus(t.status);
+                  const cleanProtocol = t.ticketNumber.replace(/^#+/, "");
 
-                    // Cálculo SLA simples para amostragem/exibição
-                    let isSlaBreached = false;
-                    if (
-                      t.slaDeadline &&
-                      !["completed", "cancelled"].includes(t.status)
-                    ) {
-                      isSlaBreached = new Date(t.slaDeadline) < new Date();
-                    }
+                  let isSlaBreached = false;
+                  if (
+                    t.slaDeadline &&
+                    !["completed", "cancelled"].includes(t.status)
+                  ) {
+                    isSlaBreached = new Date(t.slaDeadline) < new Date();
+                  }
 
-                    return (
-                      <TableRow
-                        key={t.id}
-                        className="cursor-pointer"
-                        onClick={() => setSelectedTicketId(t.id)}
-                      >
-                        {/* Protocolo / Data */}
-                        <TableCell>
-                          <div className="font-mono text-xs font-semibold text-[var(--brand)]">
-                            #{cleanProtocol}
-                          </div>
-                          <div className="text-[11px] text-[var(--text-muted)]">
-                            {new Date(t.openedAt).toLocaleString("pt-BR", {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })}
-                          </div>
-                        </TableCell>
+                  return (
+                    <TableRow
+                      key={t.id}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedTicketId(t.id)}
+                    >
+                      <TableCell>
+                        <p className="font-mono text-xs font-semibold text-[var(--brand)]">
+                          #{cleanProtocol}
+                        </p>
+                        <p className="text-xs text-[var(--text-faint)]">
+                          {new Date(t.openedAt).toLocaleString("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </p>
+                      </TableCell>
 
-                        {/* Solicitante */}
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                              {getInitials(t.requesterName)}
-                            </div>
-                            <div className="min-w-0">
-                              <div
-                                className="truncate text-xs font-medium text-[var(--text)]"
-                                title={t.requesterName}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={t.requesterName} size="sm" />
+                          <div className="min-w-0">
+                            <p
+                              className="truncate font-semibold"
+                              title={t.requesterName}
+                            >
+                              {t.requesterName}
+                            </p>
+                            {t.unitName && (
+                              <p
+                                className="truncate text-xs text-[var(--text-faint)]"
+                                title={t.unitName}
                               >
-                                {t.requesterName}
-                              </div>
-                              {t.unitName && (
-                                <div
-                                  className="truncate text-[11px] text-[var(--text-muted)]"
-                                  title={t.unitName}
-                                >
-                                  {t.unitName}
-                                </div>
-                              )}
-                            </div>
+                                {t.unitName}
+                              </p>
+                            )}
                           </div>
-                        </TableCell>
+                        </div>
+                      </TableCell>
 
-                        {/* Categoria / Serviço */}
-                        <TableCell>
-                          <div className="text-xs font-medium text-[var(--text)]">
-                            {t.categoryName}
-                          </div>
-                          {t.subcategoryName && (
-                            <div className="text-[11px] text-[var(--text-muted)]">
-                              {t.subcategoryName}
-                            </div>
-                          )}
-                        </TableCell>
+                      <TableCell>
+                        <p className="font-medium">{t.categoryName}</p>
+                        {t.subcategoryName && (
+                          <p className="text-xs text-[var(--text-faint)]">
+                            {t.subcategoryName}
+                          </p>
+                        )}
+                      </TableCell>
 
-                        {/* Modalidade */}
-                        <TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={t.isRemote ? "brand" : "neutral"}
+                          className="gap-1.5 whitespace-nowrap"
+                        >
                           {t.isRemote ? (
-                            <Badge variant="brand" className="gap-1.5">
-                              <Desktop
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
-                              Remoto
-                            </Badge>
+                            <Desktop aria-hidden="true" size={14} />
                           ) : (
-                            <Badge variant="neutral" className="gap-1.5">
-                              <Buildings
-                                className="h-3.5 w-3.5"
-                                aria-hidden="true"
-                              />
-                              Presencial
-                            </Badge>
+                            <Buildings aria-hidden="true" size={14} />
                           )}
-                        </TableCell>
+                          {t.isRemote ? "Remoto" : "Presencial"}
+                        </Badge>
+                      </TableCell>
 
-                        {/* Técnico ATEC */}
-                        <TableCell>
-                          {t.technicianName ? (
-                            <div className="text-xs font-medium text-[var(--text)]">
-                              {t.technicianName}
-                            </div>
-                          ) : (
-                            <div className="text-xs italic text-[var(--text-muted)]">
-                              Não atribuído
-                            </div>
-                          )}
-                          {t.areaResponsavel && (
-                            <div className="text-[11px] capitalize text-[var(--text-muted)]">
-                              {t.areaResponsavel}
-                            </div>
-                          )}
-                        </TableCell>
+                      <TableCell>
+                        {t.technicianName ? (
+                          <p className="font-medium">{t.technicianName}</p>
+                        ) : (
+                          <p className="text-[var(--text-muted)]">
+                            Não atribuído
+                          </p>
+                        )}
+                        {t.areaResponsavel && (
+                          <p className="text-xs capitalize text-[var(--text-faint)]">
+                            {t.areaResponsavel}
+                          </p>
+                        )}
+                      </TableCell>
 
-                        {/* Status / SLA */}
-                        <TableCell>
-                          <div className="flex flex-col items-start gap-1">
-                            <Badge variant={statusConf.variant}>
-                              {statusConf.label}
-                            </Badge>
-                            {t.approvalStatus === "pending" && (
-                              <Badge variant="warning">Aguardando chefia</Badge>
-                            )}
-                            {/* SLA status badge */}
-                            {isSlaBreached && (
-                              <span className="inline-block text-[10px] font-semibold text-red-600 dark:text-red-400">
-                                SLA Expirado
-                              </span>
-                            )}
-                            {/* TODO: exibir indicador avançado de SLA (ex.: tempo restante / contagem regressiva) */}
-                          </div>
-                        </TableCell>
-
-                        {/* Ação */}
-                        <TableCell className="text-left">
-                          <Button
-                            variant="quiet"
-                            size="sm"
-                            className="hover:bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text)]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTicketId(t.id);
-                            }}
-                            title="Ver detalhes"
-                            aria-label="Ver detalhes do chamado"
+                      <TableCell>
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge
+                            variant={statusConf.variant}
+                            className="whitespace-nowrap"
                           >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
+                            {statusConf.label}
+                          </Badge>
+                          {t.approvalStatus === "pending" && (
+                            <Badge
+                              variant="warning"
+                              className="whitespace-nowrap"
+                            >
+                              Aguardando chefia
+                            </Badge>
+                          )}
+                          {isSlaBreached && (
+                            <Badge
+                              variant="danger"
+                              className="whitespace-nowrap"
+                            >
+                              SLA expirado
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Button
+                          variant="quiet"
+                          size="icon"
+                          aria-label={`Ver detalhes do chamado ${cleanProtocol}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTicketId(t.id);
+                          }}
+                        >
+                          <Eye aria-hidden="true" size={16} />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </tbody>
+            </Table>
           )}
         </Card>
       )}
 
-      {/* ── Modal de Detalhes do Chamado ────────────────────────────────── */}
       {selectedTicketId && (
         <TicketDetailModal
           ticketId={selectedTicketId}
           currentUser={user}
           onClose={() => setSelectedTicketId(null)}
-          onUpdated={loadData}
+          onUpdated={() => void loadData(true)}
         />
       )}
     </div>
+  );
+}
+
+function DistributionCard({
+  title,
+  total,
+  rows,
+  barClassName,
+}: {
+  title: string;
+  total: number;
+  rows: Array<{
+    key: string;
+    label: string;
+    count: number;
+    showPercentage: boolean;
+  }>;
+  barClassName: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-bold">{title}</h2>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)]">
+            Nenhum chamado registrado.
+          </p>
+        ) : (
+          rows.map((row) => {
+            const share = total > 0 ? (row.count / total) * 100 : 0;
+            return (
+              <div key={row.key} className="space-y-1">
+                <div className="flex justify-between gap-3 text-xs font-medium">
+                  <span>{row.label}</span>
+                  <span className="tabular-nums text-[var(--text-muted)]">
+                    {row.count}
+                    {row.showPercentage ? ` (${Math.round(share)}%)` : ""}
+                  </span>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-subtle)]"
+                >
+                  <div
+                    className={`h-full ${barClassName}`}
+                    style={{ width: `${share}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </CardContent>
+    </Card>
   );
 }
