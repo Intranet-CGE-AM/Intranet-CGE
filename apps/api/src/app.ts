@@ -44,6 +44,7 @@ import { ticketRoutes } from "./modules/tickets/routes.js";
 import type { TicketService } from "./modules/tickets/service.js";
 import { visitRoutes } from "./modules/visits/routes.js";
 import type { VisitService } from "./modules/visits/service.js";
+import { VisitConfirmationService } from "./modules/visits/confirmation-services.js";
 
 export async function buildApp({
   config,
@@ -221,7 +222,9 @@ export async function buildApp({
       await app.register(visitRoutes, {
         accessService,
         authenticationService,
+        db,
         visitService,
+        confirmationService: new VisitConfirmationService(db),
       });
     }
   }
