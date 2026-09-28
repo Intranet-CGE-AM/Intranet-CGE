@@ -1,5 +1,5 @@
 import type { NotificationPage } from "@cge/contracts";
-import { Alert, Badge, Button, Card, EmptyState } from "@cge/ui";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState } from "@cge/ui";
 import { Bell } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
@@ -131,6 +131,14 @@ export function NotificationsPage() {
       {loading && <LoadingState label="Carregando notificações…" />}
       {!data ? null : !data.notifications.length ? (
         <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
           <EmptyState
             title="Sem notificações"
             description="Nenhuma notificação por enquanto."
@@ -138,6 +146,14 @@ export function NotificationsPage() {
         </Card>
       ) : (
         <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
           <ul className="divide-y divide-[var(--border)]">
             {data.notifications.map((item) => (
               <li

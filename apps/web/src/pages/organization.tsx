@@ -369,6 +369,14 @@ export function OrganizationPage() {
           </div>
           {!data.units.length ? (
             <Card>
+              <CardHeader>
+                <div>
+                  <h2 className="font-bold">Unidades</h2>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    Estrutura organizacional no seu escopo.
+                  </p>
+                </div>
+              </CardHeader>
               <EmptyState
                 title="Nenhuma unidade"
                 description="Nenhuma unidade no seu escopo."

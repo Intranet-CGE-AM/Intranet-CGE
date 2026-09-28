@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardHeader,
   ConfirmDialog,
   DateInput,
   EmptyState,
@@ -370,24 +371,31 @@ export function TrainingPage() {
           </Button>
         )}
       </div>
-      {loading ? (
-        <LoadingState label="Carregando capacitações…" />
-      ) : (
-        <>
-          {!visibleItems.length && !error && !detailLoading && (
-            <Card>
-              <EmptyState
-                title="Sem capacitações"
-                description="Nenhuma capacitação nesta consulta."
-              />
-            </Card>
-          )}
-          {visibleItems.length > 0 && (
-            <Card className="divide-y divide-[var(--border)]">
+      {(loading || visibleItems.length > 0 || (!error && !detailLoading)) && (
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Capacitações registradas</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Situação e histórico de cada registro.
+              </p>
+            </div>
+          </CardHeader>
+          {loading ? (
+            <div className="p-5">
+              <LoadingState label="Carregando capacitações…" />
+            </div>
+          ) : !visibleItems.length ? (
+            <EmptyState
+              title="Sem capacitações"
+              description="Nenhuma capacitação nesta consulta."
+            />
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
               {visibleItems.map((record) => (
                 <article key={record.id} className="space-y-3 px-5 py-4">
                   <div className="flex flex-wrap justify-between gap-2">
-                    <h2 className="font-bold">{record.title}</h2>
+                    <h3 className="font-bold">{record.title}</h3>
                     <Badge variant={statusVariants[record.status]}>
                       {trainingStatusLabels[record.status]}
                     </Badge>
@@ -516,8 +524,12 @@ export function TrainingPage() {
                   )}
                 </article>
               ))}
-            </Card>
+            </div>
           )}
+        </Card>
+      )}
+      {!loading && (
+        <>
           <Pagination
             label="Páginas de capacitações"
             page={page}

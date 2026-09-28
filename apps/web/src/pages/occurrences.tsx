@@ -409,209 +409,228 @@ export function OccurrencesPage() {
           </Button>
         )}
       </div>
-      {loading ? (
-        <LoadingState label="Carregando ocorrências…" />
-      ) : !error && !loadError && items.length === 0 ? (
-        <EmptyState
-          title="Nenhuma ocorrência ainda"
-          description="Nenhuma ocorrência nesta fila."
-        />
-      ) : null}
-      {!loading && (
-        <ul className="divide-y divide-[var(--border)]">
-          {items.map((item) => (
-            <li key={item.id} className="space-y-3 py-5">
-              <div className="flex flex-wrap justify-between gap-2">
-                <h2 className="font-bold">
-                  {item.typeName}
-                  {scope !== "mine" ? ` · ${item.requesterName}` : ""}
-                </h2>
-                <Badge variant={statusVariants[item.status]}>
-                  {occurrenceStatuses[item.status]}
-                </Badge>
-              </div>
-              <p className="text-sm">
-                {date(item.startDate)} a {date(item.endDate)}
-                {item.affectsAvailability
-                  ? " · Afeta disponibilidade quando aprovada"
-                  : ""}
-              </p>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => setParams({ occurrenceId: item.id })}
-              >
-                Acompanhar ocorrência
-              </Button>
-              {detail?.id === item.id && (
-                <section
-                  aria-label="Acompanhamento da ocorrência"
-                  className="space-y-4 pt-2"
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-bold">Ocorrências registradas</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Situação e histórico de cada registro.
+            </p>
+          </div>
+        </CardHeader>
+        {loading ? (
+          <div className="p-5">
+            <LoadingState label="Carregando ocorrências…" />
+          </div>
+        ) : !error && !loadError && items.length === 0 ? (
+          <EmptyState
+            title="Nenhuma ocorrência ainda"
+            description="Nenhuma ocorrência nesta fila."
+          />
+        ) : null}
+        {!loading && (
+          <ul className="divide-y divide-[var(--border)]">
+            {items.map((item) => (
+              <li key={item.id} className="space-y-3 px-5 py-5">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <h3 className="font-bold">
+                    {item.typeName}
+                    {scope !== "mine" ? ` · ${item.requesterName}` : ""}
+                  </h3>
+                  <Badge variant={statusVariants[item.status]}>
+                    {occurrenceStatuses[item.status]}
+                  </Badge>
+                </div>
+                <p className="text-sm">
+                  {date(item.startDate)} a {date(item.endDate)}
+                  {item.affectsAvailability
+                    ? " · Afeta disponibilidade quando aprovada"
+                    : ""}
+                </p>
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => setParams({ occurrenceId: item.id })}
                 >
-                  {detail.justification && (
-                    <p className="whitespace-pre-wrap break-words text-sm">
-                      {detail.justification}
-                    </p>
-                  )}
-                  {detail.documentId && (
-                    <a
-                      className="inline-block py-2 text-sm font-semibold text-[var(--brand)] underline underline-offset-4"
-                      href={`/api/documents/${detail.documentId}/file`}
-                    >
-                      Baixar comprovante
-                    </a>
-                  )}
-                  {!detail.justification && (
-                    <p className="text-sm text-[var(--text-muted)]">
-                      Visão administrativa. Conteúdo privado e comprovantes
-                      ficam restritos ao titular e à equipe autorizada.
-                    </p>
-                  )}
-                  {detail.status === "draft" &&
-                    detail.requesterAccountId === user?.account.id &&
-                    detail.documentTypeId && (
-                      <form
-                        className="space-y-3"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          const form = event.currentTarget;
-                          const file = new FormData(form).get("file");
-                          if (!(file instanceof File) || !file.size) return;
-                          setBusy(true);
-                          setError("");
-                          setSuccess("");
-                          void upload(detail, file)
-                            .then(() => {
-                              form.reset();
-                              setSuccess(
-                                "Comprovante anexado. Você já pode enviar a ocorrência.",
-                              );
-                              refresh();
-                            })
-                            .catch((cause) => setError(message(cause)))
-                            .finally(() => setBusy(false));
-                        }}
+                  Acompanhar ocorrência
+                </Button>
+                {detail?.id === item.id && (
+                  <section
+                    aria-label="Acompanhamento da ocorrência"
+                    className="space-y-4 pt-2"
+                  >
+                    {detail.justification && (
+                      <p className="whitespace-pre-wrap break-words text-sm">
+                        {detail.justification}
+                      </p>
+                    )}
+                    {detail.documentId && (
+                      <a
+                        className="inline-block py-2 text-sm font-semibold text-[var(--brand)] underline underline-offset-4"
+                        href={`/api/documents/${detail.documentId}/file`}
                       >
-                        <FormField
-                          label="Anexar comprovante PDF"
-                          htmlFor="retryOccurrenceFile"
+                        Baixar comprovante
+                      </a>
+                    )}
+                    {!detail.justification && (
+                      <p className="text-sm text-[var(--text-muted)]">
+                        Visão administrativa. Conteúdo privado e comprovantes
+                        ficam restritos ao titular e à equipe autorizada.
+                      </p>
+                    )}
+                    {detail.status === "draft" &&
+                      detail.requesterAccountId === user?.account.id &&
+                      detail.documentTypeId && (
+                        <form
+                          className="space-y-3"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const form = event.currentTarget;
+                            const file = new FormData(form).get("file");
+                            if (!(file instanceof File) || !file.size) return;
+                            setBusy(true);
+                            setError("");
+                            setSuccess("");
+                            void upload(detail, file)
+                              .then(() => {
+                                form.reset();
+                                setSuccess(
+                                  "Comprovante anexado. Você já pode enviar a ocorrência.",
+                                );
+                                refresh();
+                              })
+                              .catch((cause) => setError(message(cause)))
+                              .finally(() => setBusy(false));
+                          }}
                         >
-                          <Input
-                            id="retryOccurrenceFile"
-                            name="file"
-                            type="file"
-                            accept="application/pdf"
-                            required
-                            disabled={busy}
-                          />
-                        </FormField>
-                        <Button type="submit" disabled={busy}>
-                          Anexar comprovante
-                        </Button>
-                      </form>
+                          <FormField
+                            label="Anexar comprovante PDF"
+                            htmlFor="retryOccurrenceFile"
+                          >
+                            <Input
+                              id="retryOccurrenceFile"
+                              name="file"
+                              type="file"
+                              accept="application/pdf"
+                              required
+                              disabled={busy}
+                            />
+                          </FormField>
+                          <Button type="submit" disabled={busy}>
+                            Anexar comprovante
+                          </Button>
+                        </form>
+                      )}
+                    {detail.requiresDocument && !detail.documentId && (
+                      <p className="text-sm">
+                        Anexe o comprovante obrigatório antes de enviar.
+                      </p>
                     )}
-                  {detail.requiresDocument && !detail.documentId && (
-                    <p className="text-sm">
-                      Anexe o comprovante obrigatório antes de enviar.
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {detail.actions.includes("submit") && (
-                      <Button
-                        disabled={
-                          busy ||
-                          (detail.requiresDocument && !detail.documentId)
-                        }
-                        onClick={() => void transition(detail, "submit")}
-                      >
-                        Enviar ocorrência
-                      </Button>
-                    )}
-                    {detail.actions.includes("approve") && (
-                      <Button
-                        disabled={busy}
-                        onClick={() => void transition(detail, "approve")}
-                      >
-                        Aprovar
-                      </Button>
-                    )}
-                    {detail.actions.includes("cancel") && (
-                      <ConfirmDialog
-                        title="Cancelar ocorrência?"
-                        description="O cancelamento será registrado e o período deixará de indicar indisponibilidade."
-                        confirmLabel="Cancelar ocorrência"
-                        onConfirm={() => transition(detail, "cancel")}
-                      >
-                        <Button variant="quiet" disabled={busy}>
-                          Cancelar ocorrência
-                        </Button>
-                      </ConfirmDialog>
-                    )}
-                  </div>
-                  {detail.actions.includes("reject") && (
-                    <details>
-                      <summary className="cursor-pointer py-2 text-sm font-semibold">
-                        Rejeitar ocorrência
-                      </summary>
-                      <form
-                        className="space-y-3 pt-2"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void transition(
-                            detail,
-                            "reject",
-                            String(
-                              new FormData(event.currentTarget).get("comment"),
-                            ),
-                          );
-                        }}
-                      >
-                        <FormField
-                          label="Motivo da rejeição"
-                          htmlFor="occurrenceRejection"
+                    <div className="flex flex-wrap gap-2">
+                      {detail.actions.includes("submit") && (
+                        <Button
+                          disabled={
+                            busy ||
+                            (detail.requiresDocument && !detail.documentId)
+                          }
+                          onClick={() => void transition(detail, "submit")}
                         >
-                          <Textarea
-                            id="occurrenceRejection"
-                            name="comment"
-                            minLength={2}
-                            maxLength={2000}
-                            required
-                            disabled={busy}
-                          />
-                        </FormField>
-                        <Button variant="danger" type="submit" disabled={busy}>
-                          Confirmar rejeição
+                          Enviar ocorrência
                         </Button>
-                      </form>
-                    </details>
-                  )}
-                  <h3 className="font-semibold">Histórico</h3>
-                  <ol className="space-y-3">
-                    {detail.events.map((event) => (
-                      <li key={event.version} className="text-sm">
-                        <strong>
-                          {eventLabels[event.type] ?? "Atualização registrada"}
-                        </strong>
-                        <p className="text-[var(--text-muted)]">
-                          {event.actorName} ·{" "}
-                          {new Date(event.createdAt).toLocaleString("pt-BR", {
-                            timeZone: "America/Manaus",
-                          })}
-                        </p>
-                        {event.comment && (
-                          <p className="whitespace-pre-wrap break-words">
-                            {event.comment}
+                      )}
+                      {detail.actions.includes("approve") && (
+                        <Button
+                          disabled={busy}
+                          onClick={() => void transition(detail, "approve")}
+                        >
+                          Aprovar
+                        </Button>
+                      )}
+                      {detail.actions.includes("cancel") && (
+                        <ConfirmDialog
+                          title="Cancelar ocorrência?"
+                          description="O cancelamento será registrado e o período deixará de indicar indisponibilidade."
+                          confirmLabel="Cancelar ocorrência"
+                          onConfirm={() => transition(detail, "cancel")}
+                        >
+                          <Button variant="quiet" disabled={busy}>
+                            Cancelar ocorrência
+                          </Button>
+                        </ConfirmDialog>
+                      )}
+                    </div>
+                    {detail.actions.includes("reject") && (
+                      <details>
+                        <summary className="cursor-pointer py-2 text-sm font-semibold">
+                          Rejeitar ocorrência
+                        </summary>
+                        <form
+                          className="space-y-3 pt-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void transition(
+                              detail,
+                              "reject",
+                              String(
+                                new FormData(event.currentTarget).get(
+                                  "comment",
+                                ),
+                              ),
+                            );
+                          }}
+                        >
+                          <FormField
+                            label="Motivo da rejeição"
+                            htmlFor="occurrenceRejection"
+                          >
+                            <Textarea
+                              id="occurrenceRejection"
+                              name="comment"
+                              minLength={2}
+                              maxLength={2000}
+                              required
+                              disabled={busy}
+                            />
+                          </FormField>
+                          <Button
+                            variant="danger"
+                            type="submit"
+                            disabled={busy}
+                          >
+                            Confirmar rejeição
+                          </Button>
+                        </form>
+                      </details>
+                    )}
+                    <h3 className="font-semibold">Histórico</h3>
+                    <ol className="space-y-3">
+                      {detail.events.map((event) => (
+                        <li key={event.version} className="text-sm">
+                          <strong>
+                            {eventLabels[event.type] ??
+                              "Atualização registrada"}
+                          </strong>
+                          <p className="text-[var(--text-muted)]">
+                            {event.actorName} ·{" "}
+                            {new Date(event.createdAt).toLocaleString("pt-BR", {
+                              timeZone: "America/Manaus",
+                            })}
                           </p>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+                          {event.comment && (
+                            <p className="whitespace-pre-wrap break-words">
+                              {event.comment}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
       <Pagination
         label="Páginas de ocorrências"
         page={page}

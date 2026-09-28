@@ -789,150 +789,147 @@ export function ChecklistsPage() {
             description="Nenhum checklist neste filtro."
           />
         )}
-          <ul className="divide-y divide-[var(--border)]">
-            {visibleRecords.map((record) => (
-              <li key={record.id} className="space-y-3 px-5 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold">{record.name}</h3>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-                      <span>{record.personName}</span>
-                      <Badge variant="neutral">
-                        {record.kind === "entry" ? "Ingresso" : "Desligamento"}
-                      </Badge>
-                    </p>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    disabled={busy}
-                    aria-expanded={checklistId === record.id}
-                    aria-controls={`checklist-${record.id}`}
-                    onClick={() =>
-                      setParams(
-                        checklistId === record.id
-                          ? {}
-                          : { checklistId: record.id },
-                      )
-                    }
-                  >
-                    {checklistId === record.id
-                      ? "Recolher acompanhamento"
-                      : "Acompanhar checklist"}
-                  </Button>
+        <ul className="divide-y divide-[var(--border)]">
+          {visibleRecords.map((record) => (
+            <li key={record.id} className="space-y-3 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold">{record.name}</h3>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                    <span>{record.personName}</span>
+                    <Badge variant="neutral">
+                      {record.kind === "entry" ? "Ingresso" : "Desligamento"}
+                    </Badge>
+                  </p>
                 </div>
-                <p className="flex flex-wrap items-center gap-2 text-sm tabular-nums">
-                  <Badge
-                    variant={record.progress.pending ? "warning" : "success"}
-                  >
-                    {record.progress.completed} de {record.progress.total}{" "}
-                    concluídos
-                  </Badge>
-                  <span>
-                    {record.progress.waived} dispensados ·{" "}
-                    {record.progress.pending} pendentes
-                  </span>
-                </p>
-                {checklistId === record.id && (
-                  <div id={`checklist-${record.id}`}>
-                    {detailLoading && (
-                      <LoadingState
-                        label="Carregando acompanhamento…"
-                        rows={1}
-                      />
-                    )}
-                    {detail && (
-                      <ol className="divide-y divide-[var(--border)]">
-                        {detail.items.map((item) => (
-                          <li key={item.id} className="space-y-3 py-4">
-                            <h3 className="font-semibold">{item.title}</h3>
-                            <p className="text-sm">
-                              {item.area} · Responsável: {item.assigneeName} ·{" "}
-                              {item.required ? "Obrigatório" : "Opcional"}
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  aria-expanded={checklistId === record.id}
+                  aria-controls={`checklist-${record.id}`}
+                  onClick={() =>
+                    setParams(
+                      checklistId === record.id
+                        ? {}
+                        : { checklistId: record.id },
+                    )
+                  }
+                >
+                  {checklistId === record.id
+                    ? "Recolher acompanhamento"
+                    : "Acompanhar checklist"}
+                </Button>
+              </div>
+              <p className="flex flex-wrap items-center gap-2 text-sm tabular-nums">
+                <Badge
+                  variant={record.progress.pending ? "warning" : "success"}
+                >
+                  {record.progress.completed} de {record.progress.total}{" "}
+                  concluídos
+                </Badge>
+                <span>
+                  {record.progress.waived} dispensados ·{" "}
+                  {record.progress.pending} pendentes
+                </span>
+              </p>
+              {checklistId === record.id && (
+                <div id={`checklist-${record.id}`}>
+                  {detailLoading && (
+                    <LoadingState label="Carregando acompanhamento…" rows={1} />
+                  )}
+                  {detail && (
+                    <ol className="divide-y divide-[var(--border)]">
+                      {detail.items.map((item) => (
+                        <li key={item.id} className="space-y-3 py-4">
+                          <h3 className="font-semibold">{item.title}</h3>
+                          <p className="text-sm">
+                            {item.area} · Responsável: {item.assigneeName} ·{" "}
+                            {item.required ? "Obrigatório" : "Opcional"}
+                          </p>
+                          <p>
+                            <Badge variant={itemStatus[item.status].variant}>
+                              {itemStatus[item.status].label}
+                            </Badge>
+                          </p>
+                          {item.completedAt && (
+                            <p className="text-sm text-[var(--text-muted)]">
+                              Registrado em{" "}
+                              {new Date(item.completedAt).toLocaleString(
+                                "pt-BR",
+                                { timeZone: "America/Manaus" },
+                              )}
                             </p>
-                            <p>
-                              <Badge variant={itemStatus[item.status].variant}>
-                                {itemStatus[item.status].label}
-                              </Badge>
+                          )}
+                          {item.comment && (
+                            <p className="whitespace-pre-wrap break-words text-sm">
+                              {item.comment}
                             </p>
-                            {item.completedAt && (
-                              <p className="text-sm text-[var(--text-muted)]">
-                                Registrado em{" "}
-                                {new Date(item.completedAt).toLocaleString(
-                                  "pt-BR",
-                                  { timeZone: "America/Manaus" },
-                                )}
-                              </p>
-                            )}
-                            {item.comment && (
-                              <p className="whitespace-pre-wrap break-words text-sm">
-                                {item.comment}
-                              </p>
-                            )}
-                            {item.canAct && (
-                              <div className="space-y-3">
-                                <Button
-                                  disabled={busy}
-                                  onClick={() => void act(item.id, "complete")}
+                          )}
+                          {item.canAct && (
+                            <div className="space-y-3">
+                              <Button
+                                disabled={busy}
+                                onClick={() => void act(item.id, "complete")}
+                              >
+                                Concluir
+                              </Button>
+                              <details>
+                                <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">
+                                  Dispensar item
+                                </summary>
+                                <form
+                                  className="max-w-xl space-y-3 py-3"
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void act(
+                                      item.id,
+                                      "waive",
+                                      String(
+                                        new FormData(event.currentTarget).get(
+                                          "comment",
+                                        ) ?? "",
+                                      ),
+                                    );
+                                  }}
                                 >
-                                  Concluir
-                                </Button>
-                                <details>
-                                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">
-                                    Dispensar item
-                                  </summary>
-                                  <form
-                                    className="max-w-xl space-y-3 py-3"
-                                    onSubmit={(event) => {
-                                      event.preventDefault();
-                                      void act(
-                                        item.id,
-                                        "waive",
-                                        String(
-                                          new FormData(event.currentTarget).get(
-                                            "comment",
-                                          ) ?? "",
-                                        ),
-                                      );
-                                    }}
+                                  <FormField
+                                    label="Justificativa da dispensa"
+                                    htmlFor={`waive-${item.id}`}
+                                    hint={
+                                      item.required
+                                        ? "Obrigatória para este item."
+                                        : "Opcional para este item."
+                                    }
                                   >
-                                    <FormField
-                                      label="Justificativa da dispensa"
-                                      htmlFor={`waive-${item.id}`}
-                                      hint={
-                                        item.required
-                                          ? "Obrigatória para este item."
-                                          : "Opcional para este item."
-                                      }
-                                    >
-                                      <Textarea
-                                        id={`waive-${item.id}`}
-                                        name="comment"
-                                        required={item.required}
-                                        minLength={2}
-                                        maxLength={2000}
-                                        disabled={busy}
-                                      />
-                                    </FormField>
-                                    <Button
-                                      type="submit"
-                                      variant="secondary"
+                                    <Textarea
+                                      id={`waive-${item.id}`}
+                                      name="comment"
+                                      required={item.required}
+                                      minLength={2}
+                                      maxLength={2000}
                                       disabled={busy}
-                                    >
-                                      Confirmar dispensa
-                                    </Button>
-                                  </form>
-                                </details>
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+                                    />
+                                  </FormField>
+                                  <Button
+                                    type="submit"
+                                    variant="secondary"
+                                    disabled={busy}
+                                  >
+                                    Confirmar dispensa
+                                  </Button>
+                                </form>
+                              </details>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       </Card>
       {detailLoading &&
         !records.some((record) => record.id === checklistId) && (

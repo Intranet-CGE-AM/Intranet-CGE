@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardHeader,
   ConfirmDialog,
   DateInput,
   EmptyState,
@@ -388,224 +389,245 @@ export function HrRequestsPage() {
       {detailLoading && (
         <LoadingState label="Carregando acompanhamento…" rows={1} />
       )}
-      {loading ? (
-        <LoadingState label="Carregando solicitações…" />
-      ) : !visibleItems.length ? (
-        <EmptyState
-          title={
-            status ? "Nada para esta situação" : "Nenhuma solicitação ainda"
-          }
-          description="Nenhuma solicitação nesta consulta."
-        />
-      ) : (
-        <ul className="divide-y divide-[var(--border)]">
-          {visibleItems.map((item) => (
-            <li key={item.id} className="space-y-3 py-5">
-              <div className="flex flex-wrap justify-between gap-2">
-                <h2 className="font-bold">
-                  {hrRequestTypes[item.type]}
-                  {scope === "team" ? ` · ${item.requesterName}` : ""}
-                </h2>
-                <Badge variant={statusVariants[item.status]}>
-                  {labels[item.status]}
-                </Badge>
-              </div>
-              <p className="break-words text-xs text-[var(--text-muted)]">
-                {item.protocol}
-              </p>
-              <p className="text-sm text-[var(--text-muted)]">
-                Previsão de retorno:{" "}
-                {new Date(item.dueAt).toLocaleDateString("pt-BR", {
-                  timeZone: "America/Manaus",
-                })}
-              </p>
-              <p className="whitespace-pre-wrap break-words text-sm">
-                {item.description}
-              </p>
-              {item.correction ? (
-                <CorrectionComparison
-                  correction={item.correction}
-                  requestId={item.id}
-                />
-              ) : null}
-              {item.informationMessage ? (
-                <Alert title="Informações necessárias" tone="warning">
-                  {item.informationMessage}
-                  <p>
-                    Envie até{" "}
-                    {item.informationDeadline?.split("-").reverse().join("/")}.
-                  </p>
-                </Alert>
-              ) : null}
-              {item.response ? (
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-bold">Solicitações registradas</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Protocolos e situação de cada pedido.
+            </p>
+          </div>
+        </CardHeader>
+        {loading ? (
+          <div className="p-5">
+            <LoadingState label="Carregando solicitações…" />
+          </div>
+        ) : !visibleItems.length ? (
+          <EmptyState
+            title={
+              status ? "Nada para esta situação" : "Nenhuma solicitação ainda"
+            }
+            description="Nenhuma solicitação nesta consulta."
+          />
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {visibleItems.map((item) => (
+              <li key={item.id} className="space-y-3 px-5 py-5">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <h3 className="font-bold">
+                    {hrRequestTypes[item.type]}
+                    {scope === "team" ? ` · ${item.requesterName}` : ""}
+                  </h3>
+                  <Badge variant={statusVariants[item.status]}>
+                    {labels[item.status]}
+                  </Badge>
+                </div>
+                <p className="break-words text-xs text-[var(--text-muted)]">
+                  {item.protocol}
+                </p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Previsão de retorno:{" "}
+                  {new Date(item.dueAt).toLocaleDateString("pt-BR", {
+                    timeZone: "America/Manaus",
+                  })}
+                </p>
                 <p className="whitespace-pre-wrap break-words text-sm">
-                  <strong>Resposta do RH: </strong>
-                  {item.response}
+                  {item.description}
                 </p>
-              ) : null}
-              {scope === "team" &&
-              !["completed", "rejected", "cancelled"].includes(item.status) ? (
-                <p className="text-sm">
-                  {item.assigneeAccountId
-                    ? "Com responsável"
-                    : "Sem responsável"}
-                  {new Date(item.dueAt) < new Date()
-                    ? " · Fora da previsão"
-                    : ""}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  aria-expanded={requestId === item.id}
-                  aria-controls={`request-history-${item.id}`}
-                  onClick={() => void open(item.id)}
-                >
-                  Acompanhar solicitação
-                </Button>
-                {item.requesterAccountId === user?.account.id &&
-                item.status === "submitted" ? (
-                  <ConfirmDialog
-                    title="Cancelar solicitação?"
-                    description="O cancelamento será registrado no histórico."
-                    confirmLabel="Cancelar solicitação"
-                    onConfirm={() => transition(item, "cancel")}
-                  >
-                    <Button variant="quiet" disabled={busy}>
-                      Cancelar
-                    </Button>
-                  </ConfirmDialog>
+                {item.correction ? (
+                  <CorrectionComparison
+                    correction={item.correction}
+                    requestId={item.id}
+                  />
                 ) : null}
-                {scope === "team" && item.status === "submitted" ? (
+                {item.informationMessage ? (
+                  <Alert title="Informações necessárias" tone="warning">
+                    {item.informationMessage}
+                    <p>
+                      Envie até{" "}
+                      {item.informationDeadline?.split("-").reverse().join("/")}
+                      .
+                    </p>
+                  </Alert>
+                ) : null}
+                {item.response ? (
+                  <p className="whitespace-pre-wrap break-words text-sm">
+                    <strong>Resposta do RH: </strong>
+                    {item.response}
+                  </p>
+                ) : null}
+                {scope === "team" &&
+                !["completed", "rejected", "cancelled"].includes(
+                  item.status,
+                ) ? (
+                  <p className="text-sm">
+                    {item.assigneeAccountId
+                      ? "Com responsável"
+                      : "Sem responsável"}
+                    {new Date(item.dueAt) < new Date()
+                      ? " · Fora da previsão"
+                      : ""}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
                   <Button
+                    variant="secondary"
                     disabled={busy}
-                    onClick={() => void transition(item, "start")}
+                    aria-expanded={requestId === item.id}
+                    aria-controls={`request-history-${item.id}`}
+                    onClick={() => void open(item.id)}
                   >
-                    Assumir análise
+                    Acompanhar solicitação
                   </Button>
-                ) : null}
-              </div>
-              {detail?.id === item.id ? (
-                <section
-                  id={`request-history-${item.id}`}
-                  aria-label="Histórico da solicitação"
-                  className="space-y-4 pt-3"
-                >
-                  <h3 className="font-semibold">Histórico</h3>
-                  {detail.requesterAccountId === user?.account.id &&
-                  detail.informationDeadline ? (
-                    <form
-                      className="space-y-3"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void transition(
-                          detail,
-                          "provide_information",
-                          String(
-                            new FormData(event.currentTarget).get(
-                              "information",
-                            ),
-                          ),
-                        );
-                      }}
+                  {item.requesterAccountId === user?.account.id &&
+                  item.status === "submitted" ? (
+                    <ConfirmDialog
+                      title="Cancelar solicitação?"
+                      description="O cancelamento será registrado no histórico."
+                      confirmLabel="Cancelar solicitação"
+                      onConfirm={() => transition(item, "cancel")}
                     >
-                      <FormField
-                        htmlFor="requestInformation"
-                        label="Informações complementares"
-                      >
-                        <Textarea
-                          name="information"
-                          id="requestInformation"
-                          minLength={2}
-                          maxLength={2000}
-                          required
-                        />
-                      </FormField>
-                      <Button type="submit" disabled={busy}>
-                        Enviar complemento
+                      <Button variant="quiet" disabled={busy}>
+                        Cancelar
                       </Button>
-                    </form>
+                    </ConfirmDialog>
                   ) : null}
-                  <ol className="space-y-3">
-                    {detail.events.map((event) => (
-                      <li key={event.id} className="text-sm">
-                        <strong>{eventLabels[event.type] ?? event.type}</strong>{" "}
-                        · {event.actorName} ·{" "}
-                        {new Date(event.createdAt).toLocaleString("pt-BR", {
-                          timeZone: "America/Manaus",
-                        })}
-                        {event.message ? (
-                          <p className="whitespace-pre-wrap break-words">
-                            {event.message}
-                          </p>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ol>
-                  {scope === "team" && detail.status === "in_analysis" ? (
-                    <form
-                      className="space-y-3"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const data = new FormData(event.currentTarget);
-                        const submitter = (event.nativeEvent as SubmitEvent)
-                          .submitter as HTMLButtonElement;
-                        void transition(
-                          detail,
-                          submitter.value,
-                          String(data.get("response")),
-                          String(data.get("deadline") || "") || undefined,
-                        );
-                      }}
+                  {scope === "team" && item.status === "submitted" ? (
+                    <Button
+                      disabled={busy}
+                      onClick={() => void transition(item, "start")}
                     >
-                      <FormField
-                        htmlFor="requestResponse"
-                        label="Resposta ao servidor"
-                      >
-                        <Textarea
-                          id="requestResponse"
-                          name="response"
-                          required
-                          minLength={2}
-                          maxLength={2000}
-                        />
-                      </FormField>
-                      <FormField
-                        htmlFor="informationDeadline"
-                        label="Prazo para complemento (somente ao solicitar informações)"
-                      >
-                        <DateInput id="informationDeadline" name="deadline" />
-                      </FormField>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="submit" value="complete" disabled={busy}>
-                          Concluir solicitação
-                        </Button>
-                        <Button
-                          type="submit"
-                          value="reject"
-                          variant="secondary"
-                          disabled={busy}
-                        >
-                          Rejeitar com justificativa
-                        </Button>
-                        <Button
-                          type="submit"
-                          value="request_information"
-                          variant="secondary"
-                          disabled={busy}
-                        >
-                          Solicitar complemento
-                        </Button>
-                      </div>
-                    </form>
+                      Assumir análise
+                    </Button>
                   ) : null}
-                </section>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+                </div>
+                {detail?.id === item.id ? (
+                  <section
+                    id={`request-history-${item.id}`}
+                    aria-label="Histórico da solicitação"
+                    className="space-y-4 pt-3"
+                  >
+                    <h3 className="font-semibold">Histórico</h3>
+                    {detail.requesterAccountId === user?.account.id &&
+                    detail.informationDeadline ? (
+                      <form
+                        className="space-y-3"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void transition(
+                            detail,
+                            "provide_information",
+                            String(
+                              new FormData(event.currentTarget).get(
+                                "information",
+                              ),
+                            ),
+                          );
+                        }}
+                      >
+                        <FormField
+                          htmlFor="requestInformation"
+                          label="Informações complementares"
+                        >
+                          <Textarea
+                            name="information"
+                            id="requestInformation"
+                            minLength={2}
+                            maxLength={2000}
+                            required
+                          />
+                        </FormField>
+                        <Button type="submit" disabled={busy}>
+                          Enviar complemento
+                        </Button>
+                      </form>
+                    ) : null}
+                    <ol className="space-y-3">
+                      {detail.events.map((event) => (
+                        <li key={event.id} className="text-sm">
+                          <strong>
+                            {eventLabels[event.type] ?? event.type}
+                          </strong>{" "}
+                          · {event.actorName} ·{" "}
+                          {new Date(event.createdAt).toLocaleString("pt-BR", {
+                            timeZone: "America/Manaus",
+                          })}
+                          {event.message ? (
+                            <p className="whitespace-pre-wrap break-words">
+                              {event.message}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                    {scope === "team" && detail.status === "in_analysis" ? (
+                      <form
+                        className="space-y-3"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const data = new FormData(event.currentTarget);
+                          const submitter = (event.nativeEvent as SubmitEvent)
+                            .submitter as HTMLButtonElement;
+                          void transition(
+                            detail,
+                            submitter.value,
+                            String(data.get("response")),
+                            String(data.get("deadline") || "") || undefined,
+                          );
+                        }}
+                      >
+                        <FormField
+                          htmlFor="requestResponse"
+                          label="Resposta ao servidor"
+                        >
+                          <Textarea
+                            id="requestResponse"
+                            name="response"
+                            required
+                            minLength={2}
+                            maxLength={2000}
+                          />
+                        </FormField>
+                        <FormField
+                          htmlFor="informationDeadline"
+                          label="Prazo para complemento (somente ao solicitar informações)"
+                        >
+                          <DateInput id="informationDeadline" name="deadline" />
+                        </FormField>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="submit"
+                            value="complete"
+                            disabled={busy}
+                          >
+                            Concluir solicitação
+                          </Button>
+                          <Button
+                            type="submit"
+                            value="reject"
+                            variant="secondary"
+                            disabled={busy}
+                          >
+                            Rejeitar com justificativa
+                          </Button>
+                          <Button
+                            type="submit"
+                            value="request_information"
+                            variant="secondary"
+                            disabled={busy}
+                          >
+                            Solicitar complemento
+                          </Button>
+                        </div>
+                      </form>
+                    ) : null}
+                  </section>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
       <Pagination
         label="Páginas de solicitações"
         page={page}

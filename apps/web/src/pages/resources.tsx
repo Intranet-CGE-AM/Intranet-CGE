@@ -906,32 +906,43 @@ export function ResourcesPage() {
               </CardContent>
             </Card>
           ) : (
-            <section aria-label="Recursos encontrados">
-              <ul className="divide-y divide-[var(--border)]">
-                {result?.resources.map((resource) => (
-                  <li key={resource.id} className="space-y-1 py-4">
-                    <Link className={linkClass} to={location(resource.id)}>
-                      {resource.title}
-                    </Link>
-                    <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
-                      {resource.summary}
+            <section aria-label="Recursos encontrados" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div>
+                    <h2 className="font-bold">Resultados da busca</h2>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Recursos que atendem à consulta.
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {types[resource.type]} · {resource.category} · Versão{" "}
-                      {resource.version}
-                      {management ? ` · ${statuses[resource.status]}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              {!result?.resources.length && (
-                <EmptyState
-                  title={
-                    query || type ? "Nenhum resultado" : "Biblioteca vazia"
-                  }
-                  description="Nenhum recurso encontrado para esta consulta."
-                />
-              )}
+                  </div>
+                </CardHeader>
+
+                <ul className="divide-y divide-[var(--border)]">
+                  {result?.resources.map((resource) => (
+                    <li key={resource.id} className="space-y-1 px-5 py-4">
+                      <Link className={linkClass} to={location(resource.id)}>
+                        {resource.title}
+                      </Link>
+                      <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
+                        {resource.summary}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {types[resource.type]} · {resource.category} · Versão{" "}
+                        {resource.version}
+                        {management ? ` · ${statuses[resource.status]}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {!result?.resources.length && (
+                  <EmptyState
+                    title={
+                      query || type ? "Nenhum resultado" : "Biblioteca vazia"
+                    }
+                    description="Nenhum recurso encontrado para esta consulta."
+                  />
+                )}
+              </Card>
               <Pagination
                 label="Páginas de recursos"
                 page={page}

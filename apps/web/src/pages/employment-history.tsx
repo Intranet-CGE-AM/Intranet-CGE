@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Card,
+  CardHeader,
   DateInput,
   EmptyState,
   FormField,
@@ -101,6 +102,14 @@ export function EmploymentHistoryPage() {
         <EmploymentHistorySection key={personId} personId={personId} manage />
       ) : (
         <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Histórico do colaborador</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Consulta por colaborador.
+              </p>
+            </div>
+          </CardHeader>
           <EmptyState
             title="Nenhum colaborador selecionado"
             description="Selecione um colaborador para consultar o histórico."

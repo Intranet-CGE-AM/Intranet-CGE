@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Card,
+  CardHeader,
   ConfirmDialog,
   DateInput,
   EmptyState,
@@ -436,6 +437,14 @@ export function DocumentsPage() {
         />
       ) : (
         <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Documentos do titular</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Consulta e publicação por titular.
+              </p>
+            </div>
+          </CardHeader>
           <EmptyState
             title="Nenhum titular selecionado"
             description="Selecione o titular para consultar ou publicar documentos."
