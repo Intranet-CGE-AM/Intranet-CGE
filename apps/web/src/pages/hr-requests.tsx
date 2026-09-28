@@ -8,9 +8,13 @@ import {
 } from "@cge/contracts";
 import {
   Alert,
+  Badge,
   Button,
+  Card,
+  CardContent,
   ConfirmDialog,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   SearchableSelect,
@@ -21,6 +25,10 @@ import { useAuth } from "../auth";
 import { useSearchParams } from "react-router";
 import { api, ApiError, json } from "../lib/api";
 import { can, canGlobally } from "../lib/permissions";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 
 const labels = {
   submitted: "Enviada",
@@ -28,6 +36,16 @@ const labels = {
   completed: "Concluída",
   rejected: "Rejeitada",
   cancelled: "Cancelada",
+};
+const statusVariants: Record<
+  keyof typeof labels,
+  "neutral" | "success" | "warning" | "danger"
+> = {
+  submitted: "warning",
+  in_analysis: "warning",
+  completed: "success",
+  rejected: "danger",
+  cancelled: "danger",
 };
 const eventLabels: Record<string, string> = {
   submitted: "Solicitação enviada",
@@ -38,8 +56,6 @@ const eventLabels: Record<string, string> = {
   request_information: "Complemento solicitado",
   provide_information: "Complemento enviado",
 };
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm";
 
 export function HrRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -232,20 +248,21 @@ export function HrRequestsPage() {
     }
   }
   return (
-    <div className="max-w-5xl space-y-6 pb-8">
-      <header>
-        <h1 className="text-2xl font-extrabold tracking-[-0.03em]">
-          {scope === "mine"
-            ? "Minhas solicitações"
-            : "Fila da Gestão de Pessoas"}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Abra uma demanda e acompanhe a resposta do RH.
-        </p>
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title={
+          scope === "mine" ? "Minhas solicitações" : "Fila da Gestão de Pessoas"
+        }
+        description="Abra uma demanda e acompanhe a resposta do RH."
+      />
       {manages ? (
-        <div className="flex flex-wrap gap-2" aria-label="Área de atendimento">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Área de atendimento"
+        >
           <Button
+            aria-pressed={scope === "mine"}
             disabled={busy}
             variant={scope === "mine" ? "primary" : "secondary"}
             onClick={() => {
@@ -257,6 +274,7 @@ export function HrRequestsPage() {
             Minhas solicitações
           </Button>
           <Button
+            aria-pressed={scope === "team"}
             disabled={busy}
             variant={scope === "team" ? "primary" : "secondary"}
             onClick={() => {
@@ -292,87 +310,93 @@ export function HrRequestsPage() {
         </Alert>
       ) : null}
       {scope === "mine" && creates ? (
-        <form
-          className="max-w-2xl space-y-4 border-b border-[var(--border)] pb-6"
-          onSubmit={create}
-        >
-          <FormField htmlFor="requestType" label="Tipo de solicitação">
-            <select
-              className={selectClass}
-              id="requestType"
-              name="type"
-              value={requestType}
-              onChange={(event) => setRequestType(event.target.value)}
-            >
-              {Object.entries(hrRequestTypes).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          {requestType === "correction" ? (
-            dossier?.employment ? (
-              <CorrectionFields dossier={dossier} />
-            ) : dossierError ? (
-              <Alert title="Cadastro indisponível" tone="danger">
-                {dossierError}
-                <Button variant="quiet" onClick={() => void loadDossier()}>
-                  Tentar carregar cadastro
-                </Button>
-              </Alert>
-            ) : (
-              <p role="status">Carregando cadastro…</p>
-            )
-          ) : null}
-          <FormField
-            htmlFor="requestDescription"
-            label="Como podemos ajudar?"
-            hint="De 10 a 2.000 caracteres. Não inclua informações médicas ou outros dados sensíveis."
-          >
-            <Textarea
-              id="requestDescription"
-              name="description"
-              minLength={10}
-              maxLength={2000}
-              required
-            />
-          </FormField>
-          <Button
-            type="submit"
-            disabled={
-              busy || (requestType === "correction" && !dossier?.employment)
-            }
-          >
-            {busy ? "Enviando…" : "Enviar solicitação"}
-          </Button>
-        </form>
+        <Card>
+          <CardContent>
+            <form className="max-w-2xl space-y-4" onSubmit={create}>
+              <FormField htmlFor="requestType" label="Tipo de solicitação">
+                <FieldSelect
+                  id="requestType"
+                  name="type"
+                  value={requestType}
+                  onValueChange={setRequestType}
+                  options={Object.entries(hrRequestTypes).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                />
+              </FormField>
+              {requestType === "correction" ? (
+                dossier?.employment ? (
+                  <CorrectionFields dossier={dossier} />
+                ) : dossierError ? (
+                  <Alert title="Cadastro indisponível" tone="danger">
+                    {dossierError}
+                    <Button
+                      variant="secondary"
+                      onClick={() => void loadDossier()}
+                    >
+                      Tentar carregar cadastro
+                    </Button>
+                  </Alert>
+                ) : (
+                  <LoadingState label="Carregando cadastro…" rows={1} />
+                )
+              ) : null}
+              <FormField
+                htmlFor="requestDescription"
+                label="Como podemos ajudar?"
+                hint="De 10 a 2.000 caracteres. Não inclua informações médicas ou outros dados sensíveis."
+              >
+                <Textarea
+                  id="requestDescription"
+                  name="description"
+                  minLength={10}
+                  maxLength={2000}
+                  required
+                />
+              </FormField>
+              <Button
+                type="submit"
+                disabled={
+                  busy || (requestType === "correction" && !dossier?.employment)
+                }
+              >
+                {busy ? "Enviando…" : "Enviar solicitação"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
-      <FormField htmlFor="requestStatus" label="Filtrar por situação">
-        <select
-          id="requestStatus"
-          className={selectClass}
-          value={status}
-          disabled={busy}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-            setSearchParams({});
-          }}
-        >
-          <option value="">Todas as situações</option>
-          {Object.entries(labels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      {detailLoading && <p role="status">Carregando acompanhamento…</p>}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <FormField htmlFor="requestStatus" label="Filtrar por situação">
+          <FieldSelect
+            id="requestStatus"
+            value={status}
+            disabled={busy}
+            emptyLabel="Todas as situações"
+            onValueChange={(value) => {
+              setStatus(value);
+              setPage(1);
+              setSearchParams({});
+            }}
+            options={Object.entries(labels).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+          />
+        </FormField>
+      </div>
+      {detailLoading && (
+        <LoadingState label="Carregando acompanhamento…" rows={1} />
+      )}
       {loading ? (
-        <p role="status">Carregando solicitações…</p>
+        <LoadingState label="Carregando solicitações…" />
       ) : !visibleItems.length ? (
-        <p>Nenhuma solicitação nesta consulta.</p>
+        <EmptyState
+          title={
+            status ? "Nada para esta situação" : "Nenhuma solicitação ainda"
+          }
+          description="Nenhuma solicitação nesta consulta."
+        />
       ) : (
         <ul className="divide-y divide-[var(--border)]">
           {visibleItems.map((item) => (
@@ -382,9 +406,9 @@ export function HrRequestsPage() {
                   {hrRequestTypes[item.type]}
                   {scope === "team" ? ` · ${item.requesterName}` : ""}
                 </h2>
-                <span className="text-sm font-semibold">
+                <Badge variant={statusVariants[item.status]}>
                   {labels[item.status]}
-                </span>
+                </Badge>
               </div>
               <p className="break-words text-xs text-[var(--text-muted)]">
                 {item.protocol}
@@ -551,11 +575,7 @@ export function HrRequestsPage() {
                         htmlFor="informationDeadline"
                         label="Prazo para complemento (somente ao solicitar informações)"
                       >
-                        <DateInput
-                          className={selectClass}
-                          id="informationDeadline"
-                          name="deadline"
-                        />
+                        <DateInput id="informationDeadline" name="deadline" />
                       </FormField>
                       <div className="flex flex-wrap gap-2">
                         <Button type="submit" value="complete" disabled={busy}>
@@ -586,31 +606,16 @@ export function HrRequestsPage() {
           ))}
         </ul>
       )}
-      {page > 1 || hasMore ? (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={busy || page === 1 || loading}
-            onClick={() => {
-              setPage(page - 1);
-              setSearchParams({});
-            }}
-          >
-            Anterior
-          </Button>
-          <span>Página {page}</span>
-          <Button
-            variant="secondary"
-            disabled={busy || !hasMore || loading}
-            onClick={() => {
-              setPage(page + 1);
-              setSearchParams({});
-            }}
-          >
-            Próxima
-          </Button>
-        </div>
-      ) : null}
+      <Pagination
+        label="Páginas de solicitações"
+        page={page}
+        hasMore={hasMore}
+        disabled={busy || loading}
+        onPageChange={(next) => {
+          setPage(next);
+          setSearchParams({});
+        }}
+      />
     </div>
   );
 }
@@ -767,52 +772,55 @@ function CorrectionFields({ dossier }: { dossier: Dossier }) {
           {error ? (
             <Alert title="Opções indisponíveis" tone="danger">
               {error}
-              <Button variant="quiet" onClick={() => setRetry(retry + 1)}>
+              <Button variant="secondary" onClick={() => setRetry(retry + 1)}>
                 Tentar carregar opções
               </Button>
             </Alert>
           ) : null}
           <FormField htmlFor="correctionCategory" label="Categoria proposta">
-            <select
+            <FieldSelect
               id="correctionCategory"
               name="categoryId"
-              className={selectClass}
               defaultValue={employment.categoryId}
-            >
-              {!options?.categories.some(
-                (item) => item.id === employment.categoryId,
-              ) ? (
-                <option value={employment.categoryId}>
-                  {employment.categoryName}
-                </option>
-              ) : null}
-              {options?.categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                ...(!options?.categories.some(
+                  (item) => item.id === employment.categoryId,
+                )
+                  ? [
+                      {
+                        value: employment.categoryId,
+                        label: employment.categoryName,
+                      },
+                    ]
+                  : []),
+                ...(options?.categories ?? []).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                })),
+              ]}
+            />
           </FormField>
           <FormField htmlFor="correctionUnit" label="Unidade proposta">
-            <select
+            <FieldSelect
               id="correctionUnit"
               name="unitId"
-              className={selectClass}
               value={unitId}
-              onChange={(event) => {
-                setUnitId(event.target.value);
+              onValueChange={(value) => {
+                setUnitId(value);
                 setQuery("");
               }}
-            >
-              {!options?.units.some((item) => item.id === employment.unitId) ? (
-                <option value={employment.unitId}>{employment.unitName}</option>
-              ) : null}
-              {options?.units.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                ...(!options?.units.some(
+                  (item) => item.id === employment.unitId,
+                )
+                  ? [{ value: employment.unitId, label: employment.unitName }]
+                  : []),
+                ...(options?.units ?? []).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                })),
+              ]}
+            />
           </FormField>
           <FormField htmlFor="correctionSupervisor" label="Chefia proposta">
             <SearchableSelect
@@ -886,7 +894,7 @@ function RequestSettings() {
           {error}
         </Alert>
       ) : null}
-      {message ? <p role="status">{message}</p> : null}
+      {message ? <Alert title={message} tone="success" /> : null}
       <div className="space-y-4">
         {settings.map((setting) => (
           <form
@@ -921,8 +929,7 @@ function RequestSettings() {
               htmlFor={`days-${setting.type}`}
               label={hrRequestTypes[setting.type]}
             >
-              <input
-                className={selectClass}
+              <Input
                 id={`days-${setting.type}`}
                 type="number"
                 name="days"

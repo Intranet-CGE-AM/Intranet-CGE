@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { chooseOption, clientHeaders, expect, test } from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 
 test.use({ actionTimeout: 15000 });
@@ -66,9 +66,7 @@ test("falha de anexo mantém o rascunho e permite retomar sem duplicar ocorrênc
     await page
       .getByRole("button", { name: "Nova ocorrência", exact: true })
       .click();
-    await page
-      .getByLabel("Tipo de ocorrência")
-      .selectOption({ label: "Ocorrência recuperável" });
+    await chooseOption(page, "Tipo de ocorrência", "Ocorrência recuperável");
     await page.getByLabel("Data inicial").fill("2035-02-01");
     await page.getByLabel("Data final").fill("2035-02-03");
     await page

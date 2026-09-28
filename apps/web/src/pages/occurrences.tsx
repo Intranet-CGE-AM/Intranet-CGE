@@ -8,9 +8,14 @@ import {
 } from "@cge/contracts";
 import {
   Alert,
+  Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
   ConfirmDialog,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   Textarea,
@@ -20,11 +25,24 @@ import { useSearchParams } from "react-router";
 import { useAuth } from "../auth";
 import { api, ApiError, json } from "../lib/api";
 import { can, canGlobally } from "../lib/permissions";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 
 // Operate: extensão da intranet institucional. Formulário curto, datas nativas,
 // comprovante contextual e acompanhamento em linha; preservar rascunho em falhas.
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm";
+const statusVariants: Record<
+  keyof typeof occurrenceStatuses,
+  "neutral" | "success" | "warning" | "danger"
+> = {
+  draft: "neutral",
+  submitted: "warning",
+  supervisor_approved: "warning",
+  final_approved: "success",
+  rejected: "danger",
+  cancelled: "danger",
+};
 const eventLabels: Record<string, string> = {
   created: "Rascunho criado",
   submitted: "Ocorrência enviada",
@@ -228,26 +246,21 @@ export function OccurrencesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Ocorrências e afastamentos
-          </h1>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Solicite um período e acompanhe a análise. Não há cálculo de
-            direitos ou benefícios.
-          </p>
-        </div>
-        {creates && (
-          <Button
-            disabled={busy || loading}
-            onClick={() => setFormOpen((value) => !value)}
-          >
-            {formOpen ? "Fechar formulário" : "Nova ocorrência"}
-          </Button>
-        )}
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Ocorrências e afastamentos"
+        description="Solicite um período e acompanhe a análise. Não há cálculo de direitos ou benefícios."
+        actions={
+          creates ? (
+            <Button
+              disabled={busy || loading}
+              onClick={() => setFormOpen((value) => !value)}
+            >
+              {formOpen ? "Fechar formulário" : "Nova ocorrência"}
+            </Button>
+          ) : undefined
+        }
+      />
       {success && <Alert title={success} tone="success" />}
       {(error || loadError) && (
         <Alert title={error || loadError} tone="danger">
@@ -264,105 +277,109 @@ export function OccurrencesPage() {
         </Alert>
       )}
       {formOpen && (
-        <form
-          onSubmit={(event) => void create(event)}
-          className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-        >
-          <h2 className="text-lg font-bold">Nova ocorrência</h2>
-          <FormField label="Tipo de ocorrência" htmlFor="occurrenceType">
-            <select
-              id="occurrenceType"
-              className={selectClass}
-              value={typeId}
-              onChange={(event) => setTypeId(event.target.value)}
-              required
-              disabled={busy}
+        <Card>
+          <CardHeader>
+            <h2 className="font-bold">Nova ocorrência</h2>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={(event) => void create(event)}
+              className="space-y-4"
             >
-              <option value="">Selecione</option>
-              {types
-                .filter((type) => type.active)
-                .map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-            </select>
-          </FormField>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Data inicial" htmlFor="occurrenceStart">
-              <DateInput
-                id="occurrenceStart"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                required
-                disabled={busy}
-              />
-            </FormField>
-            <FormField label="Data final" htmlFor="occurrenceEnd">
-              <DateInput
-                id="occurrenceEnd"
-                name="endDate"
-                min={startDate}
-                required
-                disabled={busy}
-              />
-            </FormField>
-          </div>
-          <FormField
-            label="Justificativa"
-            htmlFor="occurrenceReason"
-            hint="Descreva a solicitação. Informações privadas não são exibidas à chefia."
-          >
-            <Textarea
-              id="occurrenceReason"
-              name="justification"
-              minLength={10}
-              maxLength={2000}
-              required
-              disabled={busy}
-            />
-          </FormField>
-          {selectedType?.documentTypeId && (
-            <FormField
-              label="Comprovante PDF"
-              htmlFor="occurrenceFile"
-              hint={`${selectedType.requiresDocument ? "Obrigatório para enviar." : "Opcional."} PDF de até 5 MB, disponível somente ao titular e à equipe autorizada.`}
-            >
-              <Input
-                id="occurrenceFile"
-                name="file"
-                type="file"
-                accept="application/pdf"
-                disabled={busy}
-              />
-            </FormField>
-          )}
-          {selectedType && (
-            <p className="text-sm text-[var(--text-muted)]">
-              {selectedType.requiresSupervisor
-                ? "Análise da chefia"
-                : "Sem etapa de chefia"}
-              {selectedType.requiresRH
-                ? " · Análise do RH"
-                : " · Sem etapa adicional do RH"}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" value="submit" disabled={busy}>
-              Enviar ocorrência
-            </Button>
-            <Button
-              type="submit"
-              value="draft"
-              variant="secondary"
-              disabled={busy}
-            >
-              Salvar rascunho
-            </Button>
-          </div>
-        </form>
+              <FormField label="Tipo de ocorrência" htmlFor="occurrenceType">
+                <FieldSelect
+                  id="occurrenceType"
+                  value={typeId}
+                  onValueChange={setTypeId}
+                  placeholder="Selecione"
+                  required
+                  disabled={busy}
+                  options={types
+                    .filter((type) => type.active)
+                    .map((type) => ({ value: type.id, label: type.name }))}
+                />
+              </FormField>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Data inicial" htmlFor="occurrenceStart">
+                  <DateInput
+                    id="occurrenceStart"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    required
+                    disabled={busy}
+                  />
+                </FormField>
+                <FormField label="Data final" htmlFor="occurrenceEnd">
+                  <DateInput
+                    id="occurrenceEnd"
+                    name="endDate"
+                    min={startDate}
+                    required
+                    disabled={busy}
+                  />
+                </FormField>
+              </div>
+              <FormField
+                label="Justificativa"
+                htmlFor="occurrenceReason"
+                hint="Descreva a solicitação. Informações privadas não são exibidas à chefia."
+              >
+                <Textarea
+                  id="occurrenceReason"
+                  name="justification"
+                  minLength={10}
+                  maxLength={2000}
+                  required
+                  disabled={busy}
+                />
+              </FormField>
+              {selectedType?.documentTypeId && (
+                <FormField
+                  label="Comprovante PDF"
+                  htmlFor="occurrenceFile"
+                  hint={`${selectedType.requiresDocument ? "Obrigatório para enviar." : "Opcional."} PDF de até 5 MB, disponível somente ao titular e à equipe autorizada.`}
+                >
+                  <Input
+                    id="occurrenceFile"
+                    name="file"
+                    type="file"
+                    accept="application/pdf"
+                    disabled={busy}
+                  />
+                </FormField>
+              )}
+              {selectedType && (
+                <p className="text-sm text-[var(--text-muted)]">
+                  {selectedType.requiresSupervisor
+                    ? "Análise da chefia"
+                    : "Sem etapa de chefia"}
+                  {selectedType.requiresRH
+                    ? " · Análise do RH"
+                    : " · Sem etapa adicional do RH"}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <Button type="submit" value="submit" disabled={busy}>
+                  Enviar ocorrência
+                </Button>
+                <Button
+                  type="submit"
+                  value="draft"
+                  variant="secondary"
+                  disabled={busy}
+                >
+                  Salvar rascunho
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
-      <nav aria-label="Filas de ocorrências" className="flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label="Filas de ocorrências"
+        className="flex flex-wrap gap-2"
+      >
         <Button
           variant={scope === "mine" ? "primary" : "secondary"}
           aria-pressed={scope === "mine"}
@@ -391,13 +408,14 @@ export function OccurrencesPage() {
             Análise do RH
           </Button>
         )}
-      </nav>
+      </div>
       {loading ? (
-        <p role="status">Carregando ocorrências…</p>
+        <LoadingState label="Carregando ocorrências…" />
       ) : !error && !loadError && items.length === 0 ? (
-        <p className="py-6 text-[var(--text-muted)]">
-          Nenhuma ocorrência nesta fila.
-        </p>
+        <EmptyState
+          title="Nenhuma ocorrência ainda"
+          description="Nenhuma ocorrência nesta fila."
+        />
       ) : null}
       {!loading && (
         <ul className="divide-y divide-[var(--border)]">
@@ -408,9 +426,9 @@ export function OccurrencesPage() {
                   {item.typeName}
                   {scope !== "mine" ? ` · ${item.requesterName}` : ""}
                 </h2>
-                <strong className="text-sm">
+                <Badge variant={statusVariants[item.status]}>
                   {occurrenceStatuses[item.status]}
-                </strong>
+                </Badge>
               </div>
               <p className="text-sm">
                 {date(item.startDate)} a {date(item.endDate)}
@@ -594,25 +612,13 @@ export function OccurrencesPage() {
           ))}
         </ul>
       )}
-      {(page > 1 || hasMore) && (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={busy || loading || page === 1}
-            onClick={() => setPage((value) => value - 1)}
-          >
-            Anterior
-          </Button>
-          <span className="text-sm">Página {page}</span>
-          <Button
-            variant="secondary"
-            disabled={busy || loading || !hasMore}
-            onClick={() => setPage((value) => value + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
-      )}
+      <Pagination
+        label="Páginas de ocorrências"
+        page={page}
+        hasMore={hasMore}
+        disabled={busy || loading}
+        onPageChange={setPage}
+      />
       {user && canGlobally(user, "occurrences.manage_types") && (
         <OccurrenceCatalog
           types={types}
@@ -693,25 +699,21 @@ function OccurrenceCatalog({
           label="Tipo para administrar"
           htmlFor="managedOccurrenceType"
         >
-          <select
+          <FieldSelect
             id="managedOccurrenceType"
-            className={selectClass}
             value={selectedId}
             disabled={busy}
-            onChange={(event) => {
-              setSelectedId(event.target.value);
+            emptyLabel="Novo tipo"
+            onValueChange={(value) => {
+              setSelectedId(value);
               setSaved(false);
               setError("");
             }}
-          >
-            <option value="">Novo tipo</option>
-            {types.map((type) => (
-              <option value={type.id} key={type.id}>
-                {type.name}
-                {type.active ? "" : " · Inativo"}
-              </option>
-            ))}
-          </select>
+            options={types.map((type) => ({
+              value: type.id,
+              label: `${type.name}${type.active ? "" : " · Inativo"}`,
+            }))}
+          />
         </FormField>
         <form
           key={selectedId}
@@ -781,21 +783,17 @@ function OccurrenceCatalog({
             htmlFor="occurrencePolicy"
             hint="Documentos de saúde exigem uma política marcada como sensível. Finalidade e retenção são mantidas no documento publicado."
           >
-            <select
+            <FieldSelect
               id="occurrencePolicy"
               name="documentTypeId"
-              className={selectClass}
               defaultValue={selected?.documentTypeId ?? ""}
               disabled={busy}
-            >
-              <option value="">Sem anexos</option>
-              {policies.map((policy) => (
-                <option value={policy.id} key={policy.id}>
-                  {policy.name}
-                  {policy.sensitive ? " · Sensível" : ""}
-                </option>
-              ))}
-            </select>
+              emptyLabel="Sem anexos"
+              options={policies.map((policy) => ({
+                value: policy.id,
+                label: `${policy.name}${policy.sensitive ? " · Sensível" : ""}`,
+              }))}
+            />
           </FormField>
           <p className="text-sm text-[var(--text-muted)]">
             As políticas de finalidade e retenção são cadastradas em Documentos

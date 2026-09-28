@@ -1,4 +1,4 @@
-import { clientHeaders } from "./fixtures";
+import { chooseOption, clientHeaders } from "./fixtures";
 import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -89,7 +89,7 @@ test("servidor abre solicitação e RH responde com controle de concorrência", 
     await expect(
       page.getByRole("heading", { name: "Minhas solicitações" }),
     ).toBeVisible();
-    await page.getByLabel("Tipo de solicitação").selectOption("declaration");
+    await chooseOption(page, "Tipo de solicitação", "Declaração funcional");
     await page
       .getByLabel("Como podemos ajudar?")
       .fill("Preciso de uma declaração de vínculo para matrícula no curso.");
