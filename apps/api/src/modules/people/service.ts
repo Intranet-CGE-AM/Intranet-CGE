@@ -394,6 +394,10 @@ export class PeopleService {
     input: OrganizationUnitInput,
     currentUnitId?: string,
   ) {
+    if (!input.type) {
+      return;
+    }
+
     if (input.type === "department") {
       if (input.parentId) {
         throw new Error("DEPARTMENT_CANNOT_HAVE_PARENT");

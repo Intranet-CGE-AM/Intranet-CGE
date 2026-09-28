@@ -153,7 +153,8 @@ export const organizationUnitTypeSchema = z.enum([
 export const organizationUnitInputSchema = z.object({
   code: z.string().trim().min(1).max(30),
   name: z.string().trim().min(2).max(160),
-  type: organizationUnitTypeSchema,
+  // Only asset sectors are typed; HR units keep their hierarchy in /api/organization.
+  type: organizationUnitTypeSchema.optional(),
   parentId: z.uuid().nullable().optional(),
 });
 
