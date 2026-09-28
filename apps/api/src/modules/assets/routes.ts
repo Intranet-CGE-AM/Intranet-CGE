@@ -116,6 +116,74 @@ typedApp.get(
             },
           );
 
+          /* RELATÓRIO PATRIMONIAL */
+
+          typedApp.get(
+            "/api/assets/reports",
+
+            {
+              schema: {
+                querystring:
+                  z.object({
+                    departmentId:
+                      z.uuid()
+                        .optional(),
+
+                    sectorId:
+                      z.uuid()
+                        .optional(),
+
+                    subsectorId:
+                      z.uuid()
+                        .optional(),
+
+                    status:
+                      z.enum([
+                        "active",
+                        "maintenance",
+                        "disposed",
+                      ])
+                        .optional(),
+
+                    conservationStatus:
+                      z.string()
+                        .optional(),
+
+                    startDate:
+                      z.string()
+                        .optional(),
+
+                    endDate:
+                      z.string()
+                        .optional(),
+                  }),
+              },
+            },
+
+            async (
+              request,
+              reply,
+            ) => {
+              const user =
+                await requireAnyPermission(
+                  request,
+                  reply,
+                  options.authenticationService,
+                  "assets.read",
+                );
+
+              if (!user) {
+                return;
+              }
+
+              return options
+                .assetService
+                .getReport(
+                  request.query,
+                );
+            },
+          );
+
 
           /* CONSULTAR BEM */
 

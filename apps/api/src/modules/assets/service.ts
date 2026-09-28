@@ -27,8 +27,10 @@ import {
   desc,
   eq,
   getTableColumns,
+  gte,
   ilike,
   inArray,
+  lte,
   or,
 } from "drizzle-orm";
 
@@ -277,6 +279,269 @@ async list(
     totalPages,
   };
 }
+
+    async getReport(query: {
+      departmentId?: string;
+      sectorId?: string;
+      subsectorId?: string;
+      status?:
+        | "active"
+        | "maintenance"
+        | "disposed";
+      conservationStatus?: string;
+      startDate?: string;
+      endDate?: string;
+    }) {
+      const conditions = [];
+
+      /*
+      * Descobre quais unidades devem fazer
+      * parte do filtro de localização.
+      */
+      let unitIds: string[] = [];
+
+      if (query.subsectorId) {
+        unitIds = [
+          query.subsectorId,
+        ];
+      } else if (query.sectorId) {
+        const childUnits =
+          await this.db
+            .select({
+              id:
+                organizationUnits.id,
+            })
+            .from(
+              organizationUnits,
+            )
+            .where(
+              eq(
+                organizationUnits.parentId,
+                query.sectorId,
+              ),
+            );
+
+        unitIds = [
+          query.sectorId,
+          ...childUnits.map(
+            (unit) => unit.id,
+          ),
+        ];
+      } else if (query.departmentId) {
+        const sectors =
+          await this.db
+            .select({
+              id:
+                organizationUnits.id,
+            })
+            .from(
+              organizationUnits,
+            )
+            .where(
+              eq(
+                organizationUnits.parentId,
+                query.departmentId,
+              ),
+            );
+
+        const sectorIds =
+          sectors.map(
+            (sector) =>
+              sector.id,
+          );
+
+        let subsectorIds:
+          string[] = [];
+
+        if (
+          sectorIds.length >
+          0
+        ) {
+          const subsectors =
+            await this.db
+              .select({
+                id:
+                  organizationUnits.id,
+              })
+              .from(
+                organizationUnits,
+              )
+              .where(
+                inArray(
+                  organizationUnits.parentId,
+                  sectorIds,
+                ),
+              );
+
+          subsectorIds =
+            subsectors.map(
+              (subsector) =>
+                subsector.id,
+            );
+        }
+
+        unitIds = [
+          query.departmentId,
+          ...sectorIds,
+          ...subsectorIds,
+        ];
+      }
+
+      /*
+      * Localização.
+      */
+      if (
+        unitIds.length >
+        0
+      ) {
+        conditions.push(
+          inArray(
+            assets.unitId,
+            unitIds,
+          ),
+        );
+      }
+
+      /*
+      * Situação.
+      */
+      if (query.status) {
+        conditions.push(
+          eq(
+            assets.status,
+            query.status,
+          ),
+        );
+      }
+
+      /*
+      * Estado de conservação.
+      */
+      if (
+        query.conservationStatus
+      ) {
+        conditions.push(
+          eq(
+            assets.conservationStatus,
+            query.conservationStatus,
+          ),
+        );
+      }
+
+      /*
+      * Período de aquisição.
+      */
+      if (query.startDate) {
+        conditions.push(
+          gte(
+            assets.acquisitionDate,
+            query.startDate,
+          ),
+        );
+      }
+
+      if (query.endDate) {
+        conditions.push(
+          lte(
+            assets.acquisitionDate,
+            query.endDate,
+          ),
+        );
+      }
+
+      const where =
+        conditions.length >
+        0
+          ? and(
+              ...conditions,
+            )
+          : undefined;
+
+      const rows =
+        await this.db
+          .select({
+            id:
+              assets.id,
+
+            patrimonyNumber:
+              assets.patrimonyNumber,
+
+            description:
+              assets.description,
+
+            brand:
+              assets.brand,
+
+            model:
+              assets.model,
+
+            serialNumber:
+              assets.serialNumber,
+
+            status:
+              assets.status,
+
+            conservationStatus:
+              assets.conservationStatus,
+
+            acquisitionDate:
+              assets.acquisitionDate,
+
+            acquisitionValue:
+              assets.acquisitionValue,
+
+            unitId:
+              assets.unitId,
+
+            unitCode:
+              organizationUnits.code,
+
+            unitName:
+              organizationUnits.name,
+
+            unitType:
+              organizationUnits.type,
+          })
+          .from(assets)
+          .leftJoin(
+            organizationUnits,
+            eq(
+              assets.unitId,
+              organizationUnits.id,
+            ),
+          )
+          .where(where)
+          .orderBy(
+            asc(
+              assets.patrimonyNumber,
+            ),
+          );
+
+      const totalValue =
+        rows.reduce(
+          (
+            total,
+            asset,
+          ) =>
+            total +
+            Number(
+              asset.acquisitionValue ??
+                0,
+            ),
+          0,
+        );
+
+      return {
+        assets: rows,
+
+        summary: {
+          total:
+            rows.length,
+
+          totalValue,
+        },
+      };
+    }
 
   async getDashboard() {
   const [

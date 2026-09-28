@@ -34,6 +34,39 @@ type OrganizationUnit = {
   active: boolean;
 };
 
+type ReportAsset = {
+  id: string;
+  patrimonyNumber: string;
+  description: string;
+  brand: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  status:
+    | "active"
+    | "maintenance"
+    | "disposed";
+  conservationStatus: string | null;
+  acquisitionDate: string | null;
+  acquisitionValue: string | null;
+  unitId: string | null;
+  unitCode: string | null;
+  unitName: string | null;
+  unitType:
+    | "department"
+    | "sector"
+    | "subsector"
+    | null;
+};
+
+type AssetReportResponse = {
+  assets: ReportAsset[];
+
+  summary: {
+    total: number;
+    totalValue: number;
+  };
+};
+
 export function AssetReportsPage() {
   const [reportType, setReportType] =
     useState<ReportType>("inventory");
@@ -75,6 +108,25 @@ export function AssetReportsPage() {
 
   const [endDate, setEndDate] =
     useState("");
+
+  const [
+    report,
+    setReport,
+  ] = useState<AssetReportResponse | null>(
+    null,
+  );
+
+  const [
+    loadingReport,
+    setLoadingReport,
+  ] = useState(false);
+
+  const [
+    reportError,
+    setReportError,
+  ] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
   let cancelled = false;
@@ -168,18 +220,89 @@ const subsectors =
   </p>
 ) : null}
 
-  function handleGenerateReport() {
-    console.log({
-      reportType,
-      departmentId,
-      sectorId,
-      subsectorId,
-      status,
-      conservationStatus,
-      startDate,
-      endDate,
-    });
+async function handleGenerateReport() {
+  try {
+    setLoadingReport(true);
+    setReportError(null);
+
+    const params =
+      new URLSearchParams();
+
+    if (departmentId) {
+      params.set(
+        "departmentId",
+        departmentId,
+      );
+    }
+
+    if (sectorId) {
+      params.set(
+        "sectorId",
+        sectorId,
+      );
+    }
+
+    if (subsectorId) {
+      params.set(
+        "subsectorId",
+        subsectorId,
+      );
+    }
+
+    if (status) {
+      params.set(
+        "status",
+        status,
+      );
+    }
+
+    if (
+      conservationStatus
+    ) {
+      params.set(
+        "conservationStatus",
+        conservationStatus,
+      );
+    }
+
+    if (startDate) {
+      params.set(
+        "startDate",
+        startDate,
+      );
+    }
+
+    if (endDate) {
+      params.set(
+        "endDate",
+        endDate,
+      );
+    }
+
+    const queryString =
+      params.toString();
+
+    const result =
+      await api<AssetReportResponse>(
+        queryString
+          ? `/api/assets/reports?${queryString}`
+          : "/api/assets/reports",
+      );
+
+    setReport(result);
+  } catch (error) {
+    console.error(
+      "Erro ao gerar relatório:",
+      error,
+    );
+
+    setReportError(
+      "Não foi possível gerar o relatório.",
+    );
+  } finally {
+    setLoadingReport(false);
   }
+}
 
   function handleExportPdf() {
     console.log("Exportar PDF");
@@ -497,12 +620,17 @@ const subsectors =
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={handleGenerateReport}
+            onClick={() => {
+              void handleGenerateReport();
+            }}
+            disabled={loadingReport}
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
           >
             <ClipboardText size={18} />
 
-            Gerar relatório
+            {loadingReport
+              ? "Gerando..."
+              : "Gerar relatório"}
           </button>
 
           <button
@@ -540,10 +668,150 @@ const subsectors =
           </p>
         </div>
 
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Selecione os filtros e clique em{" "}
-          <strong>Gerar relatório</strong>.
-        </div>
+        {reportError ? (
+          <div className="rounded-md border p-4 text-sm text-red-600">
+            {reportError}
+          </div>
+        ) : null}
+
+        {loadingReport ? (
+          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Carregando relatório...
+          </div>
+        ) : report ? (
+          <>
+            <div className="mb-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-md border p-4">
+                <p className="text-sm text-muted-foreground">
+                  Quantidade de bens
+                </p>
+
+                <p className="mt-1 text-2xl font-semibold">
+                  {report.summary.total}
+                </p>
+              </div>
+
+              <div className="rounded-md border p-4">
+                <p className="text-sm text-muted-foreground">
+                  Valor patrimonial
+                </p>
+
+                <p className="mt-1 text-2xl font-semibold">
+                  {new Intl.NumberFormat(
+                    "pt-BR",
+                    {
+                      style: "currency",
+                      currency: "BRL",
+                    },
+                  ).format(
+                    report.summary.totalValue,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {report.assets.length === 0 ? (
+              <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Nenhum bem encontrado com os filtros informados.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="px-3 py-3 font-medium">
+                        Patrimônio
+                      </th>
+
+                      <th className="px-3 py-3 font-medium">
+                        Descrição
+                      </th>
+
+                      <th className="px-3 py-3 font-medium">
+                        Localização
+                      </th>
+
+                      <th className="px-3 py-3 font-medium">
+                        Situação
+                      </th>
+
+                      <th className="px-3 py-3 font-medium">
+                        Conservação
+                      </th>
+
+                      <th className="px-3 py-3 text-right font-medium">
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {report.assets.map(
+                      (asset) => (
+                        <tr
+                          key={asset.id}
+                          className="border-b"
+                        >
+                          <td className="px-3 py-3">
+                            {asset.patrimonyNumber}
+                          </td>
+
+                          <td className="px-3 py-3">
+                            {asset.description}
+                          </td>
+
+                          <td className="px-3 py-3">
+                            {asset.unitCode
+                              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                              : "Não informado"}
+                          </td>
+
+                          <td className="px-3 py-3">
+                            {asset.status === "active"
+                              ? "Ativo"
+                              : asset.status === "maintenance"
+                                ? "Em manutenção"
+                                : "Baixado"}
+                          </td>
+
+                          <td className="px-3 py-3">
+                            {asset.conservationStatus ??
+                              "Não informado"}
+                          </td>
+
+                          <td className="px-3 py-3 text-right">
+                            {asset.acquisitionValue
+                              ? new Intl.NumberFormat(
+                                  "pt-BR",
+                                  {
+                                    style:
+                                      "currency",
+                                    currency:
+                                      "BRL",
+                                  },
+                                ).format(
+                                  Number(
+                                    asset.acquisitionValue,
+                                  ),
+                                )
+                              : "—"}
+                          </td>
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Selecione os filtros e clique em{" "}
+            <strong>
+              Gerar relatório
+            </strong>.
+          </div>
+        )}
       </div>
     </div>
   );
