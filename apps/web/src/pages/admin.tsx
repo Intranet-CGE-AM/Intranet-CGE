@@ -264,7 +264,7 @@ const permissionGroups = (
     },
     {
       key: "tickets",
-      title: "Suporte e Chamados TI",
+      title: "Suporte e chamados de TI",
       description: "Abertura, aprovações e atendimento ATEC",
     },
     {

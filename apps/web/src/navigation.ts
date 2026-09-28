@@ -292,7 +292,7 @@ export const moduleNavigation: ModuleNavigation[] = [
 
     access: accessRules.visits,
 
-    label: "Agendamento de Visitas",
+    label: "Agendamento de visitas",
 
     description: "Visitas institucionais, reuniões e apoio técnico",
 
@@ -437,21 +437,21 @@ export const moduleNavigation: ModuleNavigation[] = [
   {
     id: "tickets",
     access: accessRules.tickets,
-    label: "Suporte e Chamados TI",
+    label: "Suporte e chamados de TI",
     description: "Abertura, acompanhamento e atendimento técnico de TI",
     href: "/suporte",
     icon: Headset,
     routes: [
       {
         access: accessRules.tickets,
-        label: "Painel de Chamados",
+        label: "Painel de chamados",
         href: "/suporte",
         icon: SquaresFour,
         end: true,
       },
       {
         access: accessRules.ticketsCreate,
-        label: "Novo Chamado",
+        label: "Novo chamado",
         href: "/suporte/novo",
         icon: PlusCircle,
       },
