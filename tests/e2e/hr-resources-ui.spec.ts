@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 import { blankPdf } from "./pdf-fixture";
 test.use({ actionTimeout: 15000 });
 test("biblioteca permite publicar PDF, revisar sem perder campos e consultar histórico e ciência", async ({
@@ -27,7 +27,7 @@ test("biblioteca permite publicar PDF, revisar sem perder campos e consultar his
   await page
     .getByLabel("Resumo", { exact: true })
     .fill("Orientações institucionais para uso dos serviços internos.");
-  await page.getByLabel("Tipo", { exact: true }).selectOption("policy");
+  await chooseOption(page, "Tipo", "Política");
   await page.getByLabel("Categoria", { exact: true }).fill("Serviços internos");
   await page
     .getByLabel("Responsável", { exact: true })
