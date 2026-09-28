@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("ocorrência congela chefia no envio e separa escopo do RH de leitura privada", async ({
   playwright,
@@ -20,13 +27,13 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
       }),
     ),
   );
-  const [admin, worker, chief, replacement, hr] = contexts;
+  const [admin, worker, chief, replacement, hr] = tuple(contexts, 5);
   const grants: string[] = [];
   let restore: (() => Promise<void>) | undefined;
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of emails.entries()) {
-      const login = await contexts[index].post("/api/auth/login", {
+      const login = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password:
@@ -36,7 +43,7 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
       expect(login.status()).toBe(200);
       users.push((await login.json()).user);
     }
-    const unitId = users[1].employment.unit.id;
+    const unitId = at(users, 1).employment.unit.id;
     const grant = async (
       index: number,
       permission: string,
@@ -44,7 +51,7 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
     ) => {
       const response = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
           unitId: targetUnit,
@@ -56,16 +63,16 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
     await grant(1, "occurrences.create");
     await grant(2, "occurrences.review.supervisor");
     await grant(3, "occurrences.review.supervisor");
-    await grant(4, "occurrences.review.final", users[4].employment.unit.id);
-    const historyUrl = `/api/people/${users[1].person.id}/employment-history`;
+    await grant(4, "occurrences.review.final", at(users, 4).employment.unit.id);
+    const historyUrl = `/api/people/${at(users, 1).person.id}/employment-history`;
     const original = await (await admin.get(historyUrl)).json();
     const originalChief = original.employments.find(
-      (item: { id: string }) => item.id === users[1].employment.id,
+      (item: { id: string }) => item.id === at(users, 1).employment.id,
     ).supervisorRelationshipId;
     const setChief = async (supervisorRelationshipId: string) => {
       const history = await (await admin.get(historyUrl)).json();
       const response = await admin.post(
-        `/api/people/${users[1].person.id}/movements`,
+        `/api/people/${at(users, 1).person.id}/movements`,
         {
           data: {
             expectedVersion: history.version,
@@ -102,7 +109,7 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
     expect(created.status()).toBe(201);
     const { id } = await created.json();
     const url = `/api/occurrences/${id}`;
-    await setChief(users[3].employment.id);
+    await setChief(at(users, 3).employment.id);
     restore = () => setChief(originalChief);
     expect(
       (
@@ -148,7 +155,9 @@ test("ocorrência congela chefia no envio e separa escopo do RH de leitura priva
     expect(audit.events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          actor: expect.objectContaining({ accountId: users[4].account.id }),
+          actor: expect.objectContaining({
+            accountId: at(users, 4).account.id,
+          }),
           objectId: id,
         }),
       ]),

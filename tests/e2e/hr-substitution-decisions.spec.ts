@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("decisão substituta registra ator real e origem, sem permitir aprovar as próprias férias", async ({
   playwright,
@@ -11,17 +18,17 @@ test("decisão substituta registra ator real e origem, sem permitir aprovar as p
       }),
     ),
   );
-  const [admin, chief, substitute, worker] = clients;
+  const [admin, chief, substitute, worker] = tuple(clients, 4);
   const active: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
       "caio.nascimento@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await clients[index].post("/api/auth/login", {
+      const login = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -31,9 +38,9 @@ test("decisão substituta registra ator real e origem, sem permitir aprovar as p
       users.push((await login.json()).user);
     }
     const payload = {
-      originalAccountId: users[1].account.id,
-      substituteAccountId: users[2].account.id,
-      unitId: users[3].employment.unit.id,
+      originalAccountId: at(users, 1).account.id,
+      substituteAccountId: at(users, 2).account.id,
+      unitId: at(users, 3).employment.unit.id,
       startsOn: "2026-01-01",
       endsOn: "2040-12-31",
       reason: "Continuidade do atendimento da chefia.",
@@ -62,12 +69,12 @@ test("decisão substituta registra ator real e origem, sem permitir aprovar as p
       status: "supervisor_approved",
       events: expect.arrayContaining([
         expect.objectContaining({
-          actorAccountId: users[2].account.id,
+          actorAccountId: at(users, 2).account.id,
           type: "supervisor-approved",
           metadata: {
             delegation: expect.objectContaining({
               id: delegation.id,
-              originalAccountId: users[1].account.id,
+              originalAccountId: at(users, 1).account.id,
             }),
           },
         }),
@@ -82,7 +89,7 @@ test("decisão substituta registra ator real e origem, sem permitir aprovar as p
     ).toBe(200);
     active.pop();
     const self = await admin.post("/api/substitutions", {
-      data: { ...payload, substituteAccountId: users[3].account.id },
+      data: { ...payload, substituteAccountId: at(users, 3).account.id },
     });
     expect(self.status()).toBe(201);
     active.push((await self.json()).id);

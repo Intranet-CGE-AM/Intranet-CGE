@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("indicadores agregam solicitações sem conteúdo privado e respeitam unidade e permissão", async ({
   playwright,
@@ -11,16 +18,16 @@ test("indicadores agregam solicitações sem conteúdo privado e respeitam unida
       }),
     ),
   );
-  const [admin, worker, other] = contexts;
+  const [admin, worker, other] = tuple(contexts, 3);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -39,16 +46,16 @@ test("indicadores agregam solicitações sem conteúdo privado e respeitam unida
     ] as const) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
-          unitId: users[index].employment.unit.id,
+          unitId: at(users, index).employment.unit.id,
         },
       });
       expect(grant.status()).toBe(201);
       grants.push((await grant.json()).id);
     }
-    const scopedQuery = `${query}&unitId=${users[1].employment.unit.id}`;
+    const scopedQuery = `${query}&unitId=${at(users, 1).employment.unit.id}`;
     const baseline = await (await admin.get(scopedQuery)).json();
     const before =
       baseline.requests.find(
@@ -74,7 +81,7 @@ test("indicadores agregam solicitações sem conteúdo privado e respeitam unida
     expect((await other.get(scopedQuery)).status()).toBe(403);
     const restricted = await (await other.get(query)).json();
     expect(restricted.units.map((unit: { id: string }) => unit.id)).toEqual([
-      users[2].employment.unit.id,
+      at(users, 2).employment.unit.id,
     ]);
     expect(restricted.occurrences).toBeNull();
     expect(restricted.trainingPending).toBeNull();

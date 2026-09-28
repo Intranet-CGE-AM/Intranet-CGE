@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("substituição de responsável cobre somente itens atribuídos, sem conceder gestão da unidade", async ({
   playwright,
@@ -11,16 +18,16 @@ test("substituição de responsável cobre somente itens atribuídos, sem conced
       }),
     ),
   );
-  const [admin, worker, substitute] = clients;
+  const [admin, worker, substitute] = tuple(clients, 3);
   let substitutionId = "";
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -53,12 +60,12 @@ test("substituição de responsável cobre somente itens atribuídos, sem conced
     expect(template.status()).toBe(201);
     const created = await admin.post("/api/checklists", {
       data: {
-        personId: users[1].person.id,
-        employmentId: users[1].employment.id,
+        personId: at(users, 1).person.id,
+        employmentId: at(users, 1).employment.id,
         templateId: (await template.json()).id,
         assignments: [
-          { itemIndex: 0, accountId: users[1].account.id },
-          { itemIndex: 1, accountId: users[0].account.id },
+          { itemIndex: 0, accountId: at(users, 1).account.id },
+          { itemIndex: 1, accountId: at(users, 0).account.id },
         ],
       },
     });
@@ -66,9 +73,9 @@ test("substituição de responsável cobre somente itens atribuídos, sem conced
     const checklist = await created.json();
     const delegation = await admin.post("/api/substitutions", {
       data: {
-        originalAccountId: users[1].account.id,
-        substituteAccountId: users[2].account.id,
-        unitId: users[1].employment.unit.id,
+        originalAccountId: at(users, 1).account.id,
+        substituteAccountId: at(users, 2).account.id,
+        unitId: at(users, 1).employment.unit.id,
         startsOn: "2026-01-01",
         endsOn: "2040-12-31",
         reason: "Cobertura das providências durante ausência temporária.",
@@ -125,7 +132,9 @@ test("substituição de responsável cobre somente itens atribuídos, sem conced
       expect.arrayContaining([
         expect.objectContaining({
           objectId: checklist.id,
-          actor: expect.objectContaining({ accountId: users[2].account.id }),
+          actor: expect.objectContaining({
+            accountId: at(users, 2).account.id,
+          }),
           metadata: expect.objectContaining({
             delegation: expect.objectContaining({ id: substitutionId }),
           }),

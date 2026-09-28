@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 import { createDatabase } from "../../apps/api/src/db/client.js";
 
 test("edição confirma mudança de público, invalida ciência antiga e respeita agendamento e arquivamento", async ({
@@ -15,15 +22,15 @@ test("edição confirma mudança de público, invalida ciência antiga e respeit
       }),
     ),
   );
-  const [admin, worker, contractor] = clients;
+  const [admin, worker, contractor] = tuple(clients, 3);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "dandara.ribeiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -64,7 +71,10 @@ test("edição confirma mudança de público, invalida ciência antiga e respeit
     ).toBe(200);
     const targeted = {
       ...input,
-      audience: { type: "categories", ids: [users[1].employment.category.id] },
+      audience: {
+        type: "categories",
+        ids: [at(users, 1).employment.category.id],
+      },
       version: 3,
     };
     expect((await admin.put(url, { data: targeted })).status()).toBe(409);
@@ -147,7 +157,7 @@ test("edição confirma mudança de público, invalida ciência antiga e respeit
           ids: ["00000000-0000-4000-8000-000000000001"],
         },
       },
-      { ...input, authorAccountId: users[1].account.id },
+      { ...input, authorAccountId: at(users, 1).account.id },
     ]) {
       expect(
         (await admin.post("/api/hr-communications", { data })).status(),

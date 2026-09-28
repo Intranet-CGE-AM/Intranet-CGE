@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("chefia substituta de ocorrências acessa somente sua fila e perde autoridade quando a origem é revogada", async ({
   playwright,
@@ -11,18 +18,18 @@ test("chefia substituta de ocorrências acessa somente sua fila e perde autorida
       }),
     ),
   );
-  const [admin, worker, chief, substitute] = clients;
+  const [admin, worker, chief, substitute] = tuple(clients, 4);
   const grants: string[] = [];
   let substitutionId = "";
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -31,14 +38,14 @@ test("chefia substituta de ocorrências acessa somente sua fila e perde autorida
       expect(response.status()).toBe(200);
       users.push((await response.json()).user);
     }
-    const unitId = users[1].employment.unit.id;
+    const unitId = at(users, 1).employment.unit.id;
     for (const [index, permission] of [
       [1, "occurrences.create"],
       [2, "occurrences.review.supervisor"],
     ] as const) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
           unitId,
@@ -49,8 +56,8 @@ test("chefia substituta de ocorrências acessa somente sua fila e perde autorida
     }
     const created = await admin.post("/api/substitutions", {
       data: {
-        originalAccountId: users[2].account.id,
-        substituteAccountId: users[3].account.id,
+        originalAccountId: at(users, 2).account.id,
+        substituteAccountId: at(users, 3).account.id,
         unitId,
         startsOn: "2026-01-01",
         endsOn: "2040-12-31",
@@ -122,7 +129,9 @@ test("chefia substituta de ocorrências acessa somente sua fila e perde autorida
       expect.arrayContaining([
         expect.objectContaining({
           objectId: record.id,
-          actor: expect.objectContaining({ accountId: users[3].account.id }),
+          actor: expect.objectContaining({
+            accountId: at(users, 3).account.id,
+          }),
           metadata: expect.objectContaining({
             delegation: expect.objectContaining({ id: substitutionId }),
           }),

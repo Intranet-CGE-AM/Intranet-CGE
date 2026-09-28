@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("comunicado publicado alcança apenas o público ativo e registra ciência única com Markdown seguro", async ({
   playwright,
@@ -11,16 +18,16 @@ test("comunicado publicado alcança apenas o público ativo e registra ciência 
       }),
     ),
   );
-  const [admin, worker, outside, ended] = clients;
+  const [admin, worker, outside, ended] = tuple(clients, 4);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
       "renata.martins@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -35,7 +42,7 @@ test("comunicado publicado alcança apenas o público ativo e registra ciência 
       body: "## Orientações\n\nConfira **seus dados**.\n\n<script>alert('indevido')</script>\n\n[link inseguro](javascript:alert%281%29)",
       publicationAt: "2026-01-01T00:00:00.000Z",
       expiresAt: "2040-12-31T23:59:59.000Z",
-      audience: { type: "units", ids: [users[1].employment.unit.id] },
+      audience: { type: "units", ids: [at(users, 1).employment.unit.id] },
       requiresAcknowledgment: true,
     };
     const created = await admin.post("/api/hr-communications", { data: input });
@@ -111,7 +118,7 @@ test("comunicado publicado alcança apenas o público ativo e registra ciência 
       ),
     ).toHaveLength(1);
     expect(audit.events[0]).toMatchObject({
-      actor: { accountId: users[1].account.id },
+      actor: { accountId: at(users, 1).account.id },
     });
   } finally {
     await Promise.all(clients.map((client) => client.dispose()));

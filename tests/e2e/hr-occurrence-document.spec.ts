@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { clientHeaders, expect, test, tuple, at } from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 
 test("titular anexa PDF à ocorrência sem ganhar publicação geral nem expor arquivo à chefia", async ({
@@ -12,7 +12,7 @@ test("titular anexa PDF à ocorrência sem ganhar publicação geral nem expor a
       }),
     ),
   );
-  const [admin, worker, chief] = contexts;
+  const [admin, worker, chief] = tuple(contexts, 3);
   let grantId: string | undefined;
   try {
     let workerUser;
@@ -21,7 +21,7 @@ test("titular anexa PDF à ocorrência sem ganhar publicação geral nem expor a
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await contexts[index].post("/api/auth/login", {
+      const login = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password:

@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("indicadores acompanham etapas de férias, ocorrências e validação de capacitações", async ({
   playwright,
@@ -11,16 +18,16 @@ test("indicadores acompanham etapas de férias, ocorrências e validação de ca
       }),
     ),
   );
-  const [admin, worker, chief] = contexts;
+  const [admin, worker, chief] = tuple(contexts, 3);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await contexts[index].post("/api/auth/login", {
+      const login = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -32,10 +39,10 @@ test("indicadores acompanham etapas de férias, ocorrências e validação de ca
     for (const permission of ["training.create", "occurrences.create"]) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[1].account.id,
+          accountId: at(users, 1).account.id,
           permission,
           effect: "allow",
-          unitId: users[1].employment.unit.id,
+          unitId: at(users, 1).employment.unit.id,
         },
       });
       expect(grant.status()).toBe(201);
@@ -44,7 +51,7 @@ test("indicadores acompanham etapas de férias, ocorrências e validação de ca
     const today = new Date().toLocaleDateString("en-CA", {
       timeZone: "America/Manaus",
     });
-    const url = `/api/hr-metrics?startDate=${today}&endDate=${today}&unitId=${users[1].employment.unit.id}`;
+    const url = `/api/hr-metrics?startDate=${today}&endDate=${today}&unitId=${at(users, 1).employment.unit.id}`;
     const baseline = await (await admin.get(url)).json();
     const initialChief =
       baseline.vacations.find(

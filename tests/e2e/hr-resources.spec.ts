@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("biblioteca publica recurso HTTPS com vigência, responsável, busca e público autorizado", async ({
   playwright,
@@ -11,15 +18,15 @@ test("biblioteca publica recurso HTTPS com vigência, responsável, busca e púb
       }),
     ),
   );
-  const [admin, worker, outside] = clients;
+  const [admin, worker, outside] = tuple(clients, 3);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -36,7 +43,7 @@ test("biblioteca publica recurso HTTPS com vigência, responsável, busca e púb
       responsibleName: "Gestão de Pessoas",
       validFrom: "2026-01-01",
       validUntil: "2040-12-31",
-      audience: { type: "units", ids: [users[1].employment.unit.id] },
+      audience: { type: "units", ids: [at(users, 1).employment.unit.id] },
       requiresAcknowledgment: false,
       externalUrl: "https://www.cge.am.gov.br/",
     };
@@ -105,7 +112,9 @@ test("biblioteca publica recurso HTTPS com vigência, responsável, busca e púb
       expect.arrayContaining([
         expect.objectContaining({
           objectId: item.id,
-          actor: expect.objectContaining({ accountId: users[0].account.id }),
+          actor: expect.objectContaining({
+            accountId: at(users, 0).account.id,
+          }),
         }),
       ]),
     );

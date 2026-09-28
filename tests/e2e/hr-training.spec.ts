@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("capacitação tem validação por unidade, rejeição justificada e histórico no dossiê", async ({
   playwright,
@@ -11,16 +18,16 @@ test("capacitação tem validação por unidade, rejeição justificada e histó
       }),
     ),
   );
-  const [admin, worker, other] = contexts;
+  const [admin, worker, other] = tuple(contexts, 3);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -46,10 +53,10 @@ test("capacitação tem validação por unidade, rejeição justificada e histó
     ] as const) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
-          unitId: users[index].employment.unit.id,
+          unitId: at(users, index).employment.unit.id,
         },
       });
       expect(grant.status()).toBe(201);
@@ -86,7 +93,7 @@ test("capacitação tem validação por unidade, rejeição justificada e histó
         })
       ).status(),
     ).toBe(403);
-    const validatedUrl = `/api/training?scope=validated&personId=${users[1].person.id}`;
+    const validatedUrl = `/api/training?scope=validated&personId=${at(users, 1).person.id}`;
     expect(
       (await (await worker.get(validatedUrl)).json()).records.some(
         (row: { id: string }) => row.id === record.id,

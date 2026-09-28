@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { clientHeaders, expect, test, tuple, at } from "./fixtures";
 
 test("férias e ocorrências não confirmam períodos sobrepostos mesmo em concorrência", async ({
   playwright,
@@ -11,7 +11,7 @@ test("férias e ocorrências não confirmam períodos sobrepostos mesmo em conco
       }),
     ),
   );
-  const [admin, worker, chief] = contexts;
+  const [admin, worker, chief] = tuple(contexts, 3);
   let grantId: string | undefined;
   try {
     let workerUser;
@@ -20,7 +20,7 @@ test("férias e ocorrências não confirmam períodos sobrepostos mesmo em conco
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password:

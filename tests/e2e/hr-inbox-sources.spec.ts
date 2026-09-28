@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("caixa reúne férias, ocorrências, capacitações e checklists somente na etapa acionável", async ({
   playwright,
@@ -11,16 +18,16 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
       }),
     ),
   );
-  const [admin, worker, chief] = contexts;
+  const [admin, worker, chief] = tuple(contexts, 3);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await contexts[index].post("/api/auth/login", {
+      const login = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -36,10 +43,10 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
     ] as const) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
-          unitId: users[1].employment.unit.id,
+          unitId: at(users, 1).employment.unit.id,
         },
       });
       expect(grant.status()).toBe(201);
@@ -102,10 +109,10 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
     expect(template.status()).toBe(201);
     const checklist = await admin.post("/api/checklists", {
       data: {
-        personId: users[1].person.id,
-        employmentId: users[1].employment.id,
+        personId: at(users, 1).person.id,
+        employmentId: at(users, 1).employment.id,
         templateId: (await template.json()).id,
-        assignments: [{ itemIndex: 0, accountId: users[1].account.id }],
+        assignments: [{ itemIndex: 0, accountId: at(users, 1).account.id }],
       },
     });
     expect(checklist.status()).toBe(201);
@@ -209,14 +216,14 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
     );
     const filtered = await (
       await admin.get(
-        `/api/inbox?type=vacation&unitId=${users[1].employment.unit.id}&pageSize=1`,
+        `/api/inbox?type=vacation&unitId=${at(users, 1).employment.unit.id}&pageSize=1`,
       )
     ).json();
     expect(filtered.items).toHaveLength(1);
     expect(filtered.total).toBeGreaterThanOrEqual(1);
     expect(filtered.items[0]).toMatchObject({
       type: "vacation",
-      unitId: users[1].employment.unit.id,
+      unitId: at(users, 1).employment.unit.id,
     });
   } finally {
     for (const id of grants)

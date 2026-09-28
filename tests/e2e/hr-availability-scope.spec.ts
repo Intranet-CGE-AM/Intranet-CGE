@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem afastamento", async ({
   playwright,
@@ -11,18 +18,18 @@ test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem a
       }),
     ),
   );
-  const [admin, worker, chief, scopedHR] = contexts;
+  const [admin, worker, chief, scopedHR] = tuple(contexts, 4);
   const grants: string[] = [];
   let restore: (() => Promise<void>) | undefined;
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const result = await contexts[index].post("/api/auth/login", {
+      const result = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -38,10 +45,10 @@ test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem a
     ] as const) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
-          unitId: users[index].employment.unit.id,
+          unitId: at(users, index).employment.unit.id,
         },
       });
       expect(grant.status()).toBe(201);
@@ -51,17 +58,20 @@ test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem a
       "/api/team-availability?startDate=2038-05-01&endDate=2038-05-31";
     const restricted = await (await scopedHR.get(url)).json();
     expect(restricted.units).toEqual([
-      { id: users[3].employment.unit.id, name: users[3].employment.unit.name },
+      {
+        id: at(users, 3).employment.unit.id,
+        name: at(users, 3).employment.unit.name,
+      },
     ]);
     expect(
       restricted.members.every(
         (item: { unitId: string }) =>
-          item.unitId === users[3].employment.unit.id,
+          item.unitId === at(users, 3).employment.unit.id,
       ),
     ).toBe(true);
     expect(
       (
-        await scopedHR.get(`${url}&unitId=${users[1].employment.unit.id}`)
+        await scopedHR.get(`${url}&unitId=${at(users, 1).employment.unit.id}`)
       ).status(),
     ).toBe(403);
     const type = await admin.post("/api/occurrence-types", {
@@ -90,12 +100,12 @@ test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem a
       ).status(),
     ).toBe(201);
     expect((await (await chief.get(url)).json()).absences).toEqual([]);
-    const historyUrl = `/api/people/${users[1].person.id}/employment-history`;
+    const historyUrl = `/api/people/${at(users, 1).person.id}/employment-history`;
     const setChief = async (supervisorRelationshipId: string) => {
       const history = await (await admin.get(historyUrl)).json();
       expect(
         (
-          await admin.post(`/api/people/${users[1].person.id}/movements`, {
+          await admin.post(`/api/people/${at(users, 1).person.id}/movements`, {
             data: {
               expectedVersion: history.version,
               effectiveOn: "2026-09-08",
@@ -109,15 +119,17 @@ test("disponibilidade respeita RH por unidade, equipe atual e ocorrências sem a
     const before = await (await chief.get(url)).json();
     expect(
       before.members.some(
-        (item: { personId: string }) => item.personId === users[1].person.id,
+        (item: { personId: string }) =>
+          item.personId === at(users, 1).person.id,
       ),
     ).toBe(true);
-    await setChief(users[3].employment.id);
-    restore = () => setChief(users[2].employment.id);
+    await setChief(at(users, 3).employment.id);
+    restore = () => setChief(at(users, 2).employment.id);
     const after = await (await chief.get(url)).json();
     expect(
       after.members.some(
-        (item: { personId: string }) => item.personId === users[1].person.id,
+        (item: { personId: string }) =>
+          item.personId === at(users, 1).person.id,
       ),
     ).toBe(false);
     expect(after.absences).toEqual([]);

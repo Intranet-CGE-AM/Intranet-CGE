@@ -1,5 +1,5 @@
 import { createDatabase } from "../../apps/api/src/db/client.js";
-import { clientHeaders, expect, test } from "./fixtures";
+import { clientHeaders, expect, test, tuple, at } from "./fixtures";
 
 test("falha ao persistir aviso reverte decisão de férias e permite repetir com a mesma versão", async ({
   playwright,
@@ -15,7 +15,7 @@ test("falha ao persistir aviso reverte decisão de férias e permite repetir com
       }),
     ),
   );
-  const [worker, chief] = clients;
+  const [worker, chief] = tuple(clients, 2);
   let constrained = false;
   try {
     for (const [index, email] of [
@@ -24,7 +24,7 @@ test("falha ao persistir aviso reverte decisão de férias e permite repetir com
     ].entries())
       expect(
         (
-          await clients[index].post("/api/auth/login", {
+          await at(clients, index).post("/api/auth/login", {
             data: { email, password: "Homolog-Password-2026" },
           })
         ).status(),

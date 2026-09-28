@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("ocorrência preserva privacidade na chefia e decide com versão e auditoria", async ({
   playwright,
@@ -11,17 +18,17 @@ test("ocorrência preserva privacidade na chefia e decide com versão e auditori
       }),
     ),
   );
-  const [admin, worker, chief, other] = contexts;
+  const [admin, worker, chief, other] = tuple(contexts, 4);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password:
@@ -38,10 +45,10 @@ test("ocorrência preserva privacidade na chefia e decide com versão e auditori
     ] as const) {
       const response = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[index].account.id,
+          accountId: at(users, index).account.id,
           permission,
           effect: "allow",
-          unitId: users[1].employment.unit.id,
+          unitId: at(users, 1).employment.unit.id,
         },
       });
       expect(response.status()).toBe(201);

@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test.use({ actionTimeout: 15000 });
 test("histórico pagina avisos por conta sem repetição e leitura em lote não afeta outra conta", async ({
@@ -13,15 +20,15 @@ test("histórico pagina avisos por conta sem repetição e leitura em lote não 
       }),
     ),
   );
-  const [admin, owner, other] = clients;
+  const [admin, owner, other] = tuple(clients, 3);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "thiago.freitas@homolog.cge.am.gov.br",
       "caio.nascimento@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await clients[index].post("/api/auth/login", {
+      const login = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -54,10 +61,12 @@ test("histórico pagina avisos por conta sem repetição e leitura em lote não 
         (
           await admin.post("/api/checklists", {
             data: {
-              personId: users[1].person.id,
-              employmentId: users[1].employment.id,
+              personId: at(users, 1).person.id,
+              employmentId: at(users, 1).employment.id,
               templateId: template.id,
-              assignments: [{ itemIndex: 0, accountId: users[1].account.id }],
+              assignments: [
+                { itemIndex: 0, accountId: at(users, 1).account.id },
+              ],
             },
           })
         ).status(),

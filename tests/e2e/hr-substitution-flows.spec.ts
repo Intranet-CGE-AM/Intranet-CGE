@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui as cinco filas", async ({
   playwright,
@@ -11,18 +18,18 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
       }),
     ),
   );
-  const [admin, worker, chief, substitute] = clients;
+  const [admin, worker, chief, substitute] = tuple(clients, 4);
   const grants: string[] = [];
   let substitutionId = "";
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await clients[index].post("/api/auth/login", {
+      const login = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -31,7 +38,7 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
       expect(login.status()).toBe(200);
       users.push((await login.json()).user);
     }
-    const unitId = users[1].employment.unit.id;
+    const unitId = at(users, 1).employment.unit.id;
     for (const permission of [
       "hr_requests.create",
       "occurrences.create",
@@ -39,7 +46,7 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
     ]) {
       const grant = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[1].account.id,
+          accountId: at(users, 1).account.id,
           permission,
           effect: "allow",
           unitId,
@@ -50,8 +57,8 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
     }
     const created = await admin.post("/api/substitutions", {
       data: {
-        originalAccountId: users[0].account.id,
-        substituteAccountId: users[3].account.id,
+        originalAccountId: at(users, 0).account.id,
+        substituteAccountId: at(users, 3).account.id,
         unitId,
         startsOn: "2026-01-01",
         endsOn: "2040-12-31",
@@ -140,10 +147,10 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
     expect(template.status()).toBe(201);
     const checklist = await admin.post("/api/checklists", {
       data: {
-        personId: users[1].person.id,
-        employmentId: users[1].employment.id,
+        personId: at(users, 1).person.id,
+        employmentId: at(users, 1).employment.id,
         templateId: (await template.json()).id,
-        assignments: [{ itemIndex: 0, accountId: users[1].account.id }],
+        assignments: [{ itemIndex: 0, accountId: at(users, 1).account.id }],
       },
     });
     expect(checklist.status()).toBe(201);
@@ -177,7 +184,9 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
     ).not.toContain("Justificativa confidencial");
     expect(
       (
-        await substitute.get(`/api/documents?personId=${users[1].person.id}`)
+        await substitute.get(
+          `/api/documents?personId=${at(users, 1).person.id}`,
+        )
       ).status(),
     ).toBe(403);
     expect(
@@ -250,11 +259,13 @@ test("substituto do RH recebe apenas os fluxos selecionados da unidade e conclui
         expect.arrayContaining([
           expect.objectContaining({
             objectId: id,
-            actor: expect.objectContaining({ accountId: users[3].account.id }),
+            actor: expect.objectContaining({
+              accountId: at(users, 3).account.id,
+            }),
             metadata: expect.objectContaining({
               delegation: expect.objectContaining({
                 id: substitutionId,
-                originalAccountId: users[0].account.id,
+                originalAccountId: at(users, 0).account.id,
               }),
             }),
           }),

@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("caixa deriva pendências acionáveis e remove demanda respondida ou complemento enviado", async ({
   playwright,
@@ -11,17 +18,17 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
       }),
     ),
   );
-  const [admin, worker, other] = contexts;
+  const [admin, worker, other] = tuple(contexts, 3);
   let overrideId: string | undefined;
   try {
     expect((await admin.get("/api/inbox")).status()).toBe(401);
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const login = await contexts[index].post("/api/auth/login", {
+      const login = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -32,10 +39,10 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
     }
     const override = await admin.post("/api/admin/permission-overrides", {
       data: {
-        accountId: users[1].account.id,
+        accountId: at(users, 1).account.id,
         permission: "hr_requests.create",
         effect: "allow",
-        unitId: users[1].employment.unit.id,
+        unitId: at(users, 1).employment.unit.id,
       },
     });
     expect(override.status()).toBe(201);

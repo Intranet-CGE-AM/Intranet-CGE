@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("substituição temporária encaminha somente a aprovação delegada e é revogável", async ({
   playwright,
@@ -11,17 +18,17 @@ test("substituição temporária encaminha somente a aprovação delegada e é r
       }),
     ),
   );
-  const [admin, chief, substitute, worker] = clients;
+  const [admin, chief, substitute, worker] = tuple(clients, 4);
   let substitutionId: string | undefined;
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
       "caio.nascimento@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -36,9 +43,9 @@ test("substituição temporária encaminha somente a aprovação delegada e é r
     expect(vacation.status()).toBe(201);
     const record = await vacation.json();
     const payload = {
-      originalAccountId: users[1].account.id,
-      substituteAccountId: users[2].account.id,
-      unitId: users[3].employment.unit.id,
+      originalAccountId: at(users, 1).account.id,
+      substituteAccountId: at(users, 2).account.id,
+      unitId: at(users, 3).employment.unit.id,
       startsOn: "2026-01-01",
       endsOn: "2040-12-31",
       reason: "Continuidade da análise durante afastamento da chefia.",
@@ -58,7 +65,7 @@ test("substituição temporária encaminha somente a aprovação delegada e é r
           id: `vacation:${record.id}`,
           delegation: expect.objectContaining({
             id: substitution.id,
-            originalName: users[1].person.displayName,
+            originalName: at(users, 1).person.displayName,
           }),
         }),
       ]),
@@ -70,7 +77,9 @@ test("substituição temporária encaminha somente a aprovação delegada e é r
     );
     expect(
       (
-        await substitute.get(`/api/documents?personId=${users[3].person.id}`)
+        await substitute.get(
+          `/api/documents?personId=${at(users, 3).person.id}`,
+        )
       ).status(),
     ).toBe(403);
     expect((await substitute.get("/api/hr-requests?scope=team")).status()).toBe(

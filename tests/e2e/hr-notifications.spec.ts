@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("notificações de férias e checklists são privadas, deduplicadas e persistem a leitura", async ({
   playwright,
@@ -11,15 +18,15 @@ test("notificações de férias e checklists são privadas, deduplicadas e persi
       }),
     ),
   );
-  const [admin, worker, chief] = clients;
+  const [admin, worker, chief] = tuple(clients, 3);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -91,10 +98,10 @@ test("notificações de férias e checklists são privadas, deduplicadas e persi
     expect(templateResponse.status()).toBe(201);
     const checklistResponse = await admin.post("/api/checklists", {
       data: {
-        personId: users[1].person.id,
-        employmentId: users[1].employment.id,
+        personId: at(users, 1).person.id,
+        employmentId: at(users, 1).employment.id,
         templateId: (await templateResponse.json()).id,
-        assignments: [{ itemIndex: 0, accountId: users[1].account.id }],
+        assignments: [{ itemIndex: 0, accountId: at(users, 1).account.id }],
       },
     });
     expect(checklistResponse.status()).toBe(201);

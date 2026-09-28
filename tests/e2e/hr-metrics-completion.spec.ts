@@ -45,7 +45,7 @@ test("prazo médio considera somente solicitações concluídas no período, inc
       ["2002-01-01T12:00:00-04:00", "2002-01-05T12:00:00-04:00"],
       ["2002-01-03T23:30:00-04:00", "2002-01-05T23:30:00-04:00"],
       ["2002-01-01T00:00:00-04:00", "2002-01-06T00:00:00-04:00"],
-    ]) {
+    ] as const) {
       const created = await worker.post("/api/hr-requests", {
         data: {
           type: "declaration",

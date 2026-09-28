@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 
 test("certificado e capacitação são enviados juntos com política e acesso documental privado", async ({
@@ -12,16 +19,16 @@ test("certificado e capacitação são enviados juntos com política e acesso do
       }),
     ),
   );
-  const [admin, worker, chief] = contexts;
+  const [admin, worker, chief] = tuple(contexts, 3);
   let grantId: string | undefined;
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "helena.monteiro@homolog.cge.am.gov.br",
     ].entries()) {
-      const result = await contexts[index].post("/api/auth/login", {
+      const result = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -33,10 +40,10 @@ test("certificado e capacitação são enviados juntos com política e acesso do
     expect((await admin.get("/api/training-settings")).status()).toBe(200);
     const grant = await admin.post("/api/admin/permission-overrides", {
       data: {
-        accountId: users[1].account.id,
+        accountId: at(users, 1).account.id,
         permission: "training.create",
         effect: "allow",
-        unitId: users[1].employment.unit.id,
+        unitId: at(users, 1).employment.unit.id,
       },
     });
     expect(grant.status()).toBe(201);

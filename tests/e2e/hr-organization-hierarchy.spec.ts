@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("hierarquia impede ciclos e restringe estrutura, totais e gestão às unidades autorizadas", async ({
   playwright,
@@ -11,15 +18,15 @@ test("hierarquia impede ciclos e restringe estrutura, totais e gestão às unida
       }),
     ),
   );
-  const [admin, scoped] = clients;
+  const [admin, scoped] = tuple(clients, 2);
   const grants: string[] = [];
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -73,7 +80,7 @@ test("hierarquia impede ciclos e restringe estrutura, totais e gestão às unida
     async function grant(permission: string) {
       const response = await admin.post("/api/admin/permission-overrides", {
         data: {
-          accountId: users[1].account.id,
+          accountId: at(users, 1).account.id,
           permission,
           effect: "allow",
           unitId: a.id,
@@ -138,7 +145,7 @@ test("hierarquia impede ciclos e restringe estrutura, totais e gestão às unida
     expect(
       (
         await scoped.post(
-          `/api/organization/employments/${users[1].employment.id}/position`,
+          `/api/organization/employments/${at(users, 1).employment.id}/position`,
           { data: { positionId: null, version: 1 } },
         )
       ).status(),

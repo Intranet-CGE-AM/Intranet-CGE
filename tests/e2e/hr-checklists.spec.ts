@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("checklist preserva modelo, restringe responsáveis e exige justificativa para dispensa obrigatória", async ({
   playwright,
@@ -11,15 +18,15 @@ test("checklist preserva modelo, restringe responsáveis e exige justificativa p
       }),
     ),
   );
-  const [admin, worker, other] = contexts;
+  const [admin, worker, other] = tuple(contexts, 3);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -60,12 +67,12 @@ test("checklist preserva modelo, restringe responsáveis e exige justificativa p
     const template = await templateResponse.json();
     const executionResponse = await admin.post("/api/checklists", {
       data: {
-        personId: users[1].person.id,
-        employmentId: users[1].employment.id,
+        personId: at(users, 1).person.id,
+        employmentId: at(users, 1).employment.id,
         templateId: template.id,
         assignments: [
-          { itemIndex: 0, accountId: users[1].account.id },
-          { itemIndex: 1, accountId: users[0].account.id },
+          { itemIndex: 0, accountId: at(users, 1).account.id },
+          { itemIndex: 1, accountId: at(users, 0).account.id },
         ],
       },
     });
@@ -149,7 +156,7 @@ test("checklist preserva modelo, restringe responsáveis e exige justificativa p
     expect(finished.items[0]).toMatchObject({
       status: "waived",
       comment: "Orientações já recebidas presencialmente.",
-      completedBy: users[1].account.id,
+      completedBy: at(users, 1).account.id,
     });
     expect(
       (

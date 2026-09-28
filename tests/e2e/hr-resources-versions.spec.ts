@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { clientHeaders, expect, test, tuple, at } from "./fixtures";
 import { blankPdf } from "./pdf-fixture";
 
 test("nova versão preserva PDF anterior, exige nova ciência e impede publicação concorrente ou retorno após arquivar", async ({
@@ -12,7 +12,7 @@ test("nova versão preserva PDF anterior, exige nova ciência e impede publicaç
       }),
     ),
   );
-  const [admin, worker] = clients;
+  const [admin, worker] = tuple(clients, 2);
   try {
     for (const [index, email] of [
       "admin-e2e@local.invalid",
@@ -20,7 +20,7 @@ test("nova versão preserva PDF anterior, exige nova ciência e impede publicaç
     ].entries())
       expect(
         (
-          await clients[index].post("/api/auth/login", {
+          await at(clients, index).post("/api/auth/login", {
             data: {
               email,
               password: index

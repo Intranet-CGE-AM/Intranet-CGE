@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("período e edição versionada controlam a substituição, respeitando negativas e autoridade original", async ({
   playwright,
@@ -11,19 +18,19 @@ test("período e edição versionada controlam a substituição, respeitando neg
       }),
     ),
   );
-  const [admin, chief, substitute, worker] = clients;
+  const [admin, chief, substitute, worker] = tuple(clients, 4);
   let substitutionId = "";
   let version = 1;
   let overrideId = "";
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "helena.monteiro@homolog.cge.am.gov.br",
       "leonardo.araujo@homolog.cge.am.gov.br",
       "caio.nascimento@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await clients[index].post("/api/auth/login", {
+      const response = await at(clients, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -33,9 +40,9 @@ test("período e edição versionada controlam a substituição, respeitando neg
       users.push((await response.json()).user);
     }
     const payload = {
-      originalAccountId: users[1].account.id,
-      substituteAccountId: users[2].account.id,
-      unitId: users[3].employment.unit.id,
+      originalAccountId: at(users, 1).account.id,
+      substituteAccountId: at(users, 2).account.id,
+      unitId: at(users, 3).employment.unit.id,
       startsOn: "2026-01-01",
       endsOn: "2040-12-31",
       reason: "Continuidade da chefia durante afastamento.",
@@ -54,7 +61,7 @@ test("período e edição versionada controlam a substituição, respeitando neg
     ]);
     const denial = await admin.post("/api/admin/permission-overrides", {
       data: {
-        accountId: users[2].account.id,
+        accountId: at(users, 2).account.id,
         permission: "vacations.review.supervisor",
         effect: "deny",
         unitId: null,
@@ -73,8 +80,8 @@ test("período e edição versionada controlam a substituição, respeitando neg
         await admin.post("/api/substitutions", {
           data: {
             ...payload,
-            originalAccountId: users[2].account.id,
-            substituteAccountId: users[3].account.id,
+            originalAccountId: at(users, 2).account.id,
+            substituteAccountId: at(users, 3).account.id,
           },
         })
       ).status(),

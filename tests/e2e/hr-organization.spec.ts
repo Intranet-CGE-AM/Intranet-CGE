@@ -1,4 +1,11 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import {
+  clientHeaders,
+  expect,
+  test,
+  tuple,
+  type E2EUser,
+  at,
+} from "./fixtures";
 
 test("quadro de cargos deriva ocupação dos vínculos ativos e preserva o cargo descritivo", async ({
   playwright,
@@ -11,14 +18,14 @@ test("quadro de cargos deriva ocupação dos vínculos ativos e preserva o cargo
       }),
     ),
   );
-  const [admin, worker] = contexts;
+  const [admin, worker] = tuple(contexts, 2);
   try {
-    const users = [];
+    const users: E2EUser[] = [];
     for (const [index, email] of [
       "admin-e2e@local.invalid",
       "caio.nascimento@homolog.cge.am.gov.br",
     ].entries()) {
-      const response = await contexts[index].post("/api/auth/login", {
+      const response = await at(contexts, index).post("/api/auth/login", {
         data: {
           email,
           password: index ? "Homolog-Password-2026" : "Admin-E2E-Password-123",
@@ -27,13 +34,13 @@ test("quadro de cargos deriva ocupação dos vínculos ativos e preserva o cargo
       expect(response.status()).toBe(200);
       users.push((await response.json()).user);
     }
-    const unitId = users[1].employment.unit.id;
+    const unitId = at(users, 1).employment.unit.id;
     const personResponse = await admin.post("/api/people", {
       data: {
         fullName: "Pessoa do quadro de cargos",
         employment: {
           employeeNumber: `ORG-BASE-${Date.now()}`,
-          categoryId: users[1].employment.category.id,
+          categoryId: at(users, 1).employment.category.id,
           unitId,
           startDate: "2020-01-01",
           jobTitle: "Cargo descritivo preservado",
@@ -170,7 +177,9 @@ test("quadro de cargos deriva ocupação dos vínculos ativos e preserva o cargo
       expect.arrayContaining([
         expect.objectContaining({
           objectId: employment.id,
-          actor: expect.objectContaining({ accountId: users[0].account.id }),
+          actor: expect.objectContaining({
+            accountId: at(users, 0).account.id,
+          }),
         }),
       ]),
     );

@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { clientHeaders, expect, test, tuple } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 test.use({ actionTimeout: 15000 });
@@ -14,7 +14,7 @@ test("chefia consulta disponibilidade e pendências em lista acessível e recupe
       }),
     ),
   );
-  const [admin, worker] = contexts;
+  const [admin, worker] = tuple(contexts, 2);
   try {
     for (const [context, email, password] of [
       [admin, "admin-e2e@local.invalid", "Admin-E2E-Password-123"],
