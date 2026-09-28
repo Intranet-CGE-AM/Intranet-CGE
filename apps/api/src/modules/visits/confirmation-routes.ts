@@ -2,7 +2,6 @@ import { visitorConfirmationResponseSchema } from "@cge/contracts";
 
 import type { FastifyInstance, FastifyReply } from "fastify";
 
-
 import {
   VisitConfirmationError,
   VisitConfirmationService,
