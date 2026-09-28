@@ -1,75 +1,52 @@
-import type {
-  Visit,
-  VisitDashboard,
-  VisitStatus,
-  VisitSummary,
-} from "@cge/contracts";
+import type { Visit, VisitDashboard, VisitSummary } from "@cge/contracts";
 
 import {
   Alert,
   Badge,
   Button,
   Card,
-  CardContent,
   CardHeader,
+  ConfirmDialog,
+  Dialog,
+  DialogContent,
   EmptyState,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 
-import { CheckCircle, Eye, Play, X, XCircle } from "@phosphor-icons/react";
+import { useCallback, useEffect, useState } from "react";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { VisitDetail, VisitStats } from "../components/visit-ui";
+import { api, json } from "../lib/api";
+import {
+  formatVisitDate,
+  formatVisitTime,
+  visitErrorMessage,
+  visitStatusMeta,
+  visitTypeLabels,
+} from "../lib/visit-labels";
 
-import { api, ApiError, json } from "../lib/api";
+const cancellable: VisitSummary["status"][] = [
+  "pending",
+  "approved",
+  "scheduled",
+];
 
-const statusLabels: Record<VisitStatus, string> = {
-  pending: "Pendente",
-
-  approved: "Aprovada",
-
-  scheduled: "Liberada para recepção",
-
-  in_progress: "Em atendimento",
-
-  completed: "Concluída",
-
-  cancelled: "Cancelada",
-
-  rejected: "Recusada",
-};
-
-function statusVariant(
-  status: VisitStatus,
-): "neutral" | "warning" | "success" | "danger" | "brand" {
-  switch (status) {
-    case "pending":
-    case "in_progress":
-      return "warning";
-
-    case "approved":
-    case "scheduled":
-      return "brand";
-
-    case "completed":
-      return "success";
-
-    case "rejected":
-      return "danger";
-
-    default:
-      return "neutral";
-  }
-}
+const sectionHeaders = ["Data e hora", "Visita", "Situação", "Ações"];
 
 export function VisitAgendaPage() {
   const [dashboard, setDashboard] = useState<VisitDashboard | null>(null);
 
   const [detail, setDetail] = useState<Visit | null>(null);
 
-  const [cancelId, setCancelId] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   const [busy, setBusy] = useState(false);
+
+  const [loadError, setLoadError] = useState("");
 
   const [error, setError] = useState("");
 
@@ -79,13 +56,15 @@ export function VisitAgendaPage() {
     try {
       setLoading(true);
 
-      setError("");
+      setLoadError("");
 
       const result = await api<VisitDashboard>("/api/visits/dashboard");
 
       setDashboard(result);
     } catch (cause) {
-      setError(getError(cause, "Não foi possível carregar a agenda."));
+      setLoadError(
+        visitErrorMessage(cause, "Não foi possível carregar a agenda."),
+      );
     } finally {
       setLoading(false);
     }
@@ -101,7 +80,9 @@ export function VisitAgendaPage() {
 
       setDetail(result);
     } catch (cause) {
-      setError(getError(cause, "Não foi possível consultar a visita."));
+      setError(
+        visitErrorMessage(cause, "Não foi possível consultar a visita."),
+      );
     }
   }
 
@@ -119,7 +100,9 @@ export function VisitAgendaPage() {
 
       await loadDashboard();
     } catch (cause) {
-      setError(getError(cause, "Não foi possível iniciar o atendimento."));
+      setError(
+        visitErrorMessage(cause, "Não foi possível iniciar o atendimento."),
+      );
     } finally {
       setBusy(false);
     }
@@ -139,21 +122,19 @@ export function VisitAgendaPage() {
 
       await loadDashboard();
     } catch (cause) {
-      setError(getError(cause, "Não foi possível concluir o atendimento."));
+      setError(
+        visitErrorMessage(cause, "Não foi possível concluir o atendimento."),
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  async function cancelVisit() {
-    if (!cancelId) {
-      return;
-    }
-
+  async function cancelVisit(id: string) {
     try {
       setBusy(true);
 
-      await api(`/api/visits/${cancelId}/cancel`, {
+      await api(`/api/visits/${id}/cancel`, {
         method: "POST",
 
         body: json({
@@ -161,35 +142,45 @@ export function VisitAgendaPage() {
         }),
       });
 
-      setCancelId(null);
-
       setSuccess("Visita cancelada.");
 
       await loadDashboard();
     } catch (cause) {
-      setError(getError(cause, "Não foi possível cancelar a visita."));
+      setError(visitErrorMessage(cause, "Não foi possível cancelar a visita."));
     } finally {
       setBusy(false);
     }
   }
 
+  const sectionProps = {
+    busy,
+    onView: viewVisit,
+    onStart: startVisit,
+    onComplete: completeVisit,
+    onCancel: cancelVisit,
+  };
+
   return (
-    <div className="page-enter space-y-5 pb-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Agendamento de Visitas
-        </p>
+    <div className="page-enter space-y-5">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Agendamento de Visitas
+          </p>
 
-        <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">Agenda</h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            Agenda
+          </h1>
 
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Acompanhe as visitas liberadas e o atendimento realizado pela
-          recepção.
-        </p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Acompanhe as visitas liberadas e o atendimento realizado pela
+            recepção.
+          </p>
+        </div>
       </div>
 
       {error ? (
-        <Alert title="Erro" tone="danger">
+        <Alert title="A operação não foi concluída" tone="danger">
           {error}
         </Alert>
       ) : null}
@@ -200,137 +191,145 @@ export function VisitAgendaPage() {
         </Alert>
       ) : null}
 
-      {loading ? (
-        <Card>
-          <CardContent>
-            <p className="py-10 text-center">Carregando agenda...</p>
-          </CardContent>
-        </Card>
+      {loadError ? (
+        <Alert title="Não foi possível carregar a agenda" tone="danger">
+          <p>{loadError}</p>
+          <Button
+            className="mt-3"
+            onClick={() => void loadDashboard()}
+            size="sm"
+            variant="secondary"
+          >
+            Tentar novamente
+          </Button>
+        </Alert>
+      ) : loading && !dashboard ? (
+        <>
+          <VisitStats
+            items={[
+              { label: "Hoje", value: 0 },
+              { label: "Amanhã", value: 0 },
+              { label: "Em atendimento", value: 0 },
+            ]}
+            label="Resumo da agenda"
+            loading
+          />
+
+          <Card>
+            <CardHeader>
+              <h2 className="font-bold">Visitas de hoje</h2>
+            </CardHeader>
+
+            <TableSkeleton
+              ariaLabel="Carregando agenda"
+              headers={sectionHeaders}
+              rows={3}
+            />
+          </Card>
+        </>
       ) : dashboard ? (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Counter title="Hoje" value={dashboard.counters.today} />
-
-            <Counter title="Amanhã" value={dashboard.counters.tomorrow} />
-
-            <Counter
-              title="Em atendimento"
-              value={dashboard.counters.inProgress}
-            />
-          </div>
+          <VisitStats
+            items={[
+              { label: "Hoje", value: dashboard.counters.today },
+              { label: "Amanhã", value: dashboard.counters.tomorrow },
+              { label: "Em atendimento", value: dashboard.counters.inProgress },
+            ]}
+            label="Resumo da agenda"
+          />
 
           <AgendaSection
             title="Visitas de hoje"
+            description="Compromissos previstos para hoje"
+            emptyDescription="Nenhum compromisso previsto para hoje."
             visits={dashboard.today}
-            busy={busy}
-            onView={viewVisit}
-            onStart={startVisit}
-            onComplete={completeVisit}
-            onCancel={setCancelId}
+            {...sectionProps}
           />
 
           <AgendaSection
             title="Visitas de amanhã"
+            description="Compromissos previstos para amanhã"
+            emptyDescription="Nenhum compromisso registrado para amanhã."
             visits={dashboard.tomorrow}
-            busy={busy}
-            onView={viewVisit}
-            onStart={startVisit}
-            onComplete={completeVisit}
-            onCancel={setCancelId}
+            {...sectionProps}
           />
 
           <AgendaSection
             title="Próximas visitas"
+            description="Agendamentos dos próximos dias"
+            emptyDescription="Os próximos agendamentos aparecerão aqui."
             visits={dashboard.upcoming}
-            busy={busy}
-            onView={viewVisit}
-            onStart={startVisit}
-            onComplete={completeVisit}
-            onCancel={setCancelId}
+            {...sectionProps}
           />
         </>
       ) : null}
 
-      {cancelId ? (
-        <ModalOverlay>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-extrabold">Cancelar visita?</h2>
+      <Dialog
+        open={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          title={detail?.subject ?? "Detalhes da visita"}
+          description={detail?.protocol}
+        >
+          {detail ? (
+            <>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <VisitDetail label="Órgão">{detail.organization}</VisitDetail>
 
-            <p className="mt-2 text-sm text-[var(--text-muted)]">
-              O registro será mantido no histórico como cancelado.
-            </p>
+                <VisitDetail label="Local">{detail.location}</VisitDetail>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setCancelId(null)}>
-                Voltar
-              </Button>
+                <VisitDetail label="Data">
+                  {formatVisitDate(detail.scheduledDate)}
+                </VisitDetail>
 
-              <Button
-                variant="danger"
-                disabled={busy}
-                onClick={() => void cancelVisit()}
-              >
-                <XCircle size={16} />
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                <VisitDetail label="Horário">
+                  {formatVisitTime(detail.startTime, detail.endTime)}
+                </VisitDetail>
 
-      {detail ? (
-        <ModalOverlay>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex justify-between">
-              <div>
-                <h2 className="text-xl font-extrabold">{detail.subject}</h2>
+                <VisitDetail label="Tipo">
+                  {visitTypeLabels[detail.type]}
+                </VisitDetail>
 
-                <p className="text-sm text-[var(--text-muted)]">
-                  {detail.protocol}
-                </p>
-              </div>
+                <VisitDetail label="Situação">
+                  <Badge
+                    className="whitespace-nowrap"
+                    variant={visitStatusMeta[detail.status].variant}
+                  >
+                    {visitStatusMeta[detail.status].label}
+                  </Badge>
+                </VisitDetail>
+              </dl>
 
-              <button
-                type="button"
-                aria-label="Fechar"
-                onClick={() => setDetail(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
+              <section className="mt-6 border-t border-[var(--border)] pt-5">
+                <h3 className="font-bold">Visitantes</h3>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Detail label="Órgão" value={detail.organization} />
+                <ul className="mt-3 divide-y divide-[var(--border)]">
+                  {detail.visitors.map((visitor) => (
+                    <li className="py-3 first:pt-0 last:pb-0" key={visitor.id}>
+                      <p className="text-sm font-semibold">{visitor.name}</p>
 
-              <Detail label="Local" value={detail.location} />
-
-              <Detail label="Data" value={formatDate(detail.scheduledDate)} />
-
-              <Detail label="Status" value={statusLabels[detail.status]} />
-            </div>
-
-            <div className="mt-6">
-              <h3 className="font-bold">Visitantes</h3>
-
-              {detail.visitors.map((visitor) => (
-                <div key={visitor.id} className="mt-2 rounded-xl border p-3">
-                  <strong>{visitor.name}</strong>
-
-                  <p className="text-sm text-[var(--text-muted)]">
-                    {visitor.organization}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                        {visitor.organization}
+                        {visitor.position ? ` · ${visitor.position}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function AgendaSection({
   title,
+  description,
+  emptyDescription,
   visits,
   busy,
   onView,
@@ -339,6 +338,10 @@ function AgendaSection({
   onCancel,
 }: {
   title: string;
+
+  description: string;
+
+  emptyDescription: string;
 
   visits: VisitSummary[];
 
@@ -350,154 +353,116 @@ function AgendaSection({
 
   onComplete: (id: string) => Promise<void>;
 
-  onCancel: (id: string) => void;
+  onCancel: (id: string) => Promise<void>;
 }) {
   return (
     <Card>
       <CardHeader>
-        <h2 className="font-extrabold">{title}</h2>
+        <div>
+          <h2 className="font-bold">{title}</h2>
+
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{description}</p>
+        </div>
       </CardHeader>
 
-      <CardContent>
-        {visits.length === 0 ? (
-          <EmptyState
-            title="Nenhuma visita"
-            description="Não existem agendamentos nesta categoria."
-          />
-        ) : (
-          <div className="space-y-3">
+      {visits.length === 0 ? (
+        <EmptyState title="Nenhuma visita" description={emptyDescription} />
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              {sectionHeaders.map((header) => (
+                <TableHead
+                  className={header === "Ações" ? "text-right" : undefined}
+                  key={header}
+                >
+                  {header}
+                </TableHead>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
             {visits.map((visit) => (
-              <div
-                key={visit.id}
-                className="flex flex-col justify-between gap-4 rounded-xl border border-[var(--border)] p-4 lg:flex-row lg:items-center"
-              >
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                    <strong>{visit.subject}</strong>
-
-                    <Badge variant={statusVariant(visit.status)}>
-                      {statusLabels[visit.status]}
-                    </Badge>
-                  </div>
-
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    {visit.organization}
+              <TableRow key={visit.id}>
+                <TableCell className="whitespace-nowrap">
+                  <p className="font-semibold">
+                    {formatVisitDate(visit.scheduledDate)}
                   </p>
 
-                  <p className="mt-1 text-xs">
-                    {formatDate(visit.scheduledDate)}
-                    {" · "}
-                    {visit.startTime}
-                    {" às "}
-                    {visit.endTime}
+                  <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                    {formatVisitTime(visit.startTime, visit.endTime)}
                   </p>
-                </div>
+                </TableCell>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void onView(visit.id)}
+                <TableCell className="min-w-56">
+                  <p className="font-semibold">{visit.subject}</p>
+
+                  <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                    {visit.organization} · {visit.location}
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  <Badge
+                    className="whitespace-nowrap"
+                    variant={visitStatusMeta[visit.status].variant}
                   >
-                    <Eye size={15} />
-                    Consultar
-                  </Button>
+                    {visitStatusMeta[visit.status].label}
+                  </Badge>
+                </TableCell>
 
-                  {visit.status === "scheduled" ? (
+                <TableCell>
+                  <div className="flex justify-end gap-1 whitespace-nowrap">
+                    {visit.status === "scheduled" ? (
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void onStart(visit.id)}
+                      >
+                        Iniciar
+                      </Button>
+                    ) : null}
+
+                    {visit.status === "in_progress" ? (
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void onComplete(visit.id)}
+                      >
+                        Concluir
+                      </Button>
+                    ) : null}
+
                     <Button
                       size="sm"
-                      disabled={busy}
-                      onClick={() => void onStart(visit.id)}
+                      variant="quiet"
+                      onClick={() => void onView(visit.id)}
                     >
-                      <Play size={15} />
-                      Iniciar
+                      Ver detalhes
                     </Button>
-                  ) : null}
 
-                  {visit.status === "in_progress" ? (
-                    <Button
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => void onComplete(visit.id)}
-                    >
-                      <CheckCircle size={15} />
-                      Concluir
-                    </Button>
-                  ) : null}
-
-                  {["pending", "approved", "scheduled"].includes(
-                    visit.status,
-                  ) ? (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => onCancel(visit.id)}
-                    >
-                      Cancelar
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+                    {cancellable.includes(visit.status) ? (
+                      <ConfirmDialog
+                        busyLabel="Cancelando…"
+                        cancelLabel="Voltar"
+                        confirmLabel="Cancelar visita"
+                        description={`"${visit.subject}" sairá da agenda e ficará no histórico como cancelada.`}
+                        onConfirm={() => onCancel(visit.id)}
+                        title="Cancelar visita?"
+                      >
+                        <Button disabled={busy} size="sm" variant="quiet">
+                          Cancelar
+                        </Button>
+                      </ConfirmDialog>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
-          </div>
-        )}
-      </CardContent>
+          </tbody>
+        </Table>
+      )}
     </Card>
   );
-}
-
-function Counter({
-  title,
-  value,
-}: {
-  title: string;
-
-  value: number;
-}) {
-  return (
-    <Card>
-      <CardContent>
-        <p className="text-xs font-bold uppercase text-[var(--text-faint)]">
-          {title}
-        </p>
-
-        <p className="mt-2 text-3xl font-extrabold">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ModalOverlay({ children }: { children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      {children}
-    </div>
-  );
-}
-
-function Detail({
-  label,
-  value,
-}: {
-  label: string;
-
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase text-[var(--text-faint)]">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm">{value}</p>
-    </div>
-  );
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
-}
-
-function getError(cause: unknown, fallback: string) {
-  return cause instanceof ApiError ? cause.message : fallback;
 }
