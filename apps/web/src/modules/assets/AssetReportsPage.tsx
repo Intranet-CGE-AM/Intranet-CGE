@@ -6,6 +6,8 @@ import {
   FunnelSimple,
 } from "@phosphor-icons/react";
 
+import { DateInput } from "@cge/ui";
+
 import { api } from "../../lib/api";
 
 import * as XLSX from "xlsx";
@@ -153,10 +155,6 @@ export function AssetReportsPage() {
       unit.active &&
       (!sectorId || unit.parentId === sectorId),
   );
-
-  {
-    unitsError ? <p className="text-sm text-red-600">{unitsError}</p> : null;
-  }
 
   async function handleGenerateReport() {
     try {
@@ -499,9 +497,7 @@ export function AssetReportsPage() {
           <label className="space-y-1">
             <span className="text-sm font-medium">Data inicial</span>
 
-            <input
-              type="date"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            <DateInput
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
             />
@@ -511,14 +507,16 @@ export function AssetReportsPage() {
           <label className="space-y-1">
             <span className="text-sm font-medium">Data final</span>
 
-            <input
-              type="date"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            <DateInput
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
           </label>
         </div>
+
+        {unitsError ? (
+          <p className="mt-4 text-sm text-red-600">{unitsError}</p>
+        ) : null}
 
         {/* BOTÕES */}
         <div className="mt-6 flex flex-wrap gap-3">

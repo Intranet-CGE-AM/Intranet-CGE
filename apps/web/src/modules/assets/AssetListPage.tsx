@@ -610,10 +610,6 @@ export function AssetListPage() {
 
                 <tbody>
                   {assets.map((asset) => {
-                    const unit = asset.unitId
-                      ? unitsById.get(asset.unitId)
-                      : null;
-
                     return (
                       <TableRow key={asset.id}>
                         <TableCell>
