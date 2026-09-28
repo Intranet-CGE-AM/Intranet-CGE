@@ -384,7 +384,12 @@ export function AssetMovementPage() {
                 htmlFor="movementDate"
                 error={fieldErrors.movementDate}
               >
-                <DatePicker id="movementDate" name="movementDate" required />
+                <DatePicker
+                  aria-invalid={Boolean(fieldErrors.movementDate)}
+                  id="movementDate"
+                  name="movementDate"
+                  required
+                />
               </FormField>
 
               <FormField

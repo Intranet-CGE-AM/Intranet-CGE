@@ -187,6 +187,7 @@ export function AssetDisposalPage() {
                     error={fieldErrors.disposalDate}
                   >
                     <DatePicker
+                      aria-invalid={Boolean(fieldErrors.disposalDate)}
                       id="disposalDate"
                       name="disposalDate"
                       required
