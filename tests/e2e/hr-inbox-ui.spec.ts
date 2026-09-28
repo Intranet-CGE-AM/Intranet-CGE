@@ -77,8 +77,14 @@ test("painel e caixa compartilham totais, filtros e recuperação acessível", a
     });
   }
   await page.getByRole("link", { name: "Ver todas as pendências" }).click();
+  await expect(page).toHaveURL(/\/rh\/pendencias/);
+  // The dashboard panel shares this title as an h2; wait for the page's h1.
   await expect(
-    page.getByRole("heading", { name: "Minhas pendências", exact: true }),
+    page.getByRole("heading", {
+      level: 1,
+      name: "Minhas pendências",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(page.getByText(totalLabel, { exact: true })).toBeVisible();
   for (const width of [1280, 390]) {

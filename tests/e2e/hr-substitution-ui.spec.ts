@@ -202,8 +202,9 @@ test("pendência explica origem da substituição e atualiza acesso sem recarreg
     await expect(
       page.getByText("Acesso restrito", { exact: true }),
     ).toBeHidden();
+    // The inbox link deep-links into the chief decision, which opens as a modal.
     await expect(
-      page.getByRole("heading", { name: "Férias", exact: true }),
+      page.getByRole("dialog", { name: "Analisar solicitação" }),
     ).toBeVisible();
   } finally {
     if (id)

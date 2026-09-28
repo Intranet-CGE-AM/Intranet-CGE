@@ -12,6 +12,8 @@ test("correções respeitam rejeição, escopo de transferência e concorrência
   const worker = await playwright.request.newContext(options);
   const rh = await playwright.request.newContext(options);
   const overrides: string[] = [];
+  // Dandara is a shared homolog persona; undo the transfer for later specs.
+  let restore: { personId: string; unitId: string } | null = null;
   try {
     await admin.post("/api/auth/login", {
       data: {
@@ -92,6 +94,7 @@ test("correções respeitam rejeição, escopo de transferência e concorrência
     const destination = units.find(
       (unit: { id: string }) => unit.id !== user.employment.unit.id,
     );
+    restore = { personId: user.person.id, unitId: user.employment.unit.id };
     const transfer = await submit({ employment: { unitId: destination.id } });
     await rh.post(`/api/hr-requests/${transfer.id}/transition`, {
       data: { action: "start", version: 1 },
@@ -143,6 +146,28 @@ test("correções respeitam rejeição, escopo de transferência e concorrência
       ),
     ).toHaveLength(1);
   } finally {
+    if (restore) {
+      const path = `/api/people/${restore.personId}`;
+      const current = await (
+        await admin.get(`${path}/employment-history`)
+      ).json();
+      const active = current.employments.find(
+        (item: { endDate: string | null }) => !item.endDate,
+      );
+      if (active.unitId !== restore.unitId) {
+        const restored = await admin.post(`${path}/movements`, {
+          data: {
+            expectedVersion: current.version,
+            effectiveOn: new Date().toLocaleDateString("en-CA", {
+              timeZone: "America/Manaus",
+            }),
+            reason: "Retorno da persona compartilhada após o teste.",
+            changes: { unitId: restore.unitId },
+          },
+        });
+        expect(restored.status()).toBe(201);
+      }
+    }
     for (const id of overrides)
       await admin.delete(`/api/admin/permission-overrides/${id}`);
     await admin.dispose();
