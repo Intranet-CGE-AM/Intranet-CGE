@@ -15,6 +15,7 @@ import { ChangePasswordPage } from "./pages/change-password";
 import { LoginPage } from "./pages/login";
 
 import { NotificationsPage } from "./pages/notifications";
+import { VisitConfirmationPage } from "./pages/visit-confirmation";
 
 const AccountPage = lazy(() =>
   import("./pages/account").then((module) => ({
@@ -226,6 +227,10 @@ export function App() {
       <Route path="login" element={<LoginPage />} />
 
       <Route path="alterar-senha" element={<ChangePasswordPage />} />
+      <Route
+        path="visitas/confirmar/:token"
+        element={<VisitConfirmationPage />}
+      />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
