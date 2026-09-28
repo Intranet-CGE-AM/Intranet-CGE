@@ -44,4 +44,25 @@ describe("visit confirmation routes", () => {
     expect(response.json()).toEqual(publicVisit);
     await app.close();
   });
+
+  it("rate limits the public lookup per client", async () => {
+    const app = await buildApp({
+      config,
+      readinessCheck: async () => undefined,
+      visitConfirmationService: confirmationService,
+    });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/visit-confirmations/abc123",
+      });
+      statuses.push(response.statusCode);
+    }
+
+    expect(statuses.slice(0, 10).every((status) => status === 200)).toBe(true);
+    expect(statuses[10]).toBe(429);
+    await app.close();
+  });
 });
