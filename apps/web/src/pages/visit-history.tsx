@@ -13,25 +13,32 @@ import {
   Card,
   CardContent,
   CardHeader,
+  DataTable,
+  Dialog,
+  DialogContent,
   EmptyState,
+  FormField,
   Input,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
+  Select,
+  TableSkeleton,
+  type ColumnDef,
 } from "@cge/ui";
 
-import { Eye, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, SlidersHorizontal } from "@phosphor-icons/react";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { api, ApiError } from "../lib/api";
-
-import { visitStatusLabels, visitTypeLabels } from "../lib/visit-labels";
-
-/* =========================================================
- * CONSTANTES
- * ======================================================= */
+import { VisitDetail } from "../components/visit-ui";
+import { api } from "../lib/api";
+import {
+  formatVisitDate,
+  formatVisitDateTime,
+  formatVisitTime,
+  visitErrorMessage,
+  visitStatusLabels,
+  visitStatusMeta,
+  visitTypeLabels,
+} from "../lib/visit-labels";
 
 const eventLabels: Record<string, string> = {
   "visit.created": "Visita cadastrada",
@@ -51,9 +58,35 @@ const eventLabels: Record<string, string> = {
   "visit.cancelled": "Visita cancelada",
 };
 
-/* =========================================================
- * PÁGINA
- * ======================================================= */
+// Radix Select does not accept an empty value, so "all" stands for no filter.
+const ALL = "all";
+
+const typeOptions = [
+  { value: ALL, label: "Todos os tipos" },
+  ...Object.entries(visitTypeLabels).map(([value, label]) => ({
+    value,
+    label,
+  })),
+];
+
+const statusOptions = [
+  { value: ALL, label: "Todas as situações" },
+  ...Object.entries(visitStatusLabels).map(([value, label]) => ({
+    value,
+    label,
+  })),
+];
+
+const tableHeaders = [
+  "Protocolo",
+  "Data",
+  "Tipo",
+  "Motivo",
+  "Órgão",
+  "Sala",
+  "Situação",
+  "Ações",
+];
 
 export function VisitHistoryPage() {
   const [visits, setVisits] = useState<VisitSummary[]>([]);
@@ -68,7 +101,7 @@ export function VisitHistoryPage() {
 
   const [page, setPage] = useState(1);
 
-  const [totalPages, setTotalPages] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const [total, setTotal] = useState(0);
 
@@ -78,18 +111,16 @@ export function VisitHistoryPage() {
 
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const [loadError, setLoadError] = useState("");
+
   const [error, setError] = useState("");
 
-  const pageSize = 10;
-
-  /* =======================================================
-   * CARREGAR HISTÓRICO
-   * ===================================================== */
+  const hasFilters = Boolean(query.trim() || type || status);
 
   const loadHistory = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
+      setLoadError("");
 
       const params = new URLSearchParams({
         page: String(page),
@@ -116,25 +147,20 @@ export function VisitHistoryPage() {
       setVisits(result.visits);
 
       setTotal(result.pagination.total);
-
-      setTotalPages(result.pagination.totalPages);
     } catch (cause) {
-      setError(
-        getErrorMessage(cause, "Não foi possível carregar o histórico."),
+      setLoadError(
+        visitErrorMessage(cause, "Não foi possível carregar o histórico."),
       );
     } finally {
       setLoading(false);
     }
-  }, [page, search, type, status]);
+  }, [page, pageSize, search, type, status]);
 
   useEffect(() => {
     void loadHistory();
   }, [loadHistory]);
 
-  /* =======================================================
-   * PESQUISA COM DELAY
-   * ===================================================== */
-
+  // Debounce the free-text search.
   useEffect(() => {
     const normalized = query.trim();
 
@@ -152,10 +178,6 @@ export function VisitHistoryPage() {
     };
   }, [query, search]);
 
-  /* =======================================================
-   * DETALHES
-   * ===================================================== */
-
   async function openDetail(id: string) {
     try {
       setDetailLoading(true);
@@ -166,7 +188,7 @@ export function VisitHistoryPage() {
       setDetail(visit);
     } catch (cause) {
       setError(
-        getErrorMessage(
+        visitErrorMessage(
           cause,
           "Não foi possível consultar o histórico da visita.",
         ),
@@ -184,393 +206,324 @@ export function VisitHistoryPage() {
     setPage(1);
   }
 
-  /* =======================================================
-   * RENDER
-   * ===================================================== */
+  const columns: ColumnDef<VisitSummary>[] = [
+    {
+      header: "Protocolo",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-semibold">
+          {row.original.protocol}
+        </span>
+      ),
+    },
+    {
+      header: "Data",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">
+          {formatVisitDate(row.original.scheduledDate)}
+        </span>
+      ),
+    },
+    {
+      header: "Tipo",
+      cell: ({ row }) => visitTypeLabels[row.original.type],
+    },
+    {
+      header: "Motivo",
+      cell: ({ row }) => (
+        <span className="line-clamp-2 min-w-48">{row.original.subject}</span>
+      ),
+    },
+    {
+      header: "Órgão",
+      cell: ({ row }) => row.original.organization,
+    },
+    {
+      header: "Sala",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">{row.original.location}</span>
+      ),
+    },
+    {
+      header: "Situação",
+      cell: ({ row }) => (
+        <Badge
+          className="whitespace-nowrap"
+          variant={visitStatusMeta[row.original.status].variant}
+        >
+          {visitStatusMeta[row.original.status].label}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="block text-right">Ações</span>,
+      cell: ({ row }) => (
+        <div className="flex justify-end whitespace-nowrap">
+          <Button
+            type="button"
+            size="sm"
+            variant="quiet"
+            disabled={detailLoading}
+            onClick={() => void openDetail(row.original.id)}
+          >
+            Ver detalhes
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="page-enter space-y-5 pb-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Agendamento de Visitas
-        </p>
+    <div className="page-enter space-y-5">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Agendamento de Visitas
+          </p>
 
-        <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-          Histórico
-        </h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            Histórico
+          </h1>
 
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Consulte agendamentos e acompanhe os eventos registrados em cada
-          visita.
-        </p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Consulte agendamentos e acompanhe os eventos registrados em cada
+            visita.
+          </p>
+        </div>
       </div>
 
       {error ? (
-        <Alert title="Não foi possível concluir a operação" tone="danger">
+        <Alert title="A consulta não foi concluída" tone="danger">
           {error}
         </Alert>
       ) : null}
 
-      {/* FILTROS */}
+      {loadError ? (
+        <Alert title="Não foi possível carregar o histórico" tone="danger">
+          <p>{loadError}</p>
+          <Button
+            className="mt-3"
+            onClick={() => void loadHistory()}
+            size="sm"
+            variant="secondary"
+          >
+            Tentar novamente
+          </Button>
+        </Alert>
+      ) : null}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="items-start">
           <div>
-            <h2 className="font-extrabold">Consultar histórico</h2>
+            <h2 className="font-bold">Registros</h2>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Pesquise por protocolo, órgão, motivo, tipo ou situação.
+              {loading
+                ? "Consultando registros…"
+                : `${total} ${total === 1 ? "visita encontrada" : "visitas encontradas"}`}
             </p>
           </div>
-        </CardHeader>
 
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="relative">
-              <MagnifyingGlass
-                aria-hidden="true"
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
-              />
-
-              <Input
-                className="pl-9"
-                placeholder="Protocolo, órgão ou motivo"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-
-            <select
-              aria-label="Tipo da visita"
-              className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-              value={type}
-              onChange={(event) => {
-                setType(event.target.value as VisitType | "");
-
-                setPage(1);
-              }}
+          {hasFilters ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="quiet"
+              onClick={clearFilters}
             >
-              <option value="">Todos os tipos</option>
-
-              {Object.entries(visitTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              aria-label="Situação da visita"
-              className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as VisitStatus | "");
-
-                setPage(1);
-              }}
-            >
-              <option value="">Todas as situações</option>
-
-              {Object.entries(visitStatusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <Button type="button" variant="secondary" onClick={clearFilters}>
+              <SlidersHorizontal aria-hidden="true" size={16} />
               Limpar filtros
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* TABELA */}
-
-      <Card>
-        <CardHeader>
-          <div>
-            <h2 className="font-extrabold">Registros</h2>
-
-            <p className="mt-1 text-xs text-[var(--text-muted)]">
-              {total} visita(s) encontrada(s).
-            </p>
-          </div>
+          ) : null}
         </CardHeader>
 
-        <CardContent>
-          {loading ? (
-            <p className="py-10 text-center text-sm text-[var(--text-muted)]">
-              Carregando histórico...
-            </p>
-          ) : visits.length === 0 ? (
-            <EmptyState
-              title="Nenhum registro encontrado"
-              description="Altere os filtros para consultar outros agendamentos."
-            />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <thead>
-                    <tr>
-                      <TableHead>Protocolo</TableHead>
+        <CardContent className="border-b border-[var(--border)] py-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <FormField
+              className="sm:col-span-2 lg:col-span-1"
+              htmlFor="history-search"
+              label="Buscar"
+            >
+              <div className="relative">
+                <MagnifyingGlass
+                  aria-hidden="true"
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+                />
 
-                      <TableHead>Data</TableHead>
-
-                      <TableHead>Tipo</TableHead>
-
-                      <TableHead>Motivo</TableHead>
-
-                      <TableHead>Órgão</TableHead>
-
-                      <TableHead>Sala</TableHead>
-
-                      <TableHead>Situação</TableHead>
-
-                      <TableHead>Ações</TableHead>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {visits.map((visit) => (
-                      <TableRow key={visit.id}>
-                        <TableCell>
-                          <strong>{visit.protocol}</strong>
-                        </TableCell>
-
-                        <TableCell>{formatDate(visit.scheduledDate)}</TableCell>
-
-                        <TableCell>{visitTypeLabels[visit.type]}</TableCell>
-
-                        <TableCell>{visit.subject}</TableCell>
-
-                        <TableCell>{visit.organization}</TableCell>
-
-                        <TableCell>{visit.location}</TableCell>
-
-                        <TableCell>
-                          <Badge variant="neutral">
-                            {visitStatusLabels[visit.status]}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={detailLoading}
-                            onClick={() => void openDetail(visit.id)}
-                          >
-                            <Eye size={15} />
-                            Visualizar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </tbody>
-                </Table>
+                <Input
+                  autoComplete="off"
+                  className="pl-9"
+                  id="history-search"
+                  placeholder="Protocolo, órgão ou motivo"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
               </div>
+            </FormField>
 
-              {/* PAGINAÇÃO */}
+            <FormField htmlFor="history-type" label="Tipo da visita">
+              <Select
+                id="history-type"
+                name="type"
+                options={typeOptions}
+                value={type || ALL}
+                onValueChange={(value) => {
+                  setType(value === ALL ? "" : (value as VisitType));
 
-              <div className="mt-5 flex items-center justify-between">
-                <p className="text-xs text-[var(--text-muted)]">
-                  Página {page} de {Math.max(totalPages, 1)}
-                </p>
+                  setPage(1);
+                }}
+              />
+            </FormField>
 
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={page <= 1}
-                    onClick={() =>
-                      setPage((current) => Math.max(1, current - 1))
-                    }
-                  >
-                    Anterior
-                  </Button>
+            <FormField htmlFor="history-status" label="Situação">
+              <Select
+                id="history-status"
+                name="status"
+                options={statusOptions}
+                value={status || ALL}
+                onValueChange={(value) => {
+                  setStatus(value === ALL ? "" : (value as VisitStatus));
 
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((current) => current + 1)}
-                  >
-                    Próxima
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
+                  setPage(1);
+                }}
+              />
+            </FormField>
+          </div>
         </CardContent>
+
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando histórico de visitas"
+            headers={tableHeaders}
+            rows={Math.min(pageSize, 6)}
+          />
+        ) : total ? (
+          <DataTable
+            ariaLabel="Histórico de visitas"
+            columns={columns}
+            data={visits}
+            getRowId={(visit) => visit.id}
+            itemLabel="visitas"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPage(1);
+              setPageSize(size);
+            }}
+            page={page}
+            pageSize={pageSize}
+            pageSizeOptions={[10, 25, 50]}
+            total={total}
+          />
+        ) : hasFilters ? (
+          <EmptyState
+            title="Nenhum resultado para os filtros"
+            description="Ajuste ou limpe os filtros para ampliar a consulta."
+          />
+        ) : (
+          <EmptyState
+            title="Nenhuma visita registrada"
+            description="Os agendamentos cadastrados aparecerão aqui."
+          />
+        )}
       </Card>
 
-      {/* MODAL */}
+      <Dialog
+        open={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          title="Histórico da visita"
+          description={detail?.protocol}
+        >
+          {detail ? (
+            <>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <VisitDetail label="Motivo">{detail.subject}</VisitDetail>
 
-      {detail ? (
-        <ModalOverlay>
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[14px] bg-[var(--surface)] p-6 shadow-xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-faint)]">
-                  Histórico da visita
-                </p>
+                <VisitDetail label="Tipo">
+                  {visitTypeLabels[detail.type]}
+                </VisitDetail>
 
-                <h2 className="mt-1 text-xl font-extrabold">
-                  {detail.protocol}
-                </h2>
-              </div>
+                <VisitDetail label="Órgão">{detail.organization}</VisitDetail>
 
-              <button
-                type="button"
-                aria-label="Fechar"
-                onClick={() => setDetail(null)}
-              >
-                <X size={21} />
-              </button>
-            </div>
+                <VisitDetail label="Sala">{detail.location}</VisitDetail>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <DetailItem label="Motivo" value={detail.subject} />
+                <VisitDetail label="Data">
+                  {formatVisitDate(detail.scheduledDate)}
+                </VisitDetail>
 
-              <DetailItem label="Tipo" value={visitTypeLabels[detail.type]} />
+                <VisitDetail label="Horário">
+                  {formatVisitTime(detail.startTime, detail.endTime)}
+                </VisitDetail>
 
-              <DetailItem label="Órgão" value={detail.organization} />
-
-              <DetailItem label="Sala" value={detail.location} />
-
-              <DetailItem
-                label="Data"
-                value={formatDate(detail.scheduledDate)}
-              />
-
-              <DetailItem
-                label="Horário"
-                value={`${detail.startTime.slice(
-                  0,
-                  5,
-                )} - ${detail.endTime.slice(0, 5)}`}
-              />
-
-              <DetailItem
-                label="Situação atual"
-                value={visitStatusLabels[detail.status]}
-              />
-            </div>
-
-            {/* VISITANTES */}
-
-            <div className="mt-7 border-t border-[var(--border)] pt-5">
-              <h3 className="font-extrabold">Visitantes</h3>
-
-              <div className="mt-3 space-y-3">
-                {detail.visitors.map((visitor) => (
-                  <div
-                    key={visitor.id}
-                    className="rounded-[10px] border border-[var(--border)] p-4"
+                <VisitDetail label="Situação atual">
+                  <Badge
+                    className="whitespace-nowrap"
+                    variant={visitStatusMeta[detail.status].variant}
                   >
-                    <strong>{visitor.name}</strong>
+                    {visitStatusMeta[detail.status].label}
+                  </Badge>
+                </VisitDetail>
+              </dl>
 
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">
-                      {visitor.organization}
+              <section className="mt-6 border-t border-[var(--border)] pt-5">
+                <h3 className="font-bold">Visitantes</h3>
 
-                      {visitor.position ? ` • ${visitor.position}` : ""}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+                <ul className="mt-3 divide-y divide-[var(--border)]">
+                  {detail.visitors.map((visitor) => (
+                    <li className="py-3 first:pt-0 last:pb-0" key={visitor.id}>
+                      <p className="text-sm font-semibold">{visitor.name}</p>
 
-            {/* LINHA DO TEMPO */}
-
-            <div className="mt-7 border-t border-[var(--border)] pt-5">
-              <h3 className="font-extrabold">Linha do tempo</h3>
-
-              {detail.events.length === 0 ? (
-                <p className="mt-4 text-sm text-[var(--text-muted)]">
-                  Nenhum evento registrado.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {detail.events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-[10px] border border-[var(--border)] p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <strong className="text-sm">
-                          {eventLabels[event.type] ?? event.type}
-                        </strong>
-
-                        <span className="text-xs text-[var(--text-muted)]">
-                          {formatDateTime(event.createdAt)}
-                        </span>
-                      </div>
-
-                      {event.comment ? (
-                        <p className="mt-2 text-sm text-[var(--text-muted)]">
-                          {event.comment}
-                        </p>
-                      ) : null}
-                    </div>
+                      <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                        {visitor.organization}
+                        {visitor.position ? ` · ${visitor.position}` : ""}
+                      </p>
+                    </li>
                   ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                </ul>
+              </section>
+
+              <section className="mt-6 border-t border-[var(--border)] pt-5">
+                <h3 className="font-bold">Linha do tempo</h3>
+
+                {detail.events.length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--text-muted)]">
+                    Nenhum evento registrado.
+                  </p>
+                ) : (
+                  <ol className="mt-4 border-l border-[var(--border)]">
+                    {detail.events.map((event) => (
+                      <li
+                        className="relative pb-5 pl-5 last:pb-0"
+                        key={event.id}
+                      >
+                        <span className="absolute -left-1 top-1 size-2 rounded-full bg-[var(--brand)]" />
+
+                        <p className="text-sm font-semibold">
+                          {eventLabels[event.type] ?? event.type}
+                        </p>
+
+                        <p className="mt-0.5 text-xs text-[var(--text-faint)]">
+                          {formatVisitDateTime(event.createdAt)}
+                        </p>
+
+                        {event.comment ? (
+                          <p className="mt-2 text-sm text-[var(--text-muted)]">
+                            {event.comment}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-/* =========================================================
- * COMPONENTES
- * ======================================================= */
-
-function ModalOverlay({ children }: { children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      {children}
-    </div>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-faint)]">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm">{value}</p>
-    </div>
-  );
-}
-
-/* =========================================================
- * HELPERS
- * ======================================================= */
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
-}
-
-function formatDateTime(value: Date | string) {
-  const date = value instanceof Date ? value : new Date(value);
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Manaus",
-  }).format(date);
-}
-
-function getErrorMessage(cause: unknown, fallback: string) {
-  return cause instanceof ApiError ? cause.message : fallback;
 }
