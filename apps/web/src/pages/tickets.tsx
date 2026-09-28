@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router";
-import type { TicketAnalyticsSummary, TicketSummary } from "@cge/contracts";
+import {
+  technicalAreaLabels,
+  type TicketAnalyticsSummary,
+  type TicketSummary,
+} from "@cge/contracts";
 import {
   Alert,
   Avatar,
@@ -62,9 +66,10 @@ const STATUS_OPTIONS = [
 
 const AREA_OPTIONS = [
   { value: "all", label: "Todas" },
-  { value: "sistemas", label: "Sistemas" },
-  { value: "redes", label: "Redes" },
-  { value: "manutencao", label: "Manutenção" },
+  ...Object.entries(technicalAreaLabels).map(([value, label]) => ({
+    value,
+    label,
+  })),
 ];
 
 const METRIC_LABEL =
@@ -572,8 +577,8 @@ export function TicketsPage() {
                           </p>
                         )}
                         {t.areaResponsavel && (
-                          <p className="text-xs capitalize text-[var(--text-faint)]">
-                            {t.areaResponsavel}
+                          <p className="text-xs text-[var(--text-faint)]">
+                            {technicalAreaLabels[t.areaResponsavel]}
                           </p>
                         )}
                       </TableCell>

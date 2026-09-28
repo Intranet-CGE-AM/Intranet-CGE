@@ -42,6 +42,12 @@ export const technicalAreaKeys = ["sistemas", "redes", "manutencao"] as const;
 export const technicalAreaSchema = z.enum(technicalAreaKeys);
 export type TechnicalArea = z.infer<typeof technicalAreaSchema>;
 
+export const technicalAreaLabels: Record<TechnicalArea, string> = {
+  sistemas: "Sistemas",
+  redes: "Redes",
+  manutencao: "Manutenção",
+};
+
 // Subcategoria
 export const ticketSubcategorySchema = z.object({
   id: z.uuid(),

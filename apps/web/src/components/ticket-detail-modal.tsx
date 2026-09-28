@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import type {
-  AuthenticatedUser,
-  TicketDetail,
-  TicketMessage,
-  TicketStatus,
+import {
+  technicalAreaLabels,
+  type AuthenticatedUser,
+  type TicketDetail,
+  type TicketMessage,
+  type TicketStatus,
 } from "@cge/contracts";
 import {
   Alert,
@@ -909,7 +910,7 @@ export function TicketDetailModal({
                     </dd>
                     {ticket.areaResponsavel && (
                       <dd className="mt-0.5 text-xs capitalize text-[var(--text-muted)]">
-                        Área: {ticket.areaResponsavel}
+                        Área: {technicalAreaLabels[ticket.areaResponsavel]}
                       </dd>
                     )}
                   </div>
