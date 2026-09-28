@@ -292,7 +292,7 @@ export const moduleNavigation:
   },
 
 {
-    id: "patrimony",
+  id: "patrimony",
 
   label: "Controle de Patrimônio",
 
@@ -362,6 +362,22 @@ export const moduleNavigation:
       href: "/patrimonio/setores",
       icon: Buildings,
       end: true,
+      access: {
+        anyOf: [
+          "assets.read",
+          "assets.manage",
+        ],
+      },
+    },
+    {
+      label: "Relatórios",
+
+      href: "/patrimonio/relatorios",
+
+      icon: ClipboardText,
+
+      end: true,
+
       access: {
         anyOf: [
           "assets.read",

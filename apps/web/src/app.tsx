@@ -238,16 +238,6 @@ const AssetEditPage = lazy(
 );
 
 
-const AssetSectorPage = lazy(
-  () =>
-    import(
-      "./modules/assets/AssetSectorPage"
-    ).then((module) => ({
-      default:
-        module.AssetSectorPage,
-    })),
-);
-
 const AssetMovementPage = lazy(
   () =>
     import(
@@ -255,6 +245,17 @@ const AssetMovementPage = lazy(
     ).then((module) => ({
       default:
         module.AssetMovementPage,
+    })),
+);
+
+
+const AssetSectorPage = lazy(
+  () =>
+    import(
+      "./modules/assets/AssetSectorPage"
+    ).then((module) => ({
+      default:
+        module.AssetSectorPage,
     })),
 );
 
@@ -268,6 +269,15 @@ const AssetDisposalPage = lazy(
     })),
 );
 
+const AssetReportsPage = lazy(
+  () =>
+    import(
+      "./modules/assets/AssetReportsPage"
+    ).then((module) => ({
+      default:
+        module.AssetReportsPage,
+    })),
+);
 
 export function App() {
   return (
@@ -558,6 +568,27 @@ export function App() {
                 }}
               >
                 <AssetSectorPage />
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="patrimonio/relatorios"
+            element={
+              <RequireAccess
+                rule={{
+                  anyOf: [
+                    "assets.read",
+                    "assets.manage",
+                  ],
+                }}
+              >
+                <Suspense
+                  fallback={
+                    <PageFallback />
+                  }
+                >
+                  <AssetReportsPage />
+                </Suspense>
               </RequireAccess>
             }
           />
