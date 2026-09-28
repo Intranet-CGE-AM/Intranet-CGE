@@ -167,10 +167,11 @@ function Navigation({
                   {!collapsed ? (
                     <div
                       className={[
-                        "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+                        "grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-in-out",
+                        // visibility keeps collapsed links out of focus order and the a11y tree
                         expanded
-                          ? "grid-rows-[1fr] opacity-100"
-                          : "grid-rows-[0fr] opacity-0 pointer-events-none",
+                          ? "visible grid-rows-[1fr] opacity-100"
+                          : "invisible grid-rows-[0fr] opacity-0 pointer-events-none",
                       ].join(" ")}
                     >
                       <div className="overflow-hidden">
@@ -411,7 +412,12 @@ export function AppShell() {
               <CaretLeft aria-hidden="true" size={14} weight="bold" />
             )}
           </button>
-          <div className={collapsed ? "px-1 pt-1" : "px-2 pt-1"}>
+          <div
+            className={[
+              "min-h-0 flex-1 overflow-y-auto",
+              collapsed ? "px-1 pt-1" : "px-2 pt-1",
+            ].join(" ")}
+          >
             <Logo collapsed={collapsed} />
             <Navigation
               collapsed={collapsed}
