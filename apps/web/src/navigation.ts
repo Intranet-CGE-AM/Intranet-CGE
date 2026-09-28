@@ -148,6 +148,9 @@ export const accessRules = {
   patrimony: {
     anyOf: ["assets.read", "assets.manage"],
   },
+  patrimonyManage: {
+    anyOf: ["assets.manage"],
+  },
 
   tickets: {
     anyOf: [
@@ -404,9 +407,7 @@ export const moduleNavigation: ModuleNavigation[] = [
 
         icon: PlusCircle,
 
-        access: {
-          anyOf: ["assets.manage"],
-        },
+        access: accessRules.patrimonyManage,
       },
 
       {
@@ -414,9 +415,7 @@ export const moduleNavigation: ModuleNavigation[] = [
         href: "/patrimonio/setores",
         icon: Buildings,
         end: true,
-        access: {
-          anyOf: ["assets.read", "assets.manage"],
-        },
+        access: accessRules.patrimonyManage,
       },
       {
         label: "Relatórios",

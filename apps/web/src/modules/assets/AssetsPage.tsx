@@ -22,6 +22,7 @@ import {
   formatCurrency,
   formatDate,
   PageHeader,
+  useCanManageAssets,
 } from "./shared";
 
 type DashboardUnit = {
@@ -89,6 +90,8 @@ export function AssetsPage() {
 
   const [loading, setLoading] = useState(true);
 
+  const canManage = useCanManageAssets();
+
   const [error, setError] = useState("");
 
   const loadDashboard = useCallback(async () => {
@@ -142,9 +145,11 @@ export function AssetsPage() {
     <div className="page-enter space-y-5">
       <PageHeader
         actions={
-          <Button asChild>
-            <Link to="/patrimonio/bens/novo">Novo bem</Link>
-          </Button>
+          canManage ? (
+            <Button asChild>
+              <Link to="/patrimonio/bens/novo">Novo bem</Link>
+            </Button>
+          ) : null
         }
         description="Acompanhe bens, valores, conservação e movimentações."
         title="Visão geral do patrimônio"
@@ -518,19 +523,21 @@ export function AssetsPage() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4 px-5 py-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">Cadastrar novo bem</p>
+              {canManage ? (
+                <div className="flex items-center gap-4 px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Cadastrar novo bem</p>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Adicione um bem ao patrimônio
-                  </p>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Adicione um bem ao patrimônio
+                    </p>
+                  </div>
+
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="/patrimonio/bens/novo">Cadastrar</Link>
+                  </Button>
                 </div>
-
-                <Button asChild size="sm" variant="secondary">
-                  <Link to="/patrimonio/bens/novo">Cadastrar</Link>
-                </Button>
-              </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>

@@ -4,6 +4,9 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { useAuth } from "../../auth";
+import { can } from "../../lib/permissions";
+
 export type OrganizationUnitType = "department" | "sector" | "subsector";
 
 export type OrganizationUnit = {
@@ -67,6 +70,11 @@ export function unitOptions(units: OrganizationUnit[]) {
     label: `${unit.code} - ${unit.name}`,
     value: unit.id,
   }));
+}
+
+export function useCanManageAssets() {
+  const { user } = useAuth();
+  return Boolean(user && can(user, "assets.manage"));
 }
 
 export function PageHeader({

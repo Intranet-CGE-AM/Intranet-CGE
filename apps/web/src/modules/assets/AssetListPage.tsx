@@ -43,6 +43,7 @@ import {
   unitOptions,
   type OrganizationUnit,
   type OrganizationUnitsResponse,
+  useCanManageAssets,
 } from "./shared";
 
 type AssetListResponse = {
@@ -54,6 +55,7 @@ type AssetListResponse = {
 };
 
 export function AssetListPage() {
+  const canManage = useCanManageAssets();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const selectedUnitId = searchParams.get("unitId");
@@ -294,12 +296,14 @@ export function AssetListPage() {
               Atualizar
             </Button>
 
-            <Button asChild>
-              <Link to="/patrimonio/bens/novo">
-                <PlusCircle aria-hidden="true" size={16} />
-                Novo bem
-              </Link>
-            </Button>
+            {canManage ? (
+              <Button asChild>
+                <Link to="/patrimonio/bens/novo">
+                  <PlusCircle aria-hidden="true" size={16} />
+                  Novo bem
+                </Link>
+              </Button>
+            ) : null}
           </>
         }
         description="Consulte os bens patrimoniais cadastrados."

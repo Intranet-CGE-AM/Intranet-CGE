@@ -30,6 +30,7 @@ import {
   PageSkeleton,
   type OrganizationUnit,
   type OrganizationUnitsResponse,
+  useCanManageAssets,
 } from "./shared";
 
 type AssetMovementsResponse = {
@@ -50,6 +51,7 @@ type AssetDisposalResponse = {
 };
 
 export function AssetDetailPage() {
+  const canManage = useCanManageAssets();
   const { id } = useParams();
 
   const [asset, setAsset] = useState<Asset | null>(null);
@@ -217,7 +219,7 @@ export function AssetDetailPage() {
         title={`Bem patrimonial ${asset.patrimonyNumber}`}
         description="Consulte as informações completas do patrimônio."
         actions={
-          asset.status !== "disposed" ? (
+          canManage && asset.status !== "disposed" ? (
             <>
               <Button asChild>
                 <Link to={`/patrimonio/bens/${asset.id}/editar`}>
@@ -271,7 +273,7 @@ export function AssetDetailPage() {
                   {assetStatusMeta[asset.status].label}
                 </Badge>
 
-                {asset.status !== "disposed" ? (
+                {canManage && asset.status !== "disposed" ? (
                   <Button
                     type="button"
                     size="sm"
