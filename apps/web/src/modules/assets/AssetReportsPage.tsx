@@ -11,6 +11,8 @@ import {
 
 import { api } from "../../lib/api";
 
+import * as XLSX from "xlsx"
+
 type ReportType =
   | "inventory"
   | "sector"
@@ -66,6 +68,26 @@ type AssetReportResponse = {
     totalValue: number;
   };
 };
+
+function formatDateForSpreadsheet(
+  value: string,
+) {
+  const [
+    year,
+    month,
+    day,
+  ] = value.split("-");
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
 
 export function AssetReportsPage() {
   const [reportType, setReportType] =
@@ -308,8 +330,157 @@ async function handleGenerateReport() {
     console.log("Exportar PDF");
   }
 
-  function handleExportXml() {
-    console.log("Exportar XML");
+  function handleExportXlsx() {
+    if (!report) {
+      setReportError(
+        "Gere o relatório antes de exportar.",
+      );
+
+      return;
+    }
+
+    if (
+      report.assets.length === 0
+    ) {
+      setReportError(
+        "Não há dados para exportar.",
+      );
+
+      return;
+    }
+
+    setReportError(null);
+
+    const rows =
+      report.assets.map(
+        (asset) => ({
+          Patrimônio:
+            asset.patrimonyNumber,
+
+          Descrição:
+            asset.description,
+
+          Marca:
+            asset.brand ?? "",
+
+          Modelo:
+            asset.model ?? "",
+
+          "Número de série":
+            asset.serialNumber ?? "",
+
+          Localização:
+            asset.unitCode
+              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+              : "Não informado",
+
+          Situação:
+            asset.status === "active"
+              ? "Ativo"
+              : asset.status ===
+                  "maintenance"
+                ? "Em manutenção"
+                : "Baixado",
+
+          Conservação:
+            asset.conservationStatus ??
+            "Não informado",
+
+          "Data de aquisição":
+            asset.acquisitionDate
+              ? formatDateForSpreadsheet(
+                  asset.acquisitionDate,
+                )
+              : "",
+
+          "Valor de aquisição":
+            asset.acquisitionValue
+              ? Number(
+                  asset.acquisitionValue,
+                )
+              : "",
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 40 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+
+    const workbook =
+      XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Inventário",
+    );
+
+    const summaryRows = [
+      {
+        Informação:
+          "Quantidade de bens",
+
+        Valor:
+          report.summary.total,
+      },
+
+      {
+        Informação:
+          "Valor patrimonial total",
+
+        Valor:
+          report.summary.totalValue,
+      },
+    ];
+
+    const summaryWorksheet =
+      XLSX.utils.json_to_sheet(
+        summaryRows,
+      );
+
+    summaryWorksheet["!cols"] = [
+      { wch: 30 },
+      { wch: 25 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      summaryWorksheet,
+      "Resumo",
+    );
+
+    const now =
+      new Date();
+
+    const date =
+      [
+        now.getFullYear(),
+        String(
+          now.getMonth() + 1,
+        ).padStart(2, "0"),
+        String(
+          now.getDate(),
+        ).padStart(2, "0"),
+      ].join("-");
+
+    XLSX.writeFile(
+      workbook,
+      `relatorio-patrimonial-${date}.xlsx`,
+    );
   }
 
   return (
@@ -326,7 +497,7 @@ async function handleGenerateReport() {
 
         <p className="mt-1 text-sm text-muted-foreground">
           Consulte informações patrimoniais e exporte
-          relatórios em PDF ou XML.
+          relatórios em PDF ou XLSX.
         </p>
       </div>
 
@@ -645,12 +816,12 @@ async function handleGenerateReport() {
 
           <button
             type="button"
-            onClick={handleExportXml}
+            onClick={handleExportXlsx}
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
           >
             <FileArrowDown size={18} />
 
-            Exportar XML
+            Exportar XLSX
           </button>
         </div>
       </div>
