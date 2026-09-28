@@ -4,7 +4,7 @@ import { CheckCircle, XCircle } from "@phosphor-icons/react";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import { useSearchParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 
 import { api, ApiError, json } from "../lib/api";
 
@@ -21,7 +21,10 @@ type ResponseState = "idle" | "sending" | "confirmed" | "declined";
 export function VisitConfirmationPage() {
   const [searchParams] = useSearchParams();
 
-  const token = searchParams.get("token")?.trim() ?? "";
+  const params = useParams();
+
+  // The email links to /visitas/confirmar/:token; ?token= kept for old links.
+  const token = (params.token ?? searchParams.get("token") ?? "").trim();
 
   const [visit, setVisit] = useState<PublicVisitConfirmation | null>(null);
 
