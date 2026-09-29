@@ -81,8 +81,16 @@ export const fileUrl = (
   documentId: string,
   fileId: string,
   disposition: "inline" | "attachment",
+  track = true,
 ) =>
-  `/api/audit-documents/${documentId}/files/${fileId}?disposition=${disposition}`;
+  `/api/audit-documents/${documentId}/files/${fileId}?disposition=${disposition}${track ? "" : "&track=false"}`;
+
+export const compareUrl = (
+  documentId: string,
+  base: { id: string },
+  next: { id: string },
+) =>
+  `/controle-interno/documentos/${documentId}/comparar?de=${base.id}&para=${next.id}`;
 
 export function AuditDocumentsPage() {
   const { user } = useAuth();

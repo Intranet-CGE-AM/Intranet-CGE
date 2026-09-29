@@ -157,6 +157,11 @@ const AuditDocumentEditorPage = lazy(() =>
     default: module.AuditDocumentEditorPage,
   })),
 );
+const AuditDocumentComparePage = lazy(() =>
+  import("./pages/audit-document-compare").then((module) => ({
+    default: module.AuditDocumentComparePage,
+  })),
+);
 const AuditMetricsPage = lazy(() =>
   import("./pages/audit-metrics").then((module) => ({
     default: module.AuditMetricsPage,
@@ -411,6 +416,16 @@ export function App() {
               <RequireAccess rule={accessRules.auditDocuments}>
                 <Suspense fallback={<PageFallback />}>
                   <AuditDocumentEditorPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="controle-interno/documentos/:id/comparar"
+            element={
+              <RequireAccess rule={accessRules.auditDocuments}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditDocumentComparePage />
                 </Suspense>
               </RequireAccess>
             }

@@ -88,6 +88,29 @@ de formatação devem ser feitas no Word e enviadas como arquivo. Se as queixas
 de fidelidade na visualização crescerem, a alternativa prevista é gerar
 prévia em PDF no servidor (Gotenberg).
 
+## Comparação de versões
+
+A tela `/controle-interno/documentos/:id/comparar?de=<arquivo>&para=<arquivo>`
+mostra o que mudou entre duas versões Word, parágrafo a parágrafo, no estilo do
+GitHub: linhas adicionadas em verde, removidas em vermelho e, dentro de um
+parágrafo alterado, as palavras que mudaram em tom mais forte. Formatação não
+entra na comparação.
+
+- Abre pelo botão "Comparar" do cartão Arquivo (versão selecionada contra a
+  anterior) ou por "Comparar com anterior" na tabela de versões, a partir da
+  versão 2. Os dois seletores da tela trocam o par e atualizam o endereço.
+- O diff roda no navegador, sobre o texto extraído dos dois `.docx`. O servidor
+  só entrega os arquivos.
+- Comparar não conta como leitura: o download usa `?track=false`, que não grava
+  o evento `read`. A auditoria `file-viewed` continua, com `context: "compare"`.
+- Só Word. Se uma das versões é PDF, o botão fica desabilitado e o link direto
+  mostra "Comparação disponível só para arquivos Word".
+- Trechos iguais com mais de 8 linhas ficam recolhidos (3 linhas de contexto de
+  cada lado) com "Mostrar N linhas iguais".
+- Modo Unificado ou Lado a lado, lembrado no navegador. Abaixo de 768px só
+  Unificado.
+- Sem permissão nova: quem enxerga o documento compara as versões.
+
 ## Indicadores
 
 `GET /api/audit-documents/metrics?from&to&unitId` exige

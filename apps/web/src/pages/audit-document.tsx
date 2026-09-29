@@ -2,6 +2,7 @@ import type {
   AuditDocumentAction,
   AuditDocumentDetail,
   AuditDocumentEvent,
+  AuditDocumentFile,
 } from "@cge/contracts";
 import {
   Alert,
@@ -26,6 +27,7 @@ import {
   ArrowCounterClockwise,
   ArrowLeft,
   CheckCircle,
+  GitDiff,
   DownloadSimple,
   PencilSimple,
   PencilSimpleLine,
@@ -46,6 +48,7 @@ import {
   FILE_HINT,
   fileUrl,
   formatDateTime,
+  compareUrl,
   latestFile,
   NoteField,
 } from "./audit-documents";
@@ -158,6 +161,10 @@ export function AuditDocumentPage() {
   const allows = (action: AuditDocumentAction) =>
     document.allowedActions.includes(action);
   const status = auditStatusMeta[document.status];
+  const previousOf = (file: AuditDocumentFile) =>
+    document.files
+      .filter((other) => other.number < file.number)
+      .sort((left, right) => right.number - left.number)[0];
 
   async function approve() {
     try {
@@ -294,6 +301,11 @@ export function AuditDocumentPage() {
                     Baixar
                   </a>
                 </Button>
+                <CompareButton
+                  documentId={document.id}
+                  file={selected}
+                  previous={previousOf(selected)}
+                />
               </div>
             ) : null}
           </CardHeader>
@@ -374,7 +386,14 @@ export function AuditDocumentPage() {
                   <TableCell className="min-w-48 text-[var(--text-muted)]">
                     {file.note ?? "—"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <CompareButton
+                      documentId={document.id}
+                      file={file}
+                      label="Comparar com anterior"
+                      previous={previousOf(file)}
+                      variant="quiet"
+                    />
                     <Button asChild size="icon" variant="quiet">
                       <a
                         aria-label={`Baixar versão ${file.number}`}
@@ -402,6 +421,42 @@ export function AuditDocumentPage() {
       />
       {toast ? <Toast onDismiss={() => setToast("")} title={toast} /> : null}
     </div>
+  );
+}
+
+function CompareButton({
+  documentId,
+  file,
+  label = "Comparar",
+  previous,
+  variant = "secondary",
+}: {
+  documentId: string;
+  file: AuditDocumentFile;
+  label?: string;
+  previous: AuditDocumentFile | undefined;
+  variant?: "secondary" | "quiet";
+}) {
+  if (!previous) return null;
+  if (file.kind !== "docx" || previous.kind !== "docx")
+    return (
+      <Button
+        disabled
+        size="sm"
+        title="A comparação só está disponível para arquivos Word."
+        variant={variant}
+      >
+        <GitDiff aria-hidden="true" size={16} />
+        {label}
+      </Button>
+    );
+  return (
+    <Button asChild size="sm" variant={variant}>
+      <Link to={compareUrl(documentId, previous, file)}>
+        <GitDiff aria-hidden="true" size={16} />
+        {label}
+      </Link>
+    </Button>
   );
 }
 
