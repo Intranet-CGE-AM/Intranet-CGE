@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 
-import { strFromU8, unzipSync } from "fflate";
+import { Inflate } from "fflate";
 
 import { isValidPdf } from "../documents/validate-pdf.js";
 
@@ -131,41 +131,90 @@ function countPdfText(bytes: Buffer): Promise<number | undefined> {
   });
 }
 
-// Reads the zip central directory. Only [Content_Types].xml gets inflated, capped at 1 MiB.
-function checkDocx(buffer: Buffer): AuditDocumentValidation | undefined {
-  const names = new Set<string>();
-  let contentTypes: Uint8Array | undefined;
-  let entries = 0;
-  let uncompressed = 0;
-  try {
-    ({ [CONTENT_TYPES]: contentTypes } = unzipSync(buffer, {
-      filter: (entry) => {
-        uncompressed += entry.originalSize;
-        if (
-          ++entries > MAX_DOCX_ENTRIES ||
-          uncompressed > MAX_DOCX_UNCOMPRESSED_BYTES
-        )
-          throw tooComplex;
-        names.add(entry.name);
-        return (
-          entry.name === CONTENT_TYPES && entry.originalSize <= 1024 * 1024
-        );
-      },
-    }));
-  } catch (error) {
-    if (error === tooComplex) return tooComplex;
-    return reject(
-      "invalid_docx",
-      "O arquivo .docx está corrompido ou incompleto.",
-    );
+type ZipEntry = { name: string; data: Buffer; method: number; size: number };
+
+// Lists entries from the zip central directory, with each entry's compressed
+// data located through its local header. undefined = not a readable zip.
+function zipEntries(zip: Buffer): ZipEntry[] | undefined {
+  const floor = Math.max(0, zip.length - 22 - 0xffff);
+  let end = zip.length - 22;
+  while (end >= floor && zip.readUInt32LE(end) !== 0x06054b50) end--;
+  if (end < floor) return undefined;
+  const entries: ZipEntry[] = [];
+  let at = zip.readUInt32LE(end + 16);
+  for (let index = zip.readUInt16LE(end + 10); index > 0; index--) {
+    if (at + 46 > zip.length || zip.readUInt32LE(at) !== 0x02014b50)
+      return undefined;
+    const nameLength = zip.readUInt16LE(at + 28);
+    const local = zip.readUInt32LE(at + 42);
+    if (local + 30 > zip.length || zip.readUInt32LE(local) !== 0x04034b50)
+      return undefined;
+    const start =
+      local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+    const compressed = zip.readUInt32LE(at + 20);
+    if (start + compressed > zip.length) return undefined;
+    entries.push({
+      name: zip.toString("utf8", at + 46, at + 46 + nameLength),
+      data: zip.subarray(start, start + compressed),
+      method: zip.readUInt16LE(at + 10),
+      size: zip.readUInt32LE(at + 24),
+    });
+    at +=
+      46 + nameLength + zip.readUInt16LE(at + 30) + zip.readUInt16LE(at + 32);
   }
-  if (!contentTypes || !names.has("word/document.xml"))
-    return reject(
-      "invalid_docx",
-      "O arquivo .docx está corrompido ou incompleto.",
-    );
+  return entries;
+}
+
+// Inflates an entry in small steps and stops as soon as it produces more than
+// its declared size: a lying header (real zip bomb) never allocates past it.
+function inflateWithin(entry: ZipEntry, keep: boolean) {
+  if (entry.method === 0)
+    return entry.data.length <= entry.size ? entry.data : undefined;
+  if (entry.method !== 8) return undefined;
+  const chunks: Uint8Array[] = [];
+  let produced = 0;
+  const inflater = new Inflate((chunk) => {
+    produced += chunk.length;
+    if (keep && produced <= entry.size) chunks.push(chunk.slice());
+  });
+  try {
+    for (let offset = 0; offset < entry.data.length; offset += 4096) {
+      const end = offset + 4096;
+      inflater.push(entry.data.subarray(offset, end), end >= entry.data.length);
+      if (produced > entry.size) return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+  return Buffer.concat(chunks);
+}
+
+// Checks the declared structure first (cheap), then inflates every entry
+// bounded by its declared size. Only [Content_Types].xml is kept, capped at 1 MiB.
+function checkDocx(buffer: Buffer): AuditDocumentValidation | undefined {
+  const corrupted = reject(
+    "invalid_docx",
+    "O arquivo .docx está corrompido ou incompleto.",
+  );
+  const entries = zipEntries(buffer);
+  if (!entries) return corrupted;
+  if (entries.length > MAX_DOCX_ENTRIES) return tooComplex;
+  let uncompressed = 0;
+  for (const entry of entries) {
+    uncompressed += entry.size;
+    if (uncompressed > MAX_DOCX_UNCOMPRESSED_BYTES) return tooComplex;
+  }
+  let contentTypes: Buffer | undefined;
+  for (const entry of entries) {
+    const types = entry.name === CONTENT_TYPES && entry.size <= 1024 * 1024;
+    const inflated = inflateWithin(entry, types);
+    if (!inflated) return corrupted;
+    if (types) contentTypes = inflated;
+  }
+  const names = new Set(entries.map((entry) => entry.name));
+  if (!contentTypes || !names.has("word/document.xml")) return corrupted;
   if ([...names].some((name) => name.toLowerCase().endsWith("vbaproject.bin")))
     return macro;
-  if (/macroenabled/i.test(strFromU8(contentTypes))) return macro;
+  if (/macroenabled/i.test(contentTypes.toString("utf8"))) return macro;
   return undefined;
 }

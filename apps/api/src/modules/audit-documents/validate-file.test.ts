@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { describe, expect, it } from "vitest";
@@ -237,6 +239,73 @@ describe("validateAuditDocumentFile", () => {
       await validateAuditDocumentFile(overLimit, "relatorio.docx", DOCX_MIME),
     ).toMatchObject({ ok: false, code: "docx_too_complex" });
   });
+
+  // A docx padded with a STORED random entry, so its size is exact and the
+  // uncompressed total stays far below the 150 MiB guard.
+  function paddedDocx(target: number): Buffer {
+    const build = (padding: number) =>
+      docx({
+        "word/media/padding.bin": [
+          new Uint8Array(randomBytes(padding)),
+          { level: 0 },
+        ],
+      });
+    const probe = build(1024).length - 1024;
+    const result = build(target - probe);
+    expect(result.length).toBe(target);
+    return result;
+  }
+
+  it.each([
+    ["exactly 20 MiB", 20 * 1024 * 1024],
+    ["20 MiB minus 1 byte", 20 * 1024 * 1024 - 1],
+  ])("accepts a valid .docx of %s", async (_, size) => {
+    expect(
+      await validateAuditDocumentFile(
+        paddedDocx(size),
+        "relatorio.docx",
+        DOCX_MIME,
+      ),
+    ).toEqual({ ok: true, kind: "docx", mime: DOCX_MIME });
+  });
+
+  // Real bomb: the central directory declares a tiny entry, the deflate
+  // stream inflates to 160 MiB. It must be refused without inflating it all.
+  it.each(["word/document.xml", "[Content_Types].xml"])(
+    "rejects %s that inflates past its declared size",
+    async (name) => {
+      const bomb = Buffer.concat([
+        Buffer.from(
+          name === "word/document.xml" ? "<w:document>" : CONTENT_TYPES,
+        ),
+        Buffer.alloc(160 * 1024 * 1024, 32),
+      ]);
+      const zip = declareSize(
+        Buffer.from(
+          zipSync(
+            {
+              "[Content_Types].xml": strToU8(CONTENT_TYPES),
+              "word/document.xml": strToU8("<w:document/>"),
+              [name]: bomb,
+            },
+            { level: 9 },
+          ),
+        ),
+        name,
+        500,
+      );
+      expect(zip.length).toBeLessThan(1024 * 1024);
+      const started = performance.now();
+      const result = await validateAuditDocumentFile(
+        zip,
+        "relatorio.docx",
+        DOCX_MIME,
+      );
+      expect(result).toMatchObject({ ok: false, code: "invalid_docx" });
+      expect(performance.now() - started).toBeLessThan(250);
+    },
+    30_000,
+  );
 
   it("accepts a PDF with a searchable text layer", async () => {
     const result = await validateAuditDocumentFile(
