@@ -69,10 +69,14 @@ export const auditDocumentActionPermissions: Record<
   edit_version: ["audit_documents.review"],
 };
 
-/** Whoever sent the latest version as team cannot decide on it (separation of duty). */
+/**
+ * Whoever sent the latest version as team cannot decide on it nor edit it as
+ * reviewer, which would let them approve their own work (separation of duty).
+ */
 export const auditDocumentReviewActions: readonly AuditDocumentAction[] = [
   "request_correction",
   "approve",
+  "edit_version",
 ];
 
 export const auditDocumentEventByAction: Record<

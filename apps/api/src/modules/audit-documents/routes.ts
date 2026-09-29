@@ -764,6 +764,21 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
                 ? "Durante a análise, só a Subcontroladoria salva novas versões."
                 : "Só a equipe responde a um pedido de correção.",
             );
+          const [last] = await tx
+            .select({
+              number: auditDocumentFiles.number,
+              uploadedByAccountId: auditDocumentFiles.uploadedByAccountId,
+              uploadedAs: auditDocumentFiles.uploadedAs,
+            })
+            .from(auditDocumentFiles)
+            .where(eq(auditDocumentFiles.documentId, current.id))
+            .orderBy(desc(auditDocumentFiles.number))
+            .limit(1);
+          if (separated(user, action, teamUploader(last)))
+            return fail(
+              403,
+              "Quem enviou a versão atual não pode editá-la como revisão. Peça a outra pessoa.",
+            );
           if (current.version !== parsed.data.version)
             return fail(
               409,
@@ -776,12 +791,6 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
               "Esta etapa não aceita novas versões. Recarregue o documento.",
             );
           const type = auditDocumentEventByAction[action];
-          const [last] = await tx
-            .select({ number: auditDocumentFiles.number })
-            .from(auditDocumentFiles)
-            .where(eq(auditDocumentFiles.documentId, current.id))
-            .orderBy(desc(auditDocumentFiles.number))
-            .limit(1);
           await store();
           const [stored] = await tx
             .insert(auditDocumentFiles)

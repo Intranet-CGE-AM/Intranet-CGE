@@ -30,8 +30,9 @@ Essa é a confirmação de leitura; não há botão de ciência.
 
 ### Segregação de funções
 
-Quem enviou a versão atual como equipe não pode aprová-la nem pedir correção
-dela. A revisora que apenas editou a versão pode aprová-la. Cada versão guarda
+Quem enviou a versão atual como equipe não pode aprová-la, pedir correção dela
+nem editá-la no navegador como revisão. A revisora que apenas editou a versão
+pode aprová-la. Cada versão guarda
 `uploaded_as` (`team` ou `reviewer`) para essa regra.
 
 ## Papéis e permissões
