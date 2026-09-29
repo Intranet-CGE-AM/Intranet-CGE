@@ -102,9 +102,10 @@ const PIXEL = Buffer.from(
  * Word file with one of each element the editor supports: headings 1-3,
  * bold/italic/underline, a bullet list with a nested numbered list, a table
  * with a header row, an image with alt text, centered and justified
- * paragraphs, and http/https/mailto/javascript links.
+ * paragraphs, and http/https/mailto/javascript links. `styles: false`
+ * leaves out word/styles.xml, like files written by other tools.
  */
-export function richDocx() {
+export function richDocx({ styles = true } = {}) {
   const p = (body: string, props = "") =>
     `<w:p>${props ? `<w:pPr>${props}</w:pPr>` : ""}${body}</w:p>`;
   const r = (text: string, props = "") =>
@@ -165,10 +166,10 @@ export function richDocx() {
   ) =>
     `<Relationship Id="${id}" Type="${R}/${type}" Target="${target}"${external ? ' TargetMode="External"' : ""}/>`;
   return zip({
-    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>`,
+    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>${styles ? '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' : ""}<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>`,
     "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship("rId1", "officeDocument", "word/document.xml")}</Relationships>`,
     "word/_rels/document.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${[
-      relationship("rIdStyles", "styles", "styles.xml"),
+      ...(styles ? [relationship("rIdStyles", "styles", "styles.xml")] : []),
       relationship("rIdNumbering", "numbering", "numbering.xml"),
       relationship("rIdImage", "image", "media/image1.png"),
       relationship("rIdHttps", "hyperlink", "https://www.cge.am.gov.br/", true),
@@ -176,14 +177,18 @@ export function richDocx() {
       relationship("rIdMail", "hyperlink", "mailto:sci@cge.am.gov.br", true),
       relationship("rIdScript", "hyperlink", "javascript:alert(1)", true),
     ].join("")}</Relationships>`,
-    "word/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="${W}">${[
-      1, 2, 3,
-    ]
-      .map(
-        (level) =>
-          `<w:style w:type="paragraph" w:styleId="Heading${level}"><w:name w:val="heading ${level}"/></w:style>`,
-      )
-      .join("")}</w:styles>`,
+    ...(styles
+      ? {
+          "word/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="${W}">${[
+            1, 2, 3,
+          ]
+            .map(
+              (level) =>
+                `<w:style w:type="paragraph" w:styleId="Heading${level}"><w:name w:val="heading ${level}"/></w:style>`,
+            )
+            .join("")}</w:styles>`,
+        }
+      : {}),
     "word/numbering.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="${W}"><w:abstractNum w:abstractNumId="0">${levels("bullet", ["•", "◦"])}</w:abstractNum><w:abstractNum w:abstractNumId="1">${levels("decimal", ["%1.", "%2."])}</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num><w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num></w:numbering>`,
     "word/document.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${W}" xmlns:r="${R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}</w:body></w:document>`,
     "word/media/image1.png": PIXEL,
