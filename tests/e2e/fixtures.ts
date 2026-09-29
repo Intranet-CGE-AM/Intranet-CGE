@@ -7,7 +7,8 @@ export function clientHeaders() {
   // Each simulated client keeps its own rate-limit bucket; production limits remain unchanged.
   const groups = randomBytes(12).toString("hex").match(/.{4}/g)!;
   return {
-    Origin: "http://127.0.0.1:4173",
+    // E2E_WEB_ORIGIN lets an isolated stack run the web server on another port.
+    Origin: process.env.E2E_WEB_ORIGIN ?? "http://127.0.0.1:4173",
     "X-Forwarded-For": `fd00:0:${groups.join(":")}`,
   };
 }
