@@ -991,6 +991,8 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         params: z.object({ id: z.uuid(), fileId: z.uuid() }),
         querystring: z.strictObject({
           disposition: z.enum(["inline", "attachment"]).default("inline"),
+          // "false" for the version compare view, which must not confirm reads.
+          track: z.enum(["true", "false"]).default("true"),
         }),
       },
     },
@@ -1001,7 +1003,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         authenticationService,
       );
       if (!user) return;
-      const { disposition } = request.query;
+      const { disposition, track } = request.query;
       const document = await visibleDocument(request.params.id, user);
       const [file] = await db
         .select()
@@ -1019,16 +1021,17 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         // Committed before the first byte is streamed.
         await db.transaction(async (tx) => {
           // Automatic read confirmation: once per person and file version.
-          await tx
-            .insert(auditDocumentEvents)
-            .values({
-              documentId: document.id,
-              type: "read",
-              fileId: file.id,
-              actorAccountId: user.account.id,
-              actorName: user.person.displayName,
-            })
-            .onConflictDoNothing();
+          if (track === "true")
+            await tx
+              .insert(auditDocumentEvents)
+              .values({
+                documentId: document.id,
+                type: "read",
+                fileId: file.id,
+                actorAccountId: user.account.id,
+                actorName: user.person.displayName,
+              })
+              .onConflictDoNothing();
           await tx.insert(auditEvents).values({
             actorAccountId: user.account.id,
             action:
@@ -1038,7 +1041,11 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             objectType: "audit-document",
             objectId: document.id,
             outcome: "success",
-            metadata: { fileId: file.id, number: file.number },
+            metadata: {
+              fileId: file.id,
+              number: file.number,
+              ...(track === "false" && { context: "compare" }),
+            },
           });
         });
       } catch (error) {

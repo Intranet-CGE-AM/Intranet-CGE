@@ -583,6 +583,85 @@ test("leitura conta uma vez por pessoa e por versão", async ({
   }
 });
 
+test("download padrão registra leitura e auditoria sem contexto", async ({
+  playwright,
+  baseURL,
+}) => {
+  const clients = await signInAll(
+    playwright,
+    baseURL!,
+    "coordinatorA",
+    "reviewer",
+    "admin",
+  );
+  const [coordinator, reviewer, admin] = clients as [
+    APIRequestContext,
+    APIRequestContext,
+    APIRequestContext,
+  ];
+  try {
+    const teamA = await unitId(coordinator, auditTeams.a);
+    const { id, files } = await create(coordinator, teamA);
+    const response = await reviewer.get(
+      `/api/audit-documents/${id}/files/${files[0]!.id}`,
+    );
+    expect(response.status()).toBe(200);
+    expect(
+      (await detail(reviewer, id)).events.filter(
+        (event) => event.type === "read",
+      ),
+    ).toHaveLength(1);
+    const rows = await auditRows(admin, id, {
+      action: "audit-document.file-viewed",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.metadata).not.toHaveProperty("context");
+  } finally {
+    await Promise.all(clients.map((client) => client.dispose()));
+  }
+});
+
+test("download com track=false não registra leitura e audita como comparação", async ({
+  playwright,
+  baseURL,
+}) => {
+  const clients = await signInAll(
+    playwright,
+    baseURL!,
+    "coordinatorA",
+    "reviewer",
+    "admin",
+  );
+  const [coordinator, reviewer, admin] = clients as [
+    APIRequestContext,
+    APIRequestContext,
+    APIRequestContext,
+  ];
+  try {
+    const teamA = await unitId(coordinator, auditTeams.a);
+    const { id, files } = await create(coordinator, teamA);
+    const response = await reviewer.get(
+      `/api/audit-documents/${id}/files/${files[0]!.id}?track=false`,
+    );
+    expect(response.status()).toBe(200);
+    expect(
+      (await detail(reviewer, id)).events.filter(
+        (event) => event.type === "read",
+      ),
+    ).toEqual([]);
+    const rows = await auditRows(admin, id, {
+      action: "audit-document.file-viewed",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.metadata).toMatchObject({
+      fileId: files[0]!.id,
+      context: "compare",
+    });
+  } finally {
+    await Promise.all(clients.map((client) => client.dispose()));
+  }
+});
+
 test("metadados inválidos ou envio sem arquivo não criam documento", async ({
   playwright,
   baseURL,
