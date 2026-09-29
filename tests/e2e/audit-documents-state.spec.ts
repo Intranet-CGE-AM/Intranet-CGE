@@ -604,10 +604,19 @@ test("precedência dos erros quando mais de uma regra falha", async ({
         }),
       403,
     );
+    // Em nova versão, a ação depende da etapa que o remetente viu: com versão
+    // velha a resposta é 409 (recarregar); na versão atual, 403.
     await unchanged(
       reviewer,
       corrected,
       () => upload(reviewer, corrected, 99),
+      409,
+      stale,
+    );
+    await unchanged(
+      reviewer,
+      corrected,
+      () => upload(reviewer, corrected, 2),
       403,
     );
     // Segregação vence a versão velha.

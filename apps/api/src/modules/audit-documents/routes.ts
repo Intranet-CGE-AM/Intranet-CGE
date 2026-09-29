@@ -754,6 +754,14 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .where(eq(auditDocuments.id, document.id))
             .for("update");
           if (!current) return fail(404, "Documento não encontrado.");
+          // The action depends on the status the sender saw, so a stale
+          // version is answered before the per-action checks: a team answer
+          // that lost a race gets "reload" (409), not the reviewer-only 403.
+          if (current.version !== parsed.data.version)
+            return fail(
+              409,
+              "Este documento foi atualizado. Recarregue antes de continuar.",
+            );
           // In review, a new version is the reviewer's edit; after a
           // correction request it is the team's answer.
           const action =
@@ -779,11 +787,6 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             return fail(
               403,
               "Quem enviou a versão atual não pode editá-la como revisão. Peça a outra pessoa.",
-            );
-          if (current.version !== parsed.data.version)
-            return fail(
-              409,
-              "Este documento foi atualizado. Recarregue antes de continuar.",
             );
           const status = nextAuditDocumentStatus(current.status, action);
           if (!status)
