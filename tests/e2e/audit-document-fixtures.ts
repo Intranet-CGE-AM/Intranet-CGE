@@ -11,18 +11,22 @@ export const docxMime =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Monta um ZIP mínimo (deflate) sem depender de biblioteca de compactação.
-function zip(entries: Record<string, Buffer | string>) {
+// Entradas em `stored` vão sem compressão, para controlar o tamanho exato.
+export function zip(
+  entries: Record<string, Buffer | string>,
+  stored: ReadonlySet<string> = new Set(),
+) {
   const locals: Buffer[] = [];
   const centrals: Buffer[] = [];
   let offset = 0;
   for (const [name, content] of Object.entries(entries)) {
     const data = Buffer.isBuffer(content) ? content : Buffer.from(content);
-    const packed = deflateRawSync(data);
+    const packed = stored.has(name) ? data : deflateRawSync(data);
     const fileName = Buffer.from(name);
     const common = Buffer.alloc(26);
     common.writeUInt16LE(20, 0);
     common.writeUInt16LE(0, 2);
-    common.writeUInt16LE(8, 4);
+    common.writeUInt16LE(stored.has(name) ? 0 : 8, 4);
     common.writeUInt32LE(0, 6);
     common.writeUInt32LE(crc32(data), 10);
     common.writeUInt32LE(packed.length, 14);
@@ -65,18 +69,27 @@ const pixel = Buffer.from(
   "base64",
 );
 
-// DOCX real com um parágrafo e uma imagem, sem dados pessoais.
-export function sampleDocx(text = "Relatório de auditoria de teste") {
+// DOCX real com um parágrafo e uma imagem, sem dados pessoais. `extra`
+// acrescenta partes ao pacote; as listadas em `stored` vão sem compressão.
+export function sampleDocx(
+  text = "Relatório de auditoria de teste",
+  extra: Record<string, Buffer> = {},
+  stored: ReadonlySet<string> = new Set(),
+) {
   const w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
   const r =
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-  return zip({
-    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
-    "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${r}/officeDocument" Target="word/document.xml"/></Relationships>`,
-    "word/_rels/document.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${r}/image" Target="media/image1.png"/></Relationships>`,
-    "word/document.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${w}" xmlns:r="${r}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p><w:p><w:r><w:drawing><wp:inline><wp:extent cx="95250" cy="95250"/><wp:docPr id="1" name="Imagem 1"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="image1.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="95250" cy="95250"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:body></w:document>`,
-    "word/media/image1.png": pixel,
-  });
+  return zip(
+    {
+      ...extra,
+      "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+      "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${r}/officeDocument" Target="word/document.xml"/></Relationships>`,
+      "word/_rels/document.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${r}/image" Target="media/image1.png"/></Relationships>`,
+      "word/document.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${w}" xmlns:r="${r}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p><w:p><w:r><w:drawing><wp:inline><wp:extent cx="95250" cy="95250"/><wp:docPr id="1" name="Imagem 1"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="image1.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="95250" cy="95250"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:body></w:document>`,
+      "word/media/image1.png": pixel,
+    },
+    stored,
+  );
 }
 
 // PDF de uma página com camada de texto (pesquisável), sem dados pessoais.
@@ -120,7 +133,8 @@ export async function signIn(
 ) {
   const client = await playwright.request.newContext({
     baseURL,
-    extraHTTPHeaders: clientHeaders(),
+    // Origin follows baseURL, so the specs run against any web port.
+    extraHTTPHeaders: { ...clientHeaders(), Origin: baseURL },
   });
   const response = await client.post("/api/auth/login", {
     data: {

@@ -191,14 +191,26 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
     );
     return ids.filter((_, index) => allowed[index]);
   }
-  async function uploaderAccounts(tx: Transaction, documentId: string) {
+  /** Active uploaders who can still see the document (an ended substitution does not). */
+  async function uploaderAccounts(
+    tx: Transaction,
+    document: { id: string; unitId: string },
+  ) {
     const rows = await tx
       .selectDistinct({ id: auditDocumentFiles.uploadedByAccountId })
       .from(auditDocumentFiles)
-      .where(eq(auditDocumentFiles.documentId, documentId));
-    return activeAccounts(
+      .where(eq(auditDocumentFiles.documentId, document.id));
+    const ids = await activeAccounts(
       tx,
       rows.map((row) => row.id),
+    );
+    const grants = await Promise.all(
+      ids.map((id) => accessService.resolvePermissions(id)),
+    );
+    return ids.filter((_, index) =>
+      readKeys.some((key) =>
+        permissionAllows(grants[index]!, key, document.unitId),
+      ),
     );
   }
   async function activeAccounts(tx: Transaction, ids: string[]) {
@@ -367,7 +379,17 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
       }
     } catch (error) {
       if (error instanceof app.multipartErrors.RequestFileTooLargeError)
-        return fail(400, "O arquivo deve ter no máximo 20 MB.");
+        return fail(413, "O arquivo deve ter no máximo 20 MB.");
+      // Extra fields or files trip the multipart limits; busboy then aborts the
+      // pending file stream (premature close). Both are malformed requests.
+      const code = (error as { code?: string }).code;
+      if (
+        code === "FST_FIELDS_LIMIT" ||
+        code === "FST_FILES_LIMIT" ||
+        code === "FST_PARTS_LIMIT" ||
+        code === "ERR_STREAM_PREMATURE_CLOSE"
+      )
+        return fail(400, "Envie um único arquivo com os metadados.");
       throw error;
     }
     if (!bytes?.length) return fail(400, "Selecione um arquivo DOCX ou PDF.");
@@ -382,7 +404,8 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
 
   async function validFile(bytes: Buffer, fileName: string, mime: string) {
     const result = await validateAuditDocumentFile(bytes, fileName, mime);
-    if (!result.ok) return fail(400, result.message);
+    if (!result.ok)
+      return fail(result.code === "file_too_large" ? 413 : 400, result.message);
     return {
       mime: mimes[result.kind],
       sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -753,6 +776,14 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .where(eq(auditDocuments.id, document.id))
             .for("update");
           if (!current) return fail(404, "Documento não encontrado.");
+          // The action depends on the status the sender saw, so a stale
+          // version is answered before the per-action checks: a team answer
+          // that lost a race gets "reload" (409), not the reviewer-only 403.
+          if (current.version !== parsed.data.version)
+            return fail(
+              409,
+              "Este documento foi atualizado. Recarregue antes de continuar.",
+            );
           // In review, a new version is the reviewer's edit; after a
           // correction request it is the team's answer.
           const action =
@@ -764,10 +795,20 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
                 ? "Durante a análise, só a Subcontroladoria salva novas versões."
                 : "Só a equipe responde a um pedido de correção.",
             );
-          if (current.version !== parsed.data.version)
+          const [last] = await tx
+            .select({
+              number: auditDocumentFiles.number,
+              uploadedByAccountId: auditDocumentFiles.uploadedByAccountId,
+              uploadedAs: auditDocumentFiles.uploadedAs,
+            })
+            .from(auditDocumentFiles)
+            .where(eq(auditDocumentFiles.documentId, current.id))
+            .orderBy(desc(auditDocumentFiles.number))
+            .limit(1);
+          if (separated(user, action, teamUploader(last)))
             return fail(
-              409,
-              "Este documento foi atualizado. Recarregue antes de continuar.",
+              403,
+              "Quem enviou a versão atual não pode editá-la como revisão. Peça a outra pessoa.",
             );
           const status = nextAuditDocumentStatus(current.status, action);
           if (!status)
@@ -776,12 +817,6 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
               "Esta etapa não aceita novas versões. Recarregue o documento.",
             );
           const type = auditDocumentEventByAction[action];
-          const [last] = await tx
-            .select({ number: auditDocumentFiles.number })
-            .from(auditDocumentFiles)
-            .where(eq(auditDocumentFiles.documentId, current.id))
-            .orderBy(desc(auditDocumentFiles.number))
-            .limit(1);
           await store();
           const [stored] = await tx
             .insert(auditDocumentFiles)
@@ -834,7 +869,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
           await notify(
             tx,
             type === "edited"
-              ? await uploaderAccounts(tx, current.id)
+              ? await uploaderAccounts(tx, current)
               : await reviewerAccounts(tx, current.unitId),
             user.account.id,
             { ...current, version: current.version + 1 },
@@ -939,7 +974,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         });
         await notify(
           tx,
-          await uploaderAccounts(tx, current.id),
+          await uploaderAccounts(tx, current),
           user.account.id,
           { ...current, version: version + 1 },
           auditDocumentEventByAction[action],

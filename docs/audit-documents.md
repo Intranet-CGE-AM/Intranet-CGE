@@ -30,8 +30,9 @@ Essa é a confirmação de leitura; não há botão de ciência.
 
 ### Segregação de funções
 
-Quem enviou a versão atual como equipe não pode aprová-la nem pedir correção
-dela. A revisora que apenas editou a versão pode aprová-la. Cada versão guarda
+Quem enviou a versão atual como equipe não pode aprová-la, pedir correção dela
+nem editá-la no navegador como revisão. A revisora que apenas editou a versão
+pode aprová-la. Cada versão guarda
 `uploaded_as` (`team` ou `reviewer`) para essa regra.
 
 ## Papéis e permissões
@@ -55,7 +56,7 @@ global ou `access.manage` global.
 
 ## Arquivos
 
-- Aceitos: `.docx` e PDF, até 20 MB.
+- Aceitos: `.docx` e PDF, até 20 MB (20 971 520 bytes). Acima disso a API responde `413`.
 - Extensão, MIME declarado e assinatura do arquivo precisam concordar.
 - `.docx` é verificado pelo diretório central do zip: partes obrigatórias,
   sem macros (`vbaProject.bin` ou tipo `macroEnabled`), limite de entradas e de
@@ -116,7 +117,8 @@ leitura se o leitor tinha `review` naquele momento.
 - Envio e nova versão avisam as contas ativas com `review` na equipe, incluindo
   substitutos em vigor.
 - Pedido de correção, aprovação, cancelamento, reabertura e edição da revisão
-  avisam quem enviou alguma versão.
+  avisam quem enviou alguma versão e ainda tem acesso ao documento (quem
+  enviou como substituto deixa de ser avisado quando a substituição termina).
 - Quem executou a ação não recebe aviso.
 - A caixa de pendências mostra à revisão os documentos em análise do seu
   escopo e à equipe os documentos com correção solicitada.
