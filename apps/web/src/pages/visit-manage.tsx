@@ -4,7 +4,6 @@ import type {
   VisitPageResult,
   VisitSummary,
   VisitType,
-  VisitorConfirmationStatus,
 } from "@cge/contracts";
 
 import {
@@ -14,39 +13,34 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
+  DataTable,
   DatePicker,
+  Dialog,
+  DialogContent,
   EmptyState,
   FormField,
   Input,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
+  Select,
+  TableSkeleton,
+  Textarea,
+  type ColumnDef,
 } from "@cge/ui";
 
-import {
-  Eye,
-  MagnifyingGlass,
-  PencilSimple,
-  Plus,
-  Trash,
-  UserCheck,
-  X,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-import { api, ApiError, json } from "../lib/api";
-
+import { VisitDetail } from "../components/visit-ui";
+import { api, json } from "../lib/api";
 import {
+  formatVisitDate,
+  formatVisitDateTime,
+  formatVisitTime,
+  visitErrorMessage,
   visitLocationOptions,
-  visitStatusLabels,
+  visitorConfirmationMeta,
+  visitStatusMeta,
   visitTypeLabels,
 } from "../lib/visit-labels";
 
@@ -118,17 +112,23 @@ const initialForm: VisitForm = {
   visitorCpf: "",
 };
 
-const visitorConfirmationLabels: Record<VisitorConfirmationStatus, string> = {
-  not_sent: "NÃO ENVIADO",
+type FieldErrors = Partial<
+  Record<"scheduledDate" | "location" | "endTime", string>
+>;
 
-  pending: "AGUARDANDO CONFIRMAÇÃO",
+const typeOptions = Object.entries(visitTypeLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
 
-  confirmed: "PRESENÇA CONFIRMADA",
-
-  declined: "NÃO COMPARECERÁ",
-
-  expired: "CONVITE EXPIRADO",
-};
+const tableHeaders = [
+  "Protocolo",
+  "Data",
+  "Motivo",
+  "Sala",
+  "Situação",
+  "Ações",
+];
 
 export function VisitManagePage() {
   const [form, setForm] = useState<VisitForm>(initialForm);
@@ -143,7 +143,7 @@ export function VisitManagePage() {
 
   const [page, setPage] = useState(1);
 
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const [total, setTotal] = useState(0);
 
@@ -157,7 +157,7 @@ export function VisitManagePage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [detail, setDetail] = useState<Visit | null>(null);
 
@@ -183,11 +183,13 @@ export function VisitManagePage() {
 
       setTotal(result.pagination.total);
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível carregar as visitas."));
+      setError(
+        visitErrorMessage(cause, "Não foi possível carregar as visitas."),
+      );
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     void loadVisits();
@@ -226,6 +228,8 @@ export function VisitManagePage() {
 
     setEditingId(null);
 
+    setFieldErrors({});
+
     setFormVersion((value) => value + 1);
   }
 
@@ -239,6 +243,19 @@ export function VisitManagePage() {
 
     const scheduledDate = String(data.get("scheduledDate") ?? "");
 
+    const nextFieldErrors: FieldErrors = {};
+
+    if (!scheduledDate) nextFieldErrors.scheduledDate = "Informe a data.";
+
+    if (!form.location) nextFieldErrors.location = "Selecione a sala.";
+
+    if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+      nextFieldErrors.endTime =
+        "O horário final deve ser posterior ao horário inicial.";
+    }
+
+    setFieldErrors(nextFieldErrors);
+
     if (
       !form.subject.trim() ||
       !form.organization.trim() ||
@@ -249,14 +266,12 @@ export function VisitManagePage() {
       !form.visitorName.trim() ||
       !form.visitorEmail.trim()
     ) {
-      setError("Preencha todos os campos obrigatórios.");
+      setError("Preencha os campos obrigatórios destacados antes de salvar.");
 
       return;
     }
 
-    if (form.endTime <= form.startTime) {
-      setError("O horário final deve ser posterior ao horário inicial.");
-
+    if (nextFieldErrors.endTime) {
       return;
     }
 
@@ -328,7 +343,7 @@ export function VisitManagePage() {
 
       await loadVisits();
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível salvar a visita."));
+      setError(visitErrorMessage(cause, "Não foi possível salvar a visita."));
     } finally {
       setBusy(false);
     }
@@ -340,7 +355,9 @@ export function VisitManagePage() {
 
       setDetail(result);
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível consultar a visita."));
+      setError(
+        visitErrorMessage(cause, "Não foi possível consultar a visita."),
+      );
     }
   }
 
@@ -394,29 +411,23 @@ export function VisitManagePage() {
         behavior: "smooth",
       });
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível carregar a visita."));
+      setError(visitErrorMessage(cause, "Não foi possível carregar a visita."));
     }
   }
 
-  async function removeVisit() {
-    if (!deleteId) {
-      return;
-    }
-
+  async function removeVisit(id: string) {
     try {
       setBusy(true);
 
-      await api(`/api/visits/${deleteId}`, {
+      await api(`/api/visits/${id}`, {
         method: "DELETE",
       });
-
-      setDeleteId(null);
 
       setSuccess("Visita excluída com sucesso.");
 
       await loadVisits();
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível excluir a visita."));
+      setError(visitErrorMessage(cause, "Não foi possível excluir a visita."));
     } finally {
       setBusy(false);
     }
@@ -434,7 +445,7 @@ export function VisitManagePage() {
 
       await loadVisits();
     } catch (cause) {
-      setError(getErrorMessage(cause, "Não foi possível liberar a visita."));
+      setError(visitErrorMessage(cause, "Não foi possível liberar a visita."));
     } finally {
       setBusy(false);
     }
@@ -459,7 +470,7 @@ export function VisitManagePage() {
       await loadVisits();
     } catch (cause) {
       setError(
-        getErrorMessage(
+        visitErrorMessage(
           cause,
           "Não foi possível reenviar a confirmação da visita.",
         ),
@@ -469,24 +480,119 @@ export function VisitManagePage() {
     }
   }
 
+  const columns: ColumnDef<VisitSummary>[] = [
+    {
+      header: "Protocolo",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-semibold">
+          {row.original.protocol}
+        </span>
+      ),
+    },
+    {
+      header: "Data",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">
+          {formatVisitDate(row.original.scheduledDate)}
+        </span>
+      ),
+    },
+    {
+      header: "Motivo",
+      cell: ({ row }) => (
+        <span className="line-clamp-2 min-w-48">{row.original.subject}</span>
+      ),
+    },
+    {
+      header: "Sala",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">{row.original.location}</span>
+      ),
+    },
+    {
+      header: "Situação",
+      cell: ({ row }) => (
+        <Badge
+          className="whitespace-nowrap"
+          variant={visitStatusMeta[row.original.status].variant}
+        >
+          {visitStatusMeta[row.original.status].label}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="block text-right">Ações</span>,
+      cell: ({ row }) => {
+        const visit = row.original;
+
+        return (
+          <div className="flex justify-end gap-1 whitespace-nowrap">
+            {["pending", "approved"].includes(visit.status) ? (
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => void releaseReception(visit.id)}
+              >
+                Liberar
+              </Button>
+            ) : null}
+
+            <Button
+              size="sm"
+              variant="quiet"
+              onClick={() => void viewVisit(visit.id)}
+            >
+              Ver detalhes
+            </Button>
+
+            <Button
+              size="sm"
+              variant="quiet"
+              onClick={() => void editVisit(visit.id)}
+            >
+              Editar
+            </Button>
+
+            {["pending", "rejected", "cancelled"].includes(visit.status) ? (
+              <ConfirmDialog
+                busyLabel="Excluindo…"
+                confirmLabel="Excluir visita"
+                description={`A visita ${visit.protocol} será removida da agenda e do histórico. Esta ação não pode ser desfeita.`}
+                onConfirm={() => removeVisit(visit.id)}
+                title="Excluir visita?"
+              >
+                <Button disabled={busy} size="sm" variant="quiet">
+                  Excluir
+                </Button>
+              </ConfirmDialog>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="page-enter space-y-5 pb-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Agendamento de Visitas
-        </p>
+    <div className="page-enter space-y-5">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Agendamento de Visitas
+          </p>
 
-        <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-          Nova visita
-        </h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            {editingId ? "Editar visita" : "Nova visita"}
+          </h1>
 
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Cadastre e gerencie visitas, reuniões e atendimentos técnicos.
-        </p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Cadastre e gerencie visitas, reuniões e atendimentos técnicos.
+          </p>
+        </div>
       </div>
 
       {error ? (
-        <Alert title="Erro" tone="danger">
+        <Alert title="A operação não foi concluída" tone="danger">
           {error}
         </Alert>
       ) : null}
@@ -500,31 +606,30 @@ export function VisitManagePage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-extrabold">
+            <h2 className="font-bold">
               {editingId ? "Editar agendamento" : "Cadastrar nova visita"}
             </h2>
+
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              O visitante recebe o convite de confirmação no e-mail informado.
+            </p>
           </div>
         </CardHeader>
 
         <CardContent>
           <form className="space-y-6" onSubmit={submit}>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField htmlFor="visit-type" label="Tipo da visita">
-                <select
+                <Select
                   id="visit-type"
+                  name="type"
                   required
-                  className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                  options={typeOptions}
                   value={form.type}
-                  onChange={(event) =>
-                    updateField("type", event.target.value as VisitType)
+                  onValueChange={(value) =>
+                    updateField("type", value as VisitType)
                   }
-                >
-                  {Object.entries(visitTypeLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                />
               </FormField>
 
               <FormField
@@ -541,7 +646,7 @@ export function VisitManagePage() {
                 />
               </FormField>
 
-              <FormField htmlFor="visit-sector" label="Setor">
+              <FormField htmlFor="visit-sector" label="Setor (opcional)">
                 <Input
                   id="visit-sector"
                   value={form.sector}
@@ -565,7 +670,11 @@ export function VisitManagePage() {
                 />
               </FormField>
 
-              <FormField htmlFor="visit-date" label="Data">
+              <FormField
+                htmlFor="visit-date"
+                label="Data"
+                error={fieldErrors.scheduledDate}
+              >
                 <DatePicker
                   key={`${formVersion}-${form.scheduledDate}`}
                   id="visit-date"
@@ -576,29 +685,22 @@ export function VisitManagePage() {
                 />
               </FormField>
 
-              {/* NOVO COMBOBOX */}
-
-              <FormField htmlFor="visit-location" label="Sala da visita">
-                <select
+              <FormField
+                htmlFor="visit-location"
+                label="Sala da visita"
+                error={fieldErrors.location}
+              >
+                <Select
+                  aria-invalid={Boolean(fieldErrors.location)}
                   id="visit-location"
-                  required
-                  className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                  name="location"
+                  options={visitLocationOptions}
+                  placeholder="Selecione a sala"
                   value={form.location}
-                  onChange={(event) =>
-                    updateField(
-                      "location",
-                      event.target.value as VisitLocation | "",
-                    )
+                  onValueChange={(value) =>
+                    updateField("location", value as VisitLocation)
                   }
-                >
-                  <option value="">Selecione a sala</option>
-
-                  {visitLocationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </FormField>
 
               <FormField htmlFor="start-time" label="Hora inicial">
@@ -613,8 +715,13 @@ export function VisitManagePage() {
                 />
               </FormField>
 
-              <FormField htmlFor="end-time" label="Hora final">
+              <FormField
+                htmlFor="end-time"
+                label="Hora final"
+                error={fieldErrors.endTime}
+              >
                 <Input
+                  aria-invalid={Boolean(fieldErrors.endTime)}
                   id="end-time"
                   required
                   type="time"
@@ -626,10 +733,12 @@ export function VisitManagePage() {
               </FormField>
             </div>
 
-            <FormField htmlFor="description" label="Descrição / objetivo">
-              <textarea
+            <FormField
+              htmlFor="description"
+              label="Descrição / objetivo (opcional)"
+            >
+              <Textarea
                 id="description"
-                className="min-h-28 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm"
                 value={form.description}
                 onChange={(event) =>
                   updateField("description", event.target.value)
@@ -638,9 +747,9 @@ export function VisitManagePage() {
             </FormField>
 
             <section className="border-t border-[var(--border)] pt-5">
-              <h3 className="font-extrabold">Dados do visitante / técnico</h3>
+              <h3 className="font-bold">Dados do visitante / técnico</h3>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <FormField htmlFor="visitor-name" label="Nome completo">
                   <Input
                     id="visitor-name"
@@ -652,7 +761,10 @@ export function VisitManagePage() {
                   />
                 </FormField>
 
-                <FormField htmlFor="visitor-position" label="Cargo / função">
+                <FormField
+                  htmlFor="visitor-position"
+                  label="Cargo / função (opcional)"
+                >
                   <Input
                     id="visitor-position"
                     value={form.visitorPosition}
@@ -664,7 +776,8 @@ export function VisitManagePage() {
 
                 <FormField
                   htmlFor="visitor-organization"
-                  label="Órgão do visitante"
+                  label="Órgão do visitante (opcional)"
+                  hint="Se vazio, usa o órgão da visita."
                 >
                   <Input
                     id="visitor-organization"
@@ -675,7 +788,7 @@ export function VisitManagePage() {
                   />
                 </FormField>
 
-                <FormField htmlFor="visitor-sector" label="Setor">
+                <FormField htmlFor="visitor-sector" label="Setor (opcional)">
                   <Input
                     id="visitor-sector"
                     value={form.visitorSector}
@@ -697,9 +810,10 @@ export function VisitManagePage() {
                   />
                 </FormField>
 
-                <FormField htmlFor="visitor-phone" label="Telefone">
+                <FormField htmlFor="visitor-phone" label="Telefone (opcional)">
                   <Input
                     id="visitor-phone"
+                    type="tel"
                     value={form.visitorPhone}
                     onChange={(event) =>
                       updateField("visitorPhone", event.target.value)
@@ -707,9 +821,10 @@ export function VisitManagePage() {
                   />
                 </FormField>
 
-                <FormField htmlFor="visitor-cpf" label="CPF">
+                <FormField htmlFor="visitor-cpf" label="CPF (opcional)">
                   <Input
                     id="visitor-cpf"
+                    inputMode="numeric"
                     value={form.visitorCpf}
                     onChange={(event) =>
                       updateField("visitorCpf", event.target.value)
@@ -719,7 +834,7 @@ export function VisitManagePage() {
               </div>
             </section>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-2">
               {editingId ? (
                 <Button type="button" variant="secondary" onClick={resetForm}>
                   Cancelar edição
@@ -727,377 +842,218 @@ export function VisitManagePage() {
               ) : null}
 
               <Button type="submit" disabled={busy}>
-                <Plus size={16} />
-
-                {editingId ? "Salvar alterações" : "Salvar visita"}
+                {busy
+                  ? "Salvando…"
+                  : editingId
+                    ? "Salvar alterações"
+                    : "Salvar visita"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {/* CONSULTA */}
-
       <Card>
         <CardHeader>
-          <h2 className="font-extrabold">Consultar visitas</h2>
+          <div>
+            <h2 className="font-bold">Visitas cadastradas</h2>
+
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Consulte, edite ou libere os agendamentos para a recepção.
+            </p>
+          </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="relative mb-5">
-            <MagnifyingGlass
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-            />
+        <CardContent className="border-b border-[var(--border)] py-4">
+          <FormField htmlFor="manage-search" label="Buscar">
+            <div className="relative">
+              <MagnifyingGlass
+                aria-hidden="true"
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+              />
 
-            <Input
-              className="pl-9"
-              placeholder="Protocolo, órgão ou motivo"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <p className="py-10 text-center">Carregando...</p>
-          ) : visits.length === 0 ? (
-            <EmptyState
-              title="Nenhuma visita encontrada"
-              description="Os agendamentos aparecerão aqui."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHead>Protocolo</TableHead>
-
-                    <TableHead>Data</TableHead>
-
-                    <TableHead>Motivo</TableHead>
-
-                    <TableHead>Sala</TableHead>
-
-                    <TableHead>Status</TableHead>
-
-                    <TableHead>Ações</TableHead>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {visits.map((visit) => (
-                    <TableRow key={visit.id}>
-                      <TableCell>{visit.protocol}</TableCell>
-
-                      <TableCell>{formatDate(visit.scheduledDate)}</TableCell>
-
-                      <TableCell>{visit.subject}</TableCell>
-
-                      <TableCell>{visit.location}</TableCell>
-
-                      <TableCell>
-                        <Badge variant="neutral">
-                          {visitStatusLabels[visit.status]}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => void viewVisit(visit.id)}
-                          >
-                            <Eye size={15} />
-                            Consultar
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => void editVisit(visit.id)}
-                          >
-                            <PencilSimple size={15} />
-                            Editar
-                          </Button>
-
-                          {["pending", "approved"].includes(visit.status) ? (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => void releaseReception(visit.id)}
-                            >
-                              <UserCheck size={15} />
-                              Liberar
-                            </Button>
-                          ) : null}
-
-                          {["pending", "rejected", "cancelled"].includes(
-                            visit.status,
-                          ) ? (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => setDeleteId(visit.id)}
-                            >
-                              <Trash size={15} />
-                              Excluir
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
+              <Input
+                autoComplete="off"
+                className="pl-9"
+                id="manage-search"
+                placeholder="Protocolo, órgão ou motivo"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
             </div>
-          )}
-
-          <p className="mt-4 text-xs text-[var(--text-muted)]">
-            {total} registro(s)
-          </p>
+          </FormField>
         </CardContent>
+
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando visitas"
+            headers={tableHeaders}
+            rows={4}
+          />
+        ) : total ? (
+          <DataTable
+            ariaLabel="Visitas cadastradas"
+            columns={columns}
+            data={visits}
+            getRowId={(visit) => visit.id}
+            itemLabel="visitas"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPage(1);
+              setPageSize(size);
+            }}
+            page={page}
+            pageSize={pageSize}
+            pageSizeOptions={[10, 25, 50]}
+            total={total}
+          />
+        ) : search ? (
+          <EmptyState
+            title="Nenhum resultado para a busca"
+            description="Confira o protocolo, o órgão ou o motivo informado."
+          />
+        ) : (
+          <EmptyState
+            title="Nenhuma visita cadastrada"
+            description="Os agendamentos salvos no formulário acima aparecerão aqui."
+          />
+        )}
       </Card>
 
-      {deleteId ? (
-        <ModalOverlay>
-          <div className="w-full max-w-md rounded-xl bg-white p-6">
-            <h2 className="font-extrabold">Excluir visita?</h2>
+      <Dialog
+        open={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          title="Detalhes da visita"
+          description="Consulte o agendamento e acompanhe a confirmação enviada ao visitante."
+        >
+          {detail ? (
+            <>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <VisitDetail label="Protocolo">{detail.protocol}</VisitDetail>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setDeleteId(null)}>
-                Cancelar
-              </Button>
+                <VisitDetail label="Sala">{detail.location}</VisitDetail>
 
-              <Button variant="danger" onClick={() => void removeVisit()}>
-                Excluir
-              </Button>
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                <VisitDetail label="Órgão">{detail.organization}</VisitDetail>
 
-      {detail ? (
-        <ModalOverlay>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-extrabold">Detalhes da visita</h2>
+                <VisitDetail label="Motivo">{detail.subject}</VisitDetail>
 
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  Consulte o agendamento e acompanhe a confirmação enviada ao
-                  visitante.
-                </p>
-              </div>
+                <VisitDetail label="Data">
+                  {formatVisitDate(detail.scheduledDate)}
+                </VisitDetail>
 
-              <button
-                type="button"
-                aria-label="Fechar"
-                onClick={() => setDetail(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
+                <VisitDetail label="Horário">
+                  {formatVisitTime(detail.startTime, detail.endTime)}
+                </VisitDetail>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <DetailItem label="Protocolo" value={detail.protocol} />
+                <VisitDetail label="Situação">
+                  <Badge
+                    className="whitespace-nowrap"
+                    variant={visitStatusMeta[detail.status].variant}
+                  >
+                    {visitStatusMeta[detail.status].label}
+                  </Badge>
+                </VisitDetail>
 
-              <DetailItem label="Sala" value={detail.location} />
+                <VisitDetail label="Tipo">
+                  {visitTypeLabels[detail.type] ?? detail.type}
+                </VisitDetail>
+              </dl>
 
-              <DetailItem label="Órgão" value={detail.organization} />
+              <section className="mt-6 border-t border-[var(--border)] pt-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold">Visitantes e confirmação</h3>
 
-              <DetailItem label="Motivo" value={detail.subject} />
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      A situação é atualizada quando o visitante responde ao
+                      link recebido por e-mail.
+                    </p>
+                  </div>
 
-              <DetailItem
-                label="Data"
-                value={formatDate(detail.scheduledDate)}
-              />
-
-              <DetailItem
-                label="Horário"
-                value={`${detail.startTime.slice(
-                  0,
-                  5,
-                )} às ${detail.endTime.slice(0, 5)}`}
-              />
-
-              <DetailItem
-                label="Situação"
-                value={visitStatusLabels[detail.status] ?? detail.status}
-              />
-
-              <DetailItem
-                label="Tipo"
-                value={visitTypeLabels[detail.type] ?? detail.type}
-              />
-            </div>
-
-            <section className="mt-6 border-t border-[var(--border)] pt-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-extrabold">Visitantes e confirmação</h3>
-
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    O status abaixo é atualizado quando o visitante responde ao
-                    link recebido por e-mail.
-                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={
+                      busy ||
+                      !detail.visitors.some((visitor) =>
+                        Boolean(visitor.email?.trim()),
+                      )
+                    }
+                    onClick={() => void resendConfirmation(detail.id)}
+                  >
+                    {busy ? "Reenviando…" : "Reenviar confirmação"}
+                  </Button>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={
-                    busy ||
-                    !detail.visitors.some((visitor) =>
-                      Boolean(visitor.email?.trim()),
-                    )
-                  }
-                  onClick={() => void resendConfirmation(detail.id)}
-                >
-                  Reenviar confirmação
-                </Button>
-              </div>
+                <ul className="mt-4 divide-y divide-[var(--border)] border-t border-[var(--border)]">
+                  {detail.visitors.map((visitor) => {
+                    const confirmation =
+                      visitorConfirmationMeta[visitor.confirmationStatus];
 
-              <div className="mt-4 space-y-3">
-                {detail.visitors.map((visitor) => (
-                  <div
-                    key={visitor.id}
-                    className="rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold">{visitor.name}</p>
+                    return (
+                      <li className="py-4" key={visitor.id}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {visitor.name}
+                            </p>
 
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">
-                          {visitor.position ?? "Cargo / função não informado"}
-                        </p>
-                      </div>
+                            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                              {visitor.position ?? "Cargo não informado"}
+                            </p>
+                          </div>
 
-                      <Badge variant="neutral">
-                        {visitorConfirmationLabels[
-                          visitor.confirmationStatus
-                        ] ?? "NÃO INFORMADO"}
-                      </Badge>
-                    </div>
+                          <Badge variant={confirmation?.variant ?? "neutral"}>
+                            {confirmation?.label ?? "Não informado"}
+                          </Badge>
+                        </div>
 
-                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                      <DetailItem
-                        label="E-mail"
-                        value={visitor.email ?? "Não informado"}
-                      />
+                        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <VisitDetail label="E-mail">
+                            {visitor.email ?? "Não informado"}
+                          </VisitDetail>
 
-                      <DetailItem
-                        label="Telefone"
-                        value={visitor.phone ?? "Não informado"}
-                      />
+                          <VisitDetail label="Telefone">
+                            {visitor.phone ?? "Não informado"}
+                          </VisitDetail>
 
-                      <DetailItem label="Órgão" value={visitor.organization} />
+                          <VisitDetail label="Órgão">
+                            {visitor.organization}
+                          </VisitDetail>
 
-                      <DetailItem
-                        label="Setor"
-                        value={visitor.sector ?? "Não informado"}
-                      />
+                          <VisitDetail label="Setor">
+                            {visitor.sector ?? "Não informado"}
+                          </VisitDetail>
 
-                      <DetailItem
-                        label="Convite enviado em"
-                        value={formatOptionalDateTime(
-                          visitor.confirmationSentAt,
-                        )}
-                      />
+                          <VisitDetail label="Convite enviado em">
+                            {formatVisitDateTime(visitor.confirmationSentAt)}
+                          </VisitDetail>
 
-                      <DetailItem
-                        label="Resposta recebida em"
-                        value={formatOptionalDateTime(
-                          visitor.confirmationRespondedAt,
-                        )}
-                      />
+                          <VisitDetail label="Resposta recebida em">
+                            {formatVisitDateTime(
+                              visitor.confirmationRespondedAt,
+                            )}
+                          </VisitDetail>
 
-                      <DetailItem
-                        label="Validade do convite"
-                        value={formatOptionalDateTime(
-                          visitor.confirmationExpiresAt,
-                        )}
-                      />
-
-                      <DetailItem
-                        label="Confirmação"
-                        value={
-                          visitorConfirmationLabels[
-                            visitor.confirmationStatus
-                          ] ?? "NÃO INFORMADO"
-                        }
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <div className="mt-6 flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setDetail(null)}
-              >
-                Fechar
-              </Button>
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                          <VisitDetail label="Validade do convite">
+                            {formatVisitDateTime(visitor.confirmationExpiresAt)}
+                          </VisitDetail>
+                        </dl>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function ModalOverlay({ children }: { children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      {children}
-    </div>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase text-[var(--text-faint)]">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm">{value}</p>
-    </div>
-  );
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
-}
-
-function formatOptionalDateTime(value: Date | string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-
-    timeStyle: "short",
-  }).format(date);
-}
-
-function getErrorMessage(cause: unknown, fallback: string) {
-  return cause instanceof ApiError ? cause.message : fallback;
 }

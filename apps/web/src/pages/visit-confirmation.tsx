@@ -1,12 +1,20 @@
 import type { PublicVisitConfirmation } from "@cge/contracts";
 
-import { CheckCircle, XCircle } from "@phosphor-icons/react";
+import { Alert, Badge, Button, Card, Skeleton } from "@cge/ui";
+
+import { CheckCircle, ShieldCheck, XCircle } from "@phosphor-icons/react";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { useParams, useSearchParams } from "react-router";
 
-import { api, ApiError, json } from "../lib/api";
+import { VisitDetail } from "../components/visit-ui";
+import { api, json } from "../lib/api";
+import {
+  formatVisitDate,
+  formatVisitTime,
+  visitErrorMessage,
+} from "../lib/visit-labels";
 
 /* =========================================================
  * ESTADO LOCAL
@@ -67,7 +75,7 @@ export function VisitConfirmationPage() {
       }
     } catch (cause) {
       setError(
-        getErrorMessage(
+        visitErrorMessage(
           cause,
 
           "Não foi possível consultar o agendamento.",
@@ -112,7 +120,7 @@ export function VisitConfirmationPage() {
       setResponseState("idle");
 
       setError(
-        getErrorMessage(
+        visitErrorMessage(
           cause,
 
           "Não foi possível registrar sua resposta.",
@@ -121,168 +129,156 @@ export function VisitConfirmationPage() {
     }
   }
 
-  /* =======================================================
-   * LOADING
-   * ===================================================== */
-
   if (loading) {
     return (
       <PublicLayout>
-        <div className="py-12 text-center">
-          <p className="text-sm text-slate-600">Consultando agendamento...</p>
-        </div>
-      </PublicLayout>
-    );
-  }
-
-  /* =======================================================
-   * ERRO SEM VISITA
-   * ===================================================== */
-
-  if (error && !visit) {
-    return (
-      <PublicLayout>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
-          <h1 className="font-bold text-red-800">
-            Não foi possível abrir o convite
-          </h1>
-
-          <p className="mt-2 text-sm text-red-700">{error}</p>
-        </div>
-      </PublicLayout>
-    );
-  }
-
-  /* =======================================================
-   * JÁ CONFIRMADO
-   * ===================================================== */
-
-  if (responseState === "confirmed") {
-    return (
-      <PublicLayout>
-        <div className="py-10 text-center">
-          <CheckCircle
-            size={72}
-            weight="duotone"
-            className="mx-auto text-[#08756f]"
-          />
-
-          <h1 className="mt-5 text-2xl font-extrabold text-slate-900">
-            Presença confirmada
-          </h1>
-
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            Sua confirmação foi registrada com sucesso. O agendamento já foi
-            atualizado na Intranet CGE.
+        <div role="status">
+          <p className="text-sm text-[var(--text-muted)]">
+            Consultando agendamento…
           </p>
 
-          <div className="mt-6 inline-flex rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
-            VISITA CONFIRMADA
-          </div>
-        </div>
-      </PublicLayout>
-    );
-  }
+          <Skeleton className="mt-4 h-9 w-64" />
 
-  /* =======================================================
-   * RECUSADO
-   * ===================================================== */
+          <Skeleton className="mt-3 h-4 w-full" />
 
-  if (responseState === "declined") {
-    return (
-      <PublicLayout>
-        <div className="py-10 text-center">
-          <XCircle
-            size={72}
-            weight="duotone"
-            className="mx-auto text-slate-500"
-          />
-
-          <h1 className="mt-5 text-2xl font-extrabold text-slate-900">
-            Resposta registrada
-          </h1>
-
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            A Controladoria-Geral do Estado do Amazonas foi informada de que
-            você não poderá comparecer.
-          </p>
+          <Skeleton className="mt-8 h-56 w-full" />
         </div>
       </PublicLayout>
     );
   }
 
   if (!visit) {
-    return null;
+    return (
+      <PublicLayout>
+        <PageTitle>Convite indisponível</PageTitle>
+
+        <Alert
+          className="mt-6"
+          title="Não foi possível abrir o convite"
+          tone="danger"
+        >
+          {error || "Link de confirmação inválido."} Se precisar, entre em
+          contato com a CGE Amazonas para receber um novo convite.
+        </Alert>
+      </PublicLayout>
+    );
   }
 
-  /* =======================================================
-   * CONVITE
-   * ===================================================== */
+  if (responseState === "confirmed") {
+    return (
+      <PublicLayout>
+        <CheckCircle
+          aria-hidden="true"
+          className="text-[var(--success)]"
+          size={56}
+          weight="duotone"
+        />
+
+        <PageTitle>Presença confirmada</PageTitle>
+
+        <Badge className="mt-4" variant="success">
+          Visita confirmada
+        </Badge>
+
+        <Alert className="mt-6" title="Resposta registrada" tone="success">
+          Sua confirmação foi registrada. O agendamento já foi atualizado na
+          Intranet CGE.
+        </Alert>
+      </PublicLayout>
+    );
+  }
+
+  if (responseState === "declined") {
+    return (
+      <PublicLayout>
+        <XCircle
+          aria-hidden="true"
+          className="text-[var(--text-faint)]"
+          size={56}
+          weight="duotone"
+        />
+
+        <PageTitle>Resposta registrada</PageTitle>
+
+        <Alert className="mt-6" title="Ausência informada" tone="neutral">
+          A Controladoria-Geral do Estado do Amazonas foi informada de que você
+          não poderá comparecer.
+        </Alert>
+      </PublicLayout>
+    );
+  }
 
   return (
     <PublicLayout>
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#08756f]">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--brand)]">
         Agendamento de Visitas
       </p>
 
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
-        Confirmação de visita
-      </h1>
+      <PageTitle>Confirmação de visita</PageTitle>
 
-      <p className="mt-3 text-sm leading-6 text-slate-600">
-        Prezado(a) <strong>{visit.visitorName}</strong>, existe uma visita
-        agendada em seu nome junto à CGE Amazonas.
+      <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+        Prezado(a){" "}
+        <strong className="text-[var(--text)]">{visit.visitorName}</strong>,
+        existe uma visita agendada em seu nome junto à CGE Amazonas.
       </p>
 
       {error ? (
-        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <Alert
+          className="mt-6"
+          title="Não foi possível registrar sua resposta"
+          tone="danger"
+        >
           {error}
-        </div>
+        </Alert>
       ) : null}
 
-      <div className="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-        <Info label="Protocolo" value={visit.protocol} />
+      <Card className="mt-8 bg-[var(--surface-subtle)]">
+        <dl className="grid gap-4 p-5 sm:grid-cols-2">
+          <VisitDetail label="Protocolo">{visit.protocol}</VisitDetail>
 
-        <Info label="Motivo da visita" value={visit.subject} />
+          <VisitDetail label="Data">
+            {formatVisitDate(visit.scheduledDate)}
+          </VisitDetail>
 
-        <Info label="Órgão / instituição" value={visit.organization} />
+          <VisitDetail className="sm:col-span-2" label="Motivo da visita">
+            {visit.subject}
+          </VisitDetail>
 
-        <Info label="Data" value={formatDate(visit.scheduledDate)} />
+          <VisitDetail label="Órgão / instituição">
+            {visit.organization}
+          </VisitDetail>
 
-        <Info
-          label="Horário"
-          value={`${visit.startTime} às ${visit.endTime}`}
-        />
+          <VisitDetail label="Horário">
+            {formatVisitTime(visit.startTime, visit.endTime)}
+          </VisitDetail>
 
-        <Info label="Local" value={visit.location} />
-      </div>
+          <VisitDetail label="Local">{visit.location}</VisitDetail>
+        </dl>
+      </Card>
 
-      <div className="mt-7 grid gap-3 sm:grid-cols-2">
-        <button
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <Button
           type="button"
           disabled={responseState === "sending"}
           onClick={() => void respond("confirmed")}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#08756f] px-5 font-bold text-white transition hover:bg-[#06635e] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <CheckCircle size={21} />
+          <CheckCircle aria-hidden="true" size={16} />
 
-          {responseState === "sending"
-            ? "Registrando..."
-            : "Confirmar presença"}
-        </button>
+          {responseState === "sending" ? "Registrando…" : "Confirmar presença"}
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="secondary"
           disabled={responseState === "sending"}
           onClick={() => void respond("declined")}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <XCircle size={21} />
+          <XCircle aria-hidden="true" size={16} />
           Não poderei comparecer
-        </button>
+        </Button>
       </div>
 
-      <p className="mt-7 text-xs leading-5 text-slate-500">
+      <p className="mt-6 text-xs leading-5 text-[var(--text-faint)]">
         Sua resposta será registrada diretamente no sistema de Agendamento de
         Visitas da CGE Amazonas.
       </p>
@@ -290,69 +286,45 @@ export function VisitConfirmationPage() {
   );
 }
 
-/* =========================================================
- * LAYOUT
- * ======================================================= */
+function PageTitle({ children }: { children: ReactNode }) {
+  return (
+    <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
+      {children}
+    </h1>
+  );
+}
 
+// Mirrors the left column of components/auth-layout.tsx: this page is public.
 function PublicLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#f5f8f7] px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
-        <header className="mb-8 border-b border-slate-200 pb-5">
-          <div className="text-lg font-extrabold text-[#075f5b]">
+    <main className="flex min-h-[100dvh] flex-col bg-white px-5 py-6 sm:px-10">
+      <div className="flex items-center gap-3">
+        <ShieldCheck
+          aria-hidden="true"
+          className="text-[var(--brand)]"
+          size={30}
+          weight="fill"
+        />
+
+        <div>
+          <p className="font-extrabold tracking-[-0.03em] text-[var(--brand-strong)]">
             CGE Amazonas
-          </div>
-
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-            Controladoria-Geral do Estado do Amazonas
           </p>
-        </header>
 
-        {children}
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-faint)]">
+            Controladoria-Geral do Estado
+          </p>
+        </div>
       </div>
+
+      <div className="mx-auto flex w-full max-w-[520px] flex-1 items-center py-12">
+        <div className="w-full">{children}</div>
+      </div>
+
+      <p className="mx-auto max-w-lg text-center text-xs leading-5 text-[var(--text-faint)]">
+        Controladoria-Geral do Estado do Amazonas. Este link é pessoal e vale
+        somente para o convite recebido por e-mail.
+      </p>
     </main>
   );
-}
-
-/* =========================================================
- * INFO
- * ======================================================= */
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-
-  value: string;
-}) {
-  return (
-    <div className="border-b border-slate-200 px-5 py-4 last:border-b-0">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 font-semibold text-slate-900">{value}</p>
-    </div>
-  );
-}
-
-/* =========================================================
- * FORMATAR DATA
- * ======================================================= */
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`));
-}
-
-/* =========================================================
- * ERRO
- * ======================================================= */
-
-function getErrorMessage(
-  cause: unknown,
-
-  fallback: string,
-) {
-  return cause instanceof ApiError ? cause.message : fallback;
 }

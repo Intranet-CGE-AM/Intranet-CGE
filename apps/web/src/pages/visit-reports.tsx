@@ -8,33 +8,26 @@ import type {
 
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   DateRangePicker,
   EmptyState,
+  FormField,
   Input,
+  Select,
   Table,
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 
-import {
-  ChartBar,
-  DownloadSimple,
-  FilePdf,
-  FunnelSimple,
-} from "@phosphor-icons/react";
+import { DownloadSimple, FilePdf } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { utils, writeFileXLSX } from "xlsx";
 
@@ -42,11 +35,13 @@ import { jsPDF } from "jspdf";
 
 import autoTable from "jspdf-autotable";
 
-import { api, ApiError } from "../lib/api";
-
+import { VisitStats } from "../components/visit-ui";
+import { api } from "../lib/api";
 import {
+  visitErrorMessage,
   visitLocationOptions,
   visitStatusLabels,
+  visitStatusMeta,
   visitTypeLabels,
 } from "../lib/visit-labels";
 
@@ -122,7 +117,7 @@ export function VisitReportsPage() {
 
   const [visits, setVisits] = useState<VisitSummary[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [exportingXlsx, setExportingXlsx] = useState(false);
 
@@ -144,7 +139,7 @@ export function VisitReportsPage() {
       setVisits(result);
     } catch (cause) {
       setError(
-        getErrorMessage(cause, "Não foi possível carregar o relatório."),
+        visitErrorMessage(cause, "Não foi possível carregar o relatório."),
       );
     } finally {
       setLoading(false);
@@ -309,192 +304,124 @@ export function VisitReportsPage() {
     }
   }
 
-  /* =======================================================
-   * RENDER
-   * ===================================================== */
+  const groupedRows =
+    reportKind === "general"
+      ? []
+      : getGroupedReportData(reportKind, {
+          type: groupedByType,
+          status: groupedByStatus,
+          location: groupedByLocation,
+          organization: groupedByOrganization,
+        }).rows;
 
   return (
-    <div className="page-enter space-y-5 pb-6">
-      {/* CABEÇALHO */}
+    <div className="page-enter space-y-5">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Agendamento de Visitas
+          </p>
 
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Agendamento de Visitas
-        </p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            Relatórios
+          </h1>
 
-        <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-          Relatórios
-        </h1>
-
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Consulte indicadores dos agendamentos e exporte os resultados em Excel
-          ou PDF.
-        </p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Consulte indicadores dos agendamentos e exporte os resultados em
+            Excel ou PDF.
+          </p>
+        </div>
       </div>
 
       {error ? (
-        <Alert title="Não foi possível concluir a operação" tone="danger">
+        <Alert title="A operação não foi concluída" tone="danger">
           {error}
         </Alert>
       ) : null}
 
-      {/* TIPOS DE RELATÓRIO */}
-
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-extrabold">Tipo de relatório</h2>
+            <h2 className="font-bold">Filtros</h2>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Selecione uma forma de visualização dos agendamentos.
+              Escolha o tipo de relatório e combine período, tipo, sala,
+              situação, motivo e instituição.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <ReportOption
-              active={reportKind === "general"}
-              title="Relatório Geral"
-              description="Relação detalhada dos agendamentos."
-              onClick={() => setReportKind("general")}
-            />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <FormField
+              htmlFor="report-kind"
+              label="Tipo de relatório"
+              hint={reportKindOptions.find((o) => o.value === reportKind)?.hint}
+            >
+              <Select
+                id="report-kind"
+                name="reportKind"
+                options={reportKindOptions}
+                value={reportKind}
+                onValueChange={(value) => setReportKind(value as ReportKind)}
+              />
+            </FormField>
 
-            <ReportOption
-              active={reportKind === "type"}
-              title="Por Tipo de Visita"
-              description="Distribuição dos agendamentos por categoria."
-              onClick={() => setReportKind("type")}
-            />
-
-            <ReportOption
-              active={reportKind === "status"}
-              title="Por Situação"
-              description="Distribuição por status do agendamento."
-              onClick={() => setReportKind("status")}
-            />
-
-            <ReportOption
-              active={reportKind === "location"}
-              title="Por Sala"
-              description="Utilização das salas de reunião e auditório."
-              onClick={() => setReportKind("location")}
-            />
-
-            <ReportOption
-              active={reportKind === "organization"}
-              title="Por Órgão / Instituição"
-              description="Distribuição das visitas por instituição de origem."
-              onClick={() => setReportKind("organization")}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* FILTROS */}
-
-      <Card>
-        <CardHeader>
-          <div>
-            <div className="flex items-center gap-2">
-              <FunnelSimple size={20} aria-hidden="true" />
-
-              <h2 className="font-extrabold">Filtros</h2>
-            </div>
-
-            <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Combine período, tipo, sala, situação, motivo e instituição.
-            </p>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* PERÍODO */}
-
-            <div>
-              <label
-                className="mb-1.5 block text-sm font-semibold"
-                htmlFor="report-period"
-              >
-                Período
-              </label>
-
+            <FormField htmlFor="report-period" label="Período">
               <DateRangePicker
                 id="report-period"
                 value={filters.dateRange}
                 onChange={(value) => updateFilter("dateRange", value)}
                 placeholder="Selecione o período"
               />
-            </div>
+            </FormField>
 
-            {/* TIPO */}
+            <FormField htmlFor="report-type" label="Tipo de visita">
+              <Select
+                id="report-type"
+                name="type"
+                options={typeOptions}
+                value={filters.type || ALL}
+                onValueChange={(value) =>
+                  updateFilter(
+                    "type",
+                    value === ALL ? "" : (value as VisitType),
+                  )
+                }
+              />
+            </FormField>
 
-            <SelectField
-              id="report-type"
-              label="Tipo de visita"
-              value={filters.type}
-              onChange={(value) =>
-                updateFilter("type", value as VisitType | "")
-              }
-            >
-              <option value="">Todos os tipos</option>
+            <FormField htmlFor="report-location" label="Sala da visita">
+              <Select
+                id="report-location"
+                name="location"
+                options={locationOptions}
+                value={filters.location || ALL}
+                onValueChange={(value) =>
+                  updateFilter(
+                    "location",
+                    value === ALL ? "" : (value as VisitLocation),
+                  )
+                }
+              />
+            </FormField>
 
-              {Object.entries(visitTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
+            <FormField htmlFor="report-status" label="Situação">
+              <Select
+                id="report-status"
+                name="status"
+                options={statusOptions}
+                value={filters.status || ALL}
+                onValueChange={(value) =>
+                  updateFilter(
+                    "status",
+                    value === ALL ? "" : (value as VisitStatus),
+                  )
+                }
+              />
+            </FormField>
 
-            {/* SALA */}
-
-            <SelectField
-              id="report-location"
-              label="Sala da visita"
-              value={filters.location}
-              onChange={(value) =>
-                updateFilter("location", value as VisitLocation | "")
-              }
-            >
-              <option value="">Todas as salas</option>
-
-              {visitLocationOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-
-            {/* STATUS */}
-
-            <SelectField
-              id="report-status"
-              label="Situação"
-              value={filters.status}
-              onChange={(value) =>
-                updateFilter("status", value as VisitStatus | "")
-              }
-            >
-              <option value="">Todas as situações</option>
-
-              {Object.entries(visitStatusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
-
-            {/* MOTIVO */}
-
-            <div>
-              <label
-                className="mb-1.5 block text-sm font-semibold"
-                htmlFor="report-subject"
-              >
-                Motivo da visita
-              </label>
-
+            <FormField htmlFor="report-subject" label="Motivo da visita">
               <Input
                 id="report-subject"
                 placeholder="Ex.: apoio técnico"
@@ -503,18 +430,12 @@ export function VisitReportsPage() {
                   updateFilter("subject", event.target.value)
                 }
               />
-            </div>
+            </FormField>
 
-            {/* ORGANIZAÇÃO */}
-
-            <div>
-              <label
-                className="mb-1.5 block text-sm font-semibold"
-                htmlFor="report-organization"
-              >
-                Órgão / instituição
-              </label>
-
+            <FormField
+              htmlFor="report-organization"
+              label="Órgão / instituição"
+            >
               <Input
                 id="report-organization"
                 placeholder="Ex.: SEFAZ-AM"
@@ -523,25 +444,17 @@ export function VisitReportsPage() {
                   updateFilter("organization", event.target.value)
                 }
               />
-            </div>
+            </FormField>
           </div>
 
-          {/* AÇÕES */}
-
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
             <Button
               type="button"
-              variant="secondary"
+              variant="quiet"
               onClick={clearFilters}
               disabled={loading}
             >
               Limpar filtros
-            </Button>
-
-            <Button type="button" onClick={emitReport} disabled={loading}>
-              <ChartBar size={17} aria-hidden="true" />
-
-              {loading ? "Emitindo relatório..." : "Emitir relatório"}
             </Button>
 
             <Button
@@ -552,202 +465,172 @@ export function VisitReportsPage() {
               }
               onClick={exportXlsx}
             >
-              <DownloadSimple size={17} aria-hidden="true" />
+              <DownloadSimple size={16} aria-hidden="true" />
 
-              {exportingXlsx ? "Gerando XLSX..." : "Exportar XLSX"}
+              {exportingXlsx ? "Gerando XLSX…" : "Exportar XLSX"}
             </Button>
 
             <Button
               type="button"
+              variant="secondary"
               disabled={
                 exportingPdf || exportingXlsx || loading || visits.length === 0
               }
               onClick={exportPdf}
             >
-              <FilePdf size={17} aria-hidden="true" />
+              <FilePdf size={16} aria-hidden="true" />
 
-              {exportingPdf ? "Gerando PDF..." : "Exportar PDF"}
+              {exportingPdf ? "Gerando PDF…" : "Exportar PDF"}
+            </Button>
+
+            <Button type="button" onClick={emitReport} disabled={loading}>
+              {loading ? "Emitindo relatório…" : "Emitir relatório"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* INDICADORES */}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Total de agendamentos" value={visits.length} />
-
-        <MetricCard
-          label="Pendentes"
-          value={visits.filter((visit) => visit.status === "pending").length}
+      {reportIssued ? (
+        <VisitStats
+          className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+          items={[
+            { label: "Total de agendamentos", value: visits.length },
+            {
+              label: "Pendentes",
+              value: visits.filter((visit) => visit.status === "pending")
+                .length,
+            },
+            {
+              label: "Aprovadas",
+              value: visits.filter((visit) => visit.status === "approved")
+                .length,
+            },
+            {
+              label: "Concluídas",
+              value: visits.filter((visit) => visit.status === "completed")
+                .length,
+            },
+            {
+              label: "Liberadas para recepção",
+              value: visits.filter((visit) => visit.status === "scheduled")
+                .length,
+            },
+          ]}
+          label="Indicadores do relatório"
+          loading={loading}
         />
-
-        <MetricCard
-          label="Aprovadas"
-          value={visits.filter((visit) => visit.status === "approved").length}
-        />
-
-        <MetricCard
-          label="Concluídas"
-          value={visits.filter((visit) => visit.status === "completed").length}
-        />
-
-        <MetricCard
-          label="Liberadas para recepção"
-          value={visits.filter((visit) => visit.status === "scheduled").length}
-        />
-      </div>
-
-      {/* RESULTADOS */}
+      ) : null}
 
       <Card>
         <CardHeader>
           <div>
-            <div className="flex items-center gap-2">
-              <ChartBar size={20} aria-hidden="true" />
-
-              <h2 className="font-extrabold">{getReportTitle(reportKind)}</h2>
-            </div>
+            <h2 className="font-bold">{getReportTitle(reportKind)}</h2>
 
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              {visits.length} registro(s) encontrado(s).
+              {!reportIssued
+                ? "Emita o relatório para ver os resultados."
+                : loading
+                  ? "Consultando agendamentos…"
+                  : `${visits.length} ${visits.length === 1 ? "registro encontrado" : "registros encontrados"}`}
             </p>
           </div>
         </CardHeader>
 
-        <CardContent>
-          {!reportIssued ? (
-            <EmptyState
-              title="Relatório ainda não emitido"
-              description="Defina os filtros desejados e clique em Emitir relatório."
-            />
-          ) : loading ? (
-            <p className="py-10 text-center text-sm text-[var(--text-muted)]">
-              Emitindo relatório...
-            </p>
-          ) : visits.length === 0 ? (
-            <EmptyState
-              title="Nenhum resultado"
-              description="Nenhum agendamento corresponde aos filtros selecionados."
-            />
-          ) : reportKind === "general" ? (
-            <GeneralTable visits={visits} />
-          ) : (
-            <GroupedTable
-              rows={
-                getGroupedReportData(reportKind, {
-                  type: groupedByType,
-                  status: groupedByStatus,
-                  location: groupedByLocation,
-                  organization: groupedByOrganization,
-                }).rows
-              }
-            />
-          )}
-        </CardContent>
+        {!reportIssued ? (
+          <EmptyState
+            title="Relatório ainda não emitido"
+            description="Defina os filtros desejados e selecione Emitir relatório."
+          />
+        ) : loading ? (
+          <TableSkeleton
+            ariaLabel="Emitindo relatório"
+            headers={
+              reportKind === "general"
+                ? generalHeaders
+                : ["Categoria", "Quantidade", "Percentual"]
+            }
+            rows={5}
+          />
+        ) : visits.length === 0 ? (
+          <EmptyState
+            title="Nenhum resultado"
+            description="Nenhum agendamento corresponde aos filtros selecionados."
+          />
+        ) : reportKind === "general" ? (
+          <GeneralTable visits={visits} />
+        ) : (
+          <GroupedTable rows={groupedRows} />
+        )}
       </Card>
     </div>
   );
 }
 
-/* =========================================================
- * SELECT
- * ======================================================= */
+const ALL = "all";
 
-function SelectField({
-  id,
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  id: string;
-
+const reportKindOptions: Array<{
+  value: ReportKind;
   label: string;
+  hint: string;
+}> = [
+  {
+    value: "general",
+    label: "Relatório geral",
+    hint: "Relação detalhada dos agendamentos.",
+  },
+  {
+    value: "type",
+    label: "Por tipo de visita",
+    hint: "Distribuição dos agendamentos por categoria.",
+  },
+  {
+    value: "status",
+    label: "Por situação",
+    hint: "Distribuição pela situação do agendamento.",
+  },
+  {
+    value: "location",
+    label: "Por sala",
+    hint: "Utilização das salas de reunião e do auditório.",
+  },
+  {
+    value: "organization",
+    label: "Por órgão ou instituição",
+    hint: "Distribuição das visitas por instituição de origem.",
+  },
+];
 
-  value: string;
+const typeOptions = [
+  { value: ALL, label: "Todos os tipos" },
+  ...Object.entries(visitTypeLabels).map(([value, label]) => ({
+    value,
+    label,
+  })),
+];
 
-  onChange: (value: string) => void;
+const locationOptions = [
+  { value: ALL, label: "Todas as salas" },
+  ...visitLocationOptions,
+];
 
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">
-        {label}
-      </label>
+const statusOptions = [
+  { value: ALL, label: "Todas as situações" },
+  ...Object.entries(visitStatusLabels).map(([value, label]) => ({
+    value,
+    label,
+  })),
+];
 
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-      >
-        {children}
-      </select>
-    </div>
-  );
-}
-
-/* =========================================================
- * OPÇÃO DE RELATÓRIO
- * ======================================================= */
-
-function ReportOption({
-  active,
-  title,
-  description,
-  onClick,
-}: {
-  active: boolean;
-
-  title: string;
-
-  description: string;
-
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-[14px] border p-4 text-left transition ${
-        active
-          ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]"
-      }`}
-    >
-      <strong>{title}</strong>
-
-      <p className="mt-1 text-xs text-[var(--text-muted)]">{description}</p>
-    </button>
-  );
-}
-
-/* =========================================================
- * MÉTRICAS
- * ======================================================= */
-
-function MetricCard({
-  label,
-  value,
-}: {
-  label: string;
-
-  value: number;
-}) {
-  return (
-    <Card>
-      <CardContent>
-        <p className="text-xs font-semibold text-[var(--text-muted)]">
-          {label}
-        </p>
-
-        <p className="mt-2 text-3xl font-extrabold">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
+const generalHeaders = [
+  "Protocolo",
+  "Data",
+  "Horário",
+  "Tipo",
+  "Motivo",
+  "Órgão",
+  "Sala",
+  "Situação",
+];
 
 /* =========================================================
  * RELATÓRIO GERAL
@@ -755,57 +638,54 @@ function MetricCard({
 
 function GeneralTable({ visits }: { visits: VisitSummary[] }) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <thead>
-          <tr>
-            <TableHead>Protocolo</TableHead>
-
-            <TableHead>Data</TableHead>
-
-            <TableHead>Horário</TableHead>
-
-            <TableHead>Tipo</TableHead>
-
-            <TableHead>Motivo</TableHead>
-
-            <TableHead>Órgão</TableHead>
-
-            <TableHead>Sala</TableHead>
-
-            <TableHead>Situação</TableHead>
-          </tr>
-        </thead>
-
-        <tbody>
-          {visits.map((visit) => (
-            <TableRow key={visit.id}>
-              <TableCell>
-                <strong>{visit.protocol}</strong>
-              </TableCell>
-
-              <TableCell>{formatDate(visit.scheduledDate)}</TableCell>
-
-              <TableCell>
-                {normalizeTime(visit.startTime)}
-                {" - "}
-                {normalizeTime(visit.endTime)}
-              </TableCell>
-
-              <TableCell>{visitTypeLabels[visit.type]}</TableCell>
-
-              <TableCell>{visit.subject}</TableCell>
-
-              <TableCell>{visit.organization}</TableCell>
-
-              <TableCell>{visit.location}</TableCell>
-
-              <TableCell>{visitStatusLabels[visit.status]}</TableCell>
-            </TableRow>
+    <Table>
+      <thead>
+        <tr>
+          {generalHeaders.map((header) => (
+            <TableHead key={header}>{header}</TableHead>
           ))}
-        </tbody>
-      </Table>
-    </div>
+        </tr>
+      </thead>
+
+      <tbody>
+        {visits.map((visit) => (
+          <TableRow key={visit.id}>
+            <TableCell className="whitespace-nowrap font-semibold">
+              {visit.protocol}
+            </TableCell>
+
+            <TableCell className="whitespace-nowrap">
+              {formatDate(visit.scheduledDate)}
+            </TableCell>
+
+            <TableCell className="whitespace-nowrap">
+              {normalizeTime(visit.startTime)}
+              {" às "}
+              {normalizeTime(visit.endTime)}
+            </TableCell>
+
+            <TableCell>{visitTypeLabels[visit.type]}</TableCell>
+
+            <TableCell className="min-w-48">{visit.subject}</TableCell>
+
+            <TableCell>{visit.organization}</TableCell>
+
+            <TableCell className="whitespace-nowrap">
+              {visit.location}
+            </TableCell>
+
+            <TableCell>
+              <Badge
+                className="whitespace-nowrap"
+                variant={visitStatusMeta[visit.status].variant}
+              >
+                {visitStatusMeta[visit.status].label}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 
@@ -815,41 +695,36 @@ function GeneralTable({ visits }: { visits: VisitSummary[] }) {
 
 function GroupedTable({ rows }: { rows: GroupedRow[] }) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <thead>
-          <tr>
-            <TableHead>Categoria</TableHead>
+    <Table>
+      <thead>
+        <tr>
+          <TableHead>Categoria</TableHead>
 
-            <TableHead>Quantidade</TableHead>
+          <TableHead className="text-right">Quantidade</TableHead>
 
-            <TableHead>Percentual</TableHead>
-          </tr>
-        </thead>
+          <TableHead className="text-right">Percentual</TableHead>
+        </tr>
+      </thead>
 
-        <tbody>
-          {rows.map((row) => (
-            <TableRow key={row.label}>
-              <TableCell>
-                <strong>{row.label}</strong>
-              </TableCell>
+      <tbody>
+        {rows.map((row) => (
+          <TableRow key={row.label}>
+            <TableCell className="font-semibold">{row.label}</TableCell>
 
-              <TableCell>{row.total}</TableCell>
+            <TableCell className="text-right">{row.total}</TableCell>
 
-              <TableCell>{row.percentage.toFixed(1)}%</TableCell>
-            </TableRow>
-          ))}
-        </tbody>
-      </Table>
-    </div>
+            <TableCell className="text-right">
+              {row.percentage.toFixed(1)}%
+            </TableCell>
+          </TableRow>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 
 /* =========================================================
  * API
- *
- * CORRIGIDO:
- * não existe mais variável totalPages.
  * ======================================================= */
 
 async function fetchAllVisits(filters: ReportFilters) {
@@ -955,7 +830,7 @@ function createGeneralXlsx(
   const workbook = utils.book_new();
 
   const summary = utils.aoa_to_sheet([
-    ["RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS"],
+    [getReportTitle("general")],
 
     ["Controladoria-Geral do Estado do Amazonas"],
 
@@ -1046,7 +921,7 @@ function createGroupedXlsx(
   const workbook = utils.book_new();
 
   const summary = utils.aoa_to_sheet([
-    [title.toUpperCase()],
+    [title],
 
     ["Controladoria-Geral do Estado do Amazonas"],
 
@@ -1113,7 +988,7 @@ function createGeneralPdf(
 
   document.setFontSize(15);
 
-  document.text("RELATÓRIO GERAL DE AGENDAMENTOS DE VISITAS", 14, 15);
+  document.text(getReportTitle("general"), 14, 15);
 
   document.setFont("helvetica", "normal");
 
@@ -1240,7 +1115,7 @@ function createGroupedPdf(
 
   document.setFontSize(15);
 
-  document.text(title.toUpperCase(), 14, 15);
+  document.text(title, 14, 15);
 
   document.setFont("helvetica", "normal");
 
@@ -1304,26 +1179,26 @@ function getGroupedReportData(
     case "type":
       return {
         rows: groups.type,
-        title: "Relatório por Tipo de Visita",
+        title: getReportTitle("type"),
       };
 
     case "status":
       return {
         rows: groups.status,
-        title: "Relatório por Situação",
+        title: getReportTitle("status"),
       };
 
     case "organization":
       return {
         rows: groups.organization,
-        title: "Relatório por Órgão ou Instituição",
+        title: getReportTitle("organization"),
       };
 
     case "location":
     default:
       return {
         rows: groups.location,
-        title: "Relatório por Sala",
+        title: getReportTitle("location"),
       };
   }
 }
@@ -1344,11 +1219,11 @@ function getReportTitle(kind: ReportKind) {
       return "Relatório por sala";
 
     case "organization":
-      return "Relatório por órgão / instituição";
+      return "Relatório por órgão ou instituição";
 
     case "general":
     default:
-      return "Relatório geral de agendamentos";
+      return "Relatório geral de agendamentos de visitas";
   }
 }
 
@@ -1443,16 +1318,4 @@ function slug(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-}
-
-/* =========================================================
- * ERRO
- * ======================================================= */
-
-function getErrorMessage(
-  cause: unknown,
-
-  fallback: string,
-) {
-  return cause instanceof ApiError ? cause.message : fallback;
 }
