@@ -28,12 +28,14 @@
     "fastify": "^5.10.0",
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
+    "fflate": "0.8.3",
     "micromark": "^4.0.2",
     "minio": "8.0.7",
     "nodemailer": "^6.10.0",
     "pdf-lib": "1.17.1",
     "postgres": "^3.4.9",
     "sharp": "^0.35.3",
+    "unpdf": "1.8.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
