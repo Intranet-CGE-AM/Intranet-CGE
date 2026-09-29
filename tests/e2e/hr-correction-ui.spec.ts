@@ -57,7 +57,9 @@ test("servidor propõe nome preferido e vê a comparação sem alterar cadastro"
     await page
       .getByRole("button", { name: "Tentar carregar cadastro" })
       .click();
-    await page.getByLabel("Nome preferido proposto").fill("Dandara Interface");
+    // Nome único por execução: solicitações de execuções anteriores continuam na lista.
+    const proposed = `Dandara Interface ${Date.now().toString(36)}`;
+    await page.getByLabel("Nome preferido proposto").fill(proposed);
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
       expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -77,9 +79,7 @@ test("servidor propõe nome preferido e vê a comparação sem alterar cadastro"
     await page
       .getByRole("button", { name: "Enviar solicitação", exact: true })
       .click();
-    await expect(
-      page.getByText("Dandara Interface", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText(proposed, { exact: true })).toBeVisible();
     expect(
       (await (await page.request.get("/api/me/dossier")).json()).preferredName,
     ).toBe(before.preferredName);
