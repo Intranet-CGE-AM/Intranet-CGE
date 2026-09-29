@@ -43,7 +43,7 @@ test("documento de auditoria percorre envio, correção, aprovação e reabertur
         reference: "RA-E2E-001",
         category: "Relatório preliminar",
       },
-      docxFile(),
+      docxFile("relatório preliminar.docx"),
     );
     expect(created.status()).toBe(201);
     const document = (await created.json()) as Detail;
@@ -58,9 +58,19 @@ test("documento de auditoria percorre envio, correção, aprovação e reabertur
     const queue = await reviewer.get("/api/audit-documents?status=in_review");
     expect(queue.status()).toBe(200);
     expect(queue.headers()["cache-control"]).toBe("no-store");
-    expect(
-      (await queue.json()).documents.map((item: { id: string }) => item.id),
-    ).toContain(id);
+    const listed = (
+      (await queue.json()).documents as {
+        id: string;
+        latestFileId: string;
+        latestFileName: string;
+        latestFileKind: string;
+      }[]
+    ).find((item) => item.id === id);
+    expect(listed).toMatchObject({
+      latestFileId: document.files[0]!.id,
+      latestFileName: "relatório preliminar.docx",
+      latestFileKind: "docx",
+    });
 
     const detail = await reviewer.get(`/api/audit-documents/${id}`);
     expect(detail.status()).toBe(200);
@@ -90,6 +100,39 @@ test("documento de auditoria percorre envio, correção, aprovação e reabertur
     ).events.filter((event) => event.type === "read");
     expect(reads).toHaveLength(1);
     expect(reads[0]!.fileId).toBe(fileId);
+
+    // Download explícito sai como anexo; o nome original segue a RFC 5987.
+    const url = `/api/audit-documents/${id}/files/${fileId}`;
+    const encodedName = "filename*=UTF-8''relat%C3%B3rio%20preliminar.docx";
+    const inline = await reviewer.get(`${url}?disposition=inline`);
+    expect(inline.headers()["content-disposition"]).toMatch(/^inline;/);
+    expect(inline.headers()["content-disposition"]).toContain(encodedName);
+    const attachment = await reviewer.get(`${url}?disposition=attachment`);
+    expect(attachment.status()).toBe(200);
+    expect(attachment.headers()["content-disposition"]).toMatch(/^attachment;/);
+    expect(attachment.headers()["content-disposition"]).toContain(encodedName);
+    expect((await reviewer.get(`${url}?disposition=other`)).status()).toBe(400);
+    const admin = await signIn(playwright, baseURL!, auditAccounts.admin);
+    try {
+      const actions = (
+        (await (
+          await admin.get(
+            "/api/audit-events?objectType=audit-document&action=audit-document.file-viewed,audit-document.file-downloaded&pageSize=100",
+          )
+        ).json()) as { events: { action: string; objectId: string }[] }
+      ).events
+        .filter((event) => event.objectId === id)
+        .map((event) => event.action)
+        .sort();
+      expect(actions).toEqual([
+        "audit-document.file-downloaded",
+        "audit-document.file-viewed",
+        "audit-document.file-viewed",
+        "audit-document.file-viewed",
+      ]);
+    } finally {
+      await admin.dispose();
+    }
 
     // Versão desatualizada e ação sem justificativa são recusadas.
     expect(

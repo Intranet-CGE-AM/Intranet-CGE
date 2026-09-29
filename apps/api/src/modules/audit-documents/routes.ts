@@ -68,6 +68,12 @@ const mimes = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   pdf: "application/pdf",
 } as const;
+// RFC 5987 ext-value: encodeURIComponent leaves ' ( ) * unescaped.
+const rfc5987 = (value: string) =>
+  encodeURIComponent(value).replace(
+    /['()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 const kindOf = (mime: string) => (mime === mimes.pdf ? "pdf" : "docx");
 // Upload endpoints are the expensive ones (20 MiB bodies, zip inspection).
 const uploadLimit = {
@@ -803,7 +809,14 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
 
   api.get(
     "/api/audit-documents/:id/files/:fileId",
-    { schema: { params: z.object({ id: z.uuid(), fileId: z.uuid() }) } },
+    {
+      schema: {
+        params: z.object({ id: z.uuid(), fileId: z.uuid() }),
+        querystring: z.strictObject({
+          disposition: z.enum(["inline", "attachment"]).default("inline"),
+        }),
+      },
+    },
     async (request, reply) => {
       const user = await requireAuthenticatedUser(
         request,
@@ -811,6 +824,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         authenticationService,
       );
       if (!user) return;
+      const { disposition } = request.query;
       const document = await visibleDocument(request.params.id, user);
       const [file] = await db
         .select()
@@ -825,6 +839,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
       const object = await objectStorage.get(file.objectKey);
       if (!object) return fail(404, "Arquivo indisponível.");
       try {
+        // Committed before the first byte is streamed.
         await db.transaction(async (tx) => {
           // Automatic read confirmation: once per person and file version.
           await tx
@@ -839,7 +854,10 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .onConflictDoNothing();
           await tx.insert(auditEvents).values({
             actorAccountId: user.account.id,
-            action: "audit-document.file-read",
+            action:
+              disposition === "attachment"
+                ? "audit-document.file-downloaded"
+                : "audit-document.file-viewed",
             objectType: "audit-document",
             objectId: document.id,
             outcome: "success",
@@ -856,7 +874,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         .header("Content-Type", file.mime)
         .header(
           "Content-Disposition",
-          `inline; filename="documento-v${file.number}.${extension}"; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+          `${disposition}; filename="documento-v${file.number}.${extension}"; filename*=UTF-8''${rfc5987(file.fileName)}`,
         )
         .header("Content-Length", object.size)
         .send(object.body);
