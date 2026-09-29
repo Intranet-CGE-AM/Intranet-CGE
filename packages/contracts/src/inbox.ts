@@ -7,6 +7,7 @@ export const inboxTypeSchema = z.enum([
   "occurrence",
   "training",
   "checklist",
+  "audit_document",
 ]);
 export const inboxQuerySchema = z.strictObject({
   type: inboxTypeSchema.optional(),
@@ -25,7 +26,7 @@ export const inboxItemSchema = z.object({
   createdAt: z.date(),
   dueAt: z.date().nullable(),
   priority: z.enum(["urgent", "normal"]),
-  href: z.string().startsWith("/rh/"),
+  href: z.string().regex(/^\/(rh|controle-interno)\//),
 });
 export const inboxSchema = z.object({
   items: z.array(inboxItemSchema),

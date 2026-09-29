@@ -19,6 +19,7 @@ import {
   permissionAllowsGlobally,
   permissionUnitIds,
   type AuditDocumentAction,
+  type AuditDocumentEventType,
   type AuthenticatedUser,
   type PermissionKey,
 } from "@cge/contracts";
@@ -41,6 +42,15 @@ import { basename } from "node:path";
 import { z } from "zod";
 import type { Database } from "../../db/client.js";
 import { requireAuthenticatedUser } from "../access/authorize.js";
+import {
+  permissionOverrides,
+  roleAssignments,
+  rolePermissions,
+} from "../access/schema.js";
+import type { AccessService } from "../access/service.js";
+import { userAccounts } from "../auth/schema.js";
+import { notifications } from "../notifications/schema.js";
+import { substitutions } from "../substitutions/schema.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { auditEvents } from "../audit/schema.js";
 import { recordAudit } from "../audit/service.js";
@@ -81,6 +91,17 @@ const uploadLimit = {
 };
 
 type Row = typeof auditDocuments.$inferSelect;
+type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+const notificationTitles: Record<AuditDocumentEventType, string> = {
+  submitted: "Documento de auditoria aguarda análise",
+  resubmitted: "Nova versão de documento de auditoria aguarda análise",
+  correction_requested: "Correção solicitada em documento de auditoria",
+  approved: "Documento de auditoria aprovado",
+  cancelled: "Documento de auditoria cancelado",
+  reopened: "Documento de auditoria reaberto para análise",
+  read: "Documento de auditoria lido",
+};
 
 /** null = every unit; [] = none. Union of the keys that grant visibility. */
 function visibleUnitIds(user: AuthenticatedUser) {
@@ -132,9 +153,81 @@ const separated = (
 export const auditDocumentRoutes: FastifyPluginAsync<{
   db: Database;
   authenticationService: AuthenticationService;
+  accessService: AccessService;
   objectStorage: ObjectStorage;
-}> = async (app, { db, authenticationService, objectStorage }) => {
+}> = async (
+  app,
+  { db, authenticationService, accessService, objectStorage },
+) => {
   const api = app.withTypeProvider<ZodTypeProvider>();
+
+  /** Active accounts that may review documents of the unit, substitutes included. */
+  async function reviewerAccounts(tx: Transaction, unitId: string) {
+    const key = "audit_documents.review";
+    const candidates = await tx.execute<{ id: string }>(sql`
+      select ra.account_id as id from ${roleAssignments} ra
+        join ${rolePermissions} rp on rp.role_id = ra.role_id
+        where rp.permission = ${key} and (ra.unit_id is null or ra.unit_id = ${unitId})
+      union
+      select account_id from ${permissionOverrides}
+        where permission = ${key} and effect = 'allow' and (unit_id is null or unit_id = ${unitId})
+      union
+      select substitute_account_id from ${substitutions}
+        where unit_id = ${unitId} and cancelled_at is null and flows ? ${key}
+          and (now() at time zone 'America/Manaus')::date between starts_on and ends_on`);
+    const ids = await activeAccounts(
+      tx,
+      candidates.map((row) => row.id),
+    );
+    // Final say (deny overrides, substitution authority) stays with AccessService.
+    const allowed = await Promise.all(
+      ids.map((id) => accessService.allows(id, key, unitId)),
+    );
+    return ids.filter((_, index) => allowed[index]);
+  }
+  async function uploaderAccounts(tx: Transaction, documentId: string) {
+    const rows = await tx
+      .selectDistinct({ id: auditDocumentFiles.uploadedByAccountId })
+      .from(auditDocumentFiles)
+      .where(eq(auditDocumentFiles.documentId, documentId));
+    return activeAccounts(
+      tx,
+      rows.map((row) => row.id),
+    );
+  }
+  async function activeAccounts(tx: Transaction, ids: string[]) {
+    if (!ids.length) return [];
+    const rows = await tx
+      .select({ id: userAccounts.id })
+      .from(userAccounts)
+      .where(
+        and(inArray(userAccounts.id, ids), eq(userAccounts.status, "active")),
+      );
+    return rows.map((row) => row.id);
+  }
+  async function notify(
+    tx: Transaction,
+    recipients: string[],
+    actorAccountId: string,
+    document: { id: string; title: string; version: number },
+    type: AuditDocumentEventType,
+  ) {
+    const accountIds = recipients.filter((id) => id !== actorAccountId);
+    if (!accountIds.length) return;
+    await tx
+      .insert(notifications)
+      .values(
+        accountIds.map((accountId) => ({
+          accountId,
+          type: `audit-document.${type}`,
+          title: notificationTitles[type],
+          message: document.title,
+          href: `/controle-interno/documentos/${document.id}`,
+          dedupeKey: `audit-document:${document.id}:${document.version}`,
+        })),
+      )
+      .onConflictDoNothing();
+  }
 
   async function bottleneckRounds() {
     const [row] = await db.select().from(auditDocumentSettings);
@@ -610,6 +703,13 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             outcome: "success",
             metadata: { unitId: created.unitId, sha256: file.sha256 },
           });
+          await notify(
+            tx,
+            await reviewerAccounts(tx, created.unitId),
+            user.account.id,
+            created,
+            "submitted",
+          );
           return created.id;
         }),
     );
@@ -708,6 +808,13 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             outcome: "success",
             metadata: { version: current.version + 1, sha256: file.sha256 },
           });
+          await notify(
+            tx,
+            await reviewerAccounts(tx, current.unitId),
+            user.account.id,
+            { ...current, version: current.version + 1 },
+            "resubmitted",
+          );
         }),
       );
       return reply.status(201).send(await detail(document.id, user));
@@ -802,6 +909,13 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
           outcome: "success",
           metadata: { version: version + 1, ...delegation },
         });
+        await notify(
+          tx,
+          await uploaderAccounts(tx, current.id),
+          user.account.id,
+          { ...current, version: version + 1 },
+          auditDocumentEventByAction[action],
+        );
       });
       return detail(document.id, user);
     },

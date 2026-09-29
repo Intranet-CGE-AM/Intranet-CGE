@@ -200,6 +200,7 @@ export async function buildApp({
       await app.register(auditDocumentRoutes, {
         db,
         authenticationService,
+        accessService,
         objectStorage,
       });
       await app.register(documentRoutes, {

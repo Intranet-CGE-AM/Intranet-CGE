@@ -13,6 +13,10 @@ import type { Database } from "../../db/client.js";
 import { requireAuthenticatedUser } from "../access/authorize.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { auditEvents } from "../audit/schema.js";
+import {
+  auditDocumentFiles,
+  auditDocuments,
+} from "../audit-documents/schema.js";
 import { hrRequests } from "../hr-requests/schema.js";
 import {
   organizationUnits,
@@ -512,6 +516,51 @@ export const inboxRoutes: FastifyPluginAsync<{
                 href: `/rh/checklists?checklistId=${row.id}`,
               },
               manages ? "onboarding.manage" : undefined,
+            );
+          }
+        }),
+        source("audit_document", async () => {
+          const latestUploader = sql<string>`(select f.uploaded_by_account_id from ${auditDocumentFiles} f where f.document_id = ${auditDocuments.id} order by f.number desc limit 1)`;
+          const rows = await db
+            .select({
+              id: auditDocuments.id,
+              title: auditDocuments.title,
+              status: auditDocuments.status,
+              unitId: auditDocuments.unitId,
+              statusChangedAt: auditDocuments.statusChangedAt,
+              latestUploader,
+            })
+            .from(auditDocuments)
+            .where(
+              or(
+                and(
+                  eq(auditDocuments.status, "in_review"),
+                  scope("audit_documents.review", auditDocuments.unitId),
+                ),
+                and(
+                  eq(auditDocuments.status, "correction_requested"),
+                  scope("audit_documents.submit", auditDocuments.unitId),
+                ),
+              ),
+            );
+          for (const row of rows) {
+            const review = row.status === "in_review";
+            // Quem enviou a versão atual não pode analisá-la.
+            if (review && row.latestUploader === user.account.id) continue;
+            append(
+              {
+                id: `audit_document:${row.id}`,
+                type: "audit_document",
+                title: review
+                  ? "Analisar documento de auditoria"
+                  : "Corrigir documento de auditoria",
+                context: row.title,
+                unitId: row.unitId,
+                createdAt: row.statusChangedAt,
+                dueAt: null,
+                href: `/controle-interno/documentos/${row.id}`,
+              },
+              review ? "audit_documents.review" : undefined,
             );
           }
         }),

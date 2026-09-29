@@ -11,6 +11,7 @@ const labels: Record<InboxItem["type"], string> = {
   occurrence: "Ocorrências",
   training: "Capacitações",
   checklist: "Checklists",
+  audit_document: "Documentos de auditoria",
 };
 const date = (value: Date) =>
   new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Manaus" });
