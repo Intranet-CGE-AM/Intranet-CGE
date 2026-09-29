@@ -183,13 +183,11 @@ const AssetListPage = lazy(() =>
   })),
 );
 
-const AssetDetailPage = lazy(async () => {
-  const module = await import("./modules/assets/AssetDatailPage");
-
-  return {
+const AssetDetailPage = lazy(() =>
+  import("./modules/assets/AssetDetailPage").then((module) => ({
     default: module.AssetDetailPage,
-  };
-});
+  })),
+);
 
 const AssetCreatePage = lazy(() =>
   import("./modules/assets/AssetCreatePage").then((module) => ({
@@ -527,14 +525,7 @@ export function App() {
           <Route
             path="patrimonio/bens/novo"
             element={
-              <RequireAccess
-                // rule={
-                //   accessRules.patrimony
-                // }
-                rule={{
-                  anyOf: ["assets.manage"],
-                }}
-              >
+              <RequireAccess rule={accessRules.patrimonyManage}>
                 <Suspense fallback={<PageFallback />}>
                   <AssetCreatePage />
                 </Suspense>
@@ -558,11 +549,7 @@ export function App() {
           <Route
             path="patrimonio/bens/:id/editar"
             element={
-              <RequireAccess
-                rule={{
-                  anyOf: ["assets.manage"],
-                }}
-              >
+              <RequireAccess rule={accessRules.patrimonyManage}>
                 <AssetEditPage />
               </RequireAccess>
             }
@@ -571,11 +558,7 @@ export function App() {
           <Route
             path="patrimonio/setores"
             element={
-              <RequireAccess
-                rule={{
-                  anyOf: ["assets.read", "assets.manage"],
-                }}
-              >
+              <RequireAccess rule={accessRules.patrimonyManage}>
                 <AssetSectorPage />
               </RequireAccess>
             }
@@ -598,11 +581,7 @@ export function App() {
           <Route
             path="patrimonio/bens/:id/movimentar"
             element={
-              <RequireAccess
-                rule={{
-                  anyOf: ["assets.manage"],
-                }}
-              >
+              <RequireAccess rule={accessRules.patrimonyManage}>
                 <AssetMovementPage />
               </RequireAccess>
             }
@@ -611,11 +590,7 @@ export function App() {
           <Route
             path="patrimonio/bens/:id/baixa"
             element={
-              <RequireAccess
-                rule={{
-                  anyOf: ["assets.manage"],
-                }}
-              >
+              <RequireAccess rule={accessRules.patrimonyManage}>
                 <AssetDisposalPage />
               </RequireAccess>
             }

@@ -20,6 +20,7 @@ export type DateRangeValue = {
 
 type DatePickerProps = {
   "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
   className?: string;
   defaultValue?: string;
   disabled?: boolean;
@@ -33,6 +34,7 @@ type DatePickerProps = {
 
 type DateRangePickerProps = {
   "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
   className?: string;
   disabled?: boolean;
   fromName?: string;
@@ -82,10 +84,11 @@ export function DatePicker({
         <PopoverPrimitive.Trigger asChild>
           <button
             aria-describedby={ariaProps["aria-describedby"]}
+            aria-invalid={ariaProps["aria-invalid"]}
             aria-expanded={open}
             aria-haspopup="dialog"
             className={cn(
-              "flex min-h-10 w-full items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] active:scale-[0.995]",
+              "flex min-h-10 w-full items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] aria-invalid:border-[var(--danger)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] active:scale-[0.995]",
               className,
             )}
             disabled={disabled}
@@ -236,10 +239,11 @@ export function DateRangePicker({
         <PopoverPrimitive.Trigger asChild>
           <button
             aria-describedby={ariaProps["aria-describedby"]}
+            aria-invalid={ariaProps["aria-invalid"]}
             aria-expanded={open}
             aria-haspopup="dialog"
             className={cn(
-              "flex min-h-10 w-full items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] active:scale-[0.995]",
+              "flex min-h-10 w-full items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm text-[var(--text)] transition-[border-color,box-shadow,transform] focus-visible:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] aria-invalid:border-[var(--danger)] disabled:cursor-not-allowed disabled:bg-[var(--surface-subtle)] active:scale-[0.995]",
               className,
             )}
             disabled={disabled}

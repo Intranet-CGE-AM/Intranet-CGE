@@ -1,13 +1,20 @@
 import type { Asset, AssetMovement } from "@cge/contracts";
 
-import { Alert, Badge, Button, Card, CardContent, CardHeader } from "@cge/ui";
-
 import {
-  ArrowLeft,
-  ArrowsLeftRight,
-  PencilSimple,
-  TrashSimple,
-} from "@phosphor-icons/react";
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+} from "@cge/ui";
+
+import { Archive, ArrowsLeftRight, PencilSimple } from "@phosphor-icons/react";
 
 import { useEffect, useState } from "react";
 
@@ -15,20 +22,16 @@ import { Link, useParams } from "react-router";
 
 import { api, ApiError } from "../../lib/api";
 
-type OrganizationUnitType = "department" | "sector" | "subsector";
-
-type OrganizationUnit = {
-  id: string;
-  code: string;
-  name: string;
-  type: OrganizationUnitType | null;
-  parentId: string | null;
-  active: boolean;
-};
-
-type OrganizationUnitsResponse = {
-  units: OrganizationUnit[];
-};
+import {
+  assetStatusMeta,
+  formatCurrency,
+  formatDate,
+  PageHeader,
+  PageSkeleton,
+  type OrganizationUnit,
+  type OrganizationUnitsResponse,
+  useCanManageAssets,
+} from "./shared";
 
 type AssetMovementsResponse = {
   movements: AssetMovement[];
@@ -47,20 +50,17 @@ type AssetDisposalResponse = {
   disposal: AssetDisposal;
 };
 
-const assetStatusLabels = {
-  active: "Em uso",
-  maintenance: "Em manutenção",
-  disposed: "Baixado",
-} as const;
-
 export function AssetDetailPage() {
+  const canManage = useCanManageAssets();
   const { id } = useParams();
 
   const [asset, setAsset] = useState<Asset | null>(null);
 
   const [loading, setLoading] = useState(true);
 
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+
+  const [actionError, setActionError] = useState("");
 
   const [movements, setMovements] = useState<AssetMovement[]>([]);
 
@@ -72,7 +72,7 @@ export function AssetDetailPage() {
 
   useEffect(() => {
     if (!id) {
-      setError("Identificador do bem não informado.");
+      setLoadError("Identificador do bem não informado.");
 
       setLoading(false);
 
@@ -85,7 +85,7 @@ export function AssetDetailPage() {
   async function loadAsset(assetId: string) {
     try {
       setLoading(true);
-      setError("");
+      setLoadError("");
 
       const [assetResult, unitsResult, movementsResult] = await Promise.all([
         api<Asset>(
@@ -118,9 +118,9 @@ export function AssetDetailPage() {
       }
     } catch (cause) {
       if (cause instanceof ApiError) {
-        setError(cause.message);
+        setLoadError(cause.message);
       } else {
-        setError("Não foi possível carregar os dados do bem patrimonial.");
+        setLoadError("Não foi possível carregar os dados do bem patrimonial.");
       }
     } finally {
       setLoading(false);
@@ -128,25 +128,16 @@ export function AssetDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="py-10 text-center text-sm text-[var(--text-muted)]">
-        Carregando bem patrimonial...
-      </div>
-    );
+    return <PageSkeleton label="Carregando bem patrimonial" />;
   }
 
-  if (error || !asset) {
+  if (loadError || !asset) {
     return (
-      <div className="space-y-6">
-        <Button asChild variant="secondary">
-          <Link to="/patrimonio/bens">
-            <ArrowLeft size={18} />
-            Voltar
-          </Link>
-        </Button>
+      <div className="page-enter space-y-5">
+        <PageHeader title="Bem patrimonial" backTo="/patrimonio/bens" />
 
         <Alert tone="danger" title="Não foi possível carregar o bem">
-          {error || "Bem patrimonial não encontrado."}
+          {loadError || "Bem patrimonial não encontrado."}
         </Alert>
       </div>
     );
@@ -195,7 +186,7 @@ export function AssetDetailPage() {
 
     try {
       setChangingStatus(true);
-      setError("");
+      setActionError("");
 
       const updated = await api<Asset>(`/api/assets/${asset.id}/status`, {
         method: "PATCH",
@@ -212,9 +203,9 @@ export function AssetDetailPage() {
       setAsset(updated);
     } catch (cause) {
       if (cause instanceof ApiError) {
-        setError(cause.message);
+        setActionError(cause.message);
       } else {
-        setError("Não foi possível alterar a situação do bem.");
+        setActionError("Não foi possível alterar a situação do bem.");
       }
     } finally {
       setChangingStatus(false);
@@ -222,79 +213,70 @@ export function AssetDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-            Bem Patrimonial {asset.patrimonyNumber}
-          </h1>
-
-          <p className="text-sm text-[var(--text-muted)]">
-            Consulte as informações completas do patrimônio.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Botão Editar */}
-
-          {asset.status !== "disposed" ? (
+    <div className="page-enter space-y-5">
+      <PageHeader
+        backTo="/patrimonio/bens"
+        title={`Bem patrimonial ${asset.patrimonyNumber}`}
+        description="Consulte as informações completas do patrimônio."
+        actions={
+          canManage && asset.status !== "disposed" ? (
             <>
               <Button asChild>
                 <Link to={`/patrimonio/bens/${asset.id}/editar`}>
-                  <PencilSimple size={18} />
+                  <PencilSimple aria-hidden="true" size={16} />
                   Editar
                 </Link>
               </Button>
 
               <Button asChild variant="secondary">
                 <Link to={`/patrimonio/bens/${asset.id}/movimentar`}>
-                  <ArrowsLeftRight size={18} />
+                  <ArrowsLeftRight aria-hidden="true" size={16} />
                   Movimentar
                 </Link>
               </Button>
 
               <Button asChild variant="danger">
                 <Link to={`/patrimonio/bens/${asset.id}/baixa`}>
-                  <TrashSimple size={18} />
+                  <Archive aria-hidden="true" size={16} />
                   Baixar
                 </Link>
               </Button>
             </>
-          ) : null}
+          ) : null
+        }
+      />
 
-          <Button asChild variant="secondary">
-            <Link to="/patrimonio/bens">
-              <ArrowLeft size={18} />
-              Voltar
-            </Link>
-          </Button>
-        </div>
-      </div>
+      {actionError ? (
+        <Alert tone="danger" title="Não foi possível alterar a situação">
+          {actionError}
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">Identificação</h2>
+            <h2 className="font-bold">Identificação</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Dados de identificação do bem.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Número do Tombo" value={asset.patrimonyNumber} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailItem label="Número do tombo" value={asset.patrimonyNumber} />
 
             <DetailItem label="Situação">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="neutral">
-                  {assetStatusLabels[asset.status]}
+                <Badge variant={assetStatusMeta[asset.status].variant}>
+                  {assetStatusMeta[asset.status].label}
                 </Badge>
 
-                {asset.status !== "disposed" ? (
+                {canManage && asset.status !== "disposed" ? (
                   <Button
                     type="button"
+                    size="sm"
                     variant="secondary"
                     disabled={changingStatus}
                     onClick={() => void handleStatusChange()}
@@ -313,7 +295,7 @@ export function AssetDetailPage() {
 
             <div className="sm:col-span-2 lg:col-span-3">
               <DetailItem
-                label="Material / Descrição"
+                label="Material / descrição"
                 value={asset.description}
               />
             </div>
@@ -331,16 +313,16 @@ export function AssetDetailPage() {
         <Card>
           <CardHeader>
             <div>
-              <h2 className="font-medium">Baixa Patrimonial</h2>
+              <h2 className="font-bold">Baixa patrimonial</h2>
 
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
                 Informações registradas no processo de baixa do bem.
               </p>
             </div>
           </CardHeader>
 
           <CardContent>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <DetailItem
                 label="Data da baixa"
                 value={formatDate(disposal.disposalDate)}
@@ -361,16 +343,16 @@ export function AssetDetailPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">Localização</h2>
+            <h2 className="font-bold">Localização</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Localização atual do patrimônio.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             <DetailItem
               label="Departamento"
               value={
@@ -394,18 +376,16 @@ export function AssetDetailPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Nota Fiscal/ Documentação e aquisição
-            </h2>
+            <h2 className="font-bold">Nota fiscal, documentação e aquisição</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Informações relacionadas à aquisição e documentação.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem
               label="Data de utilização"
               value={formatDate(asset.usageDate)}
@@ -436,16 +416,16 @@ export function AssetDetailPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">Informações complementares</h2>
+            <h2 className="font-bold">Informações complementares</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Dados adicionais do patrimônio.
             </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <DetailItem label="RENAVAM" value={asset.renavam} />
 
             <DetailItem label="Chassi" value={asset.chassis} />
@@ -460,53 +440,45 @@ export function AssetDetailPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">Histórico de movimentações</h2>
+            <h2 className="font-bold">Histórico de movimentações</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Transferências realizadas entre unidades organizacionais.
             </p>
           </div>
         </CardHeader>
 
-        <CardContent>
-          {movements.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              Nenhuma movimentação registrada para este bem.
-            </p>
-          ) : (
-            <div className="space-y-4">
+        {movements.length === 0 ? (
+          <EmptyState
+            title="Nenhuma movimentação registrada"
+            description="As transferências deste bem aparecerão aqui."
+          />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <TableHead>Data</TableHead>
+                <TableHead>Origem</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Observação</TableHead>
+              </tr>
+            </thead>
+            <tbody>
               {[...movements].reverse().map((movement) => (
-                <div
-                  key={movement.id}
-                  className="rounded-md border border-[var(--border)] p-4"
-                >
-                  <div className="grid gap-4 lg:grid-cols-[140px_1fr_1fr]">
-                    <DetailItem
-                      label="Data"
-                      value={formatDate(movement.movementDate)}
-                    />
-
-                    <DetailItem
-                      label="Origem"
-                      value={formatUnitPath(movement.fromUnitId, unitsById)}
-                    />
-
-                    <DetailItem
-                      label="Destino"
-                      value={formatUnitPath(movement.toUnitId, unitsById)}
-                    />
-                  </div>
-
-                  {movement.notes ? (
-                    <div className="mt-4">
-                      <DetailItem label="Observação" value={movement.notes} />
-                    </div>
-                  ) : null}
-                </div>
+                <TableRow key={movement.id}>
+                  <TableCell>{formatDate(movement.movementDate)}</TableCell>
+                  <TableCell>
+                    {formatUnitPath(movement.fromUnitId, unitsById)}
+                  </TableCell>
+                  <TableCell>
+                    {formatUnitPath(movement.toUnitId, unitsById)}
+                  </TableCell>
+                  <TableCell>{movement.notes || "—"}</TableCell>
+                </TableRow>
               ))}
-            </div>
-          )}
-        </CardContent>
+            </tbody>
+          </Table>
+        )}
       </Card>
     </div>
   );
@@ -525,44 +497,13 @@ function DetailItem({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">
         {label}
       </p>
 
       {children ?? <p className="text-sm">{value || "—"}</p>}
     </div>
   );
-}
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "—";
-  }
-
-  const [year, month, day] = value.split("-");
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
-}
-
-function formatCurrency(value: number | string | null) {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-
-  const number = Number(value);
-
-  if (Number.isNaN(number)) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(number);
 }
 
 function formatUnitPath(

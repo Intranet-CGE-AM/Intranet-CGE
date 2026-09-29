@@ -5,24 +5,25 @@ import {
   CardContent,
   CardHeader,
   DashboardBanner,
+  EmptyState,
   Skeleton,
 } from "@cge/ui";
 
-import {
-  ArrowRight,
-  ArrowsLeftRight,
-  CurrencyDollar,
-  Package,
-  PlusCircle,
-  Wrench,
-  XCircle,
-} from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
 
 import { useCallback, useEffect, useState } from "react";
 
 import { Link } from "react-router";
 
 import { api, ApiError } from "../../lib/api";
+
+import {
+  assetStatusMeta,
+  formatCurrency,
+  formatDate,
+  PageHeader,
+  useCanManageAssets,
+} from "./shared";
 
 type DashboardUnit = {
   unitId: string;
@@ -82,33 +83,14 @@ type AssetsDashboardResponse = {
   recentDisposals: DashboardDisposal[];
 };
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
-
-function formatDate(value: string) {
-  if (!value) {
-    return "-";
-  }
-
-  const [year, month, day] = value.split("-");
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
-}
-
 export function AssetsPage() {
   const [dashboard, setDashboard] = useState<AssetsDashboardResponse | null>(
     null,
   );
 
   const [loading, setLoading] = useState(true);
+
+  const canManage = useCanManageAssets();
 
   const [error, setError] = useState("");
 
@@ -160,38 +142,30 @@ export function AssetsPage() {
     total > 0 ? Math.round((disposed / total) * 100) : 0;
 
   return (
-    <div className="page-enter space-y-5 pb-6">
-      {/* CABEÇALHO */}
-
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-            Controle de Patrimônio
-          </p>
-
-          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-            Visão geral do patrimônio
-          </h1>
-
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Acompanhe bens, valores, conservação e movimentações.
-          </p>
-        </div>
-
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {new Intl.DateTimeFormat("pt-BR", {
-            weekday: "long",
-            day: "2-digit",
-            month: "long",
-          }).format(new Date())}
-        </p>
-      </div>
-
-      {/* ERRO */}
+    <div className="page-enter space-y-5">
+      <PageHeader
+        actions={
+          canManage ? (
+            <Button asChild>
+              <Link to="/patrimonio/bens/novo">Novo bem</Link>
+            </Button>
+          ) : null
+        }
+        description="Acompanhe bens, valores, conservação e movimentações."
+        title="Visão geral do patrimônio"
+      />
 
       {error ? (
         <Alert title="Painel indisponível" tone="danger">
-          {error}
+          <p>{error}</p>
+          <Button
+            className="mt-3"
+            onClick={() => void loadDashboard()}
+            size="sm"
+            variant="secondary"
+          >
+            Tentar novamente
+          </Button>
         </Alert>
       ) : null}
 
@@ -200,12 +174,9 @@ export function AssetsPage() {
       <DashboardBanner
         action={
           <Button asChild size="sm" variant="quiet">
-            <Link
-              className="!min-h-0 !justify-start !p-0 text-[var(--brand)] hover:!bg-transparent"
-              to="/patrimonio/bens"
-            >
+            <Link to="/patrimonio/bens">
               Consultar bens
-              <ArrowRight aria-hidden="true" size={15} weight="bold" />
+              <ArrowRight aria-hidden="true" size={16} />
             </Link>
           </Button>
         }
@@ -235,7 +206,7 @@ export function AssetsPage() {
 
       {/* CONTEÚDO PRINCIPAL */}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 [&>*]:min-w-0">
         {/* COLUNA ESQUERDA */}
 
         <div className="space-y-5">
@@ -244,7 +215,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Situação dos bens</h2>
+                <h2 className="font-bold">Situação dos bens</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Distribuição atual dos bens patrimoniais
@@ -253,26 +224,28 @@ export function AssetsPage() {
             </CardHeader>
 
             {!loading && total > 0 ? (
-              <div className="px-5 pb-2 sm:px-6">
-                <div className="flex h-9 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+              <div className="px-5 pb-2">
+                <div className="flex h-9 overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                   <div
-                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    className="flex min-w-0 items-center justify-center overflow-hidden px-1 text-center text-[11px] font-semibold text-white"
                     style={{
                       width: `${activePercentage}%`,
                       backgroundColor: "var(--brand)",
                     }}
-                    title={`Em uso: ${activePercentage}%`}
+                    title={`${assetStatusMeta.active.label}: ${activePercentage}%`}
                   >
-                    <span className="truncate">Em uso {activePercentage}%</span>
+                    <span className="truncate">
+                      {assetStatusMeta.active.label} {activePercentage}%
+                    </span>
                   </div>
 
                   <div
-                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    className="flex min-w-0 items-center justify-center overflow-hidden px-1 text-center text-[11px] font-semibold text-white"
                     style={{
                       width: `${maintenancePercentage}%`,
-                      backgroundColor: "#d97706",
+                      backgroundColor: "var(--warning-strong)",
                     }}
-                    title={`Em manutenção: ${maintenancePercentage}%`}
+                    title={`${assetStatusMeta.maintenance.label}: ${maintenancePercentage}%`}
                   >
                     <span className="truncate">
                       Manut. {maintenancePercentage}%
@@ -280,10 +253,10 @@ export function AssetsPage() {
                   </div>
 
                   <div
-                    className="flex items-center justify-center px-2 text-center text-[11px] font-semibold text-white"
+                    className="flex min-w-0 items-center justify-center overflow-hidden px-1 text-center text-[11px] font-semibold text-white"
                     style={{
                       width: `${disposedPercentage}%`,
-                      backgroundColor: "#be185d",
+                      backgroundColor: "var(--danger)",
                     }}
                     title={`Baixados: ${disposedPercentage}%`}
                   >
@@ -298,12 +271,8 @@ export function AssetsPage() {
             <CardContent className="divide-y divide-[var(--border)] p-0">
               <Link
                 to="/patrimonio/bens"
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-subtle)] sm:px-6"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Package aria-hidden="true" size={18} />
-                </span>
-
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">Total de bens</p>
 
@@ -332,14 +301,12 @@ export function AssetsPage() {
               {/* Filtro de "Em uso"  */}
               <Link
                 to="/patrimonio/bens?status=active"
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-subtle)] sm:px-6"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Package aria-hidden="true" size={18} />
-                </span>
-
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">Em uso</p>
+                  <p className="text-sm font-bold">
+                    {assetStatusMeta.active.label}
+                  </p>
 
                   <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                     Bens ativos em utilização
@@ -372,14 +339,12 @@ export function AssetsPage() {
               {/* Filtro de "Em manutenção"      */}
               <Link
                 to="/patrimonio/bens?status=maintenance"
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-subtle)] sm:px-6"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Wrench aria-hidden="true" size={18} />
-                </span>
-
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">Em manutenção</p>
+                  <p className="text-sm font-bold">
+                    {assetStatusMeta.maintenance.label}
+                  </p>
 
                   <p className="mt-0.5 text-xs text-[var(--text-muted)]">
                     Bens temporariamente indisponíveis
@@ -412,12 +377,8 @@ export function AssetsPage() {
               {/* Filtro de "Baixados" */}
               <Link
                 to="/patrimonio/bens?status=disposed"
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-muted)] sm:px-6"
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--surface-subtle)] sm:px-6"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <XCircle aria-hidden="true" size={18} />
-                </span>
-
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">Baixados</p>
 
@@ -456,7 +417,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Bens por setor</h2>
+                <h2 className="font-bold">Bens por setor</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Distribuição dos bens por setor, incluindo seus subsetores
@@ -485,7 +446,7 @@ export function AssetsPage() {
                       <Link
                         key={unit.unitId}
                         to={`/patrimonio/bens?unitId=${unit.unitId}`}
-                        className="block rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
+                        className="block rounded-md py-3 transition hover:bg-[var(--surface-subtle)] first:pt-0 last:pb-0"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0 flex-1">
@@ -513,7 +474,7 @@ export function AssetsPage() {
                           </div>
                         </div>
 
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                           <div
                             className="h-full rounded-full bg-[var(--brand)] transition-all"
                             style={{
@@ -526,9 +487,10 @@ export function AssetsPage() {
                   })}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhum bem vinculado à estrutura organizacional.
-                </p>
+                <EmptyState
+                  description="Nenhum bem vinculado à estrutura organizacional."
+                  title="Nenhum bem por setor"
+                />
               )}
             </CardContent>
           </Card>
@@ -538,7 +500,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Acesso rápido</h2>
+                <h2 className="font-bold">Acesso rápido</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Ações frequentes do patrimônio
@@ -547,11 +509,7 @@ export function AssetsPage() {
             </CardHeader>
 
             <CardContent className="divide-y divide-[var(--border)] p-0">
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <Package aria-hidden="true" size={18} />
-                </span>
-
+              <div className="flex items-center gap-4 px-5 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">Consultar bens</p>
 
@@ -565,23 +523,21 @@ export function AssetsPage() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <PlusCircle aria-hidden="true" size={18} />
-                </span>
+              {canManage ? (
+                <div className="flex items-center gap-4 px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Cadastrar novo bem</p>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">Cadastrar novo bem</p>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Adicione um bem ao patrimônio
+                    </p>
+                  </div>
 
-                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                    Adicione um bem ao patrimônio
-                  </p>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="/patrimonio/bens/novo">Cadastrar</Link>
+                  </Button>
                 </div>
-
-                <Button asChild size="sm" variant="secondary">
-                  <Link to="/patrimonio/bens/novo">Cadastrar</Link>
-                </Button>
-              </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -594,7 +550,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Valor patrimonial</h2>
+                <h2 className="font-bold">Valor patrimonial</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Valor total dos bens cadastrados
@@ -604,15 +560,11 @@ export function AssetsPage() {
 
             <CardContent className="space-y-5">
               <div className="flex items-center gap-4">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                  <CurrencyDollar aria-hidden="true" size={20} />
-                </span>
-
                 <div className="min-w-0 flex-1">
                   {loading ? (
                     <Skeleton className="h-10 w-48" />
                   ) : (
-                    <p className="text-3xl font-extrabold tabular-nums tracking-[-0.04em]">
+                    <p className="text-2xl font-extrabold tabular-nums">
                       {formatCurrency(totalValue)}
                     </p>
                   )}
@@ -660,7 +612,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Conservação</h2>
+                <h2 className="font-bold">Conservação</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Estado de conservação dos bens
@@ -691,7 +643,7 @@ export function AssetsPage() {
                         to={`/patrimonio/bens?conservationStatus=${encodeURIComponent(
                           conservation.status,
                         )}`}
-                        className="block rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
+                        className="block rounded-md py-3 transition hover:bg-[var(--surface-subtle)] first:pt-0 last:pb-0"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <span className="text-sm font-semibold">
@@ -711,7 +663,7 @@ export function AssetsPage() {
                           </div>
                         </div>
 
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                           <div
                             className="h-full rounded-full bg-[var(--brand)] transition-all"
                             style={{
@@ -724,9 +676,10 @@ export function AssetsPage() {
                   })}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhuma informação de conservação cadastrada.
-                </p>
+                <EmptyState
+                  description="Nenhuma informação de conservação cadastrada."
+                  title="Sem dados de conservação"
+                />
               )}
             </CardContent>
           </Card>
@@ -736,7 +689,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Movimentações recentes</h2>
+                <h2 className="font-bold">Movimentações recentes</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Últimas transferências entre unidades organizacionais
@@ -757,26 +710,22 @@ export function AssetsPage() {
                     <Link
                       key={movement.id}
                       to={`/patrimonio/bens/${movement.assetId}`}
-                      className="flex items-center gap-3 rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
+                      className="flex items-center gap-3 rounded-md py-3 transition hover:bg-[var(--surface-subtle)] first:pt-0 last:pb-0"
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                        <ArrowsLeftRight aria-hidden="true" size={18} />
-                      </span>
-
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">
                           {movement.patrimonyNumber || "Sem patrimônio"}
                         </p>
 
-                        {movement.fromUnit?.path ||
-                          movement.fromUnit?.code ||
-                          "Sem localização"}
-
-                        {" → "}
-
-                        {movement.toUnit?.path ||
-                          movement.toUnit?.code ||
-                          "Sem localização"}
+                        <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+                          {movement.fromUnit?.path ||
+                            movement.fromUnit?.code ||
+                            "Sem localização"}
+                          {" → "}
+                          {movement.toUnit?.path ||
+                            movement.toUnit?.code ||
+                            "Sem localização"}
+                        </p>
                       </div>
 
                       <div className="flex shrink-0 items-center gap-2">
@@ -794,9 +743,10 @@ export function AssetsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhuma movimentação registrada.
-                </p>
+                <EmptyState
+                  description="Nenhuma movimentação registrada."
+                  title="Nenhuma movimentação"
+                />
               )}
             </CardContent>
           </Card>
@@ -806,7 +756,7 @@ export function AssetsPage() {
           <Card>
             <CardHeader>
               <div>
-                <h2 className="font-extrabold">Baixas recentes</h2>
+                <h2 className="font-bold">Baixas recentes</h2>
 
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Últimas baixas patrimoniais realizadas
@@ -826,12 +776,8 @@ export function AssetsPage() {
                     <Link
                       key={disposal.id}
                       to={`/patrimonio/bens/${disposal.assetId}`}
-                      className="flex items-start gap-3 rounded-md py-3 transition hover:bg-[var(--surface-muted)] first:pt-0 last:pb-0"
+                      className="flex items-start gap-3 rounded-md py-3 transition hover:bg-[var(--surface-subtle)] first:pt-0 last:pb-0"
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)]">
-                        <XCircle aria-hidden="true" size={18} />
-                      </span>
-
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">
                           {disposal.patrimonyNumber || "Sem patrimônio"}
@@ -857,9 +803,10 @@ export function AssetsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">
-                  Nenhuma baixa patrimonial registrada.
-                </p>
+                <EmptyState
+                  description="Nenhuma baixa patrimonial registrada."
+                  title="Nenhuma baixa"
+                />
               )}
             </CardContent>
           </Card>
