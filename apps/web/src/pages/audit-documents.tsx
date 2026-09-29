@@ -1,5 +1,4 @@
 import type {
-  AuditDocumentDetail,
   AuditDocumentFile,
   AuditDocumentList,
   AuditDocumentOptions,
@@ -78,8 +77,12 @@ export const latestFile = (files: AuditDocumentFile[]) =>
     undefined,
   );
 
-export const fileUrl = (documentId: string, fileId: string, inline = false) =>
-  `/api/audit-documents/${documentId}/files/${fileId}${inline ? "?disposition=inline" : ""}`;
+export const fileUrl = (
+  documentId: string,
+  fileId: string,
+  disposition: "inline" | "attachment",
+) =>
+  `/api/audit-documents/${documentId}/files/${fileId}?disposition=${disposition}`;
 
 export function AuditDocumentsPage() {
   const { user } = useAuth();
@@ -149,24 +152,6 @@ export function AuditDocumentsPage() {
       .catch(() => setOptions(null));
   }, []);
 
-  // The list has no file ids, so the approved download resolves the latest
-  // version from the detail first.
-  async function downloadLatest(id: string) {
-    try {
-      const detail = await api<AuditDocumentDetail>(
-        `/api/audit-documents/${id}`,
-      );
-      const latest = latestFile(detail.files);
-      if (!latest) return;
-      const link = document.createElement("a");
-      link.href = fileUrl(id, latest.id);
-      link.download = "";
-      link.click();
-    } catch (cause) {
-      setError(errorMessage(cause, "Não foi possível baixar o documento."));
-    }
-  }
-
   const hasFilters = Boolean(unitId || category || query);
   const columns: ColumnDef<AuditDocumentSummary>[] = [
     {
@@ -229,13 +214,13 @@ export function AuditDocumentsPage() {
             </Link>
           </Button>
           {original.status === "approved" ? (
-            <Button
-              aria-label={`Baixar ${original.title}`}
-              onClick={() => void downloadLatest(original.id)}
-              size="icon"
-              variant="quiet"
-            >
-              <DownloadSimple aria-hidden="true" size={16} />
+            <Button asChild size="icon" variant="quiet">
+              <a
+                aria-label={`Baixar ${original.title}`}
+                href={fileUrl(original.id, original.latestFileId, "attachment")}
+              >
+                <DownloadSimple aria-hidden="true" size={16} />
+              </a>
             </Button>
           ) : null}
         </div>

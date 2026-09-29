@@ -161,7 +161,7 @@ test("equipe envia, Subcontroladoria revisa, aprova e reabre pela interface", as
   await page.goto("/controle-interno/documentos?tab=approved");
   await page.getByLabel("Buscar documentos").fill(title);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: `Baixar ${title}` }).click();
+  await page.getByRole("link", { name: `Baixar ${title}` }).click();
   expect((await download).suggestedFilename()).toBe("relatorio-v2.pdf");
   await checkLayout(page);
 

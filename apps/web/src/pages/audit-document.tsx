@@ -278,7 +278,7 @@ export function AuditDocumentPage() {
                   value={selected.id}
                 />
                 <Button asChild size="sm" variant="secondary">
-                  <a download href={fileUrl(document.id, selected.id)}>
+                  <a href={fileUrl(document.id, selected.id, "attachment")}>
                     <DownloadSimple aria-hidden="true" size={16} />
                     Baixar
                   </a>
@@ -292,7 +292,7 @@ export function AuditDocumentPage() {
                 key={selected.id}
                 kind={selected.kind}
                 title={`Visualização da versão ${selected.number}`}
-                url={fileUrl(document.id, selected.id, true)}
+                url={fileUrl(document.id, selected.id, "inline")}
               />
             ) : null}
           </CardContent>
@@ -364,8 +364,7 @@ export function AuditDocumentPage() {
                     <Button asChild size="icon" variant="quiet">
                       <a
                         aria-label={`Baixar versão ${file.number}`}
-                        download
-                        href={fileUrl(document.id, file.id)}
+                        href={fileUrl(document.id, file.id, "attachment")}
                       >
                         <DownloadSimple aria-hidden="true" size={16} />
                       </a>
