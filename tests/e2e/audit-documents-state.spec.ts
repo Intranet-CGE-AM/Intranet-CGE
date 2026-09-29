@@ -4,6 +4,7 @@ import {
   accountId,
   detail,
   freshAccount,
+  inboxItems,
   overrides,
   signInAll,
   transition,
@@ -298,14 +299,10 @@ test("documento cancelado é final para todos", async ({
       await unchanged(reviewer, id, () => upload(reviewer, id, version), 403);
       for (const client of clients)
         expect((await detail(client!, id)).allowedActions).toEqual([]);
-      for (const client of clients) {
-        const inbox = await (
-          await client!.get("/api/inbox?type=audit_document")
-        ).json();
+      for (const client of clients)
         expect(
-          inbox.items.map((item: { id: string }) => item.id),
+          (await inboxItems(client!)).map((item) => item.id),
         ).not.toContain(`audit_document:${id}`);
-      }
     }
   } finally {
     await Promise.all(clients.map((client) => client!.dispose()));

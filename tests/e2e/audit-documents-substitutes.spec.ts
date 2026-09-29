@@ -6,6 +6,7 @@ import {
   dedicatedUnit,
   detail,
   freshAccount,
+  inboxItems,
   overrides,
   signInAll,
   transition,
@@ -31,14 +32,7 @@ async function notices(client: APIRequestContext, id: string) {
     .map((item) => item.type)
     .sort();
 }
-async function inbox(client: APIRequestContext) {
-  const response = await client.get("/api/inbox?type=audit_document");
-  expect(response.status()).toBe(200);
-  return (await response.json()).items as {
-    id: string;
-    delegation?: { id: string };
-  }[];
-}
+const inbox = inboxItems;
 
 test("substituto da Subcontroladoria analisa só a equipe da substituição, enquanto ela vale", async ({
   playwright,

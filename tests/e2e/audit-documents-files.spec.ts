@@ -623,7 +623,7 @@ test("metadados inválidos ou envio sem arquivo não criam documento", async ({
         file: docxFile(),
         second: docxFile("segundo.docx"),
       },
-    ])
+    ] as Record<string, string | ReturnType<typeof docxFile>>[])
       expect(
         (
           await coordinator.post("/api/audit-documents", { multipart })

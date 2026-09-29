@@ -1,6 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { inboxItems } from "./audit-document-api";
 import {
   auditAccounts,
   auditTeams,
@@ -23,13 +24,8 @@ async function notices(client: APIRequestContext, id: string) {
     .map((item) => item.type)
     .sort();
 }
-async function inbox(client: APIRequestContext) {
-  const response = await client.get("/api/inbox?type=audit_document");
-  expect(response.status()).toBe(200);
-  return ((await response.json()).items as { id: string }[]).map(
-    (item) => item.id,
-  );
-}
+const inbox = async (client: APIRequestContext) =>
+  (await inboxItems(client)).map((item) => item.id);
 
 test("envio avisa a Subcontroladoria e decisões avisam quem enviou versões", async ({
   playwright,

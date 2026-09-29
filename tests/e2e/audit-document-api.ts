@@ -196,3 +196,23 @@ export const signInAll = (
   Promise.all(
     emails.map((email) => signIn(playwright, baseURL, auditAccounts[email])),
   );
+
+/**
+ * Every audit_document inbox item, all pages: shared seed accounts collect
+ * pending documents from every spec, and the oldest come first.
+ */
+export async function inboxItems(client: APIRequestContext) {
+  const items: { id: string; delegation?: { id: string } }[] = [];
+  for (let page = 1; ; page++) {
+    const response = await client.get(
+      `/api/inbox?type=audit_document&page=${page}`,
+    );
+    expect(response.status()).toBe(200);
+    const body = (await response.json()) as {
+      items: typeof items;
+      hasMore: boolean;
+    };
+    items.push(...body.items);
+    if (!body.hasMore) return items;
+  }
+}
