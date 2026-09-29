@@ -221,3 +221,93 @@ export type AuditDocumentDetail = z.infer<typeof auditDocumentDetailSchema>;
 export type AuditDocumentList = z.infer<typeof auditDocumentListSchema>;
 export type AuditDocumentOptions = z.infer<typeof auditDocumentOptionsSchema>;
 export type AuditDocumentSettings = z.infer<typeof auditDocumentSettingsSchema>;
+
+export const auditDocumentMetricsQuerySchema = z
+  .strictObject({
+    from: z.iso.date(),
+    to: z.iso.date(),
+    unitId: z.uuid().optional(),
+  })
+  .refine(
+    ({ from, to }) =>
+      to >= from && Date.parse(to) - Date.parse(from) < 366 * 86400000,
+    { message: "Informe um período válido de até 366 dias." },
+  );
+
+const metricCount = z.number().int().nonnegative();
+const durationStats = z.object({
+  /** Intervals measured (each one ends inside the period). */
+  count: metricCount,
+  averageHours: z.number().nonnegative().nullable(),
+  medianHours: z.number().nonnegative().nullable(),
+});
+
+/**
+ * Period bounds are Manaus calendar days, `to` inclusive. "Reviewer" means an
+ * account that performed approve, request_correction or reopen on any audit
+ * document; "team" is everyone else.
+ */
+export const auditDocumentMetricsSchema = z.object({
+  /** Teams in the caller's audit_documents.reports scope (filter options). */
+  units: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  bottleneckRounds: z.number().int().positive(),
+  /** Current snapshot, not limited to the period. */
+  pending: z.array(
+    z.object({
+      unitId: z.uuid(),
+      unitName: z.string(),
+      /** status in_review */
+      withReviewer: metricCount,
+      /** status correction_requested */
+      withTeam: metricCount,
+      /** Oldest status_changed_at among in_review documents. */
+      oldestWithReviewerSince: z.date().nullable(),
+      /** Oldest status_changed_at among correction_requested documents. */
+      oldestWithTeamSince: z.date().nullable(),
+    }),
+  ),
+  period: z.object({
+    /** Documents first submitted in the period. */
+    submitted: metricCount,
+    /** Distinct documents with an approval in the period. */
+    approved: metricCount,
+    /** Distinct documents cancelled in the period. */
+    cancelled: metricCount,
+    /** Share (0..1) of `submitted` whose current status is approved. */
+    deliveryRate: z.number().min(0).max(1).nullable(),
+  }),
+  /** From entering in_review to the next approve or request_correction. */
+  reviewerResponse: durationStats,
+  /** From request_correction to the next version sent. */
+  teamResponse: durationStats,
+  correctionRounds: z.object({
+    /** Documents submitted in the period, grouped by correction rounds. */
+    distribution: z.array(
+      z.object({ rounds: metricCount, documents: metricCount }),
+    ),
+    /** Up to 10 documents submitted in the period with the most rounds (>= 1). */
+    top: z.array(
+      z.object({
+        id: z.uuid(),
+        title: z.string(),
+        unitName: z.string(),
+        rounds: metricCount,
+        bottleneck: z.boolean(),
+      }),
+    ),
+  }),
+  /** From file upload to its first read by a reviewer, files sent in the period. */
+  firstRead: durationStats,
+  reads: z.object({
+    /** Files (versions) uploaded in the period. */
+    files: metricCount,
+    /** Of those, files already opened by a reviewer. */
+    readByReviewer: metricCount,
+    rate: z.number().min(0).max(1).nullable(),
+  }),
+});
+
+export type AuditDocumentMetricsQuery = z.infer<
+  typeof auditDocumentMetricsQuerySchema
+>;
+export type AuditDocumentMetrics = z.infer<typeof auditDocumentMetricsSchema>;
