@@ -118,15 +118,20 @@ retorno do objeto. Nada é reutilizado como segredo ou dado de produção.
 
 ## Decisão sobre object storage
 
-A imagem oficial disponível no Compose está fixada em
-`RELEASE.2025-09-07T16-13-09Z`. O
-[projeto MinIO](https://github.com/minio/minio/releases) foi arquivado e a
-correção de segurança posterior não recebeu imagem oficial pronta. Antes do
-piloto, TI e Segurança devem registrar uma destas decisões:
+Decisão de 2026-09-28: usar o fork comunitário
+[`pgsty/minio`](https://github.com/pgsty/minio) (Pigsty, Docker Hub) e o
+cliente `pgsty/mc`. As imagens oficiais foram removidas (`minio/minio` no
+Docker Hub não existe mais e `quay.io/minio/*` responde 401), e o `docker compose
+up` do CI falhava por isso. O Compose fixa `pgsty/minio` em
+`RELEASE.2026-08-04T00-00-00Z` pelo digest do índice multi-arch. O `pgsty/mc`
+só publica a tag `latest`, então a fixação é só pelo digest. Para atualizar,
+resolva o novo digest com `docker buildx imagetools inspect`, troque nos três
+arquivos Compose e rode o backup e a restauração de verificação.
 
-1. construir internamente a imagem da última revisão de segurança;
-2. aprovar temporariamente a revisão fixada, com controles e prazo de troca;
-3. trocar o endpoint por outro servidor S3-compatible mantido.
+Alternativas mantidas para o futuro, caso TI e Segurança não aceitem o fork:
+
+1. construir internamente a imagem a partir do código-fonte;
+2. trocar o endpoint por outro servidor S3-compatible mantido.
 
 O módulo de pessoas depende apenas do contrato interno de object storage; a
 troca não altera as rotas ou telas de RH.
