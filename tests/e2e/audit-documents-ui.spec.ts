@@ -223,3 +223,133 @@ test("indicadores exigem a chave de relatórios e exportam PDF", async ({
   for await (const chunk of stream) chunks.push(chunk as Buffer);
   expect(Buffer.concat(chunks).subarray(0, 5).toString()).toBe("%PDF-");
 });
+
+test("Subcontroladoria e equipe editam o Word no navegador", async ({
+  page,
+}) => {
+  const title = `Edição no navegador ${Date.now()}`;
+  const editorBox = () =>
+    page.getByRole("textbox", { name: "Conteúdo do documento" });
+  const replaceParagraph = async (from: string, to: string) => {
+    await editorBox().getByText(from, { exact: true }).click({ clickCount: 3 });
+    await page.keyboard.type(to);
+  };
+  const saveVersion = async (note: string) => {
+    await page.getByRole("button", { name: "Salvar nova versão" }).click();
+    const dialog = page.getByRole("dialog", { name: "Salvar nova versão" });
+    await dialog.getByLabel("Observação (opcional)").fill(note);
+    await dialog.getByRole("button", { name: "Salvar versão" }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: title }),
+    ).toBeVisible();
+  };
+
+  await signIn(page, auditAccounts.coordinatorA);
+  const options = await page.request.get("/api/audit-documents/options");
+  const { units } = (await options.json()) as {
+    units: { id: string; name: string }[];
+  };
+  const created = await page.request.post("/api/audit-documents", {
+    multipart: {
+      metadata: JSON.stringify({
+        unitId: units.find((unit) => unit.name === auditTeams.a)!.id,
+        title,
+      }),
+      file: {
+        name: "relatorio.docx",
+        mimeType: docxMime,
+        buffer: sampleDocx("Texto original da auditoria"),
+      },
+    },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = (await created.json()) as { id: string };
+
+  await signIn(page, auditAccounts.reviewer);
+  await page.goto(`/controle-interno/documentos/${id}`);
+  await page.getByRole("link", { name: "Editar no navegador" }).click();
+  await expect(
+    page.getByText("A edição no navegador pode alterar a formatação do Word"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Entendi" }).click();
+  await expect(editorBox().locator("img")).toHaveCount(1);
+  await replaceParagraph(
+    "Texto original da auditoria",
+    "Texto revisado pela Subcontroladoria",
+  );
+  await checkLayout(page);
+  await saveVersion("Ajuste de redação.");
+
+  await expect(page.getByRole("combobox", { name: "Versão" })).toHaveText(
+    "Versão 2 (atual)",
+  );
+  await expect(
+    page.getByText("Em revisão", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Versão editada pela Subcontroladoria").first(),
+  ).toBeVisible();
+  const viewer = page.frameLocator('iframe[title="Visualização da versão 2"]');
+  await expect(
+    viewer.getByText("Texto revisado pela Subcontroladoria"),
+  ).toBeVisible();
+  await expect(viewer.locator("img")).toHaveCount(1);
+
+  // The edited file is a real .docx: it passes the upload validator again.
+  const detail = (await (
+    await page.request.get(`/api/audit-documents/${id}`)
+  ).json()) as { files: { id: string; number: number }[] };
+  const v2 = detail.files.find((file) => file.number === 2)!;
+  const edited = await page.request.get(
+    `/api/audit-documents/${id}/files/${v2.id}?disposition=attachment`,
+  );
+  const buffer = await edited.body();
+  expect(buffer.subarray(0, 2).toString()).toBe("PK");
+
+  const correction = await page.request.post(
+    `/api/audit-documents/${id}/transition`,
+    {
+      data: {
+        action: "request_correction",
+        version: (
+          (await (
+            await page.request.get(`/api/audit-documents/${id}`)
+          ).json()) as { version: number }
+        ).version,
+        message: "Detalhe o achado principal.",
+      },
+    },
+  );
+  expect(correction.status()).toBe(200);
+
+  await signIn(page, auditAccounts.coordinatorA);
+  const recheck = await page.request.post("/api/audit-documents", {
+    multipart: {
+      metadata: JSON.stringify({
+        unitId: units.find((unit) => unit.name === auditTeams.a)!.id,
+        title: `${title} (revalidação)`,
+      }),
+      file: { name: "editado.docx", mimeType: docxMime, buffer },
+    },
+  });
+  expect(recheck.status()).toBe(201);
+
+  await page.goto(`/controle-interno/documentos/${id}`);
+  await page.getByRole("link", { name: "Editar no navegador" }).click();
+  await replaceParagraph(
+    "Texto revisado pela Subcontroladoria",
+    "Texto corrigido pela equipe",
+  );
+  await saveVersion("Achado detalhado.");
+  await expect(
+    page.getByText("Em revisão", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Versão" })).toHaveText(
+    "Versão 3 (atual)",
+  );
+  await expect(
+    page
+      .frameLocator('iframe[title="Visualização da versão 3"]')
+      .getByText("Texto corrigido pela equipe"),
+  ).toBeVisible();
+});
