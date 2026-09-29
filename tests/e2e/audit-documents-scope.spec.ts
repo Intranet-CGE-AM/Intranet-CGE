@@ -1,3 +1,4 @@
+import { auditRows, detail } from "./audit-document-api";
 import {
   auditAccounts,
   auditTeams,
@@ -5,6 +6,7 @@ import {
   docxFile,
   signIn,
   unitId,
+  uploadVersion,
 } from "./audit-document-fixtures";
 import { expect, test } from "./fixtures";
 
@@ -23,7 +25,7 @@ test("documentos de auditoria ficam restritos à equipe autorizada", async ({
     const teamB = await unitId(coordinatorB, auditTeams.b);
     const created = await createDocument(
       coordinatorB,
-      { unitId: teamB, title: "Relatório da equipe B E2E" },
+      { unitId: teamB, title: `Relatório da equipe B E2E ${Date.now()}` },
       docxFile(),
     );
     expect(created.status()).toBe(201);
@@ -51,6 +53,7 @@ test("documentos de auditoria ficam restritos à equipe autorizada", async ({
       await assessorA.post(`/api/audit-documents/${id}/transition`, {
         data: { action: "cancel", version: 1, message: "Fora do escopo." },
       }),
+      await uploadVersion(assessorA, id, { version: 1 }, docxFile()),
     ])
       expect(response.status()).toBe(404);
     expect(
@@ -63,15 +66,14 @@ test("documentos de auditoria ficam restritos à equipe autorizada", async ({
       ).status(),
     ).toBe(403);
 
-    const denied = await admin.get(
-      "/api/audit-events?outcome=denied&objectType=audit-document&pageSize=100",
+    const denied = await auditRows(admin, id, { outcome: "denied" });
+    expect(denied.map((event) => event.action)).toEqual(
+      Array(4).fill("audit-document.access-denied"),
     );
-    expect(denied.status()).toBe(200);
-    expect(
-      (await denied.json()).events.filter(
-        (event: { objectId: string | null }) => event.objectId === id,
-      ),
-    ).toHaveLength(3);
+    expect(await detail(coordinatorB, id)).toMatchObject({
+      version: 1,
+      fileCount: 1,
+    });
   } finally {
     await Promise.all(
       [coordinatorB, assessorA, admin].map((client) => client.dispose()),

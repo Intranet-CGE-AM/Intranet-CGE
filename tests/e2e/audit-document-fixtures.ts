@@ -120,7 +120,8 @@ export async function signIn(
 ) {
   const client = await playwright.request.newContext({
     baseURL,
-    extraHTTPHeaders: clientHeaders(),
+    // Origin follows baseURL, so the specs run against any web port.
+    extraHTTPHeaders: { ...clientHeaders(), Origin: baseURL },
   });
   const response = await client.post("/api/auth/login", {
     data: {
