@@ -4,6 +4,7 @@ import {
   CalendarDots,
   ChartBar,
   ClipboardText,
+  FileText,
   GearSix,
   Headset,
   IdentificationCard,
@@ -165,6 +166,14 @@ export const accessRules = {
   ticketsAttend: { anyOf: ["tickets.attend", "tickets.manage"] },
   ticketsApprove: { anyOf: ["tickets.approve", "tickets.manage"] },
   ticketsManage: { anyOf: ["tickets.manage", "tickets.attend"] },
+  auditDocuments: {
+    anyOf: [
+      "audit_documents.read",
+      "audit_documents.submit",
+      "audit_documents.review",
+    ],
+  },
+  auditDocumentsReports: { anyOf: ["audit_documents.reports"] },
 } as const satisfies Record<string, AccessRule>;
 
 export const moduleNavigation: ModuleNavigation[] = [
@@ -453,6 +462,24 @@ export const moduleNavigation: ModuleNavigation[] = [
         label: "Novo chamado",
         href: "/suporte/novo",
         icon: PlusCircle,
+      },
+    ],
+  },
+
+  {
+    id: "internal-control",
+    access: accessRules.auditDocuments,
+    label: "Controle Interno",
+    description:
+      "Documentos de auditoria das equipes e revisão da Subcontroladoria",
+    href: "/controle-interno/documentos",
+    icon: FileText,
+    routes: [
+      {
+        access: accessRules.auditDocuments,
+        label: "Documentos de auditoria",
+        href: "/controle-interno/documentos",
+        icon: FileText,
       },
     ],
   },

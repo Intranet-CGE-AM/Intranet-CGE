@@ -141,6 +141,17 @@ const NewTicketPage = lazy(() =>
   })),
 );
 
+const AuditDocumentsPage = lazy(() =>
+  import("./pages/audit-documents").then((module) => ({
+    default: module.AuditDocumentsPage,
+  })),
+);
+const AuditDocumentPage = lazy(() =>
+  import("./pages/audit-document").then((module) => ({
+    default: module.AuditDocumentPage,
+  })),
+);
+
 const VisitsPage = lazy(() =>
   import("./pages/visits").then((module) => ({
     default: module.VisitsPage,
@@ -353,6 +364,27 @@ export function App() {
               <RequireAccess rule={accessRules.ticketsCreate}>
                 <Suspense fallback={<PageFallback />}>
                   <NewTicketPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+
+          <Route
+            path="controle-interno/documentos"
+            element={
+              <RequireAccess rule={accessRules.auditDocuments}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditDocumentsPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+          <Route
+            path="controle-interno/documentos/:id"
+            element={
+              <RequireAccess rule={accessRules.auditDocuments}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditDocumentPage />
                 </Suspense>
               </RequireAccess>
             }

@@ -53,13 +53,21 @@ function DocxViewer({ title, url }: { title: string; url: string }) {
       if (!doc || controller.signal.aborted) return;
       doc.open();
       doc.write(
-        `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>${frameStyles(getComputedStyle(document.documentElement).getPropertyValue("--surface-subtle"))}</style></head><body></body></html>`,
+        '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"></head><body></body></html>',
       );
       doc.close();
       await renderAsync(data, doc.body, doc.head, {
         ignoreLastRenderedPageBreak: true,
         useBase64URL: true,
       });
+      // docx-preview resets the style container, so ours goes in afterwards.
+      const style = doc.createElement("style");
+      style.textContent = frameStyles(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--surface-subtle",
+        ),
+      );
+      doc.head.append(style);
       if (!controller.signal.aborted) setState("ready");
     })().catch(() => {
       if (!controller.signal.aborted) setState("error");
