@@ -184,3 +184,42 @@ test("módulo fica oculto para quem não tem permissão", async ({ page }) => {
   await page.goto("/controle-interno/documentos");
   await expect(page).toHaveURL(/\/$/);
 });
+
+test("indicadores exigem a chave de relatórios e exportam PDF", async ({
+  page,
+}) => {
+  await signIn(page, auditAccounts.assessorA);
+  await page.goto("/controle-interno/documentos");
+  await expect(page.getByRole("link", { name: "Indicadores" })).toHaveCount(0);
+  await page.goto("/controle-interno/indicadores");
+  await expect(page).toHaveURL(/\/$/);
+
+  await signIn(page, auditAccounts.reviewer);
+  await page.goto("/controle-interno/documentos");
+  await page.getByRole("link", { name: "Indicadores" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Indicadores de auditoria" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Pendências por equipe" }),
+  ).toBeVisible();
+  await checkLayout(page);
+
+  const limit = page.getByLabel("Rodadas de correção", { exact: true });
+  const previous = await limit.inputValue();
+  for (const value of ["2", previous]) {
+    await limit.fill(value);
+    await page.getByRole("button", { name: "Salvar limite" }).click();
+    await expect(page.getByText("Limite de gargalo atualizado.")).toBeVisible();
+    await expect(page.getByText(`Gargalo a partir de ${value}`)).toBeVisible();
+  }
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Relatório analítico" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^relatorio-analitico-.*\.pdf$/);
+  const stream = await file.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  expect(Buffer.concat(chunks).subarray(0, 5).toString()).toBe("%PDF-");
+});
