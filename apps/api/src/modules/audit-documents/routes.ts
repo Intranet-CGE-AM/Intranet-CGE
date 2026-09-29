@@ -380,6 +380,16 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
     } catch (error) {
       if (error instanceof app.multipartErrors.RequestFileTooLargeError)
         return fail(413, "O arquivo deve ter no máximo 20 MB.");
+      // Extra fields or files trip the multipart limits; busboy then aborts the
+      // pending file stream (premature close). Both are malformed requests.
+      const code = (error as { code?: string }).code;
+      if (
+        code === "FST_FIELDS_LIMIT" ||
+        code === "FST_FILES_LIMIT" ||
+        code === "FST_PARTS_LIMIT" ||
+        code === "ERR_STREAM_PREMATURE_CLOSE"
+      )
+        return fail(400, "Envie um único arquivo com os metadados.");
       throw error;
     }
     if (!bytes?.length) return fail(400, "Selecione um arquivo DOCX ou PDF.");
