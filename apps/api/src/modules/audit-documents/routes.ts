@@ -135,31 +135,55 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
     return row?.bottleneckRounds ?? 3;
   }
 
-  const summaryColumns = {
-    document: auditDocuments,
-    unitName: organizationUnits.name,
-    fileCount: sql<number>`(select count(*)::int from ${auditDocumentFiles} where ${auditDocumentFiles.documentId} = ${auditDocuments.id})`,
-  };
-  const present = (
-    row: { document: Row; unitName: string; fileCount: number },
-    rounds: number,
-  ) =>
-    auditDocumentSummarySchema.parse({
-      ...row.document,
-      unitName: row.unitName,
-      fileCount: row.fileCount,
-      bottleneck: row.document.correctionRounds >= rounds,
-    });
-
-  async function detail(id: string, user: AuthenticatedUser) {
-    const [row] = await db
-      .select(summaryColumns)
+  // Files are numbered 1..n without gaps, so the latest number is the count.
+  const summaries = () =>
+    db
+      .select({
+        document: auditDocuments,
+        unitName: organizationUnits.name,
+        latest: {
+          id: auditDocumentFiles.id,
+          number: auditDocumentFiles.number,
+          fileName: auditDocumentFiles.fileName,
+          mime: auditDocumentFiles.mime,
+        },
+      })
       .from(auditDocuments)
       .innerJoin(
         organizationUnits,
         eq(organizationUnits.id, auditDocuments.unitId),
       )
-      .where(eq(auditDocuments.id, id));
+      .innerJoin(
+        auditDocumentFiles,
+        and(
+          eq(auditDocumentFiles.documentId, auditDocuments.id),
+          eq(
+            auditDocumentFiles.number,
+            sql`(select max(f.number) from audit_document_files f where f.document_id = ${auditDocuments.id})`,
+          ),
+        ),
+      )
+      .$dynamic();
+  const present = (
+    row: {
+      document: Row;
+      unitName: string;
+      latest: { id: string; number: number; fileName: string; mime: string };
+    },
+    rounds: number,
+  ) =>
+    auditDocumentSummarySchema.parse({
+      ...row.document,
+      unitName: row.unitName,
+      fileCount: row.latest.number,
+      latestFileId: row.latest.id,
+      latestFileName: row.latest.fileName,
+      latestFileKind: kindOf(row.latest.mime),
+      bottleneck: row.document.correctionRounds >= rounds,
+    });
+
+  async function detail(id: string, user: AuthenticatedUser) {
+    const [row] = await summaries().where(eq(auditDocuments.id, id));
     if (!row) return fail(404, "Documento não encontrado.");
     const [files, events, rounds] = await Promise.all([
       db
@@ -437,13 +461,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
           : undefined,
       ];
       const [rows, statusCounts, rounds] = await Promise.all([
-        db
-          .select(summaryColumns)
-          .from(auditDocuments)
-          .innerJoin(
-            organizationUnits,
-            eq(organizationUnits.id, auditDocuments.unitId),
-          )
+        summaries()
           .where(
             and(
               ...filters,
