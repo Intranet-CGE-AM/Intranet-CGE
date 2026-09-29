@@ -367,7 +367,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
       }
     } catch (error) {
       if (error instanceof app.multipartErrors.RequestFileTooLargeError)
-        return fail(400, "O arquivo deve ter no máximo 20 MB.");
+        return fail(413, "O arquivo deve ter no máximo 20 MB.");
       throw error;
     }
     if (!bytes?.length) return fail(400, "Selecione um arquivo DOCX ou PDF.");
@@ -382,7 +382,8 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
 
   async function validFile(bytes: Buffer, fileName: string, mime: string) {
     const result = await validateAuditDocumentFile(bytes, fileName, mime);
-    if (!result.ok) return fail(400, result.message);
+    if (!result.ok)
+      return fail(result.code === "file_too_large" ? 413 : 400, result.message);
     return {
       mime: mimes[result.kind],
       sha256: createHash("sha256").update(bytes).digest("hex"),

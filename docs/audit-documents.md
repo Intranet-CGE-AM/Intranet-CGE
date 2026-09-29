@@ -56,7 +56,7 @@ global ou `access.manage` global.
 
 ## Arquivos
 
-- Aceitos: `.docx` e PDF, até 20 MB.
+- Aceitos: `.docx` e PDF, até 20 MB (20 971 520 bytes). Acima disso a API responde `413`.
 - Extensão, MIME declarado e assinatura do arquivo precisam concordar.
 - `.docx` é verificado pelo diretório central do zip: partes obrigatórias,
   sem macros (`vbaProject.bin` ou tipo `macroEnabled`), limite de entradas e de
