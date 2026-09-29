@@ -2,6 +2,7 @@ import type { AuthenticatedUser } from "@cge/contracts";
 
 import {
   CalendarDots,
+  ChartBar,
   ClipboardText,
   GearSix,
   Headset,
@@ -138,6 +139,10 @@ export const accessRules = {
 
   visitsManage: {
     anyOf: ["visits.manage"],
+  },
+
+  visitsReports: {
+    anyOf: ["visits.reports", "visits.export", "visits.manage"],
   },
 
   patrimony: {
@@ -336,6 +341,16 @@ export const moduleNavigation: ModuleNavigation[] = [
         href: "/visitas/historico",
 
         icon: ClipboardText,
+      },
+
+      {
+        access: accessRules.visitsReports,
+
+        label: "Relatórios",
+
+        href: "/visitas/relatorios",
+
+        icon: ChartBar,
       },
     ],
   },

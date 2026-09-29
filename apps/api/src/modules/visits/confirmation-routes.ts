@@ -43,6 +43,11 @@ export async function visitConfirmationRoutes(
 
   const { confirmationService } = options;
 
+  // Same @fastify/rate-limit setup as /api/auth/login, keyed by client IP.
+  const rateLimited = {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  };
+
   /* =======================================================
    * GET
    *
@@ -60,6 +65,8 @@ export async function visitConfirmationRoutes(
 
   app.get(
     "/api/public/visit-confirmations/:token",
+
+    rateLimited,
 
     async (request, reply) => {
       const { token } = request.params as ConfirmationTokenParams;
@@ -127,6 +134,8 @@ export async function visitConfirmationRoutes(
 
   app.post(
     "/api/public/visit-confirmations/:token",
+
+    rateLimited,
 
     async (request, reply) => {
       const { token } = request.params as ConfirmationTokenParams;

@@ -15,6 +15,7 @@ import { ChangePasswordPage } from "./pages/change-password";
 import { LoginPage } from "./pages/login";
 
 import { NotificationsPage } from "./pages/notifications";
+import { VisitConfirmationPage } from "./pages/visit-confirmation";
 
 const AccountPage = lazy(() =>
   import("./pages/account").then((module) => ({
@@ -164,6 +165,12 @@ const VisitHistoryPage = lazy(() =>
   })),
 );
 
+const VisitReportsPage = lazy(() =>
+  import("./pages/visit-reports").then((module) => ({
+    default: module.VisitReportsPage,
+  })),
+);
+
 const AssetsPage = lazy(() =>
   import("./modules/assets/AssetsPage").then((module) => ({
     default: module.AssetsPage,
@@ -226,6 +233,10 @@ export function App() {
       <Route path="login" element={<LoginPage />} />
 
       <Route path="alterar-senha" element={<ChangePasswordPage />} />
+      <Route
+        path="visitas/confirmar/:token"
+        element={<VisitConfirmationPage />}
+      />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
@@ -312,6 +323,17 @@ export function App() {
               <RequireAccess rule={accessRules.visits}>
                 <Suspense fallback={<PageFallback />}>
                   <VisitHistoryPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+
+          <Route
+            path="visitas/relatorios"
+            element={
+              <RequireAccess rule={accessRules.visitsReports}>
+                <Suspense fallback={<PageFallback />}>
+                  <VisitReportsPage />
                 </Suspense>
               </RequireAccess>
             }
