@@ -1,5 +1,5 @@
 {
-  "id": "9d04d4eb-8a7b-46d9-81dd-162981c6d288",
+  "id": "5f83a419-87c3-4153-b1c7-0b34325fbd3c",
   "prevId": "5870f484-47f1-42b3-b732-b40a2f72fd0b",
   "version": "7",
   "dialect": "postgresql",
@@ -7152,6 +7152,20 @@
           "primaryKey": false,
           "notNull": false
         },
+        "source": {
+          "name": "source",
+          "type": "audit_document_file_source",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'upload'"
+        },
+        "uploaded_as": {
+          "name": "uploaded_as",
+          "type": "audit_document_uploader_role",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'team'"
+        },
         "uploaded_by_account_id": {
           "name": "uploaded_by_account_id",
           "type": "uuid",
@@ -7602,7 +7616,16 @@
         "approved",
         "cancelled",
         "reopened",
+        "edited",
         "read"
+      ]
+    },
+    "public.audit_document_file_source": {
+      "name": "audit_document_file_source",
+      "schema": "public",
+      "values": [
+        "upload",
+        "editor"
       ]
     },
     "public.audit_document_status": {
@@ -7613,6 +7636,14 @@
         "correction_requested",
         "approved",
         "cancelled"
+      ]
+    },
+    "public.audit_document_uploader_role": {
+      "name": "audit_document_uploader_role",
+      "schema": "public",
+      "values": [
+        "team",
+        "reviewer"
       ]
     }
   },

@@ -1,5 +1,7 @@
 import {
   auditDocumentEventTypeSchema,
+  auditDocumentFileSourceSchema,
+  auditDocumentUploaderRoleSchema,
   auditDocumentStatusSchema,
   type Delegation,
 } from "@cge/contracts";
@@ -27,6 +29,15 @@ export const auditDocumentStatusEnum = pgEnum(
 export const auditDocumentEventTypeEnum = pgEnum(
   "audit_document_event_type",
   auditDocumentEventTypeSchema.enum,
+);
+
+export const auditDocumentFileSourceEnum = pgEnum(
+  "audit_document_file_source",
+  auditDocumentFileSourceSchema.enum,
+);
+export const auditDocumentUploaderRoleEnum = pgEnum(
+  "audit_document_uploader_role",
+  auditDocumentUploaderRoleSchema.enum,
 );
 
 export const auditDocumentSettings = pgTable(
@@ -101,6 +112,10 @@ export const auditDocumentFiles = pgTable(
     size: integer("size").notNull(),
     sha256: text("sha256").notNull(),
     note: text("note"),
+    source: auditDocumentFileSourceEnum("source").notNull().default("upload"),
+    uploadedAs: auditDocumentUploaderRoleEnum("uploaded_as")
+      .notNull()
+      .default("team"),
     uploadedByAccountId: uuid("uploaded_by_account_id")
       .notNull()
       .references(() => userAccounts.id),

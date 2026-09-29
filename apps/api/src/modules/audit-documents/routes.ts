@@ -100,6 +100,7 @@ const notificationTitles: Record<AuditDocumentEventType, string> = {
   approved: "Documento de auditoria aprovado",
   cancelled: "Documento de auditoria cancelado",
   reopened: "Documento de auditoria reaberto para análise",
+  edited: "Documento de auditoria editado pela Subcontroladoria",
   read: "Documento de auditoria lido",
 };
 
@@ -125,13 +126,13 @@ const scopeFilter = (units: string[] | null) =>
 function allowedActions(
   user: AuthenticatedUser,
   document: Row,
-  latestUploader: string | undefined,
+  latestTeamUploader: string | undefined,
 ) {
   return auditDocumentActionSchema.options.filter(
     (action) =>
       nextAuditDocumentStatus(document.status, action) !== null &&
       mayPerform(user, document.unitId, action) &&
-      !separated(user, action, latestUploader),
+      !separated(user, action, latestTeamUploader),
   );
 }
 const mayPerform = (
@@ -145,10 +146,15 @@ const mayPerform = (
 const separated = (
   user: AuthenticatedUser,
   action: AuditDocumentAction,
-  latestUploader: string | undefined,
+  latestTeamUploader: string | undefined,
 ) =>
   auditDocumentReviewActions.includes(action) &&
-  latestUploader === user.account.id;
+  latestTeamUploader === user.account.id;
+/** Only a version sent as team binds its sender; a reviewer's own edit does not. */
+const teamUploader = (file?: {
+  uploadedByAccountId: string;
+  uploadedAs: string;
+}) => (file?.uploadedAs === "team" ? file.uploadedByAccountId : undefined);
 
 export const auditDocumentRoutes: FastifyPluginAsync<{
   db: Database;
@@ -307,7 +313,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
       allowedActions: allowedActions(
         user,
         row.document,
-        files.at(-1)?.uploadedByAccountId,
+        teamUploader(files.at(-1)),
       ),
     });
   }
@@ -727,7 +733,9 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
       );
       if (!user) return;
       const document = await visibleDocument(request.params.id, user);
-      if (!mayPerform(user, document.unitId, "submit_version"))
+      const denied = (action: AuditDocumentAction) =>
+        !mayPerform(user, document.unitId, action);
+      if (denied("submit_version") && denied("edit_version"))
         return fail(403, "Você não possui permissão para enviar versões.");
       const upload = await readUpload(request);
       const parsed = auditDocumentVersionInputSchema.safeParse(upload.metadata);
@@ -745,20 +753,29 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .where(eq(auditDocuments.id, document.id))
             .for("update");
           if (!current) return fail(404, "Documento não encontrado.");
+          // In review, a new version is the reviewer's edit; after a
+          // correction request it is the team's answer.
+          const action =
+            current.status === "in_review" ? "edit_version" : "submit_version";
+          if (denied(action))
+            return fail(
+              403,
+              action === "edit_version"
+                ? "Durante a análise, só a Subcontroladoria salva novas versões."
+                : "Só a equipe responde a um pedido de correção.",
+            );
           if (current.version !== parsed.data.version)
             return fail(
               409,
               "Este documento foi atualizado. Recarregue antes de continuar.",
             );
-          const status = nextAuditDocumentStatus(
-            current.status,
-            "submit_version",
-          );
+          const status = nextAuditDocumentStatus(current.status, action);
           if (!status)
             return fail(
               409,
-              "Nova versão só pode ser enviada após pedido de correção.",
+              "Esta etapa não aceita novas versões. Recarregue o documento.",
             );
+          const type = auditDocumentEventByAction[action];
           const [last] = await tx
             .select({ number: auditDocumentFiles.number })
             .from(auditDocumentFiles)
@@ -777,6 +794,8 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
               size: upload.bytes.length,
               sha256: file.sha256,
               note: parsed.data.note,
+              source: parsed.data.source,
+              uploadedAs: action === "edit_version" ? "reviewer" : "team",
               uploadedByAccountId: user.account.id,
               uploadedByName: user.person.displayName,
             })
@@ -793,7 +812,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .where(eq(auditDocuments.id, current.id));
           await tx.insert(auditDocumentEvents).values({
             documentId: current.id,
-            type: "resubmitted",
+            type,
             fromStatus: current.status,
             toStatus: status,
             fileId: stored?.id,
@@ -802,18 +821,24 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
           });
           await tx.insert(auditEvents).values({
             actorAccountId: user.account.id,
-            action: "audit-document.resubmitted",
+            action: `audit-document.${type}`,
             objectType: "audit-document",
             objectId: current.id,
             outcome: "success",
-            metadata: { version: current.version + 1, sha256: file.sha256 },
+            metadata: {
+              version: current.version + 1,
+              sha256: file.sha256,
+              source: parsed.data.source,
+            },
           });
           await notify(
             tx,
-            await reviewerAccounts(tx, current.unitId),
+            type === "edited"
+              ? await uploaderAccounts(tx, current.id)
+              : await reviewerAccounts(tx, current.unitId),
             user.account.id,
             { ...current, version: current.version + 1 },
-            "resubmitted",
+            type,
           );
         }),
       );
@@ -848,12 +873,15 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         if (!mayPerform(user, current.unitId, action))
           return fail(403, "Você não possui permissão para esta ação.");
         const [latest] = await tx
-          .select({ uploader: auditDocumentFiles.uploadedByAccountId })
+          .select({
+            uploadedByAccountId: auditDocumentFiles.uploadedByAccountId,
+            uploadedAs: auditDocumentFiles.uploadedAs,
+          })
           .from(auditDocumentFiles)
           .where(eq(auditDocumentFiles.documentId, current.id))
           .orderBy(desc(auditDocumentFiles.number))
           .limit(1);
-        if (separated(user, action, latest?.uploader))
+        if (separated(user, action, teamUploader(latest)))
           return fail(
             403,
             "Quem enviou a versão atual não pode analisá-la. Peça a outra pessoa.",

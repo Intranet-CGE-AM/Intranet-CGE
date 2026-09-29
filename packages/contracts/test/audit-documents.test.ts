@@ -16,6 +16,7 @@ describe("audit document state machine", () => {
     ["in_review", "cancel", "cancelled"],
     ["correction_requested", "cancel", "cancelled"],
     ["approved", "reopen", "in_review"],
+    ["in_review", "edit_version", "in_review"],
   ] as const)("%s + %s -> %s", (status, action, next) => {
     expect(nextAuditDocumentStatus(status, action)).toBe(next);
   });
@@ -29,6 +30,8 @@ describe("audit document state machine", () => {
     ["approved", "approve"],
     ["approved", "cancel"],
     ["approved", "submit_version"],
+    ["correction_requested", "edit_version"],
+    ["approved", "edit_version"],
   ] as const)("rejects %s + %s", (status, action) => {
     expect(nextAuditDocumentStatus(status, action)).toBeNull();
   });
@@ -90,6 +93,7 @@ describe("audit document action permissions", () => {
       approve: ["audit_documents.review"],
       cancel: ["audit_documents.submit", "audit_documents.review"],
       reopen: ["audit_documents.review"],
+      edit_version: ["audit_documents.review"],
     });
   });
 });

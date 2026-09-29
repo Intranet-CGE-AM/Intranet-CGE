@@ -520,7 +520,7 @@ export const inboxRoutes: FastifyPluginAsync<{
           }
         }),
         source("audit_document", async () => {
-          const latestUploader = sql<string>`(select f.uploaded_by_account_id from ${auditDocumentFiles} f where f.document_id = ${auditDocuments.id} order by f.number desc limit 1)`;
+          const latestUploader = sql<string>`(select f.uploaded_by_account_id from ${auditDocumentFiles} f where f.document_id = ${auditDocuments.id} and f.uploaded_as = 'team' and f.number = (select max(l.number) from ${auditDocumentFiles} l where l.document_id = f.document_id))`;
           const rows = await db
             .select({
               id: auditDocuments.id,
@@ -545,7 +545,7 @@ export const inboxRoutes: FastifyPluginAsync<{
             );
           for (const row of rows) {
             const review = row.status === "in_review";
-            // Quem enviou a versão atual não pode analisá-la.
+            // Quem enviou a versão atual pela equipe não pode analisá-la.
             if (review && row.latestUploader === user.account.id) continue;
             append(
               {

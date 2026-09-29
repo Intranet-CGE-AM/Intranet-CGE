@@ -1,5 +1,7 @@
-CREATE TYPE "public"."audit_document_event_type" AS ENUM('submitted', 'resubmitted', 'correction_requested', 'approved', 'cancelled', 'reopened', 'read');--> statement-breakpoint
+CREATE TYPE "public"."audit_document_event_type" AS ENUM('submitted', 'resubmitted', 'correction_requested', 'approved', 'cancelled', 'reopened', 'edited', 'read');--> statement-breakpoint
+CREATE TYPE "public"."audit_document_file_source" AS ENUM('upload', 'editor');--> statement-breakpoint
 CREATE TYPE "public"."audit_document_status" AS ENUM('in_review', 'correction_requested', 'approved', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."audit_document_uploader_role" AS ENUM('team', 'reviewer');--> statement-breakpoint
 CREATE TABLE "audit_document_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"document_id" uuid NOT NULL,
@@ -24,6 +26,8 @@ CREATE TABLE "audit_document_files" (
 	"size" integer NOT NULL,
 	"sha256" text NOT NULL,
 	"note" text,
+	"source" "audit_document_file_source" DEFAULT 'upload' NOT NULL,
+	"uploaded_as" "audit_document_uploader_role" DEFAULT 'team' NOT NULL,
 	"uploaded_by_account_id" uuid NOT NULL,
 	"uploaded_by_name" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

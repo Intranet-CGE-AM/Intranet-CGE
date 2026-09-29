@@ -15,6 +15,7 @@ export const auditDocumentActionSchema = z.enum([
   "approve",
   "cancel",
   "reopen",
+  "edit_version",
 ]);
 export const auditDocumentEventTypeSchema = z.enum([
   "submitted",
@@ -23,8 +24,13 @@ export const auditDocumentEventTypeSchema = z.enum([
   "approved",
   "cancelled",
   "reopened",
+  "edited",
   "read",
 ]);
+/** How the version was produced: uploaded file or the in-browser editor. */
+export const auditDocumentFileSourceSchema = z.enum(["upload", "editor"]);
+/** Side that sent the version; only "team" versions bind separation of duty. */
+export const auditDocumentUploaderRoleSchema = z.enum(["team", "reviewer"]);
 export type AuditDocumentStatus = z.infer<typeof auditDocumentStatusSchema>;
 export type AuditDocumentAction = z.infer<typeof auditDocumentActionSchema>;
 export type AuditDocumentEventType = z.infer<
@@ -40,6 +46,7 @@ const transitions: Record<
   approve: { in_review: "approved" },
   cancel: { in_review: "cancelled", correction_requested: "cancelled" },
   reopen: { approved: "in_review" },
+  edit_version: { in_review: "in_review" },
 };
 
 export function nextAuditDocumentStatus(
@@ -59,9 +66,10 @@ export const auditDocumentActionPermissions: Record<
   approve: ["audit_documents.review"],
   cancel: ["audit_documents.submit", "audit_documents.review"],
   reopen: ["audit_documents.review"],
+  edit_version: ["audit_documents.review"],
 };
 
-/** The latest file's uploader cannot decide on it (separation of duty). */
+/** Whoever sent the latest version as team cannot decide on it (separation of duty). */
 export const auditDocumentReviewActions: readonly AuditDocumentAction[] = [
   "request_correction",
   "approve",
@@ -76,6 +84,7 @@ export const auditDocumentEventByAction: Record<
   approve: "approved",
   cancel: "cancelled",
   reopen: "reopened",
+  edit_version: "edited",
 };
 
 const message = z.string().trim().min(3).max(2000);
@@ -111,6 +120,7 @@ export const auditDocumentInputSchema = z.strictObject({
 export const auditDocumentVersionInputSchema = z.strictObject({
   version: z.number().int().positive(),
   note: optionalText(2000),
+  source: auditDocumentFileSourceSchema.default("upload"),
 });
 
 export const auditDocumentListQuerySchema = z.strictObject({
@@ -157,6 +167,8 @@ export const auditDocumentFileSchema = z.object({
   size: z.number().int().positive(),
   sha256: z.string(),
   note: z.string().nullable(),
+  source: auditDocumentFileSourceSchema,
+  uploadedAs: auditDocumentUploaderRoleSchema,
   uploadedByAccountId: z.uuid(),
   uploadedByName: z.string(),
   createdAt: z.date(),

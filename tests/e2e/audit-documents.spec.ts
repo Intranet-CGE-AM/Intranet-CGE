@@ -9,7 +9,7 @@ import {
   unitId,
   uploadVersion,
 } from "./audit-document-fixtures";
-import { expect, test } from "./fixtures";
+import { expect, test, tuple } from "./fixtures";
 import { blankPdf } from "./pdf-fixture";
 
 type Detail = {
@@ -336,5 +336,91 @@ test("upload recusa arquivo que não é DOCX nem PDF pesquisável", async ({
     expect((await scanned.json()).message).toContain("OCR");
   } finally {
     await coordinator.dispose();
+  }
+});
+
+test("versões editadas no navegador respeitam etapa, papel e concorrência", async ({
+  playwright,
+  baseURL,
+}) => {
+  const clients = await Promise.all(
+    [
+      auditAccounts.coordinatorA,
+      auditAccounts.assessorA,
+      auditAccounts.reviewer,
+    ].map((email) => signIn(playwright, baseURL!, email)),
+  );
+  const [coordinator, assessor, reviewer] = tuple(clients, 3);
+  type Versioned = Detail & {
+    files: { source: string; uploadedAs: string; number: number }[];
+  };
+  try {
+    const teamA = await unitId(coordinator, auditTeams.a);
+    const created = await createDocument(
+      coordinator,
+      { unitId: teamA, title: "Relatório editado no navegador E2E" },
+      docxFile(),
+    );
+    expect(created.status()).toBe(201);
+    const document = (await created.json()) as Versioned;
+    expect(document.files[0]).toMatchObject({
+      source: "upload",
+      uploadedAs: "team",
+    });
+    const id = document.id;
+    const edit = (
+      client: typeof reviewer,
+      version: number,
+      source = "editor",
+    ) =>
+      uploadVersion(client, id, { version, source }, docxFile("editado.docx"));
+
+    // Em análise, só a Subcontroladoria salva uma versão editada.
+    expect((await edit(assessor, 1)).status()).toBe(403);
+    const edited = await edit(reviewer, 1);
+    expect(edited.status()).toBe(201);
+    const afterEdit = (await edited.json()) as Versioned;
+    expect(afterEdit).toMatchObject({ status: "in_review", version: 2 });
+    expect(afterEdit.files[1]).toMatchObject({
+      number: 2,
+      source: "editor",
+      uploadedAs: "reviewer",
+    });
+    expect(afterEdit.events.at(-1)!.type).toBe("edited");
+    expect((await edit(reviewer, 1)).status()).toBe(409);
+
+    const correction = await reviewer.post(
+      `/api/audit-documents/${id}/transition`,
+      {
+        data: {
+          action: "request_correction",
+          version: 2,
+          message: "Revise o trecho que editei.",
+        },
+      },
+    );
+    expect(correction.status()).toBe(200);
+    // Na correção, a equipe salva pelo editor e o documento volta à análise.
+    expect((await edit(reviewer, 3)).status()).toBe(403);
+    const resubmitted = await edit(coordinator, 3);
+    expect(resubmitted.status()).toBe(201);
+    const afterTeam = (await resubmitted.json()) as Versioned;
+    expect(afterTeam).toMatchObject({ status: "in_review", version: 4 });
+    expect(afterTeam.files[2]).toMatchObject({
+      source: "editor",
+      uploadedAs: "team",
+    });
+    expect(afterTeam.events.at(-1)!.type).toBe("resubmitted");
+
+    // Quem só editou como revisora pode aprovar a própria edição.
+    expect((await edit(reviewer, 4)).status()).toBe(201);
+    const approved = await reviewer.post(
+      `/api/audit-documents/${id}/transition`,
+      { data: { action: "approve", version: 5 } },
+    );
+    expect(approved.status()).toBe(200);
+    expect((await approved.json()).status).toBe("approved");
+  } finally {
+    await Promise.all(clients.map((client) => client.dispose()));
   }
 });
