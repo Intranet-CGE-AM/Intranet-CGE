@@ -1,5 +1,6 @@
 import {
   clientHeaders,
+  readInbox,
   expect,
   test,
   tuple,
@@ -117,7 +118,7 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
     });
     expect(checklist.status()).toBe(201);
     const execution = await checklist.json();
-    const chiefInbox = await (await chief.get("/api/inbox")).json();
+    const chiefInbox = await readInbox(chief);
     expect(chiefInbox.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -131,7 +132,7 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
       ]),
     );
     expect(JSON.stringify(chiefInbox)).not.toContain("Justificativa reservada");
-    const adminInbox = await (await admin.get("/api/inbox")).json();
+    const adminInbox = await readInbox(admin);
     expect(adminInbox.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `training:${trainingId}` }),
@@ -167,7 +168,7 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
         })
       ).status(),
     ).toBe(200);
-    const nextChief = await (await chief.get("/api/inbox")).json();
+    const nextChief = await readInbox(chief);
     expect(nextChief.items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `vacation:${vacationId}` }),
@@ -178,7 +179,7 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
         expect.objectContaining({ id: `occurrence:${occurrenceId}` }),
       ]),
     );
-    const nextAdmin = await (await admin.get("/api/inbox")).json();
+    const nextAdmin = await readInbox(admin);
     expect(nextAdmin.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `vacation:${vacationId}` }),
@@ -200,16 +201,12 @@ test("caixa reúne férias, ocorrências, capacitações e checklists somente na
         )
       ).status(),
     ).toBe(200);
-    expect(
-      (await (await admin.get("/api/inbox?type=training")).json()).items,
-    ).not.toEqual(
+    expect((await readInbox(admin, "type=training")).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `training:${trainingId}` }),
       ]),
     );
-    expect(
-      (await (await worker.get("/api/inbox?type=checklist")).json()).items,
-    ).not.toEqual(
+    expect((await readInbox(worker, "type=checklist")).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `checklist:${execution.id}` }),
       ]),

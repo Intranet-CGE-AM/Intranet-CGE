@@ -1,5 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { test as base, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test as base,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 export * from "@playwright/test";
 
@@ -76,4 +82,29 @@ export async function chooseOption(
       ...(typeof option === "string" ? { exact: true } : {}),
     })
     .click();
+}
+
+// The inbox is unified: a global account (the e2e admin reviews audit
+// documents too) can hold more than one page, oldest first. Reads every page
+// and checks that pages agree on the total and never repeat an item.
+export async function readInbox(client: APIRequestContext, query = "") {
+  const items: { id: string }[] = [];
+  let total: number | undefined;
+  for (let page = 1; ; page++) {
+    const response = await client.get(
+      `/api/inbox?${query ? `${query}&` : ""}page=${page}`,
+    );
+    expect(response.status()).toBe(200);
+    expect(response.headers()["cache-control"]).toBe("no-store");
+    const body = await response.json();
+    total ??= body.total as number;
+    expect(body.total).toBe(total);
+    items.push(...body.items);
+    if (!body.hasMore) {
+      expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
+      expect(items).toHaveLength(total!);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return { ...body, items: items as any[], total: total! };
+    }
+  }
 }

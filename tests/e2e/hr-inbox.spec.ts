@@ -5,6 +5,7 @@ import {
   tuple,
   type E2EUser,
   at,
+  readInbox,
 } from "./fixtures";
 
 test("caixa deriva pendências acionáveis e remove demanda respondida ou complemento enviado", async ({
@@ -56,10 +57,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
     });
     expect(created.status()).toBe(201);
     const record = await created.json();
-    const initial = await admin.get("/api/inbox");
-    expect(initial.status()).toBe(200);
-    expect(initial.headers()["cache-control"]).toBe("no-store");
-    const inbox = await initial.json();
+    const inbox = await readInbox(admin);
     expect(inbox.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -76,7 +74,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
     ).toBe(inbox.items.length);
     expect(inbox.total).toBe(inbox.items.length);
     expect(inbox.sourcesUnavailable).toEqual([]);
-    expect((await (await other.get("/api/inbox")).json()).items).not.toEqual(
+    expect((await readInbox(other)).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `request:${record.id}` }),
       ]),
@@ -100,7 +98,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
         })
       ).status(),
     ).toBe(200);
-    const mine = await (await worker.get("/api/inbox?type=request")).json();
+    const mine = await readInbox(worker, "type=request");
     expect(mine.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -110,9 +108,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
         }),
       ]),
     );
-    expect(
-      (await (await admin.get("/api/inbox?type=request")).json()).items,
-    ).not.toEqual(
+    expect((await readInbox(admin, "type=request")).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `request:${record.id}` }),
       ]),
@@ -128,9 +124,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
         })
       ).status(),
     ).toBe(200);
-    expect(
-      (await (await worker.get("/api/inbox?type=request")).json()).items,
-    ).not.toEqual(
+    expect((await readInbox(worker, "type=request")).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `request:${record.id}` }),
       ]),
@@ -146,7 +140,7 @@ test("caixa deriva pendências acionáveis e remove demanda respondida ou comple
         })
       ).status(),
     ).toBe(200);
-    expect((await (await admin.get("/api/inbox")).json()).items).not.toEqual(
+    expect((await readInbox(admin)).items).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: `request:${record.id}` }),
       ]),
