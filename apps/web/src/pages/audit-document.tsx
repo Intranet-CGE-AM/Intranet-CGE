@@ -258,7 +258,7 @@ export function AuditDocumentPage() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card className="min-w-0">
           <CardHeader className="flex-wrap gap-3">
             <div>
