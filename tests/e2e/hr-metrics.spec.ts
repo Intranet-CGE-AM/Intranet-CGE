@@ -36,7 +36,9 @@ test("indicadores agregam solicitações sem conteúdo privado e respeitam unida
       expect(response.status()).toBe(200);
       users.push((await response.json()).user);
     }
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Manaus",
+    }).format(new Date());
     const query = `/api/hr-metrics?startDate=${today}&endDate=${today}`;
     expect((await admin.get(query)).status()).toBe(200);
     expect((await worker.get(query)).status()).toBe(403);

@@ -12,7 +12,9 @@ test("RH publica documento pela interface sem precisar recarregar tipos", async 
   await page.getByLabel("Senha").fill("Admin-E2E-Password-123");
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   await expect(
-    page.getByRole("heading", { name: /Bom dia, Administrador/ }),
+    page.getByRole("heading", {
+      name: /(Bom dia|Boa tarde|Boa noite), Administrador/,
+    }),
   ).toBeVisible();
   await page.goto("/rh/documentos");
   await chooseOption(page, "Titular", "Caio Nascimento Almeida");

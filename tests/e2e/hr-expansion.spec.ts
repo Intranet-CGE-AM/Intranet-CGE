@@ -13,7 +13,9 @@ test("dossiê sem vínculo orienta procurar Gestão de Pessoas", async ({
   await page.getByLabel("Senha").fill("Homolog-Password-2026");
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   await expect(
-    page.getByRole("heading", { name: "Bom dia, Renata" }),
+    page.getByRole("heading", {
+      name: /^(Bom dia|Boa tarde|Boa noite), Renata$/,
+    }),
   ).toBeVisible();
   const response = await page.request.get("/api/me/dossier");
   expect(response.status()).toBe(200);
@@ -35,7 +37,9 @@ test("férias permitem informar datas diretamente sem calendário adicional", as
   await page.getByLabel("Senha").fill("Homolog-Password-2026");
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   await expect(
-    page.getByRole("heading", { name: "Bom dia, Caio" }),
+    page.getByRole("heading", {
+      name: /^(Bom dia|Boa tarde|Boa noite), Caio$/,
+    }),
   ).toBeVisible();
   await page.goto("/rh/ferias");
   await page.getByRole("button", { name: "Nova solicitação" }).click();
@@ -82,7 +86,9 @@ test("servidor consulta somente seu dossiê, inclusive no celular", async ({
   await page.getByLabel("Senha").fill("Homolog-Password-2026");
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   await expect(
-    page.getByRole("heading", { name: "Bom dia, Caio" }),
+    page.getByRole("heading", {
+      name: /^(Bom dia|Boa tarde|Boa noite), Caio$/,
+    }),
   ).toBeVisible();
   const response = await page.request.get("/api/me/dossier");
   expect(response.status()).toBe(200);

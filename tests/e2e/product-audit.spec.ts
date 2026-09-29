@@ -25,7 +25,9 @@ test("default home exposes permitted destinations and account context", async ({
 }) => {
   await login(page, accounts.worker, password);
   await expect(
-    page.getByRole("heading", { name: "Bom dia, Caio" }),
+    page.getByRole("heading", {
+      name: /^(Bom dia|Boa tarde|Boa noite), Caio$/,
+    }),
   ).toBeVisible();
 
   const hrModule = page.getByRole("region", { name: "Recursos Humanos" });
@@ -1321,7 +1323,9 @@ async function login(page: Page, email: string, loginPassword: string) {
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   if (email !== accounts.disabled) {
     await expect(
-      page.getByRole("heading", { name: /^(Olá|Bom dia),/ }),
+      page.getByRole("heading", {
+        name: /^(Olá|Bom dia|Boa tarde|Boa noite),/,
+      }),
     ).toBeVisible();
   }
 }
