@@ -191,14 +191,26 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
     );
     return ids.filter((_, index) => allowed[index]);
   }
-  async function uploaderAccounts(tx: Transaction, documentId: string) {
+  /** Active uploaders who can still see the document (an ended substitution does not). */
+  async function uploaderAccounts(
+    tx: Transaction,
+    document: { id: string; unitId: string },
+  ) {
     const rows = await tx
       .selectDistinct({ id: auditDocumentFiles.uploadedByAccountId })
       .from(auditDocumentFiles)
-      .where(eq(auditDocumentFiles.documentId, documentId));
-    return activeAccounts(
+      .where(eq(auditDocumentFiles.documentId, document.id));
+    const ids = await activeAccounts(
       tx,
       rows.map((row) => row.id),
+    );
+    const grants = await Promise.all(
+      ids.map((id) => accessService.resolvePermissions(id)),
+    );
+    return ids.filter((_, index) =>
+      readKeys.some((key) =>
+        permissionAllows(grants[index]!, key, document.unitId),
+      ),
     );
   }
   async function activeAccounts(tx: Transaction, ids: string[]) {
@@ -847,7 +859,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
           await notify(
             tx,
             type === "edited"
-              ? await uploaderAccounts(tx, current.id)
+              ? await uploaderAccounts(tx, current)
               : await reviewerAccounts(tx, current.unitId),
             user.account.id,
             { ...current, version: current.version + 1 },
@@ -952,7 +964,7 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
         });
         await notify(
           tx,
-          await uploaderAccounts(tx, current.id),
+          await uploaderAccounts(tx, current),
           user.account.id,
           { ...current, version: version + 1 },
           auditDocumentEventByAction[action],

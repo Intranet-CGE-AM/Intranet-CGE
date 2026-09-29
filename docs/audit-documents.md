@@ -117,7 +117,8 @@ leitura se o leitor tinha `review` naquele momento.
 - Envio e nova versão avisam as contas ativas com `review` na equipe, incluindo
   substitutos em vigor.
 - Pedido de correção, aprovação, cancelamento, reabertura e edição da revisão
-  avisam quem enviou alguma versão.
+  avisam quem enviou alguma versão e ainda tem acesso ao documento (quem
+  enviou como substituto deixa de ser avisado quando a substituição termina).
 - Quem executou a ação não recebe aviso.
 - A caixa de pendências mostra à revisão os documentos em análise do seu
   escopo e à equipe os documentos com correção solicitada.
