@@ -187,7 +187,12 @@ export function AuditDocumentsPage() {
         </div>
       ),
     },
-    { header: "Equipe", accessorKey: "unitName" },
+    {
+      header: "Equipe",
+      cell: ({ row: { original } }) => (
+        <span className="whitespace-nowrap">{original.unitName}</span>
+      ),
+    },
     {
       header: "Situação",
       cell: ({ row: { original } }) => (
@@ -198,6 +203,9 @@ export function AuditDocumentsPage() {
           >
             {auditStatusMeta[original.status].label}
           </Badge>
+          <span className="whitespace-nowrap text-xs text-[var(--text-faint)]">
+            desde {formatDateTime(original.statusChangedAt)}
+          </span>
           {original.correctionRounds ? (
             <span className="whitespace-nowrap text-xs text-[var(--text-faint)]">
               {original.correctionRounds === 1
@@ -206,14 +214,6 @@ export function AuditDocumentsPage() {
             </span>
           ) : null}
         </div>
-      ),
-    },
-    {
-      header: "Última movimentação",
-      cell: ({ row: { original } }) => (
-        <span className="whitespace-nowrap">
-          {formatDateTime(original.statusChangedAt)}
-        </span>
       ),
     },
     {
@@ -344,7 +344,7 @@ export function AuditDocumentsPage() {
           </div>
         </CardHeader>
         <CardContent className="border-b border-[var(--border)] py-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FormField
               className="sm:col-span-2"
               htmlFor="auditSearch"
@@ -397,13 +397,7 @@ export function AuditDocumentsPage() {
         {!result && !error ? (
           <TableSkeleton
             ariaLabel="Carregando documentos"
-            headers={[
-              "Documento",
-              "Equipe",
-              "Situação",
-              "Última movimentação",
-              "Ações",
-            ]}
+            headers={["Documento", "Equipe", "Situação", "Ações"]}
           />
         ) : result?.total ? (
           <DataTable

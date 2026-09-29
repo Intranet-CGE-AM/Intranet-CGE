@@ -348,7 +348,7 @@ export function AuditDocumentPage() {
                     Versão {file.number}
                   </TableCell>
                   <TableCell>
-                    <p className="break-all">{file.fileName}</p>
+                    <p className="min-w-40 break-words">{file.fileName}</p>
                     <p className="text-xs text-[var(--text-faint)]">
                       {file.kind.toUpperCase()} · {formatSize(file.size)}
                     </p>
@@ -419,19 +419,18 @@ function Timeline({ document }: { document: AuditDocumentDetail }) {
               {event.type === "read"
                 ? `Visualizado por ${event.actorName}`
                 : eventLabels[event.type]}
-              {version ? (
-                <span className="font-normal text-[var(--text-muted)]">
-                  {" "}
-                  · versão {version}
-                </span>
-              ) : null}
             </p>
             <p className="text-xs text-[var(--text-faint)]">
-              {event.type === "read" ? "" : `${event.actorName} · `}
-              {formatDateTime(event.createdAt)}
-              {event.delegation
-                ? ` · em substituição a ${event.delegation.originalName}`
-                : ""}
+              {[
+                version ? `Versão ${version}` : null,
+                event.type === "read" ? null : event.actorName,
+                formatDateTime(event.createdAt),
+                event.delegation
+                  ? `em substituição a ${event.delegation.originalName}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
             {event.message ? (
               <p className="mt-1 whitespace-pre-line break-words text-sm text-[var(--text-muted)]">
