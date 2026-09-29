@@ -8,17 +8,10 @@ import autoTable from "jspdf-autotable";
 
 export type AuditReportKind = "draft" | "detailed" | "analytic";
 
-export type TeamDelivery = {
-  unitName: string;
-  submitted: number;
-  approved: number;
-};
-
 export type AuditReportData = {
   metrics: AuditDocumentMetrics;
   /** Documents submitted in the period. */
   documents: AuditDocumentSummary[];
-  delivery: TeamDelivery[];
   filters: { from: string; to: string; unitName: string };
 };
 
@@ -54,30 +47,6 @@ export function ageInDays(since: Date | string | null, now = Date.now()) {
   if (!since) return "—";
   const days = Math.floor((now - new Date(since).getTime()) / 86_400_000);
   return days <= 0 ? "Hoje" : days === 1 ? "1 dia" : `${days} dias`;
-}
-
-/** Submitted in the period (Manaus days, `to` inclusive) and approved today. */
-export function deliveryByTeam(
-  documents: AuditDocumentSummary[],
-  from: string,
-  to: string,
-): TeamDelivery[] {
-  const teams = new Map<string, TeamDelivery>();
-  for (const document of documents) {
-    const created = manausDay(document.createdAt);
-    if (created < from || created > to) continue;
-    const team = teams.get(document.unitId) ?? {
-      unitName: document.unitName,
-      submitted: 0,
-      approved: 0,
-    };
-    team.submitted += 1;
-    if (document.status === "approved") team.approved += 1;
-    teams.set(document.unitId, team);
-  }
-  return [...teams.values()].sort((left, right) =>
-    left.unitName.localeCompare(right.unitName, "pt-BR"),
-  );
 }
 
 const dateTime = (value: Date | string) =>
@@ -169,11 +138,11 @@ export function createAuditReport(
     });
   };
 
-  const deliveryRows = data.delivery.map((team) => [
+  const deliveryRows = metrics.perTeam.map((team) => [
     team.unitName,
-    team.submitted,
-    team.approved,
-    formatRate(team.approved / team.submitted),
+    team.documentsSubmitted,
+    team.documentsApprovedNow,
+    formatRate(team.deliveryRate),
   ]);
   const pendingRows = metrics.pending.map((row) => [
     row.unitName,
@@ -187,7 +156,7 @@ export function createAuditReport(
     // One-page summary per team; the watermark marks it as a working copy.
     const teams = new Set([
       ...metrics.pending.map((row) => row.unitName),
-      ...data.delivery.map((row) => row.unitName),
+      ...metrics.perTeam.map((row) => row.unitName),
     ]);
     const rows = [...teams]
       .sort((left, right) => left.localeCompare(right, "pt-BR"))
@@ -195,12 +164,14 @@ export function createAuditReport(
         const pending = metrics.pending.find(
           (row) => row.unitName === unitName,
         );
-        const delivery = data.delivery.find((row) => row.unitName === unitName);
+        const delivery = metrics.perTeam.find(
+          (row) => row.unitName === unitName,
+        );
         return [
           unitName,
-          delivery?.submitted ?? 0,
-          delivery?.approved ?? 0,
-          delivery ? formatRate(delivery.approved / delivery.submitted) : "—",
+          delivery?.documentsSubmitted ?? 0,
+          delivery?.documentsApprovedNow ?? 0,
+          formatRate(delivery?.deliveryRate ?? null),
           pending?.withReviewer ?? 0,
           pending?.withTeam ?? 0,
         ];
@@ -221,8 +192,8 @@ export function createAuditReport(
       "Totais do período",
       ["Indicador", "Valor"],
       [
-        ["Enviados", metrics.period.submitted],
-        ["Aprovados", metrics.period.approved],
+        ["Enviados", metrics.period.documentsSubmitted],
+        ["Aprovados (situação atual)", metrics.period.documentsApprovedNow],
         ["Taxa de entrega", formatRate(metrics.period.deliveryRate)],
         [
           "Resposta média da Subcontroladoria",
@@ -276,9 +247,10 @@ export function createAuditReport(
       "Totais do período",
       ["Indicador", "Valor"],
       [
-        ["Enviados", metrics.period.submitted],
-        ["Aprovados", metrics.period.approved],
-        ["Cancelados", metrics.period.cancelled],
+        ["Enviados", metrics.period.documentsSubmitted],
+        ["Aprovados (situação atual)", metrics.period.documentsApprovedNow],
+        ["Cancelados", metrics.period.documentsCancelled],
+        ["Aprovações registradas", metrics.period.approvalEvents],
         ["Taxa de entrega", formatRate(metrics.period.deliveryRate)],
         [
           "Versões lidas pela Subcontroladoria",

@@ -36,7 +36,6 @@ import {
   ageInDays,
   brDate,
   createAuditReport,
-  deliveryByTeam,
   formatHours,
   formatRate,
   manausDay,
@@ -47,10 +46,9 @@ import { AUDIT_EYEBROW, errorMessage } from "./audit-documents";
 const METRIC_LABEL =
   "text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]";
 
+/** Every document of the scope, for the detailed PDF only. */
 async function fetchDocuments(unitId: string) {
   const documents: AuditDocumentSummary[] = [];
-  // ponytail: pages through the whole list client-side; a report endpoint
-  // would replace this once teams hold thousands of documents.
   for (let page = 1; page <= 200; page += 1) {
     const search = new URLSearchParams({ page: String(page) });
     if (unitId) search.set("unitId", unitId);
@@ -72,19 +70,14 @@ export function AuditMetricsPage() {
   const unitId = params.get("equipe") ?? "";
   const [range, setRange] = useState({ from, to });
   const [metrics, setMetrics] = useState<AuditDocumentMetrics | null>(null);
-  const [documents, setDocuments] = useState<AuditDocumentSummary[] | null>(
-    null,
-  );
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [exporting, setExporting] = useState<AuditReportKind | null>(null);
   const canReview = Boolean(user && can(user, "audit_documents.review"));
-  const canRead = Boolean(user && can(user, "audit_documents.read"));
 
   useEffect(() => {
     let active = true;
     setMetrics(null);
-    setDocuments(null);
     setError("");
     const search = new URLSearchParams({ from, to });
     if (unitId) search.set("unitId", unitId);
@@ -97,14 +90,10 @@ export function AuditMetricsPage() {
             errorMessage(cause, "Não foi possível consultar os indicadores."),
           ),
       );
-    if (canRead)
-      fetchDocuments(unitId)
-        .then((result) => active && setDocuments(result))
-        .catch(() => active && setDocuments([]));
     return () => {
       active = false;
     };
-  }, [from, to, unitId, revision, canRead]);
+  }, [from, to, unitId, revision]);
 
   function apply(event: FormEvent) {
     event.preventDefault();
@@ -126,19 +115,21 @@ export function AuditMetricsPage() {
   const unitName = unitId
     ? (metrics?.units.find((unit) => unit.id === unitId)?.name ?? "")
     : "Todas as equipes";
-  const delivery = documents ? deliveryByTeam(documents, from, to) : [];
 
   async function exportPdf(kind: AuditReportKind) {
     if (!metrics) return;
     setExporting(kind);
     try {
+      const documents =
+        kind === "detailed"
+          ? (await fetchDocuments(unitId)).filter((document) => {
+              const created = manausDay(document.createdAt);
+              return created >= from && created <= to;
+            })
+          : [];
       createAuditReport(kind, {
         metrics,
-        documents: (documents ?? []).filter((document) => {
-          const created = manausDay(document.createdAt);
-          return created >= from && created <= to;
-        }),
-        delivery,
+        documents,
         filters: { from, to, unitName },
       });
     } catch (cause) {
@@ -151,7 +142,7 @@ export function AuditMetricsPage() {
   const empty =
     metrics &&
     !metrics.pending.length &&
-    !metrics.period.submitted &&
+    !metrics.period.documentsSubmitted &&
     !metrics.reads.files;
 
   return (
@@ -274,12 +265,12 @@ export function AuditMetricsPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric
-              detail={`${metrics.period.approved} aprovados · ${metrics.period.cancelled} cancelados`}
+              detail={`${metrics.period.documentsCancelled} cancelados · ${metrics.period.approvalEvents} aprovações registradas`}
               label="Enviados no período"
-              value={String(metrics.period.submitted)}
+              value={String(metrics.period.documentsSubmitted)}
             />
             <Metric
-              detail="Enviados no período que já estão aprovados"
+              detail={`${metrics.period.documentsApprovedNow} de ${metrics.period.documentsSubmitted} aprovados`}
               label="Taxa de entrega"
               value={formatRate(metrics.period.deliveryRate)}
             />
@@ -357,18 +348,14 @@ export function AuditMetricsPage() {
                   </p>
                 </div>
               </CardHeader>
-              {documents === null && canRead ? (
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              ) : delivery.length ? (
+              {metrics.perTeam.length ? (
                 <CardContent className="space-y-4">
-                  {delivery.map((team) => (
+                  {metrics.perTeam.map((team) => (
                     <Bar
-                      detail={`${team.approved} de ${team.submitted} aprovados`}
-                      key={team.unitName}
+                      detail={`${team.documentsApprovedNow} de ${team.documentsSubmitted} aprovados`}
+                      key={team.unitId}
                       label={team.unitName}
-                      share={team.approved / team.submitted}
+                      share={team.deliveryRate ?? 0}
                     />
                   ))}
                 </CardContent>
