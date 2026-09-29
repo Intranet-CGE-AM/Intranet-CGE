@@ -101,6 +101,10 @@ const permissionLabels: Record<PermissionKey, string> = {
   "visits.confirmation.manage": "Gerenciar confirmações de visitas",
   "assets.read": "Visualizar patrimônio",
   "assets.manage": "Gerenciar patrimônio",
+  "audit_documents.read": "Consultar documentos de auditoria",
+  "audit_documents.submit": "Enviar documentos de auditoria",
+  "audit_documents.review": "Analisar documentos de auditoria",
+  "audit_documents.reports": "Indicadores de documentos de auditoria",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
@@ -177,6 +181,14 @@ const permissionDescriptions: Record<PermissionKey, string> = {
   "visits.confirmation.manage": "Envia e gerencia confirmações aos visitantes.",
   "assets.read": "Permite consultar os bens patrimoniais.",
   "assets.manage": "Permite cadastrar, editar e gerenciar bens patrimoniais.",
+  "audit_documents.read":
+    "Consulta documentos de auditoria das equipes autorizadas.",
+  "audit_documents.submit":
+    "Envia documentos e novas versões para análise da Subcontroladoria.",
+  "audit_documents.review":
+    "Aprova, solicita correção, cancela e reabre documentos de auditoria.",
+  "audit_documents.reports":
+    "Consulta indicadores e relatórios dos documentos de auditoria.",
 };
 
 type PermissionModule =
@@ -186,7 +198,8 @@ type PermissionModule =
   | "vacations"
   | "tickets"
   | "visits"
-  | "patrimony";
+  | "patrimony"
+  | "audit_documents";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
   "occurrences.create": "people",
@@ -238,6 +251,10 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "visits.confirmation.manage": "visits",
   "assets.read": "patrimony",
   "assets.manage": "patrimony",
+  "audit_documents.read": "audit_documents",
+  "audit_documents.submit": "audit_documents",
+  "audit_documents.review": "audit_documents",
+  "audit_documents.reports": "audit_documents",
 };
 
 const permissionGroups = (
@@ -276,6 +293,11 @@ const permissionGroups = (
       key: "patrimony",
       title: "Controle de patrimônio",
       description: "Consulta e gerenciamento de bens patrimoniais",
+    },
+    {
+      key: "audit_documents",
+      title: "Documentos de auditoria",
+      description: "Envio, análise e indicadores do Controle Interno",
     },
   ] as const
 ).map((group) => ({

@@ -36,6 +36,7 @@ const flows: Record<SubstitutionInput["flows"][number], string> = {
   "training.review": "Validação de capacitações",
   "onboarding.manage": "Gestão de checklists da unidade",
   "checklist.assignment": "Itens de checklist atribuídos ao responsável",
+  "audit_documents.review": "Documentos de auditoria — análise",
 };
 const today = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Manaus" }).format(

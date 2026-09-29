@@ -51,6 +51,10 @@ export const permissionKeys = [
   "organization.manage_positions",
   "hr_communications.manage",
   "hr_resources.manage",
+  "audit_documents.read",
+  "audit_documents.submit",
+  "audit_documents.review",
+  "audit_documents.reports",
 ] as const;
 
 export const permissionKeySchema = z.enum(permissionKeys);
@@ -110,6 +114,10 @@ export const permissionScopes: Record<PermissionKey, PermissionScope> = {
   "organization.manage_positions": "global-or-unit",
   "hr_communications.manage": "global",
   "hr_resources.manage": "global",
+  "audit_documents.read": "global-or-unit",
+  "audit_documents.submit": "global-or-unit",
+  "audit_documents.review": "global-or-unit",
+  "audit_documents.reports": "global-or-unit",
 };
 
 export type PermissionGrant = {

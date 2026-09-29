@@ -9,6 +9,7 @@ export const substitutionFlowSchema = z.enum([
   "training.review",
   "onboarding.manage",
   "checklist.assignment",
+  "audit_documents.review",
 ]);
 export const substitutionInputSchema = z
   .strictObject({
@@ -21,7 +22,7 @@ export const substitutionInputSchema = z
     flows: z
       .array(substitutionFlowSchema)
       .min(1)
-      .max(8)
+      .max(9)
       .refine(
         (values) => new Set(values).size === values.length,
         "Selecione cada fluxo uma única vez.",
