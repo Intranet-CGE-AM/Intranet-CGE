@@ -18,6 +18,7 @@ import { adminRoutes } from "./modules/admin/routes.js";
 import { accessRoutes } from "./modules/access/routes.js";
 import type { AccessService } from "./modules/access/service.js";
 import { auditRoutes } from "./modules/audit/routes.js";
+import { auditDocumentRoutes } from "./modules/audit-documents/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
 import { peopleRoutes } from "./modules/people/routes.js";
@@ -196,6 +197,11 @@ export async function buildApp({
       db,
     });
     if (peopleService && objectStorage) {
+      await app.register(auditDocumentRoutes, {
+        db,
+        authenticationService,
+        objectStorage,
+      });
       await app.register(documentRoutes, {
         db,
         authenticationService,
