@@ -116,6 +116,24 @@ async function seedHomolog() {
         "OUV",
         "Ouvidoria e Transparência",
       );
+      // Equipes provisórias: os nomes reais das equipes da SCI virão depois.
+      const sci = await ensureUnit(
+        transaction,
+        "SCI",
+        "Subcontroladoria de Controle Interno",
+      );
+      const auditTeamA = await ensureUnit(
+        transaction,
+        "AUD-01",
+        "Equipe de Auditoria 01",
+        sci.id,
+      );
+      const auditTeamB = await ensureUnit(
+        transaction,
+        "AUD-02",
+        "Equipe de Auditoria 02",
+        sci.id,
+      );
 
       const today = manausDate();
       const tomorrow = addDays(today, 1);
@@ -232,6 +250,25 @@ async function seedHomolog() {
           jobTitle: "Assessora Administrativa",
           startDate: "2020-07-06",
         },
+        ...(
+          [
+            ["HOM-SCI-01", "Assessoria AUD-01", auditTeamA.id],
+            ["HOM-SCI-02", "Coordenação AUD-01", auditTeamA.id],
+            ["HOM-SCI-03", "Assessoria AUD-02", auditTeamB.id],
+            ["HOM-SCI-04", "Coordenação AUD-02", auditTeamB.id],
+            ["HOM-SCI-05", "Subcontroladoria SCI", sci.id],
+          ] as const
+        ).map(([employeeNumber, label, unitId]) => ({
+          employeeNumber,
+          fullName: `Pessoa Sintética ${label}`,
+          preferredName: label,
+          birthDate: "1990-01-01",
+          birthdayVisible: false,
+          categoryId: eligible.id,
+          unitId,
+          jobTitle: label,
+          startDate: "2024-01-02",
+        })),
       ] satisfies FixturePerson[];
 
       const seededPeople = new Map<
@@ -339,6 +376,36 @@ async function seedHomolog() {
           transaction,
           required(seededPeople.get("HOM-010")).personId,
           `renata.martins@${accountDomain}`,
+          passwordHash,
+        ),
+        auditAssessorA: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-01")).personId,
+          `assessoria.aud01@${accountDomain}`,
+          passwordHash,
+        ),
+        auditCoordinatorA: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-02")).personId,
+          `coordenacao.aud01@${accountDomain}`,
+          passwordHash,
+        ),
+        auditAssessorB: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-03")).personId,
+          `assessoria.aud02@${accountDomain}`,
+          passwordHash,
+        ),
+        auditCoordinatorB: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-04")).personId,
+          `coordenacao.aud02@${accountDomain}`,
+          passwordHash,
+        ),
+        auditReviewer: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-05")).personId,
+          `subcontroladoria.sci@${accountDomain}`,
           passwordHash,
         ),
       };
@@ -464,6 +531,34 @@ async function seedHomolog() {
           description: "Consulta e exportação da auditoria da plataforma.",
           permissions: ["audit.read", "audit.export"],
         },
+        {
+          key: "auditAssessor",
+          name: "Assessor(a) de auditoria",
+          description: "Consulta e envio de documentos de auditoria da equipe.",
+          permissions: ["audit_documents.read", "audit_documents.submit"],
+        },
+        {
+          key: "auditCoordinator",
+          name: "Coordenador(a) de equipe de auditoria",
+          description:
+            "Consulta, envio e indicadores dos documentos de auditoria da equipe.",
+          permissions: [
+            "audit_documents.read",
+            "audit_documents.submit",
+            "audit_documents.reports",
+          ],
+        },
+        {
+          key: "auditReviewer",
+          name: "Subcontrolador(a)",
+          description:
+            "Análise e indicadores de todos os documentos de auditoria.",
+          permissions: [
+            "audit_documents.read",
+            "audit_documents.review",
+            "audit_documents.reports",
+          ],
+        },
       ];
       const seededRoles = new Map<string, { id: string }>();
       for (const fixture of roleFixtures) {
@@ -526,6 +621,19 @@ async function seedHomolog() {
           roleId: required(seededRoles.get("worker")).id,
           unitId: cabinet.id,
         },
+        ...(
+          [
+            [accounts.auditAssessorA, "auditAssessor", auditTeamA.id],
+            [accounts.auditCoordinatorA, "auditCoordinator", auditTeamA.id],
+            [accounts.auditAssessorB, "auditAssessor", auditTeamB.id],
+            [accounts.auditCoordinatorB, "auditCoordinator", auditTeamB.id],
+            [accounts.auditReviewer, "auditReviewer", null],
+          ] as const
+        ).map(([account, role, unitId]) => ({
+          accountId: account.id,
+          roleId: required(seededRoles.get(role)).id,
+          unitId,
+        })),
       ]);
 
       await seedHomologTickets(
@@ -638,6 +746,9 @@ async function seedHomolog() {
     console.log(`Primeiro acesso: luiza.barreto@${accountDomain}`);
     console.log(`Escopo vazio: thiago.freitas@${accountDomain}`);
     console.log(`Vínculo encerrado: renata.martins@${accountDomain}`);
+    console.log(
+      `Documentos de auditoria: assessoria.aud01, coordenacao.aud01, assessoria.aud02, coordenacao.aud02, subcontroladoria.sci (@${accountDomain})`,
+    );
   } finally {
     await client.end();
   }
@@ -667,7 +778,12 @@ async function ensureCategory(
   return required(created);
 }
 
-async function ensureUnit(db: Transaction, code: string, name: string) {
+async function ensureUnit(
+  db: Transaction,
+  code: string,
+  name: string,
+  parentId?: string,
+) {
   const [existing] = await db
     .select({ id: organizationUnits.id })
     .from(organizationUnits)
@@ -676,13 +792,13 @@ async function ensureUnit(db: Transaction, code: string, name: string) {
   if (existing) {
     await db
       .update(organizationUnits)
-      .set({ active: true, name })
+      .set({ active: true, name, ...(parentId ? { parentId } : {}) })
       .where(eq(organizationUnits.id, existing.id));
     return existing;
   }
   const [created] = await db
     .insert(organizationUnits)
-    .values({ code, name })
+    .values({ code, name, parentId })
     .returning({ id: organizationUnits.id });
   return required(created);
 }
