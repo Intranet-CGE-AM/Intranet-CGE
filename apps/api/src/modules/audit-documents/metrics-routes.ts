@@ -169,7 +169,7 @@ export const auditDocumentMetricsRoutes: FastifyPluginAsync<{
           from ${documents}
           join ${organizationUnits} on ${organizationUnits.id} = ${documents.unitId}
           where ${inScope} and ${inPeriod(documents.createdAt)} and ${documents.correctionRounds} > 0
-          order by ${documents.correctionRounds} desc, ${documents.createdAt}, ${documents.id}
+          order by ${documents.correctionRounds} desc, ${documents.createdAt}, ${documents.title}, ${documents.id}
           limit 10`),
         // ponytail: "reviewer" = anyone who ever decided on an audit document; switch to a
         // permission snapshot on the read event if reviewers start reading without deciding.

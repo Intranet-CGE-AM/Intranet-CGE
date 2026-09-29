@@ -21,11 +21,46 @@ import mammoth from "mammoth";
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
+// mammoth drops paragraph alignment. Aligned paragraphs get a marker in the
+// style name, the style map turns it into a class, and the class becomes the
+// inline style the editor's TextAlign reads.
+const wordAlignments = { center: "center", right: "right", both: "justify" };
+type WordNode = {
+  type?: string;
+  children?: WordNode[];
+  numbering?: unknown;
+  alignment?: string | null;
+  styleName?: string | null;
+};
+function markAlignment(node: WordNode) {
+  node.children?.forEach(markAlignment);
+  const value =
+    node.type === "paragraph" && !node.numbering
+      ? wordAlignments[node.alignment as keyof typeof wordAlignments]
+      : undefined;
+  if (value) node.styleName = `align-${value}|${node.styleName ?? ""}`;
+  return node;
+}
+const styleMap = [
+  // mammoth ignores underline unless mapped.
+  "u => u",
+  ...Object.values(wordAlignments).flatMap((value) => [
+    ...[1, 2, 3].map(
+      (level) =>
+        `p[style-name^='align-${value}|heading ${level}'] => h${level}.align-${value}:fresh`,
+    ),
+    `p[style-name^='align-${value}|'] => p.align-${value}:fresh`,
+  ]),
+];
+
 /** Word -> HTML for the editor. Images stay inline as data URIs. */
 export async function docxToHtml(arrayBuffer: ArrayBuffer) {
   const result = await mammoth.convertToHtml(
-    { arrayBuffer },
+    // The browser build reads arrayBuffer; the Node build (unit tests) reads buffer.
+    { arrayBuffer, buffer: arrayBuffer } as { arrayBuffer: ArrayBuffer },
     {
+      styleMap,
+      transformDocument: markAlignment,
       // alt defaults to "" (decorative) unless Word has alternative text.
       convertImage: mammoth.images.imgElement(async (image) => ({
         src: `data:${image.contentType};base64,${await image.readAsBase64String()}`,
@@ -33,7 +68,10 @@ export async function docxToHtml(arrayBuffer: ArrayBuffer) {
       })),
     },
   );
-  return result.value;
+  return result.value.replace(
+    / class="align-(center|right|justify)"/g,
+    ' style="text-align: $1"',
+  );
 }
 
 const alignments = {
@@ -151,7 +189,9 @@ export async function editorToDocx(content: JSONContent, title: string) {
         text: node.text,
         bold: marks.has("bold"),
         italics: marks.has("italic"),
-        underline: marks.has("underline") || link ? {} : undefined,
+        // Links get their underline from the Hyperlink style; a direct
+        // underline would come back as an underline mark on reload.
+        underline: marks.has("underline") ? {} : undefined,
         strike: marks.has("strike"),
         font: marks.has("code") ? "Consolas" : undefined,
         style: link ? "Hyperlink" : undefined,
@@ -238,9 +278,12 @@ export async function editorToDocx(content: JSONContent, title: string) {
               rows: (node.content ?? []).map(
                 (row) =>
                   new TableRow({
-                    tableHeader: row.content?.every(
-                      (cell) => cell.type === "tableHeader",
-                    ),
+                    // false would write <w:tblHeader w:val="off"/>, which
+                    // mammoth reads back as a header row.
+                    tableHeader:
+                      row.content?.every(
+                        (cell) => cell.type === "tableHeader",
+                      ) || undefined,
                     children: (row.content ?? []).map((cell) => {
                       const children = blocks(cell.content);
                       return new TableCell({
