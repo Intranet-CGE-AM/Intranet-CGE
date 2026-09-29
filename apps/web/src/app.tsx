@@ -152,6 +152,12 @@ const AuditDocumentPage = lazy(() =>
   })),
 );
 
+const AuditMetricsPage = lazy(() =>
+  import("./pages/audit-metrics").then((module) => ({
+    default: module.AuditMetricsPage,
+  })),
+);
+
 const VisitsPage = lazy(() =>
   import("./pages/visits").then((module) => ({
     default: module.VisitsPage,
@@ -370,6 +376,10 @@ export function App() {
           />
 
           <Route
+            path="controle-interno"
+            element={<Navigate replace to="/controle-interno/documentos" />}
+          />
+          <Route
             path="controle-interno/documentos"
             element={
               <RequireAccess rule={accessRules.auditDocuments}>
@@ -385,6 +395,17 @@ export function App() {
               <RequireAccess rule={accessRules.auditDocuments}>
                 <Suspense fallback={<PageFallback />}>
                   <AuditDocumentPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
+
+          <Route
+            path="controle-interno/indicadores"
+            element={
+              <RequireAccess rule={accessRules.auditDocumentsReports}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditMetricsPage />
                 </Suspense>
               </RequireAccess>
             }

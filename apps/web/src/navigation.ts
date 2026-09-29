@@ -468,11 +468,16 @@ export const moduleNavigation: ModuleNavigation[] = [
 
   {
     id: "internal-control",
-    access: accessRules.auditDocuments,
+    access: {
+      anyOf: [
+        ...accessRules.auditDocuments.anyOf,
+        ...accessRules.auditDocumentsReports.anyOf,
+      ],
+    },
     label: "Controle Interno",
     description:
       "Documentos de auditoria das equipes e revisão da Subcontroladoria",
-    href: "/controle-interno/documentos",
+    href: "/controle-interno",
     icon: FileText,
     routes: [
       {
@@ -480,6 +485,12 @@ export const moduleNavigation: ModuleNavigation[] = [
         label: "Documentos de auditoria",
         href: "/controle-interno/documentos",
         icon: FileText,
+      },
+      {
+        access: accessRules.auditDocumentsReports,
+        label: "Indicadores",
+        href: "/controle-interno/indicadores",
+        icon: ChartBar,
       },
     ],
   },
