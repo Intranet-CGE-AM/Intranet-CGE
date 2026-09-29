@@ -93,17 +93,18 @@ prévia em PDF no servidor (Gotenberg).
 `audit_documents.reports` e registra `audit-document.metrics-read`. O período usa
 dias de Manaus, com `to` inclusivo.
 
-| Indicador              | Definição                                                                                |
-| ---------------------- | ---------------------------------------------------------------------------------------- |
-| Pendências por equipe  | agora: em análise (com a revisão) e em correção (com a equipe), com a data mais antiga   |
-| Enviados               | documentos criados no período                                                            |
-| Aprovados, cancelados  | documentos distintos com aprovação ou cancelamento no período                            |
-| Taxa de entrega        | enviados no período que estão aprovados hoje, dividido pelos enviados                    |
-| Resposta da revisão    | da entrada em análise até a próxima aprovação ou pedido de correção (média e mediana, h) |
-| Resposta da equipe     | do pedido de correção até a nova versão (média e mediana, h)                             |
-| Rodadas de correção    | distribuição e os 10 documentos com mais rodadas, com o sinal de gargalo da configuração |
-| Primeira leitura       | do envio de cada versão até a primeira abertura pela revisão                             |
-| Confirmação de leitura | versões enviadas no período já abertas pela revisão                                      |
+| Indicador                   | Definição                                                                                |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| Pendências por equipe       | agora: em análise (com a revisão) e em correção (com a equipe), com a data mais antiga   |
+| Enviados                    | documentos com o primeiro envio no período (coorte)                                      |
+| Aprovados agora, cancelados | da coorte, os que estão aprovados ou cancelados hoje                                     |
+| Eventos de aprovação        | ações de aprovar no período; documento reaberto e aprovado de novo conta duas vezes      |
+| Taxa de entrega             | aprovados agora dividido pelos enviados da coorte, no total e por equipe                 |
+| Resposta da revisão         | da entrada em análise até a próxima aprovação ou pedido de correção (média e mediana, h) |
+| Resposta da equipe          | do pedido de correção até a nova versão (média e mediana, h)                             |
+| Rodadas de correção         | distribuição e os 10 documentos com mais rodadas, com o sinal de gargalo da configuração |
+| Primeira leitura            | do envio de cada versão até a primeira abertura pela revisão                             |
+| Confirmação de leitura      | versões enviadas no período já abertas pela revisão                                      |
 
 "Revisão" nos indicadores de leitura é quem já aprovou, pediu correção ou
 reabriu algum documento. É uma aproximação: se alguém com `review` só ler e

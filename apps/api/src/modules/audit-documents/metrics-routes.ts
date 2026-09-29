@@ -82,8 +82,8 @@ export const auditDocumentMetricsRoutes: FastifyPluginAsync<{
       const [
         [settings],
         pending,
-        [submitted],
-        [decided],
+        cohort,
+        [approvals],
         [responses],
         distribution,
         top,
@@ -108,18 +108,28 @@ export const auditDocumentMetricsRoutes: FastifyPluginAsync<{
           where ${inScope} and ${documents.status} in ('in_review', 'correction_requested')
           group by ${documents.unitId}, ${organizationUnits.name}
           order by ${organizationUnits.name}`),
-        db.execute<{ submitted: number; delivered: number }>(sql`
-          select count(*)::int as submitted,
-            count(*) filter (where ${documents.status} = 'approved')::int as delivered
+        // Cohort: documents first submitted (created) in the period, by team.
+        db.execute<{
+          unitId: string;
+          unitName: string;
+          documentsSubmitted: number;
+          documentsApprovedNow: number;
+          documentsCancelled: number;
+        }>(sql`
+          select ${documents.unitId} as "unitId", ${organizationUnits.name} as "unitName",
+            count(*)::int as "documentsSubmitted",
+            count(*) filter (where ${documents.status} = 'approved')::int as "documentsApprovedNow",
+            count(*) filter (where ${documents.status} = 'cancelled')::int as "documentsCancelled"
           from ${documents}
-          where ${inScope} and ${inPeriod(documents.createdAt)}`),
-        db.execute<{ approved: number; cancelled: number }>(sql`
-          select
-            count(distinct ${events.documentId}) filter (where ${events.type} = 'approved')::int as approved,
-            count(distinct ${events.documentId}) filter (where ${events.type} = 'cancelled')::int as cancelled
+          join ${organizationUnits} on ${organizationUnits.id} = ${documents.unitId}
+          where ${inScope} and ${inPeriod(documents.createdAt)}
+          group by ${documents.unitId}, ${organizationUnits.name}
+          order by ${organizationUnits.name}`),
+        db.execute<{ approvalEvents: number }>(sql`
+          select count(*)::int as "approvalEvents"
           from ${events}
           join ${documents} on ${documents.id} = ${events.documentId}
-          where ${inScope} and ${inPeriod(events.createdAt)}`),
+          where ${inScope} and ${events.type} = 'approved' and ${inPeriod(events.createdAt)}`),
         // Each step is measured from the previous non-read event of the same document.
         db.execute<Record<string, number | null>>(sql`
           with steps as (
@@ -188,6 +198,10 @@ export const auditDocumentMetricsRoutes: FastifyPluginAsync<{
         metadata: { from, to, unitId: unitId ?? null },
       });
       const rounds = settings?.bottleneckRounds ?? 3;
+      const total = (
+        key:
+          "documentsSubmitted" | "documentsApprovedNow" | "documentsCancelled",
+      ) => cohort.reduce((sum, row) => sum + row[key], 0);
       const duration = (prefix: "reviewer" | "team") => ({
         count: responses?.[`${prefix}Count`] ?? 0,
         averageHours: responses?.[`${prefix}Average`] ?? null,
@@ -203,14 +217,22 @@ export const auditDocumentMetricsRoutes: FastifyPluginAsync<{
           oldestWithTeamSince: date(row.oldestWithTeamSince),
         })),
         period: {
-          submitted: submitted?.submitted ?? 0,
-          approved: decided?.approved ?? 0,
-          cancelled: decided?.cancelled ?? 0,
+          documentsSubmitted: total("documentsSubmitted"),
+          documentsApprovedNow: total("documentsApprovedNow"),
+          documentsCancelled: total("documentsCancelled"),
+          approvalEvents: approvals?.approvalEvents ?? 0,
           deliveryRate: ratio(
-            submitted?.delivered ?? 0,
-            submitted?.submitted ?? 0,
+            total("documentsApprovedNow"),
+            total("documentsSubmitted"),
           ),
         },
+        perTeam: cohort.map((row) => ({
+          unitId: row.unitId,
+          unitName: row.unitName,
+          documentsSubmitted: row.documentsSubmitted,
+          documentsApprovedNow: row.documentsApprovedNow,
+          deliveryRate: ratio(row.documentsApprovedNow, row.documentsSubmitted),
+        })),
         reviewerResponse: duration("reviewer"),
         teamResponse: duration("team"),
         correctionRounds: {

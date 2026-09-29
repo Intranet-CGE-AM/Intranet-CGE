@@ -106,6 +106,13 @@ test("indicadores refletem duas rodadas de correção, pendências e leituras", 
       ).status(),
     ).toBe(201);
     await transition(reviewer, d1.id, { action: "approve", version: 5 });
+    // Reaberto e aprovado de novo: dois eventos de aprovação, um documento aprovado.
+    await transition(reviewer, d1.id, {
+      action: "reopen",
+      version: 6,
+      message: "Ajuste final.",
+    });
+    await transition(reviewer, d1.id, { action: "approve", version: 7 });
     // D2 aguarda a Subcontroladoria; D3 aguarda a equipe; D4 foi cancelado.
     await submit("Métricas D2 E2E");
     const d3 = await submit("Métricas D3 E2E");
@@ -139,13 +146,23 @@ test("indicadores refletem duas rodadas de correção, pendências e leituras", 
     expect(metrics.pending[0].oldestWithReviewerSince).not.toBeNull();
     expect(metrics.pending[0].oldestWithTeamSince).not.toBeNull();
     expect(metrics.period).toEqual({
-      submitted: 4,
-      approved: 1,
-      cancelled: 1,
+      documentsSubmitted: 4,
+      documentsApprovedNow: 1,
+      documentsCancelled: 1,
+      approvalEvents: 2,
       deliveryRate: 0.25,
     });
-    // D1: 3 análises (2 correções + aprovação); D3: 1 correção.
-    expect(metrics.reviewerResponse.count).toBe(4);
+    expect(metrics.perTeam).toEqual([
+      {
+        unitId,
+        unitName: "Equipe de Métricas E2E",
+        documentsSubmitted: 4,
+        documentsApprovedNow: 1,
+        deliveryRate: 0.25,
+      },
+    ]);
+    // D1: 4 análises (2 correções, aprovação, aprovação após reabrir); D3: 1 correção.
+    expect(metrics.reviewerResponse.count).toBe(5);
     expect(metrics.reviewerResponse.averageHours).toBeGreaterThanOrEqual(0);
     expect(metrics.reviewerResponse.medianHours).toBeGreaterThanOrEqual(0);
     // D1: duas novas versões após correção.
