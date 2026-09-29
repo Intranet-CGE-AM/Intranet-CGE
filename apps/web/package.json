@@ -20,6 +20,7 @@
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
+    "diff": "^9.0.0",
     "docx": "^9.8.1",
     "docx-preview": "^0.4.1",
     "jspdf": "^4.2.1",
@@ -35,6 +36,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "happy-dom": "^20.14.5",
     "tailwindcss": "^4.3.3",
     "vite": "^8.1.5"
   }
