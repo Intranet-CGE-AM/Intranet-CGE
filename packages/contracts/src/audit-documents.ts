@@ -278,16 +278,31 @@ export const auditDocumentMetricsSchema = z.object({
       oldestWithTeamSince: z.date().nullable(),
     }),
   ),
+  /**
+   * Cohort: documents whose first submission falls in the period. Their
+   * current status gives the delivery rate, so the numbers always agree.
+   */
   period: z.object({
-    /** Documents first submitted in the period. */
-    submitted: metricCount,
-    /** Distinct documents with an approval in the period. */
-    approved: metricCount,
-    /** Distinct documents cancelled in the period. */
-    cancelled: metricCount,
-    /** Share (0..1) of `submitted` whose current status is approved. */
+    documentsSubmitted: metricCount,
+    /** Of documentsSubmitted, currently approved. */
+    documentsApprovedNow: metricCount,
+    /** Of documentsSubmitted, currently cancelled. */
+    documentsCancelled: metricCount,
+    /** Approve actions in the period (a reopened document counts again). */
+    approvalEvents: metricCount,
+    /** documentsApprovedNow / documentsSubmitted. */
     deliveryRate: z.number().min(0).max(1).nullable(),
   }),
+  /** Same cohort per team, only teams with submissions in the period. */
+  perTeam: z.array(
+    z.object({
+      unitId: z.uuid(),
+      unitName: z.string(),
+      documentsSubmitted: metricCount,
+      documentsApprovedNow: metricCount,
+      deliveryRate: z.number().min(0).max(1).nullable(),
+    }),
+  ),
   /** From entering in_review to the next approve or request_correction. */
   reviewerResponse: durationStats,
   /** From request_correction to the next version sent. */
