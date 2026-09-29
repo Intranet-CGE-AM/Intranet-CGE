@@ -40,6 +40,12 @@ test("indicadores refletem duas rodadas de correção, pendências e leituras", 
   );
   const [admin, coordinator, reviewer, assessor] = tuple(clients, 4);
   let grantId = "";
+  // O servidor carimba os eventos com o próprio relógio: se a execução cruzar
+  // a meia-noite de Manaus, o cenário fica em dois dias e o período cobre ambos.
+  const from = today();
+  const { bottleneckRounds } = (await (
+    await reviewer.get("/api/audit-documents/settings")
+  ).json()) as { bottleneckRounds: number };
   try {
     // Equipe exclusiva do cenário, para os números não dependerem de outros specs.
     const unit = await admin.post("/api/organization-units", {
@@ -128,7 +134,7 @@ test("indicadores refletem duas rodadas de correção, pendências e leituras", 
       message: "Duplicado.",
     });
 
-    const query = `/api/audit-documents/metrics?from=${today()}&to=${today()}&unitId=${unitId}`;
+    const query = `/api/audit-documents/metrics?from=${from}&to=${today()}&unitId=${unitId}`;
     expect((await assessor.get(query)).status()).toBe(403);
     expect((await coordinator.get(query)).status()).toBe(403);
     const response = await reviewer.get(query);
@@ -202,7 +208,7 @@ test("indicadores refletem duas rodadas de correção, pendências e leituras", 
     expect((await audit.json()).pagination.total).toBeGreaterThanOrEqual(1);
   } finally {
     await reviewer.put("/api/audit-documents/settings", {
-      data: { bottleneckRounds: 3 },
+      data: { bottleneckRounds },
     });
     if (grantId)
       await admin.delete(`/api/admin/permission-overrides/${grantId}`);
