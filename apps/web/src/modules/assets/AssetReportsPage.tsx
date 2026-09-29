@@ -239,11 +239,7 @@ const subsectors =
       ),
   );
 
-{unitsError ? (
-  <p className="text-sm text-red-600">
-    {unitsError}
-  </p>
-) : null}
+
 
 async function handleGenerateReport() {
   try {
@@ -346,6 +342,212 @@ const subsectorLabel =
     units,
     subsectorId,
   );
+
+//Agrupar por Setor
+const assetsBySector =
+  report
+    ? (() => {
+        const groups =
+          new Map<
+            string,
+            {
+              code: string;
+              name: string;
+              total: number;
+              totalValue: number;
+            }
+          >();
+
+        for (
+          const asset of
+          report.assets
+        ) {
+          let sectorCode =
+            "SEM SETOR";
+
+          let sectorName =
+            "Sem setor informado";
+
+          if (
+            asset.unitId &&
+            asset.unitType ===
+              "sector"
+          ) {
+            const sector =
+              units.find(
+                (unit) =>
+                  unit.id ===
+                  asset.unitId,
+              );
+
+            if (sector) {
+              sectorCode =
+                sector.code;
+
+              sectorName =
+                sector.name;
+            }
+          }
+
+          if (
+            asset.unitId &&
+            asset.unitType ===
+              "subsector"
+          ) {
+            const subsector =
+              units.find(
+                (unit) =>
+                  unit.id ===
+                  asset.unitId,
+              );
+
+            const sector =
+              subsector?.parentId
+                ? units.find(
+                    (unit) =>
+                      unit.id ===
+                      subsector.parentId,
+                  )
+                : null;
+
+            if (sector) {
+              sectorCode =
+                sector.code;
+
+              sectorName =
+                sector.name;
+            }
+          }
+
+          const key =
+            `${sectorCode}-${sectorName}`;
+
+          const current =
+            groups.get(key);
+
+          const value =
+            Number(
+              asset.acquisitionValue ??
+                0,
+            );
+
+          if (current) {
+            current.total += 1;
+
+            current.totalValue +=
+              value;
+          } else {
+            groups.set(
+              key,
+              {
+                code:
+                  sectorCode,
+
+                name:
+                  sectorName,
+
+                total:
+                  1,
+
+                totalValue:
+                  value,
+              },
+            );
+          }
+        }
+
+        return Array.from(
+          groups.values(),
+        ).sort(
+          (a, b) =>
+            a.name.localeCompare(
+              b.name,
+              "pt-BR",
+            ),
+        );
+      })()
+    : [];
+
+//Agrupar por situação
+const assetsByStatus =
+  report
+    ? [
+        {
+          key: "active",
+          label: "Ativo",
+          total:
+            report.assets.filter(
+              (asset) =>
+                asset.status ===
+                "active",
+            ).length,
+        },
+
+        {
+          key: "maintenance",
+          label:
+            "Em manutenção",
+          total:
+            report.assets.filter(
+              (asset) =>
+                asset.status ===
+                "maintenance",
+            ).length,
+        },
+
+        {
+          key: "disposed",
+          label: "Baixado",
+          total:
+            report.assets.filter(
+              (asset) =>
+                asset.status ===
+                "disposed",
+            ).length,
+        },
+      ]
+    : [];
+
+// Agrupar por conservação
+const assetsByConservation =
+  report
+    ? Array.from(
+        report.assets.reduce(
+          (
+            groups,
+            asset,
+          ) => {
+            const status =
+              asset.conservationStatus ??
+              "Não informado";
+
+            groups.set(
+              status,
+              (
+                groups.get(
+                  status,
+                ) ?? 0
+              ) + 1,
+            );
+
+            return groups;
+          },
+
+          new Map<
+            string,
+            number
+          >(),
+        ),
+      ).map(
+        ([
+          status,
+          total,
+        ]) => ({
+          status,
+          total,
+        }),
+      )
+    : [];
 
 const statusLabel =
   status === "active"
@@ -1241,6 +1443,12 @@ currentY += 7;
         </div>
       </div>
 
+      {unitsError ? (
+        <p className="text-sm text-red-600">
+          {unitsError}
+        </p>
+      ) : null}
+
       {/* RESULTADO */}
       <div className="rounded-lg border bg-background p-6">
         <div className="mb-4">
@@ -1302,91 +1510,360 @@ currentY += 7;
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b text-left">
-                      <th className="px-3 py-3 font-medium">
-                        Patrimônio
-                      </th>
+                {reportType ===
+"inventory" ? (
+  <div className="overflow-x-auto">
+    <table className="w-full border-collapse text-sm">
+      <thead>
+        <tr className="border-b text-left">
+          <th className="px-3 py-3">
+            Patrimônio
+          </th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Descrição
-                      </th>
+          <th className="px-3 py-3">
+            Descrição
+          </th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Localização
-                      </th>
+          <th className="px-3 py-3">
+            Localização
+          </th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Situação
-                      </th>
+          <th className="px-3 py-3">
+            Situação
+          </th>
 
-                      <th className="px-3 py-3 font-medium">
-                        Conservação
-                      </th>
+          <th className="px-3 py-3">
+            Conservação
+          </th>
 
-                      <th className="px-3 py-3 text-right font-medium">
-                        Valor
-                      </th>
-                    </tr>
-                  </thead>
+          <th className="px-3 py-3 text-right">
+            Valor
+          </th>
+        </tr>
+      </thead>
 
-                  <tbody>
-                    {report.assets.map(
-                      (asset) => (
-                        <tr
-                          key={asset.id}
-                          className="border-b"
-                        >
-                          <td className="px-3 py-3">
-                            {asset.patrimonyNumber}
-                          </td>
+      <tbody>
+        {report.assets.map(
+          (asset) => (
+            <tr
+              key={asset.id}
+              className="border-b"
+            >
+              <td className="px-3 py-3">
+                {
+                  asset.patrimonyNumber
+                }
+              </td>
 
-                          <td className="px-3 py-3">
-                            {asset.description}
-                          </td>
+              <td className="px-3 py-3">
+                {
+                  asset.description
+                }
+              </td>
 
-                          <td className="px-3 py-3">
-                            {asset.unitCode
-                              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                              : "Não informado"}
-                          </td>
+              <td className="px-3 py-3">
+                {asset.unitCode
+                  ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                  : "Não informado"}
+              </td>
 
-                          <td className="px-3 py-3">
-                            {asset.status === "active"
-                              ? "Ativo"
-                              : asset.status === "maintenance"
-                                ? "Em manutenção"
-                                : "Baixado"}
-                          </td>
+              <td className="px-3 py-3">
+                {asset.status ===
+                "active"
+                  ? "Ativo"
+                  : asset.status ===
+                      "maintenance"
+                    ? "Em manutenção"
+                    : "Baixado"}
+              </td>
 
-                          <td className="px-3 py-3">
-                            {asset.conservationStatus ??
-                              "Não informado"}
-                          </td>
+              <td className="px-3 py-3">
+                {asset.conservationStatus ??
+                  "Não informado"}
+              </td>
 
-                          <td className="px-3 py-3 text-right">
-                            {asset.acquisitionValue
-                              ? new Intl.NumberFormat(
-                                  "pt-BR",
-                                  {
-                                    style:
-                                      "currency",
-                                    currency:
-                                      "BRL",
-                                  },
-                                ).format(
-                                  Number(
-                                    asset.acquisitionValue,
-                                  ),
-                                )
-                              : "—"}
-                          </td>
-                        </tr>
+              <td className="px-3 py-3 text-right">
+                {asset.acquisitionValue
+                  ? new Intl.NumberFormat(
+                      "pt-BR",
+                      {
+                        style:
+                          "currency",
+
+                        currency:
+                          "BRL",
+                      },
+                    ).format(
+                      Number(
+                        asset.acquisitionValue,
                       ),
-                    )}
-                  </tbody>
-                </table>
+                    )
+                  : "—"}
+              </td>
+            </tr>
+          ),
+        )}
+      </tbody>
+    </table>
+  </div>
+) : null}
+
+{reportType ===
+"sector" ? (
+  <div className="overflow-x-auto">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b text-left">
+          <th className="px-3 py-3">
+            Setor
+          </th>
+
+          <th className="px-3 py-3 text-right">
+            Quantidade
+          </th>
+
+          <th className="px-3 py-3 text-right">
+            Valor patrimonial
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {assetsBySector.map(
+          (sector) => (
+            <tr
+              key={`${sector.code}-${sector.name}`}
+              className="border-b"
+            >
+              <td className="px-3 py-3">
+                <strong>
+                  {sector.code}
+                </strong>
+
+                {" - "}
+
+                {sector.name}
+              </td>
+
+              <td className="px-3 py-3 text-right">
+                {sector.total}
+              </td>
+
+              <td className="px-3 py-3 text-right">
+                {new Intl.NumberFormat(
+                  "pt-BR",
+                  {
+                    style:
+                      "currency",
+
+                    currency:
+                      "BRL",
+                  },
+                ).format(
+                  sector.totalValue,
+                )}
+              </td>
+            </tr>
+          ),
+        )}
+      </tbody>
+    </table>
+  </div>
+) : null}
+
+{reportType ===
+"status" ? (
+  <div className="grid gap-4 md:grid-cols-3">
+    {assetsByStatus.map(
+      (item) => (
+        <div
+          key={item.key}
+          className="rounded-md border p-5"
+        >
+          <p className="text-sm text-muted-foreground">
+            {item.label}
+          </p>
+
+          <p className="mt-2 text-3xl font-semibold">
+            {item.total}
+          </p>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            bens patrimoniais
+          </p>
+        </div>
+      ),
+    )}
+  </div>
+) : null}
+
+{reportType ===
+"conservation" ? (
+  <div className="overflow-x-auto">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b text-left">
+          <th className="px-3 py-3">
+            Estado de conservação
+          </th>
+
+          <th className="px-3 py-3 text-right">
+            Quantidade
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {assetsByConservation.map(
+          (item) => (
+            <tr
+              key={item.status}
+              className="border-b"
+            >
+              <td className="px-3 py-3">
+                {item.status}
+              </td>
+
+              <td className="px-3 py-3 text-right">
+                {item.total}
+              </td>
+            </tr>
+          ),
+        )}
+      </tbody>
+    </table>
+  </div>
+) : null}
+
+{reportType ===
+"financial" ? (
+  <div className="space-y-5">
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-md border p-5">
+        <p className="text-sm text-muted-foreground">
+          Bens considerados
+        </p>
+
+        <p className="mt-2 text-2xl font-semibold">
+          {report.summary.total}
+        </p>
+      </div>
+
+      <div className="rounded-md border p-5">
+        <p className="text-sm text-muted-foreground">
+          Valor patrimonial
+        </p>
+
+        <p className="mt-2 text-2xl font-semibold">
+          {new Intl.NumberFormat(
+            "pt-BR",
+            {
+              style:
+                "currency",
+
+              currency:
+                "BRL",
+            },
+          ).format(
+            report.summary.totalValue,
+          )}
+        </p>
+      </div>
+
+      <div className="rounded-md border p-5">
+        <p className="text-sm text-muted-foreground">
+          Valor médio
+        </p>
+
+        <p className="mt-2 text-2xl font-semibold">
+          {new Intl.NumberFormat(
+            "pt-BR",
+            {
+              style:
+                "currency",
+
+              currency:
+                "BRL",
+            },
+          ).format(
+            report.summary.total >
+              0
+              ? report.summary
+                  .totalValue /
+                  report.summary
+                    .total
+              : 0,
+          )}
+        </p>
+      </div>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-left">
+            <th className="px-3 py-3">
+              Setor
+            </th>
+
+            <th className="px-3 py-3 text-right">
+              Bens
+            </th>
+
+            <th className="px-3 py-3 text-right">
+              Valor
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {assetsBySector.map(
+            (sector) => (
+              <tr
+                key={`${sector.code}-${sector.name}-financial`}
+                className="border-b"
+              >
+                <td className="px-3 py-3">
+                  {sector.code}
+                  {" - "}
+                  {sector.name}
+                </td>
+
+                <td className="px-3 py-3 text-right">
+                  {sector.total}
+                </td>
+
+                <td className="px-3 py-3 text-right">
+                  {new Intl.NumberFormat(
+                    "pt-BR",
+                    {
+                      style:
+                        "currency",
+
+                      currency:
+                        "BRL",
+                    },
+                  ).format(
+                    sector.totalValue,
+                  )}
+                </td>
+              </tr>
+            ),
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+) : null}
+
+{reportType ===
+"movements" ? (
+  <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+    O relatório de movimentações será carregado
+    pelo histórico de movimentações patrimoniais.
+  </div>
+) : null}
+
               </div>
             )}
           </>
