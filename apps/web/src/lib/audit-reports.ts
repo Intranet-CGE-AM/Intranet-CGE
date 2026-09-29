@@ -30,11 +30,9 @@ export const manausDay = (value: Date | string) =>
 export function formatHours(hours: number | null) {
   if (hours === null) return "—";
   if (hours < 1) return "< 1 h";
-  const days = hours >= 48;
-  const value = (days ? hours / 24 : hours).toLocaleString("pt-BR", {
-    maximumFractionDigits: 1,
-  });
-  return `${value} ${days ? "dias" : "h"}`;
+  const minutes = Math.round(hours * 60);
+  const rest = minutes % 60;
+  return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ""}`;
 }
 
 export function formatRate(rate: number | null) {
@@ -68,10 +66,8 @@ const fileNames: Record<AuditReportKind, string> = {
   analytic: "relatorio-analitico",
 };
 
-export function createAuditReport(
-  kind: AuditReportKind,
-  data: AuditReportData,
-) {
+/** Builds the PDF without saving it (the page saves; tests read it). */
+export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
   const document = new jsPDF({
     format: "a4",
     orientation: kind === "detailed" ? "landscape" : "portrait",
@@ -205,15 +201,18 @@ export function createAuditReport(
         ],
       ],
     );
-    // Drawn last, translucent, so it never hides the table text.
-    document.setGState(new GState({ opacity: 0.12 }));
-    document.setFont("helvetica", "bold");
-    document.setFontSize(72);
-    document.text("RASCUNHO", width / 2, height / 2 + 20, {
-      align: "center",
-      angle: 35,
-    });
-    document.setGState(new GState({ opacity: 1 }));
+    // Drawn last on every page, translucent, so it never hides the table text.
+    for (let page = 1; page <= document.getNumberOfPages(); page += 1) {
+      document.setPage(page);
+      document.setGState(new GState({ opacity: 0.12 }));
+      document.setFont("helvetica", "bold");
+      document.setFontSize(72);
+      document.text("RASCUNHO", width / 2, height / 2 + 20, {
+        align: "center",
+        angle: 35,
+      });
+      document.setGState(new GState({ opacity: 1 }));
+    }
   }
 
   if (kind === "detailed") {
@@ -302,5 +301,14 @@ export function createAuditReport(
     );
   }
 
-  document.save(`${fileNames[kind]}-${manausDay(new Date())}.pdf`);
+  return document;
+}
+
+export function createAuditReport(
+  kind: AuditReportKind,
+  data: AuditReportData,
+) {
+  buildAuditReport(kind, data).save(
+    `${fileNames[kind]}-${manausDay(new Date())}.pdf`,
+  );
 }
