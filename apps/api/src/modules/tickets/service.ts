@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import {
+  ticketStatusLabels,
   type TechnicalArea,
   type TicketAnalyticsSummary,
   type TicketApprovalDecisionInput,
@@ -55,6 +56,50 @@ export class TicketError extends Error {
   ) {
     super(message);
   }
+}
+
+export function transitionNote(toStatus: TicketStatus, note?: string | null) {
+  return (
+    note?.trim() ||
+    `Status alterado para ${ticketStatusLabels[toStatus].toLocaleLowerCase("pt-BR")}.`
+  );
+}
+
+/**
+ * Next daily protocol, stored as YYYYMMDD-NNNN (the UI adds the "#").
+ * The counter row upsert serializes concurrent callers on the same day, and
+ * GREATEST with the highest number already stored for the day keeps the
+ * sequence ahead of rows inserted without the counter (older seeds wrote
+ * "#YYYYMMDD-NNNN" directly). The unique index on ticket_number is the
+ * last line of defense. Call it inside the transaction that inserts the ticket.
+ */
+export async function nextTicketNumber(db: Database, now = new Date()) {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Manaus",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const dateKey = today.replace(/-/g, "");
+
+  const highestStored = sql`(
+    select coalesce(max(substring(${tickets.ticketNumber} from ${"(\\d{4})$"}::text)::int), 0)
+    from ${tickets}
+    where ${tickets.ticketNumber} like ${`%${dateKey}-%`}
+  )`;
+
+  const [row] = await db
+    .insert(ticketCounters)
+    .values({ date: today, count: sql`${highestStored} + 1` })
+    .onConflictDoUpdate({
+      target: ticketCounters.date,
+      set: {
+        count: sql`greatest(${ticketCounters.count} + 1, excluded.count)`,
+      },
+    })
+    .returning({ count: ticketCounters.count });
+
+  return `${dateKey}-${String(row?.count ?? 1).padStart(4, "0")}`;
 }
 
 // Matriz de transições permitidas para técnicos
@@ -508,30 +553,6 @@ export class TicketService {
     }));
   }
 
-  // ── Gerar Número Sequencial Diário de Chamado (#YYYYMMDD-XXXX) ───────────
-  private async getNextTicketNumber(tx: Database): Promise<string> {
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Manaus",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date()); // Formato YYYY-MM-DD
-
-    const dateKey = today.replace(/-/g, ""); // YYYYMMDD
-
-    const [row] = await tx
-      .insert(ticketCounters)
-      .values({ date: today, count: 1 })
-      .onConflictDoUpdate({
-        target: ticketCounters.date,
-        set: { count: sql`${ticketCounters.count} + 1` },
-      })
-      .returning({ count: ticketCounters.count });
-
-    const seq = String(row?.count ?? 1).padStart(4, "0");
-    return `${dateKey}-${seq}`;
-  }
-
   // ── Abrir Novo Chamado (Usuário Comum / Solicitante) ─────────────────────
   async createTicket(
     requesterAccountId: string,
@@ -668,9 +689,7 @@ export class TicketService {
     const trackToken = crypto.randomBytes(24).toString("hex");
 
     return await this.db.transaction(async (tx) => {
-      const ticketNumber = await this.getNextTicketNumber(
-        tx as unknown as Database,
-      );
+      const ticketNumber = await nextTicketNumber(tx as unknown as Database);
 
       const [created] = await tx
         .insert(tickets)
@@ -1127,7 +1146,7 @@ export class TicketService {
       throw new TicketError(
         400,
         "INVALID_TRANSITION",
-        `Transição não permitida: ${ticket.status} → ${input.toStatus}`,
+        `Transição não permitida: ${ticketStatusLabels[ticket.status]} → ${ticketStatusLabels[input.toStatus]}.`,
       );
     }
 
@@ -1174,7 +1193,7 @@ export class TicketService {
         actorAccountId,
         fromStatus: ticket.status,
         toStatus: input.toStatus,
-        note: input.note?.trim() || `Status alterado para ${input.toStatus}.`,
+        note: transitionNote(input.toStatus, input.note),
       });
     });
 

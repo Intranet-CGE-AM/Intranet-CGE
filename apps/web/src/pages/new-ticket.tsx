@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect, type ReactNode } from "react";
+import { Link } from "react-router";
 import type {
   TicketCategory,
   TicketCreateInput,
@@ -12,22 +12,21 @@ import {
   Card,
   CardContent,
   CardHeader,
+  EmptyState,
   FormField,
   Input,
+  Select,
+  Skeleton,
   Textarea,
 } from "@cge/ui";
 import {
   ArrowLeft,
-  Check,
-  CheckCircle,
   Clock,
   Desktop,
   FileText,
   HardDrives,
-  Lightbulb,
   MonitorArrowUp,
   Printer,
-  ShieldCheck,
   WifiHigh,
   type Icon,
 } from "@phosphor-icons/react";
@@ -49,13 +48,42 @@ const CATEGORY_ICONS: Record<string, Icon> = {
   MonitorArrowUp: MonitorArrowUp,
 };
 
-export function NewTicketPage() {
-  const navigate = useNavigate();
+type FieldErrors = Partial<
+  Record<"subcategory" | "anyDesk" | "description", string>
+>;
 
+function PageHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <Button asChild size="sm" variant="quiet" className="-ml-3 mb-2">
+        <Link to="/suporte">
+          <ArrowLeft aria-hidden="true" size={16} />
+          Voltar
+        </Link>
+      </Button>
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+        Suporte
+      </p>
+      <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+        {title}
+      </h1>
+      <p className="mt-1 text-sm text-[var(--text-muted)]">{description}</p>
+    </div>
+  );
+}
+
+export function NewTicketPage() {
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Form states
   const [selectedCategory, setSelectedCategory] =
@@ -79,26 +107,27 @@ export function NewTicketPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createdTicket, setCreatedTicket] = useState<TicketDetail | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await api<{ categories: TicketCategory[] }>(
-          "/api/tickets/categories",
-        );
-        setCategories(data.categories);
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as categorias de suporte.",
-        );
-      } finally {
-        setLoading(false);
-      }
+  async function loadCategories() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api<{ categories: TicketCategory[] }>(
+        "/api/tickets/categories",
+      );
+      setCategories(data.categories);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar as categorias de suporte.",
+      );
+    } finally {
+      setLoading(false);
     }
-    void load();
+  }
+
+  useEffect(() => {
+    void loadCategories();
   }, []);
 
   const selectedSubcategory =
@@ -107,6 +136,9 @@ export function NewTicketPage() {
     ) ?? null;
 
   const isRemote = selectedCategory?.code === "REMOTE";
+  const descriptionRequired = Boolean(
+    selectedCategory && (selectedCategory.allowsFreeText || isRemote),
+  );
 
   const handleCategorySelect = (cat: TicketCategory) => {
     setSelectedCategory(cat);
@@ -114,6 +146,23 @@ export function NewTicketPage() {
     setAnyDeskCode("");
     setFreeTextDescription("");
     setFormError(null);
+    setFieldErrors({});
+  };
+
+  const resetForm = () => {
+    setCreatedTicket(null);
+    setSelectedCategory(null);
+    setSelectedSubcategoryId("");
+    setAnyDeskCode("");
+    setFreeTextDescription("");
+    setIsForOther(false);
+    setBeneficiaryName("");
+    setBeneficiaryDept("");
+    setBeneficiaryEmail("");
+    setMonoCounter("");
+    setColorCounter("");
+    setFormError(null);
+    setFieldErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,27 +170,30 @@ export function NewTicketPage() {
     setFormError(null);
     if (!selectedCategory) return;
 
+    const errors: FieldErrors = {};
     if (
       !isRemote &&
       !selectedSubcategoryId &&
       !selectedCategory.allowsFreeText
     ) {
-      setFormError("Por favor, selecione um tipo de problema.");
-      return;
+      errors.subcategory = "Selecione o tipo de solicitação.";
     }
-
     if (isRemote && !anyDeskCode.trim()) {
-      setFormError(
-        "Por favor, informe o código do AnyDesk para suporte remoto.",
-      );
-      return;
+      errors.anyDesk = "Informe o código do AnyDesk para o suporte remoto.";
     }
-
-    if (
-      !freeTextDescription.trim() &&
-      (selectedCategory.allowsFreeText || isRemote)
-    ) {
-      setFormError("Por favor, detalhe sua solicitação na descrição.");
+    if (!freeTextDescription.trim() && descriptionRequired) {
+      errors.description = "Descreva a sua solicitação.";
+    }
+    setFieldErrors(errors);
+    const firstInvalid = errors.subcategory
+      ? "subcategory-select"
+      : errors.anyDesk
+        ? "anydesk-code"
+        : errors.description
+          ? "free-description"
+          : null;
+    if (firstInvalid) {
+      document.getElementById(firstInvalid)?.focus();
       return;
     }
 
@@ -179,7 +231,7 @@ export function NewTicketPage() {
       setFormError(
         err instanceof Error
           ? err.message
-          : "Erro ao abrir chamado de suporte.",
+          : "Não foi possível abrir o chamado. Tente novamente.",
       );
     } finally {
       setSubmitting(false);
@@ -188,55 +240,36 @@ export function NewTicketPage() {
 
   if (createdTicket) {
     return (
-      <div className="mx-auto max-w-2xl py-8">
-        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-          <CardContent className="p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-300">
-              <CheckCircle className="h-10 w-10" />
-            </div>
-            <h2 className="mt-4 text-2xl font-bold text-[var(--text)]">
-              Chamado Aberto com Sucesso!
-            </h2>
-            <p className="mt-2 text-sm text-[var(--text-muted)]">
-              Sua solicitação foi registrada no suporte técnico da CGE e já está
-              na fila de atendimento da ATEC.
-            </p>
+      <div className="page-enter space-y-4">
+        <PageHeader
+          title="Chamado aberto"
+          description="Sua solicitação foi registrada e já está na fila de atendimento da ATEC."
+        />
 
-            <div className="my-6 inline-block rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-4 shadow-sm">
-              <span className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                Protocolo de Atendimento
-              </span>
-              <div className="font-mono text-2xl font-black text-[var(--brand)]">
-                #{createdTicket.ticketNumber}
-              </div>
+        <Card className="max-w-2xl">
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+                Protocolo de atendimento
+              </p>
+              <p className="mt-1 font-mono text-2xl font-extrabold text-[var(--brand)]">
+                #{createdTicket.ticketNumber.replace(/^#+/, "")}
+              </p>
             </div>
 
             {createdTicket.approvalStatus === "pending" && (
-              <div className="mb-6 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-soft)] p-3.5 text-left text-xs shadow-xs">
-                <div className="flex items-center gap-2 font-bold text-[var(--warning-strong)]">
-                  <ShieldCheck className="h-4 w-4 text-[var(--warning-strong)]" />
-                  <span>Aprovação da Chefia Necessária</span>
-                </div>
-                <p className="mt-1 font-medium text-[#453002] leading-relaxed">
-                  Este tipo de solicitação foi enviado para deliberação da
-                  chefia do seu setor. O atendimento pela ATEC começará assim
-                  que for aprovado.
-                </p>
-              </div>
+              <Alert tone="warning" title="Aprovação da chefia necessária">
+                Este tipo de solicitação foi enviado para a chefia do seu setor.
+                O atendimento pela ATEC começa assim que for aprovado.
+              </Alert>
             )}
 
-            <div className="flex justify-center gap-4">
-              <Button
-                variant="quiet"
-                onClick={() => {
-                  setCreatedTicket(null);
-                  setSelectedCategory(null);
-                }}
-              >
-                Abrir Outro Chamado
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={resetForm}>
+                Abrir outro chamado
               </Button>
-              <Button variant="primary" onClick={() => navigate("/suporte")}>
-                Acompanhar Chamados
+              <Button asChild>
+                <Link to="/suporte">Acompanhar chamados</Link>
               </Button>
             </div>
           </CardContent>
@@ -245,316 +278,325 @@ export function NewTicketPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="quiet"
-            size="sm"
-            onClick={() => navigate("/suporte")}
-          >
-            <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">
-              Novo Chamado de TI
-            </h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              Selecione a categoria do problema para direcionamento à equipe da
-              ATEC
-            </p>
-          </div>
-        </div>
+  let categoryContent: ReactNode;
+  if (loading) {
+    categoryContent = (
+      <div
+        aria-label="Carregando categorias"
+        role="status"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-36 rounded-[14px]" />
+        ))}
       </div>
+    );
+  } else if (error) {
+    categoryContent = null;
+  } else if (categories.length === 0) {
+    categoryContent = (
+      <Card>
+        <EmptyState
+          title="Nenhuma categoria disponível"
+          description="Não há categorias de atendimento ativas no momento. Procure a ATEC."
+        />
+      </Card>
+    );
+  } else {
+    categoryContent = (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((cat) => {
+          const isSelected = selectedCategory?.id === cat.id;
+          const IconComp =
+            CATEGORY_ICONS[cat.code] ||
+            CATEGORY_ICONS[cat.icon || "Desktop"] ||
+            Desktop;
+
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => handleCategorySelect(cat)}
+              className={`flex flex-col items-start rounded-[14px] border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)] ${
+                isSelected
+                  ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                  : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]"
+              }`}
+            >
+              <div className="flex w-full items-center justify-between gap-3">
+                <IconComp
+                  aria-hidden="true"
+                  className="text-[var(--brand)]"
+                  size={24}
+                />
+                {cat.slaHours ? (
+                  <Badge variant="neutral" className="gap-1">
+                    <Clock aria-hidden="true" size={14} />
+                    SLA {cat.slaHours}h
+                  </Badge>
+                ) : null}
+              </div>
+              <h3 className="mt-4 font-bold">{cat.name}</h3>
+              <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">
+                {cat.code === "REMOTE"
+                  ? "Conexão remota imediata via AnyDesk na sua estação de trabalho"
+                  : cat.subcategories.length > 0
+                    ? cat.subcategories.length === 1
+                      ? "1 opção de atendimento disponível"
+                      : `${cat.subcategories.length} opções de atendimento disponíveis`
+                    : "Suporte geral para este serviço"}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-enter space-y-4">
+      <PageHeader
+        title="Novo chamado de TI"
+        description="Escolha a categoria do problema para direcionar o atendimento à equipe da ATEC."
+      />
 
       {error && (
-        <Alert tone="danger" title="Não foi possível carregar categorias">
-          {error}
+        <Alert tone="danger" title="Não foi possível carregar as categorias">
+          <p>{error}</p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="secondary"
+            onClick={() => void loadCategories()}
+          >
+            Tentar novamente
+          </Button>
         </Alert>
       )}
 
-      {loading ? (
-        <div className="flex h-64 items-center justify-center space-x-3 text-[var(--text-muted)]">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent" />
-          <span>Carregando categorias de suporte...</span>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* ── Grid de Categorias ───────────────────────────────────────── */}
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <section
+          aria-labelledby="ticket-category-heading"
+          className="space-y-3"
+        >
           <div>
-            <label className="text-sm font-semibold text-[var(--text)]">
-              1. Selecione a Categoria do Atendimento
-            </label>
-            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.map((cat) => {
-                const isSelected = selectedCategory?.id === cat.id;
-                const IconComp =
-                  CATEGORY_ICONS[cat.code] ||
-                  CATEGORY_ICONS[cat.icon || "Desktop"] ||
-                  Desktop;
-
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => handleCategorySelect(cat)}
-                    className={`flex flex-col items-start rounded-2xl border p-5 text-left transition-all duration-200 ${
-                      isSelected
-                        ? "border-[var(--brand)] bg-[var(--brand-soft)] shadow-md ring-2 ring-[var(--brand)]"
-                        : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]/50 hover:shadow-sm"
-                    }`}
-                  >
-                    <div className="flex w-full items-center justify-between">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl transition ${
-                          isSelected
-                            ? "bg-[var(--action)] text-white"
-                            : "bg-[var(--surface-subtle)] text-[var(--brand)]"
-                        }`}
-                      >
-                        <IconComp className="h-6 w-6" />
-                      </div>
-                      {cat.slaHours && (
-                        <span className="flex items-center gap-1 rounded-full bg-[var(--surface-subtle)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-muted)]">
-                          <Clock className="h-3 w-3" /> {cat.slaHours}h SLA
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="mt-4 font-semibold text-[var(--text)]">
-                      {cat.name}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">
-                      {cat.code === "REMOTE"
-                        ? "Conexão remota imediata via AnyDesk na sua estação de trabalho"
-                        : cat.subcategories.length > 0
-                          ? `${cat.subcategories.length} opções de atendimento disponíveis`
-                          : "Suporte geral para este serviço"}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
+            <h2 id="ticket-category-heading" className="font-bold">
+              Categoria do atendimento
+            </h2>
+            <p className="text-xs text-[var(--text-muted)]">
+              Selecione a área que mais se aproxima do seu problema.
+            </p>
           </div>
+          {categoryContent}
+        </section>
 
-          {/* ── Subcategoria & Formulário Específico ──────────────────────── */}
-          {formError && (
-            <Alert tone="danger" title="Atenção">
-              {formError}
-            </Alert>
-          )}
+        {formError && (
+          <Alert tone="danger" title="Não foi possível abrir o chamado">
+            {formError}
+          </Alert>
+        )}
 
-          {selectedCategory && (
-            <Card className="animate-in fade-in-50 duration-300">
-              <CardHeader className="border-b border-[var(--border)] bg-[var(--surface-subtle)]">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-[var(--text)]">
-                    2. Detalhamento do Chamado: {selectedCategory.name}
-                  </h3>
-                  <Badge variant="brand">
-                    SLA: {selectedCategory.slaHours ?? 4} horas
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 p-6">
-                {/* Dicas N1 Instantâneas */}
-                {selectedCategory.n1Tips && (
-                  <div className="flex items-start gap-3 rounded-xl border-2 border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-xs shadow-xs">
-                    <Lightbulb className="h-5 w-5 shrink-0 text-[var(--warning-strong)] stroke-[2.5]" />
-                    <div>
-                      <span className="block text-xs font-black uppercase tracking-wider text-[var(--warning-strong)]">
-                        Orientação de Autoatendimento (N1):
-                      </span>
-                      <p className="mt-1 text-xs font-semibold text-[#453002] leading-relaxed">
-                        {selectedCategory.n1Tips}
-                      </p>
-                    </div>
-                  </div>
-                )}
+        {selectedCategory && (
+          <Card>
+            <CardHeader>
+              <div>
+                <h2 className="font-bold">Detalhes do chamado</h2>
+                <p className="text-xs text-[var(--text-muted)]">
+                  {selectedCategory.name}
+                </p>
+              </div>
+              {selectedCategory.slaHours ? (
+                <Badge variant="brand" className="shrink-0">
+                  SLA: {selectedCategory.slaHours} horas
+                </Badge>
+              ) : null}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedCategory.n1Tips && (
+                <Alert tone="warning" title="Orientação de autoatendimento">
+                  {selectedCategory.n1Tips}
+                </Alert>
+              )}
 
-                {/* Subcategoria Select se houver */}
-                {selectedCategory.subcategories.length > 0 && (
-                  <FormField
-                    htmlFor="subcategory-select"
-                    label="Tipo de Solicitação / Problema"
-                  >
-                    <select
-                      id="subcategory-select"
-                      value={selectedSubcategoryId}
-                      onChange={(e) => setSelectedSubcategoryId(e.target.value)}
-                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
-                    >
-                      <option value="">
-                        Selecione o problema específico...
-                      </option>
-                      {selectedCategory.subcategories.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.name}{" "}
-                          {sub.requiresApproval ? " (Requer Aprovação)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                )}
-
-                {/* Alerta de Aprovação da Chefia se aplicável */}
-                {selectedSubcategory?.requiresApproval && (
-                  <div className="flex items-center gap-2.5 rounded-lg border border-indigo-200 bg-indigo-50 p-3.5 text-xs text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
-                    <ShieldCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    <span>
-                      Esta solicitação exige{" "}
-                      <strong>aprovação da chefia do setor</strong> antes de ser
-                      atendida pelos técnicos da ATEC.
-                    </span>
-                  </div>
-                )}
-
-                {/* Código AnyDesk se Suporte Remoto */}
-                {isRemote && (
-                  <div className="space-y-2 rounded-xl border border-cyan-200 bg-cyan-50/50 p-4 dark:border-cyan-900/60 dark:bg-cyan-950/20">
-                    <FormField
-                      htmlFor="anydesk-code"
-                      label="Código AnyDesk da sua máquina"
-                      hint="Abra o AnyDesk no seu computador e informe o código de 9 ou 10 dígitos."
-                    >
-                      <Input
-                        id="anydesk-code"
-                        placeholder="Ex: 123 456 789"
-                        value={anyDeskCode}
-                        onChange={(e) => setAnyDeskCode(e.target.value)}
-                        className="font-mono text-base font-bold tracking-wider"
-                      />
-                    </FormField>
-                  </div>
-                )}
-
-                {/* Contadores de Impressora se formType === 'printer_counter' */}
-                {selectedSubcategory?.formType === "printer_counter" && (
-                  <div className="grid grid-cols-1 gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 sm:grid-cols-2">
-                    <FormField
-                      htmlFor="mono-counter"
-                      label="Contador Monocromático (Preto & Branco)"
-                      hint="Número total de páginas P&B"
-                    >
-                      <Input
-                        id="mono-counter"
-                        placeholder="Ex: 15420"
-                        value={monoCounter}
-                        onChange={(e) => setMonoCounter(e.target.value)}
-                      />
-                    </FormField>
-                    <FormField
-                      htmlFor="color-counter"
-                      label="Contador Colorido"
-                      hint="Número total de páginas coloridas"
-                    >
-                      <Input
-                        id="color-counter"
-                        placeholder="Ex: 3410"
-                        value={colorCounter}
-                        onChange={(e) => setColorCounter(e.target.value)}
-                      />
-                    </FormField>
-                  </div>
-                )}
-
-                {/* Descrição em Texto Livre */}
+              {selectedCategory.subcategories.length > 0 && (
                 <FormField
-                  htmlFor="free-description"
-                  label="Descrição Detalhada do Problema"
-                  hint="Descreva o que está acontecendo com o máximo de detalhes possível para agilizar o suporte."
+                  htmlFor="subcategory-select"
+                  label={
+                    selectedCategory.allowsFreeText || isRemote
+                      ? "Tipo de solicitação (opcional)"
+                      : "Tipo de solicitação"
+                  }
+                  error={fieldErrors.subcategory}
                 >
-                  <Textarea
-                    id="free-description"
-                    rows={4}
-                    placeholder="Descreva a falha, mensagens de erro exibidas na tela, programas afetados..."
-                    value={freeTextDescription}
-                    onChange={(e) => setFreeTextDescription(e.target.value)}
+                  <Select
+                    id="subcategory-select"
+                    name="subcategory"
+                    placeholder="Selecione o tipo de solicitação"
+                    aria-invalid={Boolean(fieldErrors.subcategory)}
+                    value={selectedSubcategoryId}
+                    onValueChange={setSelectedSubcategoryId}
+                    options={selectedCategory.subcategories.map((sub) => ({
+                      value: sub.id,
+                      label: sub.requiresApproval
+                        ? `${sub.name} (requer aprovação)`
+                        : sub.name,
+                    }))}
                   />
                 </FormField>
+              )}
 
-                {/* Beneficiário Toggle ("Abrir para outro servidor") */}
-                {selectedCategory.allowsBeneficiary && (
-                  <div className="border-t border-[var(--border)] pt-4">
-                    <label className="flex items-center gap-2 text-sm font-medium text-[var(--text)] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isForOther}
-                        onChange={(e) => setIsForOther(e.target.checked)}
-                        className="h-4 w-4 rounded border-[var(--border)] text-[var(--brand)]"
-                      />
-                      <span>
-                        Estou abrindo este chamado para outro
-                        servidor/colaborador
-                      </span>
-                    </label>
+              {selectedSubcategory?.requiresApproval && (
+                <Alert tone="neutral" title="Requer aprovação da chefia">
+                  Esta solicitação precisa da aprovação da chefia do setor antes
+                  de ser atendida pelos técnicos da ATEC.
+                </Alert>
+              )}
 
-                    {isForOther && (
-                      <div className="mt-4 grid grid-cols-1 gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 sm:grid-cols-3">
-                        <FormField
-                          htmlFor="beneficiary-name"
-                          label="Nome do Beneficiário"
-                        >
-                          <Input
-                            id="beneficiary-name"
-                            placeholder="Nome completo..."
-                            value={beneficiaryName}
-                            onChange={(e) => setBeneficiaryName(e.target.value)}
-                          />
-                        </FormField>
-                        <FormField
-                          htmlFor="beneficiary-dept"
-                          label="Setor / Unidade"
-                        >
-                          <Input
-                            id="beneficiary-dept"
-                            placeholder="Ex: Gabinete, Ouvidoria..."
-                            value={beneficiaryDept}
-                            onChange={(e) => setBeneficiaryDept(e.target.value)}
-                          />
-                        </FormField>
-                        <FormField
-                          htmlFor="beneficiary-email"
-                          label="E-mail do Beneficiário"
-                        >
-                          <Input
-                            id="beneficiary-email"
-                            placeholder="email@cge.am.gov.br"
-                            value={beneficiaryEmail}
-                            onChange={(e) =>
-                              setBeneficiaryEmail(e.target.value)
-                            }
-                          />
-                        </FormField>
-                      </div>
-                    )}
-                  </div>
-                )}
+              {isRemote && (
+                <FormField
+                  htmlFor="anydesk-code"
+                  label="Código AnyDesk da sua máquina"
+                  hint="Abra o AnyDesk no seu computador e informe o código de 9 ou 10 dígitos."
+                  error={fieldErrors.anyDesk}
+                >
+                  <Input
+                    id="anydesk-code"
+                    required
+                    aria-invalid={Boolean(fieldErrors.anyDesk)}
+                    placeholder="Ex.: 123 456 789"
+                    value={anyDeskCode}
+                    onChange={(e) => setAnyDeskCode(e.target.value)}
+                    className="font-mono tracking-wider"
+                  />
+                </FormField>
+              )}
 
-                {/* Botões de Ação */}
-                <div className="flex justify-end gap-3 border-t border-[var(--border)] pt-4">
-                  <Button
-                    type="button"
-                    variant="quiet"
-                    onClick={() => setSelectedCategory(null)}
+              {selectedSubcategory?.formType === "printer_counter" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    htmlFor="mono-counter"
+                    label="Contador monocromático (opcional)"
+                    hint="Total de páginas em preto e branco."
                   >
-                    Trocar Categoria
-                  </Button>
-                  <Button type="submit" variant="primary" disabled={submitting}>
-                    {submitting ? (
-                      "Abrindo chamado..."
-                    ) : (
-                      <>
-                        <Check className="mr-1.5 h-4 w-4" /> Registrar Chamado
-                      </>
-                    )}
-                  </Button>
+                    <Input
+                      id="mono-counter"
+                      inputMode="numeric"
+                      placeholder="Ex.: 15420"
+                      value={monoCounter}
+                      onChange={(e) => setMonoCounter(e.target.value)}
+                    />
+                  </FormField>
+                  <FormField
+                    htmlFor="color-counter"
+                    label="Contador colorido (opcional)"
+                    hint="Total de páginas coloridas."
+                  >
+                    <Input
+                      id="color-counter"
+                      inputMode="numeric"
+                      placeholder="Ex.: 3410"
+                      value={colorCounter}
+                      onChange={(e) => setColorCounter(e.target.value)}
+                    />
+                  </FormField>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </form>
-      )}
+              )}
+
+              <FormField
+                htmlFor="free-description"
+                label={
+                  descriptionRequired
+                    ? "Descrição do problema"
+                    : "Descrição do problema (opcional)"
+                }
+                hint="Conte o que está acontecendo com o máximo de detalhes para agilizar o atendimento."
+                error={fieldErrors.description}
+              >
+                <Textarea
+                  id="free-description"
+                  rows={4}
+                  required={descriptionRequired}
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  placeholder="Falha, mensagens de erro exibidas na tela, programas afetados…"
+                  value={freeTextDescription}
+                  onChange={(e) => setFreeTextDescription(e.target.value)}
+                />
+              </FormField>
+
+              {selectedCategory.allowsBeneficiary && (
+                <div className="space-y-4 border-t border-[var(--border)] pt-4">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={isForOther}
+                      onChange={(e) => setIsForOther(e.target.checked)}
+                      className="size-4 accent-[var(--brand)]"
+                    />
+                    Estou abrindo este chamado para outro servidor ou
+                    colaborador
+                  </label>
+
+                  {isForOther && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        htmlFor="beneficiary-name"
+                        label="Nome do beneficiário (opcional)"
+                      >
+                        <Input
+                          id="beneficiary-name"
+                          autoComplete="off"
+                          placeholder="Nome completo"
+                          value={beneficiaryName}
+                          onChange={(e) => setBeneficiaryName(e.target.value)}
+                        />
+                      </FormField>
+                      <FormField
+                        htmlFor="beneficiary-dept"
+                        label="Setor ou unidade (opcional)"
+                      >
+                        <Input
+                          id="beneficiary-dept"
+                          placeholder="Ex.: Gabinete, Ouvidoria"
+                          value={beneficiaryDept}
+                          onChange={(e) => setBeneficiaryDept(e.target.value)}
+                        />
+                      </FormField>
+                      <FormField
+                        htmlFor="beneficiary-email"
+                        label="E-mail do beneficiário (opcional)"
+                        className="sm:col-span-2"
+                      >
+                        <Input
+                          id="beneficiary-email"
+                          type="email"
+                          autoComplete="off"
+                          placeholder="nome@cge.am.gov.br"
+                          value={beneficiaryEmail}
+                          onChange={(e) => setBeneficiaryEmail(e.target.value)}
+                        />
+                      </FormField>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  Trocar categoria
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Abrindo chamado…" : "Abrir chamado"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </form>
     </div>
   );
 }
