@@ -17,3 +17,4 @@ export * from "../modules/onboarding/schema.js";
 export * from "../modules/substitutions/schema.js";
 export * from "../modules/communications/schema.js";
 export * from "../modules/resources/schema.js";
+export * from "../modules/audit-documents/schema.js";
