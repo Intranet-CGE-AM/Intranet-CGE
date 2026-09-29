@@ -152,6 +152,11 @@ const AuditDocumentPage = lazy(() =>
   })),
 );
 
+const AuditDocumentEditorPage = lazy(() =>
+  import("./pages/audit-document-editor").then((module) => ({
+    default: module.AuditDocumentEditorPage,
+  })),
+);
 const AuditMetricsPage = lazy(() =>
   import("./pages/audit-metrics").then((module) => ({
     default: module.AuditMetricsPage,
@@ -400,6 +405,16 @@ export function App() {
             }
           />
 
+          <Route
+            path="controle-interno/documentos/:id/editar"
+            element={
+              <RequireAccess rule={accessRules.auditDocuments}>
+                <Suspense fallback={<PageFallback />}>
+                  <AuditDocumentEditorPage />
+                </Suspense>
+              </RequireAccess>
+            }
+          />
           <Route
             path="controle-interno/indicadores"
             element={

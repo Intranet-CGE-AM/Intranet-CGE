@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   CheckCircle,
   DownloadSimple,
+  PencilSimple,
   PencilSimpleLine,
   UploadSimple,
   XCircle,
@@ -59,6 +60,7 @@ const eventLabels: Record<AuditDocumentEvent["type"], string> = {
   approved: "Documento aprovado",
   cancelled: "Documento cancelado",
   reopened: "Documento reaberto",
+  edited: "Versão editada pela Subcontroladoria",
   read: "Visualizado",
 };
 
@@ -199,6 +201,15 @@ export function AuditDocumentPage() {
               >
                 <PencilSimpleLine aria-hidden="true" size={16} />
                 Solicitar correção
+              </Button>
+            ) : null}
+            {latest?.kind === "docx" &&
+            (allows("edit_version") || allows("submit_version")) ? (
+              <Button asChild variant="secondary">
+                <Link to={`/controle-interno/documentos/${document.id}/editar`}>
+                  <PencilSimple aria-hidden="true" size={16} />
+                  Editar no navegador
+                </Link>
               </Button>
             ) : null}
             {allows("submit_version") ? (
@@ -351,6 +362,9 @@ export function AuditDocumentPage() {
                     <p className="min-w-40 break-words">{file.fileName}</p>
                     <p className="text-xs text-[var(--text-faint)]">
                       {file.kind.toUpperCase()} · {formatSize(file.size)}
+                      {file.source === "editor"
+                        ? " · editado no navegador"
+                        : ""}
                     </p>
                   </TableCell>
                   <TableCell>{file.uploadedByName}</TableCell>
