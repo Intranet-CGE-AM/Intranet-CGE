@@ -520,7 +520,9 @@ export const inboxRoutes: FastifyPluginAsync<{
           }
         }),
         source("audit_document", async () => {
-          const latestUploader = sql<string>`(select f.uploaded_by_account_id from ${auditDocumentFiles} f where f.document_id = ${auditDocuments.id} and f.uploaded_as = 'team' and f.number = (select max(l.number) from ${auditDocumentFiles} l where l.document_id = f.document_id))`;
+          // Qualified by hand: in a single-table select Drizzle renders
+          // ${auditDocuments.id} as a bare "id", which binds to f.id here.
+          const latestUploader = sql<string>`(select f.uploaded_by_account_id from ${auditDocumentFiles} f where f.document_id = ${auditDocuments}.id and f.uploaded_as = 'team' and f.number = (select max(l.number) from ${auditDocumentFiles} l where l.document_id = f.document_id))`;
           const rows = await db
             .select({
               id: auditDocuments.id,
