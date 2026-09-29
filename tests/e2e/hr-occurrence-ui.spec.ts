@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { chooseOption, clientHeaders, expect, test } from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -89,9 +89,11 @@ test("servidor envia ocorrência com comprovante e chefia decide sem dados priva
     await page
       .getByRole("button", { name: "Nova ocorrência", exact: true })
       .click();
-    await page
-      .getByLabel("Tipo de ocorrência")
-      .selectOption({ label: "Ausência justificada da interface" });
+    await chooseOption(
+      page,
+      "Tipo de ocorrência",
+      "Ausência justificada da interface",
+    );
     await page.getByLabel("Data inicial").fill("2034-04-10");
     await page.getByLabel("Data final").fill("2034-04-12");
     await page

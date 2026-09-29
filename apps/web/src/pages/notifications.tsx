@@ -1,8 +1,11 @@
 import type { NotificationPage } from "@cge/contracts";
-import { Alert, Button } from "@cge/ui";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState } from "@cge/ui";
 import { Bell } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 import { api } from "../lib/api";
 
 export function NotificationBell() {
@@ -95,22 +98,26 @@ export function NotificationsPage() {
     }
   }
   return (
-    <div className="max-w-4xl space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold">Notificações</h1>
-        <Button
-          variant="secondary"
-          disabled={busy || loading || !data?.unreadCount}
-          onClick={() => void read()}
-        >
-          Marcar todas como lidas
-        </Button>
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        eyebrow="Intranet CGE"
+        title="Notificações"
+        description="Avisos sobre solicitações, checklists e outras atividades do seu trabalho."
+        actions={
+          <Button
+            variant="secondary"
+            disabled={busy || loading || !data?.unreadCount}
+            onClick={() => void read()}
+          >
+            Marcar todas como lidas
+          </Button>
+        }
+      />
       {error ? (
         <Alert title="Não foi possível concluir" tone="danger">
           {error}
           <Button
-            variant="quiet"
+            variant="secondary"
             disabled={busy || loading}
             onClick={() => {
               setError("");
@@ -121,65 +128,79 @@ export function NotificationsPage() {
           </Button>
         </Alert>
       ) : null}
-      {loading && <p role="status">Carregando notificações…</p>}
+      {loading && <LoadingState label="Carregando notificações…" />}
       {!data ? null : !data.notifications.length ? (
-        <p>Nenhuma notificação por enquanto.</p>
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
+          <EmptyState
+            title="Sem notificações"
+            description="Nenhuma notificação por enquanto."
+          />
+        </Card>
       ) : (
-        <ul className="divide-y divide-[var(--border)]">
-          {data.notifications.map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 py-5"
-            >
-              <div className="min-w-0 space-y-2">
-                <Link
-                  className="font-semibold underline underline-offset-4"
-                  to={item.href}
-                >
-                  {item.title}
-                </Link>
-                <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
-                  {item.message}
-                </p>
-                <p className="text-sm text-[var(--text-muted)]">
-                  {new Date(item.createdAt).toLocaleString("pt-BR", {
-                    timeZone: "America/Manaus",
-                  })}{" "}
-                  · {item.readAt ? "Lida" : "Não lida"}
-                </p>
-              </div>
-              {!item.readAt ? (
-                <Button
-                  variant="quiet"
-                  disabled={busy || loading}
-                  onClick={() => void read(item.id)}
-                >
-                  Marcar como lida
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
+          <ul className="divide-y divide-[var(--border)]">
+            {data.notifications.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      className="font-semibold underline underline-offset-4"
+                      to={item.href}
+                    >
+                      {item.title}
+                    </Link>
+                    {!item.readAt ? <Badge variant="brand">Nova</Badge> : null}
+                  </div>
+                  <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
+                    {item.message}
+                  </p>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    {new Date(item.createdAt).toLocaleString("pt-BR", {
+                      timeZone: "America/Manaus",
+                    })}{" "}
+                    · {item.readAt ? "Lida" : "Não lida"}
+                  </p>
+                </div>
+                {!item.readAt ? (
+                  <Button
+                    variant="quiet"
+                    disabled={busy || loading}
+                    onClick={() => void read(item.id)}
+                  >
+                    Marcar como lida
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
-      {page > 1 || data?.hasMore ? (
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={busy || loading || page === 1}
-            onClick={() => void load(page - 1)}
-          >
-            Anterior
-          </Button>
-          <span>Página {page}</span>
-          <Button
-            variant="secondary"
-            disabled={busy || loading || !data?.hasMore}
-            onClick={() => void load(page + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
-      ) : null}
+      <Pagination
+        label="Páginas de notificações"
+        page={page}
+        hasMore={Boolean(data?.hasMore)}
+        disabled={busy || loading}
+        onPageChange={(n) => void load(n)}
+      />
     </div>
   );
 }

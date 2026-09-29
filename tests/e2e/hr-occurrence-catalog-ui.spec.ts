@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 test.use({ actionTimeout: 15000 });
@@ -34,9 +34,11 @@ test("RH configura exigências e desativa tipo de ocorrência pela interface", a
     .fill("Registro administrativo configurado");
   await page.getByLabel("Exigir análise da chefia").uncheck();
   await page.getByLabel("Exigir comprovante").check();
-  await page.getByLabel("Política documental").selectOption({
-    label: "Política de comprovantes da interface · Sensível",
-  });
+  await chooseOption(
+    page,
+    "Política documental",
+    "Política de comprovantes da interface · Sensível",
+  );
   await page.getByRole("button", { name: "Salvar tipo", exact: true }).click();
   await expect(page.getByText("Tipo salvo.", { exact: true })).toBeVisible();
   const types = (await (await page.request.get("/api/occurrence-types")).json())
@@ -51,7 +53,7 @@ test("RH configura exigências e desativa tipo de ocorrência pela interface", a
     requiresRH: true,
     requiresDocument: true,
   });
-  await page.getByLabel("Tipo para administrar").selectOption(item.id);
+  await chooseOption(page, "Tipo para administrar", item.name);
   await page.getByLabel("Tipo ativo").uncheck();
   await page.getByRole("button", { name: "Salvar tipo", exact: true }).click();
   await expect(page.getByText("Tipo salvo.", { exact: true })).toBeVisible();

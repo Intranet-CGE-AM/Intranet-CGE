@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 
 test.use({ actionTimeout: 15_000 });
 test("RH registra novo cargo e consulta antes/depois no histórico", async ({
@@ -53,11 +53,13 @@ test("RH registra novo cargo e consulta antes/depois no histórico", async ({
     page.getByRole("heading", { name: "Histórico funcional", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Tentar carregar opções" }).click();
-  await page.getByLabel("Tipo de movimentação").selectOption("unitId");
-  await expect(
-    page.getByLabel("Nova unidade").locator("option"),
-  ).not.toHaveCount(1);
-  await page.getByLabel("Tipo de movimentação").selectOption("jobTitle");
+  await chooseOption(page, "Tipo de movimentação", "Unidade");
+  await page
+    .getByRole("combobox", { name: "Nova unidade", exact: true })
+    .click();
+  await expect(page.getByRole("option")).not.toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await chooseOption(page, "Tipo de movimentação", "Cargo");
   await page.getByLabel("Novo cargo").fill("Analista especializado");
   await page.getByLabel("Vigência").fill("2026-09-07");
   await page

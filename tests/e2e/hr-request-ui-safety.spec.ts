@@ -1,4 +1,5 @@
 import {
+  chooseOption,
   clientHeaders,
   expect,
   test,
@@ -159,7 +160,7 @@ test("resposta atrasada da lista pessoal não substitui a fila selecionada", asy
     await expect(
       page.getByText(record.protocol, { exact: true }),
     ).toBeVisible();
-    await page.getByLabel("Filtrar por situação").selectOption("submitted");
+    await chooseOption(page, "Filtrar por situação", "Enviada");
     await expect(
       page.getByText(record.protocol, { exact: true }),
     ).toBeVisible();

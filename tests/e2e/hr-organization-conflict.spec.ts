@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 test.use({ actionTimeout: 15000 });
 
 test("conflitos de associação e hierarquia preservam a intenção e pedem novo salvamento", async ({
@@ -50,11 +50,11 @@ test("conflitos de associação e hierarquia preservam a intenção e pedem novo
     positions.push(await response.json());
   }
   await page.goto("/rh/estrutura");
-  await page.getByLabel("Unidade consultada").selectOption(unit.id);
+  await chooseOption(page, "Unidade consultada", unit.name);
   const row = page
     .getByRole("row")
     .filter({ hasText: "Pessoa com associação concorrente" });
-  await row.getByLabel("Cargo do quadro").selectOption(positions[0].id);
+  await chooseOption(row, "Cargo do quadro", "INTENT — Cargo pretendido");
   expect(
     (
       await page.request.post(
@@ -70,7 +70,9 @@ test("conflitos de associação e hierarquia preservam a intenção e pedem novo
   await page
     .getByRole("button", { name: "Atualizar dados sem perder edição" })
     .click();
-  await expect(row.getByLabel("Cargo do quadro")).toHaveValue(positions[0].id);
+  await expect(
+    row.getByRole("combobox", { name: "Cargo do quadro", exact: true }),
+  ).toHaveText("INTENT — Cargo pretendido");
   await expect(row).toContainText("Associação atual: Cargo paralelo.");
   async function currentUnit() {
     const view = await (await page.request.get("/api/organization")).json();
@@ -89,9 +91,7 @@ test("conflitos de associação e hierarquia preservam a intenção e pedem novo
     version: 3,
   });
   await page.getByRole("button", { name: "Alterar unidade superior" }).click();
-  await page
-    .getByLabel("Unidade superior")
-    .selectOption({ label: "Tecnologia da Informação" });
+  await chooseOption(page, "Unidade superior", "Tecnologia da Informação");
   const parallel = options.units.find(
     (item: { name: string }) => item.name === "Controle Interno",
   );
@@ -114,7 +114,7 @@ test("conflitos de associação e hierarquia preservam a intenção e pedem novo
   ).toBeVisible();
   expect((await currentUnit()).parentId).toBe(parallel.id);
   await expect(
-    page.getByLabel("Unidade superior").locator("option:checked"),
+    page.getByRole("combobox", { name: "Unidade superior", exact: true }),
   ).toHaveText("Tecnologia da Informação");
   await page.getByRole("button", { name: "Salvar hierarquia" }).click();
   await expect(
@@ -161,7 +161,7 @@ test("conflito de cargo atualiza a referência sem perder edição nem salvar au
   expect(created.status()).toBe(201);
   const position = await created.json();
   await page.goto("/rh/estrutura");
-  await page.getByLabel("Unidade consultada").selectOption(unit.id);
+  await chooseOption(page, "Unidade consultada", unit.name);
   await page.getByRole("button", { name: "Editar cargo", exact: true }).click();
   await page.getByLabel("Nome do cargo").fill("Cargo digitado e preservado");
   expect(

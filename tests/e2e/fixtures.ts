@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { test as base } from "@playwright/test";
+import { test as base, type Locator, type Page } from "@playwright/test";
 
 export * from "@playwright/test";
 
@@ -56,3 +56,23 @@ export type E2EUser = {
     category: { id: string };
   };
 };
+
+// Picks an option in a @cge/ui Select or SearchableSelect (Radix combobox),
+// the way a user does: open the field, search when it offers a box, click.
+export async function chooseOption(
+  scope: Page | Locator,
+  field: string,
+  option: string | RegExp,
+) {
+  const page = "mainFrame" in scope ? scope : scope.page();
+  await scope.getByRole("combobox", { name: field, exact: true }).click();
+  const search = page.getByRole("combobox", { name: "Pesquisar opções" });
+  if (typeof option === "string" && (await search.isVisible()))
+    await search.fill(option);
+  await page
+    .getByRole("option", {
+      name: option,
+      ...(typeof option === "string" ? { exact: true } : {}),
+    })
+    .click();
+}

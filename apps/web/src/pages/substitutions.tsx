@@ -11,13 +11,21 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   Textarea,
 } from "@cge/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, ApiError, json } from "../lib/api";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 
 const flows: Record<SubstitutionInput["flows"][number], string> = {
   "vacations.review.supervisor": "Férias — análise da chefia",
@@ -198,9 +206,9 @@ function SubstitutionForm({
   });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const unitRef = useRef<HTMLSelectElement>(null);
   useEffect(() => {
-    unitRef.current?.focus();
+    // FieldSelect does not forward refs: focus the Radix trigger by id.
+    document.getElementById("sub-unit")?.focus();
   }, []);
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -236,146 +244,162 @@ function SubstitutionForm({
     }
   }
   return (
-    <form
-      onSubmit={save}
-      aria-label={initial ? "Editar substituição" : "Nova substituição"}
-      className="space-y-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-    >
-      <h2 className="text-lg font-bold">
-        {initial ? "Editar substituição" : "Nova substituição"}
-      </h2>
-      <p className="text-sm text-[var(--text-muted)]">
-        A cobertura vale somente nos fluxos e no período selecionados.
-        Permissões de documentos sigilosos não são transferidas.
-      </p>
-      <fieldset disabled={pending} className="space-y-4">
-        <FormField label="Unidade da substituição" htmlFor="sub-unit">
-          <select
-            ref={unitRef}
-            id="sub-unit"
-            required
-            className="min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-            value={input.unitId}
-            onChange={(event) => {
-              setInput({ ...input, unitId: event.target.value });
-              setOriginal({ id: "", name: "" });
-              setSubstitute({ id: "", name: "" });
-            }}
-          >
-            <option value="">Selecione a unidade</option>
-            {units
-              .filter((unit) => unit.active || unit.id === input.unitId)
-              .map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-          </select>
-        </FormField>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <AccountChoice
-            label="Responsável original"
-            id="sub-original"
-            unitId={input.unitId}
-            value={original}
-            onChange={setOriginal}
-          />
-          <AccountChoice
-            label="Substituto"
-            id="sub-recipient"
-            unitId={input.unitId}
-            value={substitute}
-            onChange={setSubstitute}
-          />
-          <FormField label="Início da substituição" htmlFor="sub-start">
-            <DateInput
-              id="sub-start"
-              required
-              value={input.startsOn}
-              onChange={(event) =>
-                setInput({ ...input, startsOn: event.target.value })
-              }
-            />
-          </FormField>
-          <FormField label="Fim da substituição" htmlFor="sub-end">
-            <DateInput
-              id="sub-end"
-              required
-              min={input.startsOn}
-              value={input.endsOn}
-              onChange={(event) =>
-                setInput({ ...input, endsOn: event.target.value })
-              }
-            />
-          </FormField>
-        </div>
-        <fieldset>
-          <legend className="mb-2 text-sm font-semibold">
-            Fluxos que serão cobertos
-          </legend>
-          <div className="grid gap-x-4 sm:grid-cols-2">
-            {Object.entries(flows).map(([key, label]) => (
-              <label
-                key={key}
-                className="flex min-h-11 items-center gap-3 py-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  className="size-4 shrink-0 accent-[var(--brand)]"
-                  checked={input.flows.includes(
-                    key as SubstitutionInput["flows"][number],
-                  )}
+    <Card>
+      <CardHeader>
+        <h2 className="font-bold">
+          {initial ? "Editar substituição" : "Nova substituição"}
+        </h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          A cobertura vale somente nos fluxos e no período selecionados.
+          Permissões de documentos sigilosos não são transferidas.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={save}
+          aria-label={initial ? "Editar substituição" : "Nova substituição"}
+          className="space-y-5"
+        >
+          <fieldset disabled={pending} className="space-y-4">
+            <FormField label="Unidade da substituição" htmlFor="sub-unit">
+              <FieldSelect
+                id="sub-unit"
+                required
+                placeholder="Selecione a unidade"
+                value={input.unitId}
+                onValueChange={(value) => {
+                  setInput({ ...input, unitId: value });
+                  setOriginal({ id: "", name: "" });
+                  setSubstitute({ id: "", name: "" });
+                }}
+                options={units
+                  .filter((unit) => unit.active || unit.id === input.unitId)
+                  .map((unit) => ({ value: unit.id, label: unit.name }))}
+              />
+            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <AccountChoice
+                label="Responsável original"
+                id="sub-original"
+                unitId={input.unitId}
+                value={original}
+                onChange={setOriginal}
+              />
+              <AccountChoice
+                label="Substituto"
+                id="sub-recipient"
+                unitId={input.unitId}
+                value={substitute}
+                onChange={setSubstitute}
+              />
+              <FormField label="Início da substituição" htmlFor="sub-start">
+                <DateInput
+                  id="sub-start"
+                  required
+                  value={input.startsOn}
                   onChange={(event) =>
-                    setInput({
-                      ...input,
-                      flows: event.target.checked
-                        ? [
-                            ...input.flows,
-                            key as SubstitutionInput["flows"][number],
-                          ]
-                        : input.flows.filter((flow) => flow !== key),
-                    })
+                    setInput({ ...input, startsOn: event.target.value })
                   }
                 />
-                {label}
-              </label>
-            ))}
+              </FormField>
+              <FormField label="Fim da substituição" htmlFor="sub-end">
+                <DateInput
+                  id="sub-end"
+                  required
+                  min={input.startsOn}
+                  value={input.endsOn}
+                  onChange={(event) =>
+                    setInput({ ...input, endsOn: event.target.value })
+                  }
+                />
+              </FormField>
+            </div>
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">
+                Fluxos que serão cobertos
+              </legend>
+              <div className="grid gap-x-4 sm:grid-cols-2">
+                {Object.entries(flows).map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="flex min-h-11 items-center gap-3 py-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0 accent-[var(--brand)]"
+                      checked={input.flows.includes(
+                        key as SubstitutionInput["flows"][number],
+                      )}
+                      onChange={(event) =>
+                        setInput({
+                          ...input,
+                          flows: event.target.checked
+                            ? [
+                                ...input.flows,
+                                key as SubstitutionInput["flows"][number],
+                              ]
+                            : input.flows.filter((flow) => flow !== key),
+                        })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <FormField label="Motivo" htmlFor="sub-reason">
+              <Textarea
+                id="sub-reason"
+                required
+                minLength={10}
+                maxLength={2000}
+                rows={3}
+                value={input.reason}
+                onChange={(event) =>
+                  setInput({ ...input, reason: event.target.value })
+                }
+              />
+            </FormField>
+          </fieldset>
+          {error && (
+            <Alert title="Substituição não salva" tone="danger">
+              {error}
+            </Alert>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={pending} type="submit">
+              {pending ? "Salvando…" : "Salvar substituição"}
+            </Button>
+            <Button
+              disabled={pending}
+              variant="secondary"
+              type="button"
+              onClick={onClose}
+            >
+              Fechar formulário
+            </Button>
           </div>
-        </fieldset>
-        <FormField label="Motivo" htmlFor="sub-reason">
-          <Textarea
-            id="sub-reason"
-            required
-            minLength={10}
-            maxLength={2000}
-            rows={3}
-            value={input.reason}
-            onChange={(event) =>
-              setInput({ ...input, reason: event.target.value })
-            }
-          />
-        </FormField>
-      </fieldset>
-      {error && (
-        <Alert title="Substituição não salva" tone="danger">
-          {error}
-        </Alert>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={pending} type="submit">
-          {pending ? "Salvando…" : "Salvar substituição"}
-        </Button>
-        <Button
-          disabled={pending}
-          variant="secondary"
-          type="button"
-          onClick={onClose}
-        >
-          Fechar formulário
-        </Button>
-      </div>
-    </form>
+        </form>
+      </CardContent>
+    </Card>
   );
+}
+
+const statusVariants = {
+  Vigente: "success",
+  Programada: "warning",
+  Encerrada: "neutral",
+  Cancelada: "danger",
+} as const;
+function statusOf(record: Substitution) {
+  const label = record.cancelledAt
+    ? "Cancelada"
+    : record.startsOn > today()
+      ? "Programada"
+      : record.endsOn < today()
+        ? "Encerrada"
+        : "Vigente";
+  return { label, variant: statusVariants[label] };
 }
 
 export function SubstitutionsPage() {
@@ -430,34 +454,26 @@ export function SubstitutionsPage() {
     }
   }
   return (
-    <div className="space-y-6 pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Substituições temporárias
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Mantenha os atendimentos em andamento durante ausências.
-          </p>
-        </div>
-        <Button
-          ref={newButton}
-          disabled={!data || pending || editor !== undefined}
-          onClick={() => {
-            setCancelId("");
-            setMutationError("");
-            setEditor(null);
-            setNotice("");
-          }}
-        >
-          Nova substituição
-        </Button>
-      </header>
-      {notice && (
-        <p role="status" className="text-sm font-semibold">
-          {notice}
-        </p>
-      )}
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Substituições temporárias"
+        description="Mantenha os atendimentos em andamento durante ausências."
+        actions={
+          <Button
+            ref={newButton}
+            disabled={!data || pending || editor !== undefined}
+            onClick={() => {
+              setCancelId("");
+              setMutationError("");
+              setEditor(null);
+              setNotice("");
+            }}
+          >
+            Nova substituição
+          </Button>
+        }
+      />
+      {notice && <Alert title={notice} tone="success" />}
       {editor !== undefined && data && (
         <SubstitutionForm
           key={editor?.id ?? "new"}
@@ -499,7 +515,7 @@ export function SubstitutionsPage() {
             </Button>
           </Alert>
         ) : !data ? (
-          <p role="status">Carregando substituições…</p>
+          <LoadingState label="Carregando substituições…" />
         ) : (
           <>
             {mutationError && (
@@ -515,14 +531,8 @@ export function SubstitutionsPage() {
                       <h3 className="font-bold">
                         {record.substituteName} substitui {record.originalName}
                       </h3>
-                      <Badge>
-                        {record.cancelledAt
-                          ? "Cancelada"
-                          : record.startsOn > today()
-                            ? "Programada"
-                            : record.endsOn < today()
-                              ? "Encerrada"
-                              : "Vigente"}
+                      <Badge variant={statusOf(record).variant}>
+                        {statusOf(record).label}
                       </Badge>
                     </div>
                     <p className="text-sm text-[var(--text-muted)]">
@@ -588,27 +598,18 @@ export function SubstitutionsPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[var(--text-muted)]">
-                Nenhuma substituição cadastrada no seu escopo.
-              </p>
+              <EmptyState
+                title="Nenhuma substituição ainda"
+                description="Nenhuma substituição cadastrada no seu escopo."
+              />
             )}
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="secondary"
-                disabled={page === 1 || pending || editor !== undefined}
-                onClick={() => setPage((current) => current - 1)}
-              >
-                Página anterior
-              </Button>
-              <span className="text-sm">Página {page}</span>
-              <Button
-                variant="secondary"
-                disabled={!data.hasMore || pending || editor !== undefined}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Próxima página
-              </Button>
-            </div>
+            <Pagination
+              label="Páginas de substituições"
+              page={page}
+              hasMore={data.hasMore}
+              disabled={pending || editor !== undefined}
+              onPageChange={setPage}
+            />
           </>
         )}
       </section>

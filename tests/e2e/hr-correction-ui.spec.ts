@@ -1,4 +1,4 @@
-import { clientHeaders } from "./fixtures";
+import { chooseOption, clientHeaders } from "./fixtures";
 import { expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -53,7 +53,7 @@ test("servidor propõe nome preferido e vê a comparação sem alterar cadastro"
       } else await route.continue();
     });
     await page.goto("/rh/solicitacoes");
-    await page.getByLabel("Tipo de solicitação").selectOption("correction");
+    await chooseOption(page, "Tipo de solicitação", "Correção cadastral");
     await page
       .getByRole("button", { name: "Tentar carregar cadastro" })
       .click();
@@ -150,7 +150,7 @@ test("chefe selecionado mantém o nome correto quando sai dos resultados da pesq
     );
     expect(alternative).toBeTruthy();
     await page.goto("/rh/solicitacoes");
-    await page.getByLabel("Tipo de solicitação").selectOption("correction");
+    await chooseOption(page, "Tipo de solicitação", "Correção cadastral");
     await page.getByText("Corrigir dados do vínculo", { exact: true }).click();
     const select = page.getByRole("combobox", { name: "Chefia proposta" });
     await select.click();
@@ -165,7 +165,7 @@ test("chefe selecionado mantém o nome correto quando sai dos resultados da pesq
         item.url().includes("/api/employment-options?") &&
         item.url().includes(`unitId=${destination.id}`),
     );
-    await page.getByLabel("Unidade proposta").selectOption(destination.id);
+    await chooseOption(page, "Unidade proposta", destination.name);
     await response;
     await expect(select).toHaveText(alternative.name);
     await expect(

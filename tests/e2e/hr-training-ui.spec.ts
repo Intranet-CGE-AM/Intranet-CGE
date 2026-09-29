@@ -1,4 +1,4 @@
-import { clientHeaders, expect, test } from "./fixtures";
+import { chooseOption, clientHeaders, expect, test } from "./fixtures";
 import { blankPdf } from "./pdf-fixture.js";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -57,9 +57,11 @@ test("servidor envia certificado, RH valida e capacitação aparece no dossiê",
       admin.getByRole("heading", { name: "Capacitações", exact: true }),
     ).toBeVisible();
     await admin.getByText("Configurar certificados", { exact: true }).click();
-    await admin
-      .getByLabel("Política documental dos certificados")
-      .selectOption({ label: "Certificado da interface" });
+    await chooseOption(
+      admin,
+      "Política documental dos certificados",
+      "Certificado da interface",
+    );
     await admin.getByRole("button", { name: "Salvar configuração" }).click();
     await expect(
       admin.getByText("Configuração salva.", { exact: true }),

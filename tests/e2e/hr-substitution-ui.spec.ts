@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { clientHeaders, expect, test } from "./fixtures";
+import { chooseOption, clientHeaders, expect, test } from "./fixtures";
 
 test("RH cadastra, altera e cancela substituição com campos claros e recuperação por teclado", async ({
   page,
@@ -22,9 +22,11 @@ test("RH cadastra, altera e cancela substituição com campos claros e recupera�
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Nova substituição" }).click();
-  await page
-    .getByLabel("Unidade da substituição")
-    .selectOption({ label: "Tecnologia da Informação" });
+  await chooseOption(
+    page,
+    "Unidade da substituição",
+    "Tecnologia da Informação",
+  );
   await page.getByLabel("Responsável original").fill("Helena");
   await page
     .getByRole("button", { name: "Selecionar Helena Monteiro" })

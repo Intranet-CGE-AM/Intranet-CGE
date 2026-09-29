@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 
 test.use({ actionTimeout: 15000 });
 test("RH publica comunicado simples e colaborador lê no início e confirma ciência por teclado", async ({
@@ -40,7 +40,7 @@ test("RH publica comunicado simples e colaborador lê no início e confirma ciê
   await page
     .getByLabel("Expiração (horário de Manaus)")
     .fill("2040-12-31T18:00");
-  await page.getByLabel("Público", { exact: true }).selectOption("units");
+  await chooseOption(page, "Público", "Unidades selecionadas");
   await page
     .getByRole("checkbox", { name: "Tecnologia da Informação", exact: true })
     .check();

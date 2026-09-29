@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { chooseOption, expect, test } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 test("RH consulta indicadores por período e recupera falha sem mostrar totais antigos", async ({
@@ -46,16 +46,14 @@ test("RH consulta indicadores por período e recupera falha sem mostrar totais a
       fullPage: true,
     });
   }
-  await page
-    .getByLabel("Unidade")
-    .selectOption({ label: "Tecnologia da Informação" });
+  await chooseOption(page, "Unidade", "Tecnologia da Informação");
   await page.getByRole("button", { name: "Consultar indicadores" }).click();
   await expect(
     page.getByText("Unidade consultada: Tecnologia da Informação", {
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByLabel("Unidade").selectOption({ label: "Controle Interno" });
+  await chooseOption(page, "Unidade", "Controle Interno");
   await expect(
     page.getByText("Unidade consultada: Tecnologia da Informação", {
       exact: true,

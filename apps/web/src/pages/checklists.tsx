@@ -1,15 +1,34 @@
 // Operação: iniciar a partir de um modelo e resolver providências em uma lista.
 // Extensão institucional: formulários nativos, configuração recolhida e progresso textual.
 import { type Checklist, type OnboardingTemplate } from "@cge/contracts";
-import { Alert, Button, FormField, Input, Textarea } from "@cge/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
+  FormField,
+  Input,
+  SearchableSelect,
+  Textarea,
+} from "@cge/ui";
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
 import { useAuth } from "../auth";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 import { api, ApiError, json } from "../lib/api";
 import { can, canGlobally } from "../lib/permissions";
 
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm";
+const itemStatus = {
+  pending: { label: "Pendente", variant: "warning" },
+  completed: { label: "Concluído", variant: "success" },
+  waived: { label: "Dispensado", variant: "neutral" },
+} as const;
 const message = (error: unknown) =>
   error instanceof ApiError
     ? error.message
@@ -167,20 +186,17 @@ function TemplateEditor({
                   />
                 </FormField>
                 <FormField label="Tipo do checklist" htmlFor="modelKind">
-                  <select
+                  <FieldSelect
                     id="modelKind"
-                    className={selectClass}
+                    options={[
+                      { value: "entry", label: "Ingresso" },
+                      { value: "exit", label: "Desligamento" },
+                    ]}
                     value={draft.kind}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        kind: e.target.value as ModelInput["kind"],
-                      })
+                    onValueChange={(kind) =>
+                      setDraft({ ...draft, kind: kind as ModelInput["kind"] })
                     }
-                  >
-                    <option value="entry">Ingresso</option>
-                    <option value="exit">Desligamento</option>
-                  </select>
+                  />
                 </FormField>
               </div>
               <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -255,7 +271,7 @@ function TemplateEditor({
                         variant="quiet"
                         disabled={index === 0}
                         onClick={() => move(index, -1)}
-                        aria-label={`Mover item ${index + 1} para cima`}
+                        aria-label={`Subir item ${index + 1}`}
                       >
                         Subir
                       </Button>
@@ -264,7 +280,7 @@ function TemplateEditor({
                         variant="quiet"
                         disabled={index === draft.items.length - 1}
                         onClick={() => move(index, 1)}
-                        aria-label={`Mover item ${index + 1} para baixo`}
+                        aria-label={`Descer item ${index + 1}`}
                       >
                         Descer
                       </Button>
@@ -309,7 +325,7 @@ function TemplateEditor({
             {error}
           </Alert>
         )}
-        {success && <p role="status">{success}</p>}
+        {success && <Alert tone="success" title={success} />}
       </div>
     </details>
   );
@@ -394,158 +410,149 @@ function StartChecklist({
     }
   }
   return (
-    <form
-      onSubmit={start}
-      className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-    >
-      <fieldset disabled={busy} className="space-y-4">
-        <legend className="mb-3 text-lg font-bold">Iniciar execução</legend>
-        <FormField
-          label="Buscar colaborador"
-          htmlFor="checklistSearch"
-          hint="Até 50 vínculos por busca, nas suas unidades autorizadas."
-        >
-          <Input
-            id="checklistSearch"
-            maxLength={120}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </FormField>
-        <FormField label="Colaborador" htmlFor="checklistPerson">
-          <select
-            id="checklistPerson"
-            className={selectClass}
-            required
-            value={person?.employmentId ?? ""}
-            onChange={(e) =>
-              setPerson(
-                people.find((item) => item.employmentId === e.target.value) ??
-                  null,
-              )
-            }
-          >
-            <option value="">Selecione o vínculo</option>
-            {[
-              ...people,
-              ...(person &&
-              !people.some((item) => item.employmentId === person.employmentId)
-                ? [person]
-                : []),
-            ].map((item) => (
-              <option key={item.employmentId} value={item.employmentId}>
-                {item.name} · {item.unitName}
-                {item.endDate ? " · Encerrado" : ""}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="Modelo" htmlFor="checklistModel">
-          <select
-            id="checklistModel"
-            className={selectClass}
-            required
-            value={templateId}
-            onChange={(e) => {
-              setTemplateId(e.target.value);
-              setAssignments({});
-            }}
-          >
-            <option value="">Selecione o modelo</option>
-            {templates
-              .filter(
-                (item) =>
-                  item.active && item.items.some((entry) => entry.active),
-              )
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-          </select>
-        </FormField>
-        {model && (
-          <>
+    <Card>
+      <CardContent>
+        <form onSubmit={start} className="space-y-4">
+          <fieldset disabled={busy} className="space-y-4">
+            <legend className="mb-3 text-lg font-bold">Iniciar execução</legend>
             <FormField
-              label="Buscar responsável"
-              htmlFor="assigneeSearch"
-              hint="Busque pelo nome caso o responsável não apareça nas primeiras 50 opções."
+              label="Buscar colaborador"
+              htmlFor="checklistSearch"
+              hint="Até 50 vínculos por busca, nas suas unidades autorizadas."
             >
               <Input
-                id="assigneeSearch"
+                id="checklistSearch"
                 maxLength={120}
-                value={assigneeQuery}
-                onChange={(e) => setAssigneeQuery(e.target.value)}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </FormField>
-            {model.items.map(
-              (item, index) =>
-                item.active && (
-                  <FormField
-                    key={index}
-                    label={`Responsável por: ${item.title}`}
-                    htmlFor={`assignee${index}`}
-                    hint={`${item.area} · ${item.required ? "Obrigatório" : "Opcional"}`}
-                  >
-                    <select
-                      id={`assignee${index}`}
-                      className={selectClass}
-                      required
-                      value={assignments[index] ?? ""}
-                      onChange={(e) => {
-                        setAssignments({
-                          ...assignments,
-                          [index]: e.target.value,
-                        });
-                        const account = options.find(
-                          (option) => option.id === e.target.value,
-                        );
-                        if (account)
-                          setSelectedAccounts((current) =>
-                            current.some((value) => value.id === account.id)
-                              ? current
-                              : [...current, account],
-                          );
-                      }}
-                    >
-                      <option value="">Selecione o responsável</option>
-                      {options.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.name}
-                          {account.unitName ? ` · ${account.unitName}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                ),
+            <FormField label="Colaborador" htmlFor="checklistPerson">
+              <SearchableSelect
+                id="checklistPerson"
+                name="checklistPerson"
+                required
+                placeholder="Selecione o vínculo"
+                options={[
+                  ...people,
+                  ...(person &&
+                  !people.some(
+                    (item) => item.employmentId === person.employmentId,
+                  )
+                    ? [person]
+                    : []),
+                ].map((item) => ({
+                  value: item.employmentId,
+                  label: `${item.name} · ${item.unitName}${item.endDate ? " · Encerrado" : ""}`,
+                }))}
+                value={person?.employmentId ?? ""}
+                onValueChange={(employmentId) =>
+                  setPerson(
+                    people.find((item) => item.employmentId === employmentId) ??
+                      null,
+                  )
+                }
+              />
+            </FormField>
+            <FormField label="Modelo" htmlFor="checklistModel">
+              <FieldSelect
+                id="checklistModel"
+                required
+                placeholder="Selecione o modelo"
+                options={templates
+                  .filter(
+                    (item) =>
+                      item.active && item.items.some((entry) => entry.active),
+                  )
+                  .map((item) => ({ value: item.id, label: item.name }))}
+                value={templateId}
+                onValueChange={(id) => {
+                  setTemplateId(id);
+                  setAssignments({});
+                }}
+              />
+            </FormField>
+            {model && (
+              <>
+                <FormField
+                  label="Buscar responsável"
+                  htmlFor="assigneeSearch"
+                  hint="Busque pelo nome caso o responsável não apareça nas primeiras 50 opções."
+                >
+                  <Input
+                    id="assigneeSearch"
+                    maxLength={120}
+                    value={assigneeQuery}
+                    onChange={(e) => setAssigneeQuery(e.target.value)}
+                  />
+                </FormField>
+                {model.items.map(
+                  (item, index) =>
+                    item.active && (
+                      <FormField
+                        key={index}
+                        label={`Responsável por: ${item.title}`}
+                        htmlFor={`assignee${index}`}
+                        hint={`${item.area} · ${item.required ? "Obrigatório" : "Opcional"}`}
+                      >
+                        <SearchableSelect
+                          id={`assignee${index}`}
+                          name={`assignee${index}`}
+                          required
+                          placeholder="Selecione o responsável"
+                          options={options.map((account) => ({
+                            value: account.id,
+                            label: `${account.name}${account.unitName ? ` · ${account.unitName}` : ""}`,
+                          }))}
+                          value={assignments[index] ?? ""}
+                          onValueChange={(accountId) => {
+                            setAssignments({
+                              ...assignments,
+                              [index]: accountId,
+                            });
+                            const account = options.find(
+                              (option) => option.id === accountId,
+                            );
+                            if (account)
+                              setSelectedAccounts((current) =>
+                                current.some((value) => value.id === account.id)
+                                  ? current
+                                  : [...current, account],
+                              );
+                          }}
+                        />
+                      </FormField>
+                    ),
+                )}
+              </>
             )}
-          </>
-        )}
-        <Button
-          type="submit"
-          disabled={!person || !model || Boolean(lookupError)}
-        >
-          {busy ? "Iniciando…" : "Iniciar execução"}
-        </Button>
-      </fieldset>
-      {lookupError && (
-        <Alert tone="danger" title="Opções indisponíveis">
-          <p>{lookupError}</p>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            Tentar novamente
-          </Button>
-        </Alert>
-      )}
-      {error && (
-        <Alert tone="danger" title="Checklist não iniciado">
-          {error}
-        </Alert>
-      )}
-    </form>
+            <Button
+              type="submit"
+              disabled={!person || !model || Boolean(lookupError)}
+            >
+              {busy ? "Iniciando…" : "Iniciar execução"}
+            </Button>
+          </fieldset>
+          {lookupError && (
+            <Alert tone="danger" title="Opções indisponíveis">
+              <p>{lookupError}</p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setRevision((value) => value + 1)}
+              >
+                Tentar novamente
+              </Button>
+            </Alert>
+          )}
+          {error && (
+            <Alert tone="danger" title="Checklist não iniciado">
+              {error}
+            </Alert>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -672,16 +679,24 @@ export function ChecklistsPage() {
       ? [detail, ...records]
       : records;
   return (
-    <div className="space-y-6 pb-6">
-      <header>
-        <h1 className="text-2xl font-extrabold tracking-tight">
-          Checklists de ingresso e desligamento
-        </h1>
-        <p className="mt-1 max-w-prose text-sm text-[var(--text-muted)]">
-          Acompanhe as providências, seus responsáveis e o que ainda precisa ser
-          feito.
-        </p>
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Checklists de ingresso e desligamento"
+        description="Acompanhe as providências, seus responsáveis e o que ainda precisa ser feito."
+        actions={
+          manages ? (
+            <Button
+              variant={starting ? "secondary" : "primary"}
+              disabled={busy}
+              aria-expanded={starting}
+              aria-controls="startChecklist"
+              onClick={() => setStarting(!starting)}
+            >
+              {starting ? "Fechar novo checklist" : "Iniciar checklist"}
+            </Button>
+          ) : null
+        }
+      />
       {templateError && (
         <Alert tone="danger" title="Modelos indisponíveis">
           <p>{templateError}</p>
@@ -705,17 +720,6 @@ export function ChecklistsPage() {
           }
         />
       )}
-      {manages && (
-        <Button
-          variant={starting ? "secondary" : "primary"}
-          disabled={busy}
-          aria-expanded={starting}
-          aria-controls="startChecklist"
-          onClick={() => setStarting(!starting)}
-        >
-          {starting ? "Fechar novo checklist" : "Iniciar checklist"}
-        </Button>
-      )}
       {starting && (
         <div id="startChecklist">
           <StartChecklist
@@ -729,178 +733,207 @@ export function ChecklistsPage() {
           />
         </div>
       )}
-      {success && <p role="status">{success}</p>}
-      <div className="flex flex-wrap items-end gap-4">
-        <FormField label="Exibir checklists" htmlFor="checklistScope">
-          <select
-            id="checklistScope"
-            className={selectClass}
-            value={scope}
-            disabled={busy}
-            onChange={(e) => {
-              setScope(e.target.value);
-              setPage(1);
-              setParams({});
-            }}
-          >
-            <option value="mine">Meus checklists e atribuições</option>
-            {manages && <option value="team">Unidades autorizadas</option>}
-          </select>
-        </FormField>
-        <Button
-          variant="secondary"
-          disabled={busy || loading}
-          onClick={() => setRevision((value) => value + 1)}
-        >
-          Atualizar
-        </Button>
-      </div>
-      {loading && <p role="status">Carregando checklists…</p>}
-      {error && (
-        <Alert tone="danger" title="Consulta não realizada">
-          {error}
-        </Alert>
-      )}
-      {!loading && !error && !visibleRecords.length && (
-        <p>Nenhum checklist neste filtro.</p>
-      )}
-      <ul className="divide-y divide-[var(--border)]">
-        {visibleRecords.map((record) => (
-          <li key={record.id} className="space-y-3 py-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-bold">{record.name}</h2>
-                <p className="text-sm">
-                  {record.personName} ·{" "}
-                  {record.kind === "entry" ? "Ingresso" : "Desligamento"}
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                aria-expanded={checklistId === record.id}
-                aria-controls={`checklist-${record.id}`}
-                onClick={() =>
-                  setParams(
-                    checklistId === record.id ? {} : { checklistId: record.id },
-                  )
-                }
-              >
-                {checklistId === record.id
-                  ? "Recolher acompanhamento"
-                  : "Acompanhar checklist"}
-              </Button>
-            </div>
-            <p className="text-sm tabular-nums">
-              {record.progress.completed} de {record.progress.total} concluídos
-              · {record.progress.waived} dispensados · {record.progress.pending}{" "}
-              pendentes
+      {success && <Alert tone="success" title={success} />}
+      <Card>
+        <CardHeader>
+          <div>
+            <h2 className="font-bold">Checklists</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Acompanhamento por colaborador.
             </p>
-            {checklistId === record.id && (
-              <div id={`checklist-${record.id}`}>
-                {detailLoading && (
-                  <p role="status">Carregando acompanhamento…</p>
-                )}
-                {detail && (
-                  <ol className="divide-y divide-[var(--border)]">
-                    {detail.items.map((item) => (
-                      <li key={item.id} className="space-y-3 py-4">
-                        <h3 className="font-semibold">{item.title}</h3>
-                        <p className="text-sm">
-                          {item.area} · Responsável: {item.assigneeName} ·{" "}
-                          {item.required ? "Obrigatório" : "Opcional"}
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {
-                            {
-                              pending: "Pendente",
-                              completed: "Concluído",
-                              waived: "Dispensado",
-                            }[item.status]
-                          }
-                        </p>
-                        {item.completedAt && (
-                          <p className="text-sm text-[var(--text-muted)]">
-                            Registrado em{" "}
-                            {new Date(item.completedAt).toLocaleString(
-                              "pt-BR",
-                              { timeZone: "America/Manaus" },
-                            )}
-                          </p>
-                        )}
-                        {item.comment && (
-                          <p className="whitespace-pre-wrap break-words text-sm">
-                            {item.comment}
-                          </p>
-                        )}
-                        {item.canAct && (
-                          <div className="space-y-3">
-                            <Button
-                              disabled={busy}
-                              onClick={() => void act(item.id, "complete")}
-                            >
-                              Concluir
-                            </Button>
-                            <details>
-                              <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">
-                                Dispensar item
-                              </summary>
-                              <form
-                                className="max-w-xl space-y-3 py-3"
-                                onSubmit={(event) => {
-                                  event.preventDefault();
-                                  void act(
-                                    item.id,
-                                    "waive",
-                                    String(
-                                      new FormData(event.currentTarget).get(
-                                        "comment",
-                                      ) ?? "",
-                                    ),
-                                  );
-                                }}
-                              >
-                                <FormField
-                                  label="Justificativa da dispensa"
-                                  htmlFor={`waive-${item.id}`}
-                                  hint={
-                                    item.required
-                                      ? "Obrigatória para este item."
-                                      : "Opcional para este item."
-                                  }
-                                >
-                                  <Textarea
-                                    id={`waive-${item.id}`}
-                                    name="comment"
-                                    required={item.required}
-                                    minLength={2}
-                                    maxLength={2000}
-                                    disabled={busy}
-                                  />
-                                </FormField>
-                                <Button
-                                  type="submit"
-                                  variant="secondary"
-                                  disabled={busy}
-                                >
-                                  Confirmar dispensa
-                                </Button>
-                              </form>
-                            </details>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                )}
+          </div>
+        </CardHeader>
+        <div className="grid items-end gap-3 border-b border-[var(--border)] px-5 py-4 sm:grid-cols-[minmax(0,20rem)_auto]">
+          <FormField label="Exibir checklists" htmlFor="checklistScope">
+            <FieldSelect
+              id="checklistScope"
+              options={[
+                { value: "mine", label: "Meus checklists e atribuições" },
+                ...(manages
+                  ? [{ value: "team", label: "Unidades autorizadas" }]
+                  : []),
+              ]}
+              value={scope}
+              disabled={busy}
+              onValueChange={(next) => {
+                setScope(next);
+                setPage(1);
+                setParams({});
+              }}
+            />
+          </FormField>
+          <Button
+            className="justify-self-start"
+            variant="secondary"
+            disabled={busy || loading}
+            onClick={() => setRevision((value) => value + 1)}
+          >
+            Atualizar
+          </Button>
+        </div>
+        {loading && (
+          <div className="p-5">
+            <LoadingState label="Carregando checklists…" />
+          </div>
+        )}
+        {error && (
+          <div className="p-5">
+            <Alert tone="danger" title="Consulta não realizada">
+              {error}
+            </Alert>
+          </div>
+        )}
+        {!loading && !error && !visibleRecords.length && (
+          <EmptyState
+            title="Sem resultados para o filtro"
+            description="Nenhum checklist neste filtro."
+          />
+        )}
+        <ul className="divide-y divide-[var(--border)]">
+          {visibleRecords.map((record) => (
+            <li key={record.id} className="space-y-3 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold">{record.name}</h3>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                    <span>{record.personName}</span>
+                    <Badge variant="neutral">
+                      {record.kind === "entry" ? "Ingresso" : "Desligamento"}
+                    </Badge>
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  aria-expanded={checklistId === record.id}
+                  aria-controls={`checklist-${record.id}`}
+                  onClick={() =>
+                    setParams(
+                      checklistId === record.id
+                        ? {}
+                        : { checklistId: record.id },
+                    )
+                  }
+                >
+                  {checklistId === record.id
+                    ? "Recolher acompanhamento"
+                    : "Acompanhar checklist"}
+                </Button>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
+              <p className="flex flex-wrap items-center gap-2 text-sm tabular-nums">
+                <Badge
+                  variant={record.progress.pending ? "warning" : "success"}
+                >
+                  {record.progress.completed} de {record.progress.total}{" "}
+                  concluídos
+                </Badge>
+                <span>
+                  {record.progress.waived} dispensados ·{" "}
+                  {record.progress.pending} pendentes
+                </span>
+              </p>
+              {checklistId === record.id && (
+                <div id={`checklist-${record.id}`}>
+                  {detailLoading && (
+                    <LoadingState label="Carregando acompanhamento…" rows={1} />
+                  )}
+                  {detail && (
+                    <ol className="divide-y divide-[var(--border)]">
+                      {detail.items.map((item) => (
+                        <li key={item.id} className="space-y-3 py-4">
+                          <h3 className="font-semibold">{item.title}</h3>
+                          <p className="text-sm">
+                            {item.area} · Responsável: {item.assigneeName} ·{" "}
+                            {item.required ? "Obrigatório" : "Opcional"}
+                          </p>
+                          <p>
+                            <Badge variant={itemStatus[item.status].variant}>
+                              {itemStatus[item.status].label}
+                            </Badge>
+                          </p>
+                          {item.completedAt && (
+                            <p className="text-sm text-[var(--text-muted)]">
+                              Registrado em{" "}
+                              {new Date(item.completedAt).toLocaleString(
+                                "pt-BR",
+                                { timeZone: "America/Manaus" },
+                              )}
+                            </p>
+                          )}
+                          {item.comment && (
+                            <p className="whitespace-pre-wrap break-words text-sm">
+                              {item.comment}
+                            </p>
+                          )}
+                          {item.canAct && (
+                            <div className="space-y-3">
+                              <Button
+                                disabled={busy}
+                                onClick={() => void act(item.id, "complete")}
+                              >
+                                Concluir
+                              </Button>
+                              <details>
+                                <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">
+                                  Dispensar item
+                                </summary>
+                                <form
+                                  className="max-w-xl space-y-3 py-3"
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void act(
+                                      item.id,
+                                      "waive",
+                                      String(
+                                        new FormData(event.currentTarget).get(
+                                          "comment",
+                                        ) ?? "",
+                                      ),
+                                    );
+                                  }}
+                                >
+                                  <FormField
+                                    label="Justificativa da dispensa"
+                                    htmlFor={`waive-${item.id}`}
+                                    hint={
+                                      item.required
+                                        ? "Obrigatória para este item."
+                                        : "Opcional para este item."
+                                    }
+                                  >
+                                    <Textarea
+                                      id={`waive-${item.id}`}
+                                      name="comment"
+                                      required={item.required}
+                                      minLength={2}
+                                      maxLength={2000}
+                                      disabled={busy}
+                                    />
+                                  </FormField>
+                                  <Button
+                                    type="submit"
+                                    variant="secondary"
+                                    disabled={busy}
+                                  >
+                                    Confirmar dispensa
+                                  </Button>
+                                </form>
+                              </details>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Card>
       {detailLoading &&
         !records.some((record) => record.id === checklistId) && (
-          <p role="status">Carregando acompanhamento…</p>
+          <LoadingState label="Carregando acompanhamento…" rows={1} />
         )}
       {detailError && (
         <Alert tone="danger" title="Acompanhamento não atualizado">
@@ -914,29 +947,16 @@ export function ChecklistsPage() {
           </Button>
         </Alert>
       )}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="secondary"
-          disabled={busy || loading || page === 1}
-          onClick={() => {
-            setPage(page - 1);
-            setParams({});
-          }}
-        >
-          Anterior
-        </Button>
-        <span className="text-sm">Página {page}</span>
-        <Button
-          variant="secondary"
-          disabled={busy || loading || !hasMore}
-          onClick={() => {
-            setPage(page + 1);
-            setParams({});
-          }}
-        >
-          Próxima
-        </Button>
-      </div>
+      <Pagination
+        label="Páginas de checklists"
+        page={page}
+        hasMore={hasMore}
+        disabled={busy || loading}
+        onPageChange={(next) => {
+          setPage(next);
+          setParams({});
+        }}
+      />
     </div>
   );
 }

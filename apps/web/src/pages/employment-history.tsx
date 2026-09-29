@@ -2,7 +2,10 @@ import { movementLabels, type EmploymentHistory } from "@cge/contracts";
 import {
   Alert,
   Button,
+  Card,
+  CardHeader,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   SearchableSelect,
@@ -10,10 +13,11 @@ import {
 } from "@cge/ui";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
 import { api, ApiError, json } from "../lib/api";
 
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm";
 type Option = { id: string; name: string };
 const date = (value: string | null) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -48,12 +52,11 @@ export function EmploymentHistoryPage() {
     };
   }, [query]);
   return (
-    <div className="max-w-4xl space-y-6 pb-8">
-      <h1 className="text-2xl font-extrabold">Histórico funcional</h1>
-      <p className="text-sm text-[var(--text-muted)]">
-        Registre movimentações com justificativa, preservando os dados
-        anteriores.
-      </p>
+    <div className="page-enter max-w-4xl space-y-5">
+      <PageHeader
+        title="Histórico funcional"
+        description="Registre movimentações com justificativa, preservando os dados anteriores."
+      />
       {error ? (
         <Alert title="Não foi possível buscar" tone="danger">
           {error}
@@ -72,31 +75,46 @@ export function EmploymentHistoryPage() {
         />
       </FormField>
       <FormField htmlFor="historyPerson" label="Colaborador">
-        <select
+        <SearchableSelect
           id="historyPerson"
-          className={selectClass}
+          name="historyPerson"
+          placeholder="Selecione uma pessoa"
           value={personId}
-          onChange={(event) =>
-            setParams(
-              event.target.value ? { personId: event.target.value } : {},
-            )
-          }
-        >
-          <option value="">Selecione uma pessoa</option>
-          {personId && !people.some((person) => person.id === personId) ? (
-            <option value={personId}>Colaborador selecionado pelo link</option>
-          ) : null}
-          {people.map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.name}
-            </option>
-          ))}
-        </select>
+          onValueChange={(value) => setParams(value ? { personId: value } : {})}
+          options={[
+            { label: "Selecione uma pessoa", value: "" },
+            ...(personId && !people.some((person) => person.id === personId)
+              ? [
+                  {
+                    label: "Colaborador selecionado pelo link",
+                    value: personId,
+                  },
+                ]
+              : []),
+            ...people.map((person) => ({
+              label: person.name,
+              value: person.id,
+            })),
+          ]}
+        />
       </FormField>
       {personId ? (
         <EmploymentHistorySection key={personId} personId={personId} manage />
       ) : (
-        <p>Selecione um colaborador para consultar o histórico.</p>
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Histórico do colaborador</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Consulta por colaborador.
+              </p>
+            </div>
+          </CardHeader>
+          <EmptyState
+            title="Nenhum colaborador selecionado"
+            description="Selecione um colaborador para consultar o histórico."
+          />
+        </Card>
       )}
     </div>
   );
@@ -229,7 +247,7 @@ export function EmploymentHistorySection({
         >
           {error}
           <Button
-            variant="quiet"
+            variant="secondary"
             onClick={async () => {
               if (await load()) setSuccess("Histórico atualizado.");
             }}
@@ -238,16 +256,16 @@ export function EmploymentHistorySection({
           </Button>
         </Alert>
       ) : null}
-      {success ? <p role="status">{success}</p> : null}
+      {success ? <Alert tone="success" title={success} /> : null}
       {optionsError ? (
         <Alert title="Não foi possível carregar as opções" tone="danger">
           {optionsError}
-          <Button variant="quiet" onClick={() => void loadOptions()}>
+          <Button variant="secondary" onClick={() => void loadOptions()}>
             Tentar carregar opções
           </Button>
         </Alert>
       ) : null}
-      {!data && !error ? <p role="status">Carregando histórico…</p> : null}
+      {!data && !error ? <LoadingState label="Carregando histórico…" /> : null}
       {manage && current && !savedButStale ? (
         <details open className="border-y border-[var(--border)] py-3">
           <summary className="cursor-pointer py-2 font-semibold">
@@ -255,48 +273,35 @@ export function EmploymentHistorySection({
           </summary>
           <form onSubmit={submit} className="mt-3 max-w-2xl space-y-4">
             <FormField htmlFor="movementType" label="Tipo de movimentação">
-              <select
+              <FieldSelect
                 id="movementType"
-                className={selectClass}
                 value={field}
-                onChange={(event) =>
-                  setField(event.target.value as typeof field)
-                }
-              >
-                {Object.entries(movementLabels)
+                onValueChange={(value) => setField(value as typeof field)}
+                options={Object.entries(movementLabels)
                   .filter(([key]) => key !== "admission")
-                  .map(([key, label]) => (
-                    <option value={key} key={key}>
-                      {label}
-                    </option>
-                  ))}
-              </select>
+                  .map(([key, label]) => ({ value: key, label }))}
+              />
             </FormField>
             {field === "unitId" || field === "categoryId" ? (
               <FormField
                 htmlFor="movementValue"
                 label={field === "unitId" ? "Nova unidade" : "Nova categoria"}
               >
-                <select
+                <FieldSelect
                   key={field}
                   id="movementValue"
                   name="value"
                   required
-                  className={selectClass}
+                  placeholder="Selecione"
                   defaultValue=""
-                >
-                  <option value="" disabled>
-                    Selecione
-                  </option>
-                  {(field === "unitId"
+                  options={(field === "unitId"
                     ? options.units
                     : options.categories
-                  ).map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
+                  ).map((option) => ({
+                    value: option.id,
+                    label: option.name,
+                  }))}
+                />
               </FormField>
             ) : field === "supervisorRelationshipId" ? (
               <FormField htmlFor="movementSupervisor" label="Nova chefia">
@@ -389,10 +394,10 @@ export function EmploymentHistorySection({
         </p>
       ) : null}
       {data && !data.movements.length ? (
-        <p className="text-sm text-[var(--text-muted)]">
-          Nenhuma movimentação registrada. Alterações anteriores à implantação
-          desta trilha não são reconstruídas.
-        </p>
+        <EmptyState
+          title="Nenhuma movimentação"
+          description="Nenhuma movimentação registrada. Alterações anteriores à implantação desta trilha não são reconstruídas."
+        />
       ) : null}
       <ol className="divide-y divide-[var(--border)]">
         {data?.movements.map((item) => (

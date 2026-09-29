@@ -8,9 +8,14 @@ import {
 } from "@cge/contracts";
 import {
   Alert,
+  Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
   ConfirmDialog,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   Textarea,
@@ -18,6 +23,10 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 import { api, ApiError, json } from "../lib/api";
 import { can, canGlobally } from "../lib/permissions";
 
@@ -26,6 +35,15 @@ const message = (cause: unknown) =>
   cause instanceof ApiError
     ? cause.message
     : "Não foi possível concluir. Tente novamente.";
+const statusVariants: Record<
+  Training["status"],
+  "neutral" | "success" | "warning" | "danger"
+> = {
+  submitted: "warning",
+  validated: "success",
+  rejected: "danger",
+  archived: "neutral",
+};
 const eventLabels: Record<string, string> = {
   submitted: "Capacitação enviada",
   validated: "Capacitação validada",
@@ -201,26 +219,21 @@ export function TrainingPage() {
     }
   }
   return (
-    <div className="space-y-6 pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Capacitações
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Registre sua formação e acompanhe a validação pela Gestão de
-            Pessoas.
-          </p>
-        </div>
-        {creates && (
-          <Button
-            disabled={busy || loading}
-            onClick={() => setFormOpen((value) => !value)}
-          >
-            {formOpen ? "Fechar formulário" : "Registrar capacitação"}
-          </Button>
-        )}
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Capacitações"
+        description="Registre sua formação e acompanhe a validação pela Gestão de Pessoas."
+        actions={
+          creates ? (
+            <Button
+              disabled={busy || loading}
+              onClick={() => setFormOpen((value) => !value)}
+            >
+              {formOpen ? "Fechar formulário" : "Registrar capacitação"}
+            </Button>
+          ) : null
+        }
+      />
       {error && (
         <Alert title="Operação não concluída" tone="danger">
           <p>{error}</p>
@@ -237,87 +250,100 @@ export function TrainingPage() {
         </Alert>
       )}
       {formOpen && creates && (
-        <form
-          onSubmit={create}
-          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
-        >
-          <fieldset disabled={busy} className="space-y-4">
-            <legend className="mb-4 text-lg font-bold">Nova capacitação</legend>
-            <FormField label="Título da capacitação" htmlFor="trainingTitle">
-              <Input
-                id="trainingTitle"
-                name="title"
-                required
-                minLength={2}
-                maxLength={180}
-              />
-            </FormField>
-            <FormField label="Instituição" htmlFor="trainingInstitution">
-              <Input
-                id="trainingInstitution"
-                name="institution"
-                required
-                minLength={2}
-                maxLength={180}
-              />
-            </FormField>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField label="Data inicial" htmlFor="trainingStart">
-                <DateInput
-                  id="trainingStart"
-                  name="startDate"
-                  required
-                  value={startDate}
-                  onChange={(event) => setStartDate(event.target.value)}
-                />
-              </FormField>
-              <FormField label="Data final" htmlFor="trainingEnd">
-                <DateInput
-                  id="trainingEnd"
-                  name="endDate"
-                  required
-                  min={startDate}
-                />
-              </FormField>
-              <FormField label="Carga horária (horas)" htmlFor="trainingHours">
-                <Input
-                  id="trainingHours"
-                  name="hours"
-                  type="number"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  max="999999.99"
-                />
-              </FormField>
-            </div>
-            <FormField
-              label="Certificado PDF"
-              htmlFor="trainingCertificate"
-              hint={
-                settings?.certificateType
-                  ? "Opcional. PDF de até 5 MB, com acesso restrito pelas permissões documentais."
-                  : "Envio de certificados ainda não configurado pelo RH. Você pode registrar a capacitação sem arquivo."
-              }
-            >
-              <Input
-                id="trainingCertificate"
-                name="certificate"
-                type="file"
-                accept="application/pdf"
-                disabled={!settings?.certificateType || busy}
-              />
-            </FormField>
-            <Button type="submit">
-              {busy ? "Enviando…" : "Enviar capacitação"}
-            </Button>
-          </fieldset>
-        </form>
+        <Card>
+          <CardContent>
+            <form onSubmit={create}>
+              <fieldset disabled={busy} className="space-y-4">
+                <legend className="mb-4 text-lg font-bold">
+                  Nova capacitação
+                </legend>
+                <FormField
+                  label="Título da capacitação"
+                  htmlFor="trainingTitle"
+                >
+                  <Input
+                    id="trainingTitle"
+                    name="title"
+                    required
+                    minLength={2}
+                    maxLength={180}
+                  />
+                </FormField>
+                <FormField label="Instituição" htmlFor="trainingInstitution">
+                  <Input
+                    id="trainingInstitution"
+                    name="institution"
+                    required
+                    minLength={2}
+                    maxLength={180}
+                  />
+                </FormField>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <FormField label="Data inicial" htmlFor="trainingStart">
+                    <DateInput
+                      id="trainingStart"
+                      name="startDate"
+                      required
+                      value={startDate}
+                      onChange={(event) => setStartDate(event.target.value)}
+                    />
+                  </FormField>
+                  <FormField label="Data final" htmlFor="trainingEnd">
+                    <DateInput
+                      id="trainingEnd"
+                      name="endDate"
+                      required
+                      min={startDate}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Carga horária (horas)"
+                    htmlFor="trainingHours"
+                  >
+                    <Input
+                      id="trainingHours"
+                      name="hours"
+                      type="number"
+                      required
+                      min="0.01"
+                      step="0.01"
+                      max="999999.99"
+                    />
+                  </FormField>
+                </div>
+                <FormField
+                  label="Certificado PDF"
+                  htmlFor="trainingCertificate"
+                  hint={
+                    settings?.certificateType
+                      ? "Opcional. PDF de até 5 MB, com acesso restrito pelas permissões documentais."
+                      : "Envio de certificados ainda não configurado pelo RH. Você pode registrar a capacitação sem arquivo."
+                  }
+                >
+                  <Input
+                    id="trainingCertificate"
+                    name="certificate"
+                    type="file"
+                    accept="application/pdf"
+                    disabled={!settings?.certificateType || busy}
+                  />
+                </FormField>
+                <Button type="submit">
+                  {busy ? "Enviando…" : "Enviar capacitação"}
+                </Button>
+              </fieldset>
+            </form>
+          </CardContent>
+        </Card>
       )}
       {settings && user && canGlobally(user, "training.review") && (
         <CertificateSettings settings={settings} onSaved={setSettings} />
       )}
-      <div className="flex flex-wrap gap-2" aria-label="Visão de capacitações">
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label="Visão de capacitações"
+      >
         <Button
           aria-pressed={scope === "mine"}
           variant={scope === "mine" ? "primary" : "secondary"}
@@ -345,171 +371,175 @@ export function TrainingPage() {
           </Button>
         )}
       </div>
-      {loading ? (
-        <p role="status">Carregando capacitações…</p>
-      ) : (
-        <>
-          {!visibleItems.length && !error && !detailLoading && (
-            <p className="text-sm text-[var(--text-muted)]">
-              Nenhuma capacitação nesta consulta.
-            </p>
-          )}
-          <div className="divide-y divide-[var(--border)]">
-            {visibleItems.map((record) => (
-              <article key={record.id} className="space-y-3 py-5">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <h2 className="font-bold">{record.title}</h2>
-                  <span className="text-sm font-semibold">
-                    {trainingStatusLabels[record.status]}
-                  </span>
-                </div>
-                {scope === "review" && (
-                  <p className="text-sm text-[var(--text-muted)]">
-                    {record.requesterName}
-                  </p>
-                )}
-                <TrainingFacts record={record} />
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  aria-expanded={detail?.id === record.id}
-                  aria-controls={
-                    detail?.id === record.id
-                      ? `training-detail-${record.id}`
-                      : undefined
-                  }
-                  onClick={() =>
-                    setParams(
-                      trainingId === record.id ? {} : { trainingId: record.id },
-                    )
-                  }
-                >
-                  Acompanhar capacitação
-                </Button>
-                {detailLoading && trainingId === record.id && (
-                  <p role="status">Carregando acompanhamento…</p>
-                )}
-                {detail?.id === record.id && (
-                  <section
-                    id={`training-detail-${record.id}`}
-                    aria-label="Acompanhamento da capacitação"
-                    className="space-y-4 pt-2"
+      {(loading || visibleItems.length > 0 || (!error && !detailLoading)) && (
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Capacitações registradas</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Situação e histórico de cada registro.
+              </p>
+            </div>
+          </CardHeader>
+          {loading ? (
+            <div className="p-5">
+              <LoadingState label="Carregando capacitações…" />
+            </div>
+          ) : !visibleItems.length ? (
+            <EmptyState
+              title="Sem capacitações"
+              description="Nenhuma capacitação nesta consulta."
+            />
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {visibleItems.map((record) => (
+                <article key={record.id} className="space-y-3 px-5 py-4">
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <h3 className="font-bold">{record.title}</h3>
+                    <Badge variant={statusVariants[record.status]}>
+                      {trainingStatusLabels[record.status]}
+                    </Badge>
+                  </div>
+                  {scope === "review" && (
+                    <p className="text-sm text-[var(--text-muted)]">
+                      {record.requesterName}
+                    </p>
+                  )}
+                  <TrainingFacts record={record} />
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    aria-expanded={detail?.id === record.id}
+                    aria-controls={
+                      detail?.id === record.id
+                        ? `training-detail-${record.id}`
+                        : undefined
+                    }
+                    onClick={() =>
+                      setParams(
+                        trainingId === record.id
+                          ? {}
+                          : { trainingId: record.id },
+                      )
+                    }
                   >
-                    <div className="flex flex-wrap gap-2">
-                      {detail.actions.includes("validate") && (
-                        <Button
-                          disabled={busy}
-                          onClick={() => void transition(detail, "validate")}
-                        >
-                          Validar
-                        </Button>
-                      )}
-                      {detail.actions.includes("archive") && (
-                        <ConfirmDialog
-                          title="Arquivar capacitação?"
-                          description="Ela deixará de aparecer entre as capacitações validadas do dossiê. O histórico será preservado."
-                          confirmLabel="Arquivar"
-                          onConfirm={() => transition(detail, "archive")}
-                        >
-                          <Button variant="quiet" disabled={busy}>
-                            Arquivar
-                          </Button>
-                        </ConfirmDialog>
-                      )}
-                    </div>
-                    {detail.actions.includes("reject") && (
-                      <details>
-                        <summary className="cursor-pointer py-2 text-sm font-semibold">
-                          Rejeitar capacitação
-                        </summary>
-                        <form
-                          className="mt-3 space-y-3"
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            void transition(
-                              detail,
-                              "reject",
-                              String(
-                                new FormData(event.currentTarget).get("reason"),
-                              ),
-                            );
-                          }}
-                        >
-                          <FormField
-                            label="Justificativa da rejeição"
-                            htmlFor="trainingReason"
-                          >
-                            <Textarea
-                              id="trainingReason"
-                              name="reason"
-                              required
-                              minLength={2}
-                              maxLength={2000}
-                              disabled={busy}
-                            />
-                          </FormField>
+                    Acompanhar capacitação
+                  </Button>
+                  {detailLoading && trainingId === record.id && (
+                    <p role="status">Carregando acompanhamento…</p>
+                  )}
+                  {detail?.id === record.id && (
+                    <section
+                      id={`training-detail-${record.id}`}
+                      aria-label="Acompanhamento da capacitação"
+                      className="space-y-4 pt-2"
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {detail.actions.includes("validate") && (
                           <Button
-                            type="submit"
-                            variant="secondary"
                             disabled={busy}
+                            onClick={() => void transition(detail, "validate")}
                           >
-                            Confirmar rejeição
+                            Validar
                           </Button>
-                        </form>
-                      </details>
-                    )}
-                    <h3 className="font-semibold">Histórico</h3>
-                    <ol className="space-y-3 text-sm">
-                      {detail.events.map((event) => (
-                        <li key={event.version}>
-                          <p className="font-semibold">
-                            {eventLabels[event.type] ?? event.type}
-                          </p>
-                          <p className="text-[var(--text-muted)]">
-                            {event.actorName} ·{" "}
-                            {new Date(event.createdAt).toLocaleString("pt-BR")}
-                          </p>
-                          {event.reason && (
-                            <p className="mt-1 whitespace-pre-wrap break-words">
-                              {event.reason}
+                        )}
+                        {detail.actions.includes("archive") && (
+                          <ConfirmDialog
+                            title="Arquivar capacitação?"
+                            description="Ela deixará de aparecer entre as capacitações validadas do dossiê. O histórico será preservado."
+                            confirmLabel="Arquivar"
+                            onConfirm={() => transition(detail, "archive")}
+                          >
+                            <Button variant="quiet" disabled={busy}>
+                              Arquivar
+                            </Button>
+                          </ConfirmDialog>
+                        )}
+                      </div>
+                      {detail.actions.includes("reject") && (
+                        <details>
+                          <summary className="cursor-pointer py-2 text-sm font-semibold">
+                            Rejeitar capacitação
+                          </summary>
+                          <form
+                            className="mt-3 space-y-3"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              void transition(
+                                detail,
+                                "reject",
+                                String(
+                                  new FormData(event.currentTarget).get(
+                                    "reason",
+                                  ),
+                                ),
+                              );
+                            }}
+                          >
+                            <FormField
+                              label="Justificativa da rejeição"
+                              htmlFor="trainingReason"
+                            >
+                              <Textarea
+                                id="trainingReason"
+                                name="reason"
+                                required
+                                minLength={2}
+                                maxLength={2000}
+                                disabled={busy}
+                              />
+                            </FormField>
+                            <Button
+                              type="submit"
+                              variant="secondary"
+                              disabled={busy}
+                            >
+                              Confirmar rejeição
+                            </Button>
+                          </form>
+                        </details>
+                      )}
+                      <h3 className="font-semibold">Histórico</h3>
+                      <ol className="space-y-3 text-sm">
+                        {detail.events.map((event) => (
+                          <li key={event.version}>
+                            <p className="font-semibold">
+                              {eventLabels[event.type] ?? event.type}
                             </p>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  </section>
-                )}
-              </article>
-            ))}
-          </div>
-          {(page > 1 || hasMore) && (
-            <nav
-              aria-label="Páginas de capacitações"
-              className="flex items-center gap-3"
-            >
-              <Button
-                variant="secondary"
-                disabled={busy || page === 1}
-                onClick={() => {
-                  setPage((value) => value - 1);
-                  setParams({});
-                }}
-              >
-                Anterior
-              </Button>
-              <span className="text-sm">Página {page}</span>
-              <Button
-                variant="secondary"
-                disabled={busy || !hasMore}
-                onClick={() => {
-                  setPage((value) => value + 1);
-                  setParams({});
-                }}
-              >
-                Próxima
-              </Button>
-            </nav>
+                            <p className="text-[var(--text-muted)]">
+                              {event.actorName} ·{" "}
+                              {new Date(event.createdAt).toLocaleString(
+                                "pt-BR",
+                              )}
+                            </p>
+                            {event.reason && (
+                              <p className="mt-1 whitespace-pre-wrap break-words">
+                                {event.reason}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+                  )}
+                </article>
+              ))}
+            </div>
           )}
+        </Card>
+      )}
+      {!loading && (
+        <>
+          <Pagination
+            label="Páginas de capacitações"
+            page={page}
+            hasMore={hasMore}
+            disabled={busy}
+            onPageChange={(next) => {
+              setPage(next);
+              setParams({});
+            }}
+          />
         </>
       )}
     </div>
@@ -565,20 +595,17 @@ function CertificateSettings({
           htmlFor="certificatePolicy"
           hint="Define finalidade e retenção dos próximos arquivos. Não altera certificados já enviados."
         >
-          <select
+          <FieldSelect
             id="certificatePolicy"
-            className="min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+            emptyLabel="Não receber certificados por enquanto"
+            options={settings.documentTypes.map((type) => ({
+              value: type.id,
+              label: type.name,
+            }))}
             value={typeId}
             disabled={busy}
-            onChange={(event) => setTypeId(event.target.value)}
-          >
-            <option value="">Não receber certificados por enquanto</option>
-            {settings.documentTypes.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </select>
+            onValueChange={setTypeId}
+          />
         </FormField>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={busy}>
@@ -591,16 +618,8 @@ function CertificateSettings({
             Gerenciar políticas documentais
           </Link>
         </div>
-        {error && (
-          <p role="alert" className="text-sm text-[var(--danger)]">
-            {error}
-          </p>
-        )}
-        {success && (
-          <p role="status" className="text-sm">
-            {success}
-          </p>
-        )}
+        {error && <Alert tone="danger" title={error} />}
+        {success && <Alert tone="success" title={success} />}
       </form>
     </details>
   );
@@ -654,13 +673,14 @@ export function TrainingSection() {
           </Button>
         </Alert>
       ) : !result ? (
-        <p role="status">Carregando capacitações…</p>
+        <LoadingState label="Carregando capacitações…" />
       ) : (
         <>
           {!result.records.length ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              Nenhuma capacitação validada até o momento.
-            </p>
+            <EmptyState
+              title="Sem capacitações validadas"
+              description="Nenhuma capacitação validada até o momento."
+            />
           ) : (
             <ul className="divide-y divide-[var(--border)]">
               {result.records.map((record) => (

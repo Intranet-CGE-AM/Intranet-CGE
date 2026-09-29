@@ -8,7 +8,11 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
   DateInput,
+  EmptyState,
   FormField,
   Input,
   Textarea,
@@ -16,6 +20,10 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 import { api, ApiError, json } from "../lib/api";
 import { can } from "../lib/permissions";
 
@@ -32,6 +40,15 @@ const statuses = {
 };
 const control =
   "min-h-11 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus-visible:outline-2 focus-visible:outline-[var(--brand)]";
+const typeOptions = Object.entries(types).map(([value, label]) => ({
+  value,
+  label,
+}));
+const audienceOptions = [
+  { value: "all", label: "Toda a CGE" },
+  { value: "units", label: "Unidades selecionadas" },
+  { value: "categories", label: "Categorias funcionais selecionadas" },
+];
 const linkClass =
   "inline-flex min-h-11 items-center break-words font-semibold text-[var(--brand)] underline underline-offset-4";
 const date = (value: string) => value.split("-").reverse().join("/");
@@ -144,281 +161,279 @@ function ResourceEditor({
     }
   }
   return (
-    <form
-      onSubmit={(event) => void submit(event)}
-      className="max-w-3xl space-y-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6"
-    >
-      <h2 className="text-lg font-bold">
-        {initial ? "Nova versão" : "Publicar recurso"}
-      </h2>
-      <p className="text-sm text-[var(--text-muted)]">
-        A publicação é definitiva. Correções geram uma nova versão, sem apagar o
-        histórico.
-      </p>
-      {error && (
-        <Alert title="Publicação não concluída" tone="danger">
-          {error}
-          {conflict && (
-            <Button
-              className="mt-3 min-h-11"
-              disabled={busy}
-              variant="secondary"
-              onClick={() => void refresh()}
-            >
-              Atualizar dados sem perder edição
-            </Button>
-          )}
-        </Alert>
-      )}
-      {refreshed && (
-        <Alert title="Revise antes de publicar" tone="warning">
-          Seus campos foram preservados. Versão atual: {reference?.version} —{" "}
-          {reference?.title}.{" "}
-          {reference?.status === "archived"
-            ? "O recurso foi arquivado e não aceita novas versões."
-            : "Confirme novamente para publicar."}
-        </Alert>
-      )}
-      {optionsError && (
-        <Alert title="Públicos indisponíveis" tone="danger">
-          {optionsError}
-          <Button
-            variant="secondary"
-            onClick={() => setRetry((value) => value + 1)}
-          >
-            Recarregar públicos
-          </Button>
-        </Alert>
-      )}
-      <fieldset disabled={busy} className="space-y-5">
-        <FormField htmlFor="resource-title" label="Título do recurso">
-          <Input
-            ref={titleRef}
-            id="resource-title"
-            name="title"
-            required
-            minLength={3}
-            maxLength={160}
-            defaultValue={initial?.title}
-          />
-        </FormField>
-        <FormField htmlFor="resource-summary" label="Resumo">
-          <Textarea
-            id="resource-summary"
-            name="summary"
-            required
-            minLength={3}
-            maxLength={500}
-            rows={3}
-            defaultValue={initial?.summary}
-          />
-        </FormField>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <FormField htmlFor="resource-type" label="Tipo">
-            <select
-              id="resource-type"
-              className={control}
-              value={type}
-              onChange={(event) => {
-                const next = event.target.value as Resource["type"];
-                setType(next);
-                if (next === "external_link") setSource("url");
-              }}
-            >
-              {Object.entries(types).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField htmlFor="resource-category" label="Categoria">
-            <Input
-              id="resource-category"
-              name="category"
-              required
-              minLength={2}
-              maxLength={80}
-              defaultValue={initial?.category}
-            />
-          </FormField>
+    <Card>
+      <CardHeader>
+        <div>
+          <h2 className="font-bold">
+            {initial ? "Nova versão" : "Publicar recurso"}
+          </h2>
+          <p className="text-xs text-[var(--text-muted)]">
+            A publicação é definitiva. Correções geram uma nova versão, sem
+            apagar o histórico.
+          </p>
         </div>
-        <FormField htmlFor="resource-responsible" label="Responsável">
-          <Input
-            id="resource-responsible"
-            name="responsibleName"
-            required
-            minLength={3}
-            maxLength={160}
-            defaultValue={initial?.responsibleName}
-          />
-        </FormField>
-        <div className="grid gap-5 sm:grid-cols-2">
-          {(
-            [
-              ["validFrom", "Início da vigência"],
-              ["validUntil", "Fim da vigência"],
-            ] as const
-          ).map(([key, label]) => (
-            <FormField key={key} htmlFor={`resource-${key}`} label={label}>
-              <DateInput
-                className={control}
-                id={`resource-${key}`}
-                name={key}
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={(event) => void submit(event)}
+          className="max-w-3xl space-y-5"
+        >
+          {error && (
+            <Alert title="Publicação não concluída" tone="danger">
+              {error}
+              {conflict && (
+                <Button
+                  className="mt-3 min-h-11"
+                  disabled={busy}
+                  variant="secondary"
+                  onClick={() => void refresh()}
+                >
+                  Atualizar dados sem perder edição
+                </Button>
+              )}
+            </Alert>
+          )}
+          {refreshed && (
+            <Alert title="Revise antes de publicar" tone="warning">
+              Seus campos foram preservados. Versão atual: {reference?.version}{" "}
+              — {reference?.title}.{" "}
+              {reference?.status === "archived"
+                ? "O recurso foi arquivado e não aceita novas versões."
+                : "Confirme novamente para publicar."}
+            </Alert>
+          )}
+          {optionsError && (
+            <Alert title="Públicos indisponíveis" tone="danger">
+              {optionsError}
+              <Button
+                variant="secondary"
+                onClick={() => setRetry((value) => value + 1)}
+              >
+                Recarregar públicos
+              </Button>
+            </Alert>
+          )}
+          <fieldset disabled={busy} className="space-y-5">
+            <FormField htmlFor="resource-title" label="Título do recurso">
+              <Input
+                ref={titleRef}
+                id="resource-title"
+                name="title"
                 required
-                defaultValue={initial?.[key]}
+                minLength={3}
+                maxLength={160}
+                defaultValue={initial?.title}
               />
             </FormField>
-          ))}
-        </div>
-        <fieldset>
-          <legend className="text-sm font-semibold">
-            Conteúdo desta versão
-          </legend>
-          <div className="flex flex-wrap gap-5">
-            {[
-              ["file", "Documento PDF"],
-              ["url", "Endereço HTTPS"],
-            ].map(([value, label]) => (
-              <label
-                key={value}
-                className="flex min-h-11 items-center gap-2 text-sm"
+            <FormField htmlFor="resource-summary" label="Resumo">
+              <Textarea
+                id="resource-summary"
+                name="summary"
+                required
+                minLength={3}
+                maxLength={500}
+                rows={3}
+                defaultValue={initial?.summary}
+              />
+            </FormField>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FormField htmlFor="resource-type" label="Tipo">
+                <FieldSelect
+                  id="resource-type"
+                  options={typeOptions}
+                  value={type}
+                  onValueChange={(value) => {
+                    const next = value as Resource["type"];
+                    setType(next);
+                    if (next === "external_link") setSource("url");
+                  }}
+                />
+              </FormField>
+              <FormField htmlFor="resource-category" label="Categoria">
+                <Input
+                  id="resource-category"
+                  name="category"
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  defaultValue={initial?.category}
+                />
+              </FormField>
+            </div>
+            <FormField htmlFor="resource-responsible" label="Responsável">
+              <Input
+                id="resource-responsible"
+                name="responsibleName"
+                required
+                minLength={3}
+                maxLength={160}
+                defaultValue={initial?.responsibleName}
+              />
+            </FormField>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {(
+                [
+                  ["validFrom", "Início da vigência"],
+                  ["validUntil", "Fim da vigência"],
+                ] as const
+              ).map(([key, label]) => (
+                <FormField key={key} htmlFor={`resource-${key}`} label={label}>
+                  <DateInput
+                    id={`resource-${key}`}
+                    name={key}
+                    required
+                    defaultValue={initial?.[key]}
+                  />
+                </FormField>
+              ))}
+            </div>
+            <fieldset>
+              <legend className="text-sm font-semibold">
+                Conteúdo desta versão
+              </legend>
+              <div className="flex flex-wrap gap-5">
+                {[
+                  ["file", "Documento PDF"],
+                  ["url", "Endereço HTTPS"],
+                ].map(([value, label]) => (
+                  <label
+                    key={value}
+                    className="flex min-h-11 items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="source"
+                      value={value}
+                      checked={source === value}
+                      disabled={value === "file" && type === "external_link"}
+                      onChange={() => setSource(value!)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div hidden={source !== "file"}>
+              <FormField
+                htmlFor="resource-file"
+                label="Arquivo PDF"
+                hint="Até 10 MB. Cada versão mantém seu próprio arquivo."
               >
                 <input
-                  type="radio"
-                  name="source"
-                  value={value}
-                  checked={source === value}
-                  disabled={value === "file" && type === "external_link"}
-                  onChange={() => setSource(value!)}
+                  className={`${control} py-2`}
+                  id="resource-file"
+                  name="file"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  required={source === "file"}
+                  disabled={source !== "file"}
                 />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div hidden={source !== "file"}>
-          <FormField
-            htmlFor="resource-file"
-            label="Arquivo PDF"
-            hint="Até 10 MB. Cada versão mantém seu próprio arquivo."
-          >
-            <input
-              className={`${control} py-2`}
-              id="resource-file"
-              name="file"
-              type="file"
-              accept="application/pdf,.pdf"
-              required={source === "file"}
-              disabled={source !== "file"}
-            />
-          </FormField>
-        </div>
-        <div hidden={source !== "url"}>
-          <FormField htmlFor="resource-url" label="URL do recurso">
-            <Input
-              id="resource-url"
-              name="externalUrl"
-              type="url"
-              pattern="https://.*"
-              maxLength={2000}
-              required={source === "url"}
-              disabled={source !== "url"}
-              defaultValue={initial?.externalUrl ?? ""}
-            />
-          </FormField>
-        </div>
-        <FormField htmlFor="resource-audience" label="Público">
-          <select
-            id="resource-audience"
-            className={control}
-            value={audience.type}
-            onChange={(event) => {
-              setAudience(
-                event.target.value === "all"
-                  ? { type: "all" }
-                  : {
-                      type: event.target.value as "units" | "categories",
-                      ids: [],
-                    },
-              );
-              setConfirmed(false);
-            }}
-          >
-            <option value="all">Toda a CGE</option>
-            <option value="units">Unidades selecionadas</option>
-            <option value="categories">
-              Categorias funcionais selecionadas
-            </option>
-          </select>
-        </FormField>
-        {audience.type !== "all" && (
-          <fieldset>
-            <legend className="text-sm font-semibold">
-              {audience.type === "units" ? "Unidades" : "Categorias funcionais"}
-            </legend>
-            {!options ? (
-              <p role="status">Carregando públicos…</p>
-            ) : (
-              options[audience.type].map((option) => (
-                <label
-                  key={option.id}
-                  className="flex min-h-11 items-center gap-3 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={audience.ids.includes(option.id)}
-                    onChange={(event) => {
-                      setAudience({
-                        ...audience,
-                        ids: event.target.checked
-                          ? [...audience.ids, option.id]
-                          : audience.ids.filter((id) => id !== option.id),
-                      });
-                      setConfirmed(false);
-                    }}
-                  />
-                  {option.name}
-                </label>
-              ))
+              </FormField>
+            </div>
+            <div hidden={source !== "url"}>
+              <FormField htmlFor="resource-url" label="URL do recurso">
+                <Input
+                  id="resource-url"
+                  name="externalUrl"
+                  type="url"
+                  pattern="https://.*"
+                  maxLength={2000}
+                  required={source === "url"}
+                  disabled={source !== "url"}
+                  defaultValue={initial?.externalUrl ?? ""}
+                />
+              </FormField>
+            </div>
+            <FormField htmlFor="resource-audience" label="Público">
+              <FieldSelect
+                id="resource-audience"
+                options={audienceOptions}
+                value={audience.type}
+                onValueChange={(next) => {
+                  setAudience(
+                    next === "all"
+                      ? { type: "all" }
+                      : { type: next as "units" | "categories", ids: [] },
+                  );
+                  setConfirmed(false);
+                }}
+              />
+            </FormField>
+            {audience.type !== "all" && (
+              <fieldset>
+                <legend className="text-sm font-semibold">
+                  {audience.type === "units"
+                    ? "Unidades"
+                    : "Categorias funcionais"}
+                </legend>
+                {!options ? (
+                  <LoadingState label="Carregando públicos…" rows={2} />
+                ) : (
+                  options[audience.type].map((option) => (
+                    <label
+                      key={option.id}
+                      className="flex min-h-11 items-center gap-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={audience.ids.includes(option.id)}
+                        onChange={(event) => {
+                          setAudience({
+                            ...audience,
+                            ids: event.target.checked
+                              ? [...audience.ids, option.id]
+                              : audience.ids.filter((id) => id !== option.id),
+                          });
+                          setConfirmed(false);
+                        }}
+                      />
+                      {option.name}
+                    </label>
+                  ))
+                )}
+              </fieldset>
             )}
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                name="requiresAcknowledgment"
+                type="checkbox"
+                defaultChecked={initial?.requiresAcknowledgment}
+              />
+              Solicitar confirmação de ciência
+            </label>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                required
+                checked={confirmed}
+                onChange={(event) => setConfirmed(event.target.checked)}
+              />
+              Confirmo a publicação desta versão.
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="submit"
+                className="min-h-11"
+                disabled={
+                  !options ||
+                  reference?.status === "archived" ||
+                  (audience.type !== "all" && !audience.ids.length)
+                }
+              >
+                {busy ? "Publicando…" : "Confirmar publicação"}
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-11"
+                onClick={onCancel}
+              >
+                Cancelar edição
+              </Button>
+            </div>
           </fieldset>
-        )}
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input
-            name="requiresAcknowledgment"
-            type="checkbox"
-            defaultChecked={initial?.requiresAcknowledgment}
-          />
-          Solicitar confirmação de ciência
-        </label>
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            required
-            checked={confirmed}
-            onChange={(event) => setConfirmed(event.target.checked)}
-          />
-          Confirmo a publicação desta versão.
-        </label>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="submit"
-            className="min-h-11"
-            disabled={
-              !options ||
-              reference?.status === "archived" ||
-              (audience.type !== "all" && !audience.ids.length)
-            }
-          >
-            {busy ? "Publicando…" : "Confirmar publicação"}
-          </Button>
-          <Button variant="secondary" className="min-h-11" onClick={onCancel}>
-            Cancelar edição
-          </Button>
-        </div>
-      </fieldset>
-    </form>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -449,7 +464,7 @@ export function ResourcesPage() {
   const [archive, setArchive] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const statusRef = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (message) statusRef.current?.focus();
   }, [message]);
@@ -547,40 +562,31 @@ export function ResourcesPage() {
     }
   }
   return (
-    <div className="max-w-5xl space-y-6 pb-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Políticas e formulários
-          </h1>
-          <p className="mt-2 max-w-[70ch] text-sm text-[var(--text-muted)]">
-            Normas, manuais e serviços da instituição, com versão e vigência
-            definidas.
-          </p>
-        </div>
-        {manager && (
-          <Button
-            className="min-h-11"
-            disabled={Boolean(editor) || busy}
-            onClick={() => {
-              setEditor({ initial: null });
-              setMessage("");
-              setArchive(false);
-            }}
-          >
-            Publicar recurso
-          </Button>
-        )}
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        eyebrow="Intranet CGE"
+        title="Políticas e formulários"
+        description="Normas, manuais e serviços da instituição, com versão e vigência definidas."
+        actions={
+          manager && (
+            <Button
+              className="min-h-11"
+              disabled={Boolean(editor) || busy}
+              onClick={() => {
+                setEditor({ initial: null });
+                setMessage("");
+                setArchive(false);
+              }}
+            >
+              Publicar recurso
+            </Button>
+          )
+        }
+      />
       {message && (
-        <p
-          ref={statusRef}
-          tabIndex={-1}
-          role="status"
-          className="text-sm font-semibold text-[var(--brand)]"
-        >
-          {message}
-        </p>
+        <div ref={statusRef} tabIndex={-1} role="status">
+          <Alert tone="success" title={message} />
+        </div>
       )}
       {editor ? (
         <ResourceEditor
@@ -614,58 +620,59 @@ export function ResourcesPage() {
                   {management ? "Ver como leitor" : "Gerenciar biblioteca"}
                 </Button>
               )}
-              <form
-                key={`${query}:${type}`}
-                className="flex flex-wrap items-end gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const data = new FormData(event.currentTarget);
-                  navigate({
-                    manage: String(management),
-                    query: String(data.get("query")),
-                    ...(data.get("type")
-                      ? { type: String(data.get("type")) }
-                      : {}),
-                  });
-                }}
-              >
-                <div className="min-w-0 flex-1 basis-64">
-                  <FormField
-                    htmlFor="resource-search"
-                    label="Buscar na biblioteca"
+              <Card>
+                <CardContent>
+                  <form
+                    key={`${query}:${type}`}
+                    className="flex flex-wrap items-end gap-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const data = new FormData(event.currentTarget);
+                      navigate({
+                        manage: String(management),
+                        query: String(data.get("query")),
+                        ...(data.get("type")
+                          ? { type: String(data.get("type")) }
+                          : {}),
+                      });
+                    }}
                   >
-                    <Input
-                      id="resource-search"
-                      name="query"
-                      maxLength={120}
-                      defaultValue={query}
-                      placeholder="Título, resumo ou categoria"
-                    />
-                  </FormField>
-                </div>
-                <FormField htmlFor="resource-filter" label="Filtrar por tipo">
-                  <select
-                    className={control}
-                    id="resource-filter"
-                    name="type"
-                    defaultValue={type}
-                  >
-                    <option value="">Todos os tipos</option>
-                    {Object.entries(types).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                <Button type="submit" className="min-h-11">
-                  Buscar
-                </Button>
-              </form>
+                    <div className="min-w-0 flex-1 basis-64">
+                      <FormField
+                        htmlFor="resource-search"
+                        label="Buscar na biblioteca"
+                      >
+                        <Input
+                          id="resource-search"
+                          name="query"
+                          maxLength={120}
+                          defaultValue={query}
+                          placeholder="Título, resumo ou categoria"
+                        />
+                      </FormField>
+                    </div>
+                    <FormField
+                      htmlFor="resource-filter"
+                      label="Filtrar por tipo"
+                    >
+                      <FieldSelect
+                        id="resource-filter"
+                        name="type"
+                        defaultValue={type}
+                        emptyLabel="Todos os tipos"
+                        options={typeOptions}
+                      />
+                    </FormField>
+                    <Button type="submit" className="min-h-11">
+                      Buscar
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             </>
           )}
           {loading ? (
-            <p role="status">Carregando biblioteca…</p>
+            <LoadingState label="Carregando biblioteca…" />
           ) : loadError ? (
             <Alert title="Biblioteca indisponível" tone="danger">
               {loadError}
@@ -678,270 +685,277 @@ export function ResourcesPage() {
               </Button>
             </Alert>
           ) : item ? (
-            <article className="space-y-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge
-                  variant={item.status === "published" ? "success" : "neutral"}
-                >
-                  {statuses[item.status]}
-                </Badge>
-                <span className="text-sm">
-                  {types[item.type]} · Versão {item.version}
-                </span>
-              </div>
-              <h2 className="break-words text-xl font-bold">{item.title}</h2>
-              <p className="max-w-[70ch] break-words text-sm">{item.summary}</p>
-              <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-[var(--text-muted)]">Categoria</dt>
-                  <dd className="break-words font-semibold">{item.category}</dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--text-muted)]">Responsável</dt>
-                  <dd className="break-words font-semibold">
-                    {item.responsibleName}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--text-muted)]">Vigência</dt>
-                  <dd>
-                    {date(item.validFrom)} a {date(item.validUntil)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--text-muted)]">Publicado por</dt>
-                  <dd className="break-words">{item.authorName}</dd>
-                </div>
-              </dl>
-              {item.supersededById && (
-                <p className="text-sm">
-                  Esta versão foi substituída.{" "}
-                  <Link
-                    className={linkClass}
-                    to={location(item.supersededById)}
+            <Card>
+              <CardContent className="space-y-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge
+                    variant={
+                      item.status === "published" ? "success" : "neutral"
+                    }
                   >
-                    Consultar versão substituta
-                  </Link>
+                    {statuses[item.status]}
+                  </Badge>
+                  <span className="text-sm">
+                    {types[item.type]} · Versão {item.version}
+                  </span>
+                </div>
+                <h2 className="break-words text-xl font-bold">{item.title}</h2>
+                <p className="max-w-[70ch] break-words text-sm">
+                  {item.summary}
                 </p>
-              )}
-              {item.externalUrl ? (
-                <div>
+                <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-[var(--text-muted)]">Categoria</dt>
+                    <dd className="break-words font-semibold">
+                      {item.category}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--text-muted)]">Responsável</dt>
+                    <dd className="break-words font-semibold">
+                      {item.responsibleName}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--text-muted)]">Vigência</dt>
+                    <dd>
+                      {date(item.validFrom)} a {date(item.validUntil)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[var(--text-muted)]">Publicado por</dt>
+                    <dd className="break-words">{item.authorName}</dd>
+                  </div>
+                </dl>
+                {item.supersededById && (
+                  <p className="text-sm">
+                    Esta versão foi substituída.{" "}
+                    <Link
+                      className={linkClass}
+                      to={location(item.supersededById)}
+                    >
+                      Consultar versão substituta
+                    </Link>
+                  </p>
+                )}
+                {item.externalUrl ? (
+                  <div>
+                    <a
+                      className={linkClass}
+                      href={item.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Abrir link externo
+                    </a>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Abre em uma nova aba.
+                    </p>
+                  </div>
+                ) : (
                   <a
                     className={linkClass}
-                    href={item.externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/api/hr-resources/${item.id}/file?manage=${management}`}
                   >
-                    Abrir link externo
+                    Baixar PDF
                   </a>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Abre em uma nova aba.
-                  </p>
-                </div>
-              ) : (
-                <a
-                  className={linkClass}
-                  href={`/api/hr-resources/${item.id}/file?manage=${management}`}
-                >
-                  Baixar PDF
-                </a>
-              )}
-              {error && (
-                <Alert title="Ação não concluída" tone="danger">
-                  {error}
-                </Alert>
-              )}
-              {!management &&
-                item.requiresAcknowledgment &&
-                (item.acknowledgedAt ? (
-                  <p className="text-sm">
-                    Ciência confirmada em{" "}
-                    {timestamp.format(new Date(item.acknowledgedAt))} · Manaus
-                  </p>
-                ) : (
-                  <Button
-                    className="min-h-11"
-                    disabled={busy}
-                    onClick={() => void transition("acknowledgment")}
-                  >
-                    Confirmar ciência
-                  </Button>
-                ))}
-              {management && (
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-3">
-                    {item.status === "published" && (
-                      <>
-                        <Button
-                          className="min-h-11"
-                          disabled={busy}
-                          onClick={() => {
-                            setEditor({ initial: item });
-                            setMessage("");
-                            setArchive(false);
-                          }}
-                        >
-                          Nova versão
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          className="min-h-11"
-                          disabled={busy}
-                          onClick={() => setArchive(true)}
-                        >
-                          Arquivar
-                        </Button>
-                      </>
-                    )}
+                )}
+                {error && (
+                  <Alert title="Ação não concluída" tone="danger">
+                    {error}
+                  </Alert>
+                )}
+                {!management &&
+                  item.requiresAcknowledgment &&
+                  (item.acknowledgedAt ? (
+                    <p className="text-sm">
+                      Ciência confirmada em{" "}
+                      {timestamp.format(new Date(item.acknowledgedAt))} · Manaus
+                    </p>
+                  ) : (
                     <Button
-                      variant="quiet"
                       className="min-h-11"
-                      aria-expanded={historyOpen}
-                      aria-controls="resource-history"
-                      onClick={() => setHistoryOpen(!historyOpen)}
+                      disabled={busy}
+                      onClick={() => void transition("acknowledgment")}
                     >
-                      Ver histórico
+                      Confirmar ciência
                     </Button>
-                  </div>
-                  {archive && (
-                    <Alert title="Arquivar esta versão?" tone="warning">
-                      O histórico será preservado, mas esta versão não ficará
-                      disponível para leitura.
-                      <div className="mt-3 flex flex-wrap gap-3">
-                        <Button
-                          disabled={busy}
-                          onClick={() => void transition("archive")}
-                        >
-                          Confirmar arquivamento
-                        </Button>
-                        <Button
-                          disabled={busy}
-                          variant="secondary"
-                          onClick={() => setArchive(false)}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    </Alert>
-                  )}
-                  {historyOpen && (
-                    <section
-                      id="resource-history"
-                      className="space-y-3 border-t border-[var(--border)] pt-5"
-                    >
-                      <h3 className="font-bold">Histórico de versões</h3>
-                      {historyError ? (
-                        <Alert title="Histórico indisponível" tone="danger">
-                          {historyError}
+                  ))}
+                {management && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-3">
+                      {item.status === "published" && (
+                        <>
+                          <Button
+                            className="min-h-11"
+                            disabled={busy}
+                            onClick={() => {
+                              setEditor({ initial: item });
+                              setMessage("");
+                              setArchive(false);
+                            }}
+                          >
+                            Nova versão
+                          </Button>
                           <Button
                             variant="secondary"
-                            onClick={() => setRetry((value) => value + 1)}
+                            className="min-h-11"
+                            disabled={busy}
+                            onClick={() => setArchive(true)}
                           >
-                            Recarregar histórico
+                            Arquivar
                           </Button>
-                        </Alert>
-                      ) : !history ? (
-                        <p role="status">Carregando histórico…</p>
-                      ) : (
-                        <>
-                          <ul className="divide-y divide-[var(--border)]">
-                            {history.resources.map((version) => (
-                              <li key={version.id} className="py-2">
-                                <Link
-                                  className={linkClass}
-                                  to={location(version.id)}
-                                >
-                                  Versão {version.version} — {version.title}
-                                </Link>
-                                <p className="text-xs text-[var(--text-muted)]">
-                                  {statuses[version.status]} ·{" "}
-                                  {date(version.validFrom)} a{" "}
-                                  {date(version.validUntil)}
-                                </p>
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <Button
-                              variant="secondary"
-                              disabled={historyPage === 1}
-                              onClick={() => setHistoryPage(historyPage - 1)}
-                            >
-                              Versões anteriores à página
-                            </Button>
-                            <span className="text-sm">
-                              Página {historyPage}
-                            </span>
-                            <Button
-                              variant="secondary"
-                              disabled={!history.hasMore}
-                              onClick={() => setHistoryPage(historyPage + 1)}
-                            >
-                              Mais versões
-                            </Button>
-                          </div>
                         </>
                       )}
-                    </section>
-                  )}
-                </div>
-              )}
-            </article>
+                      <Button
+                        variant="quiet"
+                        className="min-h-11"
+                        aria-expanded={historyOpen}
+                        aria-controls="resource-history"
+                        onClick={() => setHistoryOpen(!historyOpen)}
+                      >
+                        Ver histórico
+                      </Button>
+                    </div>
+                    {archive && (
+                      <Alert title="Arquivar esta versão?" tone="warning">
+                        O histórico será preservado, mas esta versão não ficará
+                        disponível para leitura.
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          <Button
+                            disabled={busy}
+                            onClick={() => void transition("archive")}
+                          >
+                            Confirmar arquivamento
+                          </Button>
+                          <Button
+                            disabled={busy}
+                            variant="secondary"
+                            onClick={() => setArchive(false)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </Alert>
+                    )}
+                    {historyOpen && (
+                      <section
+                        id="resource-history"
+                        className="space-y-3 border-t border-[var(--border)] pt-5"
+                      >
+                        <h3 className="font-bold">Histórico de versões</h3>
+                        {historyError ? (
+                          <Alert title="Histórico indisponível" tone="danger">
+                            {historyError}
+                            <Button
+                              variant="secondary"
+                              onClick={() => setRetry((value) => value + 1)}
+                            >
+                              Recarregar histórico
+                            </Button>
+                          </Alert>
+                        ) : !history ? (
+                          <LoadingState
+                            label="Carregando histórico…"
+                            rows={2}
+                          />
+                        ) : (
+                          <>
+                            <ul className="divide-y divide-[var(--border)]">
+                              {history.resources.map((version) => (
+                                <li key={version.id} className="py-2">
+                                  <Link
+                                    className={linkClass}
+                                    to={location(version.id)}
+                                  >
+                                    Versão {version.version} — {version.title}
+                                  </Link>
+                                  <p className="text-xs text-[var(--text-muted)]">
+                                    {statuses[version.status]} ·{" "}
+                                    {date(version.validFrom)} a{" "}
+                                    {date(version.validUntil)}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <Button
+                                variant="secondary"
+                                disabled={historyPage === 1}
+                                onClick={() => setHistoryPage(historyPage - 1)}
+                              >
+                                Versões anteriores à página
+                              </Button>
+                              <span className="text-sm">
+                                Página {historyPage}
+                              </span>
+                              <Button
+                                variant="secondary"
+                                disabled={!history.hasMore}
+                                onClick={() => setHistoryPage(historyPage + 1)}
+                              >
+                                Mais versões
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </section>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ) : (
-            <section aria-label="Recursos encontrados">
-              <ul className="divide-y divide-[var(--border)]">
-                {result?.resources.map((resource) => (
-                  <li key={resource.id} className="space-y-1 py-4">
-                    <Link className={linkClass} to={location(resource.id)}>
-                      {resource.title}
-                    </Link>
-                    <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
-                      {resource.summary}
+            <section aria-label="Recursos encontrados" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div>
+                    <h2 className="font-bold">Resultados da busca</h2>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                      Recursos que atendem à consulta.
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {types[resource.type]} · {resource.category} · Versão{" "}
-                      {resource.version}
-                      {management ? ` · ${statuses[resource.status]}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              {!result?.resources.length && (
-                <p className="py-5 text-sm">
-                  Nenhum recurso encontrado para esta consulta.
-                </p>
-              )}
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <Button
-                  variant="secondary"
-                  disabled={page === 1}
-                  onClick={() =>
-                    setSearch({
-                      manage: String(management),
-                      page: String(page - 1),
-                      query,
-                      ...(type ? { type } : {}),
-                    })
-                  }
-                >
-                  Anterior
-                </Button>
-                <span className="text-sm">Página {page}</span>
-                <Button
-                  variant="secondary"
-                  disabled={!result?.hasMore}
-                  onClick={() =>
-                    setSearch({
-                      manage: String(management),
-                      page: String(page + 1),
-                      query,
-                      ...(type ? { type } : {}),
-                    })
-                  }
-                >
-                  Próxima
-                </Button>
-              </div>
+                  </div>
+                </CardHeader>
+
+                <ul className="divide-y divide-[var(--border)]">
+                  {result?.resources.map((resource) => (
+                    <li key={resource.id} className="space-y-1 px-5 py-4">
+                      <Link className={linkClass} to={location(resource.id)}>
+                        {resource.title}
+                      </Link>
+                      <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
+                        {resource.summary}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {types[resource.type]} · {resource.category} · Versão{" "}
+                        {resource.version}
+                        {management ? ` · ${statuses[resource.status]}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {!result?.resources.length && (
+                  <EmptyState
+                    title={
+                      query || type ? "Nenhum resultado" : "Biblioteca vazia"
+                    }
+                    description="Nenhum recurso encontrado para esta consulta."
+                  />
+                )}
+              </Card>
+              <Pagination
+                label="Páginas de recursos"
+                page={page}
+                hasMore={Boolean(result?.hasMore)}
+                onPageChange={(next) =>
+                  setSearch({
+                    manage: String(management),
+                    page: String(next),
+                    query,
+                    ...(type ? { type } : {}),
+                  })
+                }
+              />
             </section>
           )}
         </>

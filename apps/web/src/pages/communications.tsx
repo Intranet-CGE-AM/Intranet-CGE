@@ -6,10 +6,25 @@ import type {
   CommunicationList,
   PublicationAudience,
 } from "@cge/contracts";
-import { Alert, Badge, Button, FormField, Input, Textarea } from "@cge/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  EmptyState,
+  FormField,
+  Input,
+  Textarea,
+} from "@cge/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth";
+import { FieldSelect } from "../components/field-select";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
 import { api, ApiError, json } from "../lib/api";
 import { can } from "../lib/permissions";
 
@@ -28,8 +43,11 @@ const messageOf = (cause: unknown) =>
   cause instanceof ApiError
     ? cause.message
     : "Não foi possível concluir. Tente novamente.";
-const selectClass =
-  "min-h-11 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm focus-visible:outline-2 focus-visible:outline-[var(--brand)]";
+const audienceOptions = [
+  { value: "all", label: "Toda a CGE" },
+  { value: "units", label: "Unidades selecionadas" },
+  { value: "categories", label: "Categorias funcionais selecionadas" },
+];
 const localDate = (value: string) =>
   new Date(Date.parse(value) - 4 * 3600000).toISOString().slice(0, 16);
 type Options = {
@@ -90,9 +108,7 @@ export function CommunicationsPanel({
         </div>
       )}
       {loading ? (
-        <p role="status" className="text-sm text-[var(--text-muted)]">
-          Carregando comunicados…
-        </p>
+        <LoadingState label="Carregando comunicados…" />
       ) : error ? (
         <Alert title="Comunicados indisponíveis" tone="danger">
           {error}
@@ -105,11 +121,22 @@ export function CommunicationsPanel({
           </Button>
         </Alert>
       ) : !result?.communications.length ? (
-        <p className="py-5 text-sm text-[var(--text-muted)]">
-          {management
-            ? "Nenhum comunicado cadastrado. Crie um rascunho para começar."
-            : "Nenhum comunicado vigente para seu público."}
-        </p>
+        compact ? (
+          <p className="py-5 text-sm text-[var(--text-muted)]">
+            {management
+              ? "Nenhum comunicado cadastrado. Crie um rascunho para começar."
+              : "Nenhum comunicado vigente para seu público."}
+          </p>
+        ) : (
+          <EmptyState
+            title="Nenhum comunicado"
+            description={
+              management
+                ? "Nenhum comunicado cadastrado. Crie um rascunho para começar."
+                : "Nenhum comunicado vigente para seu público."
+            }
+          />
+        )
       ) : (
         <ul className="divide-y divide-[var(--border)]">
           {result.communications.slice(0, compact ? 3 : 50).map((item) => (
@@ -145,25 +172,13 @@ export function CommunicationsPanel({
         </ul>
       )}
       {!compact && (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="secondary"
-            className="min-h-11"
-            disabled={loading || page === 1}
-            onClick={() => setPage((value) => value - 1)}
-          >
-            Anterior
-          </Button>
-          <span className="text-sm">Página {page}</span>
-          <Button
-            variant="secondary"
-            className="min-h-11"
-            disabled={loading || !result?.hasMore}
-            onClick={() => setPage((value) => value + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
+        <Pagination
+          label="Páginas de comunicados"
+          page={page}
+          hasMore={Boolean(result?.hasMore)}
+          disabled={loading}
+          onPageChange={setPage}
+        />
       )}
     </section>
   );
@@ -296,214 +311,219 @@ function CommunicationEditor({
   const selectedOptions =
     audience.type === "all" ? [] : (options?.[audience.type] ?? []);
   return (
-    <form onSubmit={save} className="max-w-3xl space-y-5">
-      <h2 className="text-lg font-bold">
-        {reference ? "Editar comunicado" : "Novo comunicado"}
-      </h2>
-      {error && (
-        <Alert title="Não foi possível salvar" tone="danger">
-          {error}
-          {conflict && reference && (
-            <Button
-              className="mt-3 min-h-11"
-              variant="secondary"
-              disabled={saving}
-              onClick={() => void refreshReference()}
-            >
-              Atualizar dados sem perder edição
-            </Button>
+    <Card>
+      <CardHeader>
+        <h2 className="font-bold">
+          {reference ? "Editar comunicado" : "Novo comunicado"}
+        </h2>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={save} className="max-w-3xl space-y-5">
+          {error && (
+            <Alert title="Não foi possível salvar" tone="danger">
+              {error}
+              {conflict && reference && (
+                <Button
+                  className="mt-3 min-h-11"
+                  variant="secondary"
+                  disabled={saving}
+                  onClick={() => void refreshReference()}
+                >
+                  Atualizar dados sem perder edição
+                </Button>
+              )}
+            </Alert>
           )}
-        </Alert>
-      )}
-      {refreshed && (
-        <Alert title="Revise antes de salvar" tone="warning">
-          Dados atuais carregados. Seus campos foram preservados; nenhuma
-          alteração foi enviada. Versão atual: {reference?.version} —{" "}
-          {reference?.title}.
-        </Alert>
-      )}
-      {optionsError && (
-        <Alert title="Públicos indisponíveis" tone="danger">
-          {optionsError}
-          <Button
-            className="mt-3 min-h-11"
-            variant="secondary"
-            onClick={() => setRetry((value) => value + 1)}
-          >
-            Recarregar públicos
-          </Button>
-        </Alert>
-      )}
-      <fieldset disabled={saving} className="space-y-5">
-        <FormField htmlFor="communication-title" label="Título">
-          <Input
-            id="communication-title"
-            className="min-h-11"
-            required
-            minLength={3}
-            maxLength={160}
-            value={input.title}
-            onChange={(event) =>
-              setInput({ ...input, title: event.target.value })
-            }
-          />
-        </FormField>
-        <FormField htmlFor="communication-summary" label="Resumo">
-          <Textarea
-            id="communication-summary"
-            required
-            minLength={3}
-            maxLength={500}
-            rows={2}
-            value={input.summary}
-            onChange={(event) =>
-              setInput({ ...input, summary: event.target.value })
-            }
-          />
-        </FormField>
-        <FormField
-          htmlFor="communication-body"
-          label="Conteúdo em Markdown"
-          hint="Use ## para títulos, **texto** para negrito e - para listas. HTML não é executado."
-        >
-          <Textarea
-            id="communication-body"
-            required
-            maxLength={20000}
-            rows={8}
-            value={input.body}
-            onChange={(event) =>
-              setInput({ ...input, body: event.target.value })
-            }
-          />
-        </FormField>
-        <div className="grid gap-5 sm:grid-cols-2">
-          {(
-            [
-              ["publicationAt", "Publicação (horário de Manaus)"],
-              ["expiresAt", "Expiração (horário de Manaus)"],
-            ] as const
-          ).map(([key, label]) => (
-            <FormField key={key} htmlFor={`communication-${key}`} label={label}>
+          {refreshed && (
+            <Alert title="Revise antes de salvar" tone="warning">
+              Dados atuais carregados. Seus campos foram preservados; nenhuma
+              alteração foi enviada. Versão atual: {reference?.version} —{" "}
+              {reference?.title}.
+            </Alert>
+          )}
+          {optionsError && (
+            <Alert title="Públicos indisponíveis" tone="danger">
+              {optionsError}
+              <Button
+                className="mt-3 min-h-11"
+                variant="secondary"
+                onClick={() => setRetry((value) => value + 1)}
+              >
+                Recarregar públicos
+              </Button>
+            </Alert>
+          )}
+          <fieldset disabled={saving} className="space-y-5">
+            <FormField htmlFor="communication-title" label="Título">
               <Input
-                id={`communication-${key}`}
-                className="min-h-11 min-w-0"
-                type="datetime-local"
+                id="communication-title"
+                className="min-h-11"
                 required
-                value={input[key]}
+                minLength={3}
+                maxLength={160}
+                value={input.title}
                 onChange={(event) =>
-                  setInput({ ...input, [key]: event.target.value })
+                  setInput({ ...input, title: event.target.value })
                 }
               />
             </FormField>
-          ))}
-        </div>
-        <FormField htmlFor="communication-audience" label="Público">
-          <select
-            id="communication-audience"
-            className={selectClass}
-            value={audience.type}
-            onChange={(event) => {
-              setAudience(
-                event.target.value === "all"
-                  ? { type: "all" }
-                  : {
-                      type: event.target.value as "units" | "categories",
-                      ids: [],
-                    },
-              );
-              setConfirmed(false);
-            }}
-          >
-            <option value="all">Toda a CGE</option>
-            <option value="units">Unidades selecionadas</option>
-            <option value="categories">
-              Categorias funcionais selecionadas
-            </option>
-          </select>
-        </FormField>
-        {audience.type !== "all" && (
-          <fieldset className="space-y-2">
-            <legend className="mb-2 text-sm font-semibold">
-              {audience.type === "units" ? "Unidades" : "Categorias funcionais"}
-            </legend>
-            {!options ? (
-              <p role="status" className="text-sm">
-                Carregando públicos…
-              </p>
-            ) : (
-              selectedOptions.map((option) => (
-                <label
-                  key={option.id}
-                  className="flex min-h-11 items-center gap-3 text-sm"
+            <FormField htmlFor="communication-summary" label="Resumo">
+              <Textarea
+                id="communication-summary"
+                required
+                minLength={3}
+                maxLength={500}
+                rows={2}
+                value={input.summary}
+                onChange={(event) =>
+                  setInput({ ...input, summary: event.target.value })
+                }
+              />
+            </FormField>
+            <FormField
+              htmlFor="communication-body"
+              label="Conteúdo em Markdown"
+              hint="Use ## para títulos, **texto** para negrito e - para listas. HTML não é executado."
+            >
+              <Textarea
+                id="communication-body"
+                required
+                maxLength={20000}
+                rows={8}
+                value={input.body}
+                onChange={(event) =>
+                  setInput({ ...input, body: event.target.value })
+                }
+              />
+            </FormField>
+            <div className="grid gap-5 sm:grid-cols-2">
+              {(
+                [
+                  ["publicationAt", "Publicação (horário de Manaus)"],
+                  ["expiresAt", "Expiração (horário de Manaus)"],
+                ] as const
+              ).map(([key, label]) => (
+                <FormField
+                  key={key}
+                  htmlFor={`communication-${key}`}
+                  label={label}
                 >
-                  <input
-                    type="checkbox"
-                    checked={audience.ids.includes(option.id)}
-                    onChange={(event) => {
-                      setAudience({
-                        ...audience,
-                        ids: event.target.checked
-                          ? [...audience.ids, option.id]
-                          : audience.ids.filter((id) => id !== option.id),
-                      });
-                      setConfirmed(false);
-                    }}
+                  <Input
+                    id={`communication-${key}`}
+                    type="datetime-local"
+                    required
+                    value={input[key]}
+                    onChange={(event) =>
+                      setInput({ ...input, [key]: event.target.value })
+                    }
                   />
-                  {option.name}
-                </label>
-              ))
+                </FormField>
+              ))}
+            </div>
+            <FormField htmlFor="communication-audience" label="Público">
+              <FieldSelect
+                id="communication-audience"
+                options={audienceOptions}
+                value={audience.type}
+                onValueChange={(next) => {
+                  setAudience(
+                    next === "all"
+                      ? { type: "all" }
+                      : { type: next as "units" | "categories", ids: [] },
+                  );
+                  setConfirmed(false);
+                }}
+              />
+            </FormField>
+            {audience.type !== "all" && (
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-sm font-semibold">
+                  {audience.type === "units"
+                    ? "Unidades"
+                    : "Categorias funcionais"}
+                </legend>
+                {!options ? (
+                  <LoadingState label="Carregando públicos…" rows={2} />
+                ) : (
+                  selectedOptions.map((option) => (
+                    <label
+                      key={option.id}
+                      className="flex min-h-11 items-center gap-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={audience.ids.includes(option.id)}
+                        onChange={(event) => {
+                          setAudience({
+                            ...audience,
+                            ids: event.target.checked
+                              ? [...audience.ids, option.id]
+                              : audience.ids.filter((id) => id !== option.id),
+                          });
+                          setConfirmed(false);
+                        }}
+                      />
+                      {option.name}
+                    </label>
+                  ))
+                )}
+              </fieldset>
             )}
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={input.requiresAcknowledgment}
+                onChange={(event) =>
+                  setInput({
+                    ...input,
+                    requiresAcknowledgment: event.target.checked,
+                  })
+                }
+              />
+              Solicitar confirmação de ciência
+            </label>
+            {reference && reference.status !== "draft" && (
+              <p className="text-sm text-[var(--text-muted)]">
+                Salvar altera o comunicado publicado e solicita nova ciência
+                quando exigida.
+              </p>
+            )}
+            {confirmationRequired && (
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  required
+                  checked={confirmed}
+                  onChange={(event) => setConfirmed(event.target.checked)}
+                />
+                Confirmo a mudança do público. Pessoas removidas perderão
+                acesso.
+              </label>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="submit"
+                className="min-h-11"
+                disabled={!options || reference?.status === "archived"}
+              >
+                {saving
+                  ? "Salvando…"
+                  : reference
+                    ? "Salvar alterações"
+                    : "Salvar rascunho"}
+              </Button>
+              <Button
+                className="min-h-11"
+                variant="secondary"
+                onClick={onCancel}
+              >
+                Cancelar edição
+              </Button>
+            </div>
           </fieldset>
-        )}
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={input.requiresAcknowledgment}
-            onChange={(event) =>
-              setInput({
-                ...input,
-                requiresAcknowledgment: event.target.checked,
-              })
-            }
-          />
-          Solicitar confirmação de ciência
-        </label>
-        {reference && reference.status !== "draft" && (
-          <p className="text-sm text-[var(--text-muted)]">
-            Salvar altera o comunicado publicado e solicita nova ciência quando
-            exigida.
-          </p>
-        )}
-        {confirmationRequired && (
-          <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              required
-              checked={confirmed}
-              onChange={(event) => setConfirmed(event.target.checked)}
-            />
-            Confirmo a mudança do público. Pessoas removidas perderão acesso.
-          </label>
-        )}
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="submit"
-            className="min-h-11"
-            disabled={!options || reference?.status === "archived"}
-          >
-            {saving
-              ? "Salvando…"
-              : reference
-                ? "Salvar alterações"
-                : "Salvar rascunho"}
-          </Button>
-          <Button className="min-h-11" variant="secondary" onClick={onCancel}>
-            Cancelar edição
-          </Button>
-        </div>
-      </fieldset>
-    </form>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -526,7 +546,7 @@ export function CommunicationsPage() {
   const [action, setAction] = useState<"publish" | "archive" | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const statusRef = useRef<HTMLParagraphElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!id) {
       setItem(null);
@@ -590,39 +610,31 @@ export function CommunicationsPage() {
     setMessage("");
   }
   return (
-    <div className="max-w-5xl space-y-6 pb-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Comunicados
-          </h1>
-          <p className="mt-2 max-w-[70ch] text-sm text-[var(--text-muted)]">
-            Avisos da instituição, com público e vigência definidos.
-          </p>
-        </div>
-        {manager && (
-          <Button
-            className="min-h-11"
-            disabled={busy || Boolean(editor) || loading}
-            onClick={() => {
-              setEditor({ initial: null });
-              setMessage("");
-              setAction(null);
-            }}
-          >
-            Novo comunicado
-          </Button>
-        )}
-      </header>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        eyebrow="Intranet CGE"
+        title="Comunicados"
+        description="Avisos da instituição, com público e vigência definidos."
+        actions={
+          manager && (
+            <Button
+              className="min-h-11"
+              disabled={busy || Boolean(editor) || loading}
+              onClick={() => {
+                setEditor({ initial: null });
+                setMessage("");
+                setAction(null);
+              }}
+            >
+              Novo comunicado
+            </Button>
+          )
+        }
+      />
       {message && (
-        <p
-          ref={statusRef}
-          tabIndex={-1}
-          role="status"
-          className="text-sm font-semibold text-[var(--success)]"
-        >
-          {message}
-        </p>
+        <div ref={statusRef} tabIndex={-1} role="status">
+          <Alert tone="success" title={message} />
+        </div>
       )}
       {editor ? (
         <CommunicationEditor
@@ -641,7 +653,11 @@ export function CommunicationsPage() {
       ) : (
         <>
           {manager && !id && (
-            <div className="flex flex-wrap gap-2">
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label="Escopo dos comunicados"
+            >
               <Button
                 className="min-h-11"
                 variant={management ? "primary" : "secondary"}
@@ -671,9 +687,7 @@ export function CommunicationsPage() {
                 Voltar à lista
               </Button>
               {loading ? (
-                <p role="status" className="text-sm">
-                  Carregando comunicado…
-                </p>
+                <LoadingState label="Carregando comunicado…" rows={4} />
               ) : loadError ? (
                 <Alert title="Comunicado indisponível" tone="danger">
                   {loadError}
@@ -708,7 +722,7 @@ export function CommunicationsPage() {
                       </p>
                     </div>
                     <div
-                      className="space-y-4 text-sm leading-7 [overflow-wrap:anywhere] [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_a]:text-[var(--brand)] [&_a]:underline [&_a]:underline-offset-4 [&_pre]:overflow-auto [&_pre]:whitespace-pre-wrap [&_img]:max-w-full"
+                      className="space-y-4 text-sm leading-7 [overflow-wrap:anywhere] [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_a]:text-[var(--brand)] [&_a]:underline [&_a]:underline-offset-4 [&_pre]:overflow-auto [&_pre]:whitespace-pre-wrap [&_img]:max-w-full"
                       dangerouslySetInnerHTML={{ __html: item.bodyHtml }}
                     />
                     {error && (
