@@ -13,6 +13,9 @@ import { api } from "../../lib/api";
 
 import * as XLSX from "xlsx"
 
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 type ReportType =
   | "inventory"
   | "sector"
@@ -326,9 +329,249 @@ async function handleGenerateReport() {
   }
 }
 
-  function handleExportPdf() {
-    console.log("Exportar PDF");
+function handleExportPdf() {
+  if (!report) {
+    setReportError(
+      "Gere o relatório antes de exportar.",
+    );
+
+    return;
   }
+
+  if (report.assets.length === 0) {
+    setReportError(
+      "Não há dados para exportar.",
+    );
+
+    return;
+  }
+
+  setReportError(null);
+
+  const doc =
+    new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+  const pageWidth =
+    doc.internal.pageSize.getWidth();
+
+  const generatedAt =
+    new Intl.DateTimeFormat(
+      "pt-BR",
+      {
+        dateStyle: "short",
+        timeStyle: "short",
+      },
+    ).format(
+      new Date(),
+    );
+
+  doc.setFontSize(16);
+
+  doc.text(
+    "Relatório Patrimonial",
+    14,
+    15,
+  );
+
+  doc.setFontSize(9);
+
+  doc.text(
+    `Gerado em: ${generatedAt}`,
+    14,
+    21,
+  );
+
+  doc.text(
+    `Quantidade de bens: ${report.summary.total}`,
+    14,
+    27,
+  );
+
+  doc.text(
+    `Valor patrimonial: ${new Intl.NumberFormat(
+      "pt-BR",
+      {
+        style: "currency",
+        currency: "BRL",
+      },
+    ).format(
+      report.summary.totalValue,
+    )}`,
+    14,
+    33,
+  );
+
+  autoTable(
+    doc,
+    {
+      startY: 39,
+
+      head: [
+        [
+          "Patrimônio",
+          "Descrição",
+          "Marca",
+          "Modelo",
+          "Localização",
+          "Situação",
+          "Conservação",
+          "Aquisição",
+          "Valor",
+        ],
+      ],
+
+      body:
+        report.assets.map(
+          (asset) => [
+            asset.patrimonyNumber,
+
+            asset.description,
+
+            asset.brand ??
+              "—",
+
+            asset.model ??
+              "—",
+
+            asset.unitCode
+              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+              : "Não informado",
+
+            asset.status === "active"
+              ? "Ativo"
+              : asset.status ===
+                  "maintenance"
+                ? "Em manutenção"
+                : "Baixado",
+
+            asset.conservationStatus ??
+              "Não informado",
+
+            asset.acquisitionDate
+              ? formatDateForSpreadsheet(
+                  asset.acquisitionDate,
+                )
+              : "—",
+
+            asset.acquisitionValue
+              ? new Intl.NumberFormat(
+                  "pt-BR",
+                  {
+                    style:
+                      "currency",
+                    currency:
+                      "BRL",
+                  },
+                ).format(
+                  Number(
+                    asset.acquisitionValue,
+                  ),
+                )
+              : "—",
+          ],
+        ),
+
+      styles: {
+        fontSize: 7,
+        cellPadding: 2,
+        overflow: "linebreak",
+      },
+
+      headStyles: {
+        fontSize: 7,
+        fontStyle: "bold",
+      },
+
+      columnStyles: {
+        0: {
+          cellWidth: 22,
+        },
+
+        1: {
+          cellWidth: 45,
+        },
+
+        2: {
+          cellWidth: 24,
+        },
+
+        3: {
+          cellWidth: 24,
+        },
+
+        4: {
+          cellWidth: 55,
+        },
+
+        5: {
+          cellWidth: 25,
+        },
+
+        6: {
+          cellWidth: 25,
+        },
+
+        7: {
+          cellWidth: 22,
+        },
+
+        8: {
+          cellWidth: 28,
+          halign: "right",
+        },
+      },
+
+      margin: {
+        left: 14,
+        right: 14,
+      },
+
+      didDrawPage: () => {
+        const pageNumber =
+          doc.getNumberOfPages();
+
+        doc.setFontSize(8);
+
+        doc.text(
+          `Página ${pageNumber}`,
+          pageWidth - 14,
+          doc.internal.pageSize.getHeight() - 8,
+          {
+            align: "right",
+          },
+        );
+      },
+    },
+  );
+
+  const now =
+    new Date();
+
+  const date =
+    [
+      now.getFullYear(),
+      String(
+        now.getMonth() + 1,
+      ).padStart(
+        2,
+        "0",
+      ),
+      String(
+        now.getDate(),
+      ).padStart(
+        2,
+        "0",
+      ),
+    ].join("-");
+
+  doc.save(
+    `relatorio-patrimonial-${date}.pdf`,
+  );
+}
 
   function handleExportXlsx() {
     if (!report) {
