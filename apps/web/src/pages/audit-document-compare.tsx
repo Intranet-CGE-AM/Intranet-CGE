@@ -324,7 +324,6 @@ function Words({
 function DiffTable({ mode, rows }: { mode: Mode; rows: DiffRow[] }) {
   const [open, setOpen] = useState<Set<number>>(new Set());
   const items: CollapsedItem[] = collapse(rows);
-  const cols = mode === "unified" ? 4 : 4;
   const expand = (index: number) =>
     setOpen((current) => new Set(current).add(index));
 
@@ -336,10 +335,7 @@ function DiffTable({ mode, rows }: { mode: Mode; rows: DiffRow[] }) {
           ))
         : [
             <tr key={index}>
-              <td
-                className="bg-[var(--surface-subtle)] px-2 py-1"
-                colSpan={cols}
-              >
+              <td className="bg-[var(--surface-subtle)] px-2 py-1" colSpan={4}>
                 <Button onClick={() => expand(index)} size="sm" variant="quiet">
                   Mostrar {item.count} linhas iguais
                 </Button>
