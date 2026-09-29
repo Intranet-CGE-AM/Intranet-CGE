@@ -22,6 +22,9 @@ O perfil `tools` adiciona o cliente de object storage somente durante backup ou
 restauração. Somente o web é publicado, por padrão em `127.0.0.1:8080`. Um proxy
 do host deve terminar TLS e encaminhar para essa porta. HTTPS é obrigatório
 porque os cookies de sessão são `Secure`, `HttpOnly` e `SameSite=Strict`.
+O `web` aceita corpos de até 25 MB em `/api/`. Se o proxy do host for nginx,
+configure `client_max_body_size 25m` nele também, senão uploads acima de 1 MB
+voltam 413 antes de chegar ao `web`. O Caddy não impõe limite por padrão.
 
 ## Preparação
 
