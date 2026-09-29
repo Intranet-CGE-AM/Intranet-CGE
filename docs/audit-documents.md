@@ -106,6 +106,11 @@ dias de Manaus, com `to` inclusivo.
 | Primeira leitura            | do envio de cada versão até a primeira abertura pela revisão                             |
 | Confirmação de leitura      | versões enviadas no período já abertas pela revisão                                      |
 
+O ranking de rodadas ordena por rodadas (maior primeiro), depois pelo primeiro
+envio (mais antigo primeiro) e por fim pelo título. Nos PDFs, taxas saem como
+percentual inteiro ("17%") e tempos em horas e minutos ("3 h 34 min", ou
+"< 1 h" abaixo de uma hora).
+
 "Revisão" nos indicadores de leitura é quem já aprovou, pediu correção ou
 reabriu algum documento. É uma aproximação: se alguém com `review` só ler e
 nunca decidir, a leitura não conta. A correção prevista é gravar no evento de

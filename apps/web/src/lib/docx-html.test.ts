@@ -247,9 +247,21 @@ describe("Word -> editor", () => {
             }),
           ],
         }),
+        // Without alternative text the image is decorative.
+        new Paragraph({
+          children: [
+            new ImageRun({
+              type: "png",
+              data: PIXEL,
+              transformation: { width: 1, height: 1 },
+            }),
+          ],
+        }),
       ]),
     );
     expect(html).toMatch(image("Gráfico de achados"));
+    expect(html).toMatch(image(""));
+    expect(html.match(/<img /g)).toHaveLength(2);
   });
 
   it("keeps center and justify alignment", async () => {
