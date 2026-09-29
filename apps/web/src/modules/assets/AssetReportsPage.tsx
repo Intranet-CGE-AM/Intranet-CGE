@@ -329,6 +329,50 @@ async function handleGenerateReport() {
   }
 }
 
+const departmentLabel =
+  getUnitLabel(
+    units,
+    departmentId,
+  );
+
+const sectorLabel =
+  getUnitLabel(
+    units,
+    sectorId,
+  );
+
+const subsectorLabel =
+  getUnitLabel(
+    units,
+    subsectorId,
+  );
+
+const statusLabel =
+  status === "active"
+    ? "Ativo"
+    : status === "maintenance"
+      ? "Em manutenção"
+      : status === "disposed"
+        ? "Baixado"
+        : "Todas";
+
+const conservationLabel =
+  conservationStatus ||
+  "Todas";
+
+const periodLabel =
+  startDate || endDate
+    ? `${startDate
+        ? formatDateForSpreadsheet(
+            startDate,
+          )
+        : "Início"} até ${endDate
+        ? formatDateForSpreadsheet(
+            endDate,
+          )
+        : "Hoje"}`
+    : "Todos";
+
 function handleExportPdf() {
   if (!report) {
     setReportError(
@@ -348,67 +392,127 @@ function handleExportPdf() {
 
   setReportError(null);
 
-  const doc =
-    new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
+const doc =
+  new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
 
-  const pageWidth =
-    doc.internal.pageSize.getWidth();
+const pageWidth =
+  doc.internal.pageSize.getWidth();
 
-  const generatedAt =
-    new Intl.DateTimeFormat(
-      "pt-BR",
-      {
-        dateStyle: "short",
-        timeStyle: "short",
-      },
-    ).format(
-      new Date(),
-    );
+const pageHeight =
+  doc.internal.pageSize.getHeight();
 
-  doc.setFontSize(16);
-
-  doc.text(
-    "Relatório Patrimonial",
-    14,
-    15,
+const generatedAt =
+  new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+    },
+  ).format(
+    new Date(),
   );
 
-  doc.setFontSize(9);
+doc.setFontSize(16);
 
-  doc.text(
-    `Gerado em: ${generatedAt}`,
-    14,
-    21,
-  );
+doc.text(
+  "Relatório Patrimonial",
+  14,
+  15,
+);
 
-  doc.text(
-    `Quantidade de bens: ${report.summary.total}`,
-    14,
-    27,
-  );
+doc.setFontSize(9);
 
-  doc.text(
-    `Valor patrimonial: ${new Intl.NumberFormat(
-      "pt-BR",
-      {
-        style: "currency",
-        currency: "BRL",
-      },
-    ).format(
-      report.summary.totalValue,
-    )}`,
-    14,
-    33,
-  );
+let currentY = 22;
+const lineHeight = 6;
+
+doc.text(
+  `Gerado em: ${generatedAt}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Departamento: ${departmentLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Setor: ${sectorLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Subsetor: ${subsectorLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Situação: ${statusLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Conservação: ${conservationLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Período: ${periodLabel}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Quantidade de bens: ${report.summary.total}`,
+  14,
+  currentY,
+);
+
+currentY += lineHeight;
+
+doc.text(
+  `Valor patrimonial: ${new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    },
+  ).format(
+    report.summary.totalValue,
+  )}`,
+  14,
+  currentY,
+);
+
+currentY += 7;
 
   autoTable(
     doc,
     {
-      startY: 39,
+      startY: currentY,
 
       head: [
         [
@@ -675,8 +779,56 @@ function handleExportPdf() {
     const summaryRows = [
       {
         Informação:
-          "Quantidade de bens",
+          "Tipo de relatório",
+        Valor:
+          "Inventário geral",
+      },
 
+      {
+        Informação:
+          "Departamento",
+        Valor:
+          departmentLabel,
+      },
+
+      {
+        Informação:
+          "Setor",
+        Valor:
+          sectorLabel,
+      },
+
+      {
+        Informação:
+          "Subsetor",
+        Valor:
+          subsectorLabel,
+      },
+
+      {
+        Informação:
+          "Situação",
+        Valor:
+          statusLabel,
+      },
+
+      {
+        Informação:
+          "Conservação",
+        Valor:
+          conservationLabel,
+      },
+
+      {
+        Informação:
+          "Período",
+        Valor:
+          periodLabel,
+      },
+
+      {
+        Informação:
+          "Quantidade de bens",
         Valor:
           report.summary.total,
       },
@@ -684,7 +836,6 @@ function handleExportPdf() {
       {
         Informação:
           "Valor patrimonial total",
-
         Valor:
           report.summary.totalValue,
       },
@@ -724,6 +875,27 @@ function handleExportPdf() {
       workbook,
       `relatorio-patrimonial-${date}.xlsx`,
     );
+  }
+
+  function getUnitLabel(
+  units: OrganizationUnit[],
+  id: string,
+  ) {
+    if (!id) {
+      return "Todos";
+    }
+
+    const unit =
+      units.find(
+        (item) =>
+          item.id === id,
+      );
+
+    if (!unit) {
+      return "Todos";
+    }
+
+    return `${unit.code} - ${unit.name}`;
   }
 
   return (
