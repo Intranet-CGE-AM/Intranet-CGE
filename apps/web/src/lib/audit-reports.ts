@@ -27,22 +27,31 @@ export const brDate = (value: string) => value.split("-").reverse().join("/");
 export const manausDay = (value: Date | string) =>
   new Date(value).toLocaleDateString("en-CA", { timeZone: "America/Manaus" });
 
-export function formatHours(hours: number | null) {
-  if (hours === null) return "—";
+// The screen shows "—" for missing values. PDFs use "-" and "Não informado":
+// jsPDF's standard fonts write "—" as WinAnsi byte 0x97, which text tools read
+// differently depending on the platform.
+const PDF_EMPTY = "-";
+
+export function formatHours(hours: number | null, empty = "—") {
+  if (hours === null) return empty;
   if (hours < 1) return "< 1 h";
   const minutes = Math.round(hours * 60);
   const rest = minutes % 60;
   return `${Math.floor(minutes / 60)} h${rest ? ` ${rest} min` : ""}`;
 }
 
-export function formatRate(rate: number | null) {
+export function formatRate(rate: number | null, empty = "—") {
   return rate === null
-    ? "—"
+    ? empty
     : `${(rate * 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`;
 }
 
-export function ageInDays(since: Date | string | null, now = Date.now()) {
-  if (!since) return "—";
+export function ageInDays(
+  since: Date | string | null,
+  now = Date.now(),
+  empty = "—",
+) {
+  if (!since) return empty;
   const days = Math.floor((now - new Date(since).getTime()) / 86_400_000);
   return days <= 0 ? "Hoje" : days === 1 ? "1 dia" : `${days} dias`;
 }
@@ -138,14 +147,14 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
     team.unitName,
     team.documentsSubmitted,
     team.documentsApprovedNow,
-    formatRate(team.deliveryRate),
+    formatRate(team.deliveryRate, PDF_EMPTY),
   ]);
   const pendingRows = metrics.pending.map((row) => [
     row.unitName,
     row.withReviewer,
-    ageInDays(row.oldestWithReviewerSince),
+    ageInDays(row.oldestWithReviewerSince, Date.now(), PDF_EMPTY),
     row.withTeam,
-    ageInDays(row.oldestWithTeamSince),
+    ageInDays(row.oldestWithTeamSince, Date.now(), PDF_EMPTY),
   ]);
 
   if (kind === "draft") {
@@ -167,7 +176,7 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
           unitName,
           delivery?.documentsSubmitted ?? 0,
           delivery?.documentsApprovedNow ?? 0,
-          formatRate(delivery?.deliveryRate ?? null),
+          formatRate(delivery?.deliveryRate ?? null, PDF_EMPTY),
           pending?.withReviewer ?? 0,
           pending?.withTeam ?? 0,
         ];
@@ -190,14 +199,14 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
       [
         ["Enviados", metrics.period.documentsSubmitted],
         ["Aprovados (situação atual)", metrics.period.documentsApprovedNow],
-        ["Taxa de entrega", formatRate(metrics.period.deliveryRate)],
+        ["Taxa de entrega", formatRate(metrics.period.deliveryRate, PDF_EMPTY)],
         [
           "Resposta média da Subcontroladoria",
-          formatHours(metrics.reviewerResponse.averageHours),
+          formatHours(metrics.reviewerResponse.averageHours, PDF_EMPTY),
         ],
         [
           "Resposta média das equipes",
-          formatHours(metrics.teamResponse.averageHours),
+          formatHours(metrics.teamResponse.averageHours, PDF_EMPTY),
         ],
       ],
     );
@@ -231,7 +240,7 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
       data.documents.map((item) => [
         item.unitName,
         item.title,
-        item.category ?? "—",
+        item.category ?? "Não informado",
         statusLabels[item.status],
         item.fileCount,
         item.correctionRounds,
@@ -250,10 +259,10 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
         ["Aprovados (situação atual)", metrics.period.documentsApprovedNow],
         ["Cancelados", metrics.period.documentsCancelled],
         ["Aprovações registradas", metrics.period.approvalEvents],
-        ["Taxa de entrega", formatRate(metrics.period.deliveryRate)],
+        ["Taxa de entrega", formatRate(metrics.period.deliveryRate, PDF_EMPTY)],
         [
           "Versões lidas pela Subcontroladoria",
-          `${metrics.reads.readByReviewer} de ${metrics.reads.files} (${formatRate(metrics.reads.rate)})`,
+          `${metrics.reads.readByReviewer} de ${metrics.reads.files} (${formatRate(metrics.reads.rate, PDF_EMPTY)})`,
         ],
       ],
     );
@@ -269,8 +278,8 @@ export function buildAuditReport(kind: AuditReportKind, data: AuditReportData) {
       ).map(([label, stats]) => [
         label,
         stats.count,
-        formatHours(stats.averageHours),
-        formatHours(stats.medianHours),
+        formatHours(stats.averageHours, PDF_EMPTY),
+        formatHours(stats.medianHours, PDF_EMPTY),
       ]),
     );
     table(

@@ -18,11 +18,15 @@ import {
 // Issued on 2003-03-11 at 12:00 in Manaus (UTC-4).
 const NOW = new Date("2003-03-11T16:00:00Z");
 
-/** Text drawn on each page, in drawing order (jsPDF streams are uncompressed). */
-function pages(document: jsPDF) {
-  const raw = new TextDecoder("windows-1252").decode(
-    document.output("arraybuffer"),
-  );
+// WinAnsi (cp1252) bytes 0x80-0x9f, by hand: TextDecoder("windows-1252")
+// falls back to Latin-1 on Node builds without full ICU (the CI image).
+const WIN_ANSI_HIGH =
+  "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ";
+
+/** Raw bytes of each string drawn with Tj, one char per byte (Latin-1). */
+function drawn(document: jsPDF) {
+  const bytes = new Uint8Array(document.output("arraybuffer"));
+  const raw = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   return [...raw.matchAll(/stream\n([\s\S]*?)\nendstream/g)]
     .map(([, stream]) =>
       [...stream!.matchAll(/\(((?:\\.|[^\\)])*)\) Tj/g)].map(([, text]) =>
@@ -30,6 +34,17 @@ function pages(document: jsPDF) {
       ),
     )
     .filter((texts) => texts.length > 0);
+}
+
+/** Text drawn on each page, in drawing order (jsPDF streams are uncompressed). */
+function pages(document: jsPDF) {
+  return drawn(document).map((texts) =>
+    texts.map((text) =>
+      text.replace(/[\u0080-\u009f]/g, (char) =>
+        WIN_ANSI_HIGH.charAt(char.charCodeAt(0) - 0x80),
+      ),
+    ),
+  );
 }
 
 /** The strings drawn right after a label (the rest of its table row). */
@@ -281,7 +296,7 @@ describe("audit PDFs", () => {
       expect.stringMatching(/^Aprovado em 10\/03\/2003,? 16:00$/),
     ]);
     expect(row(texts, "Relatório D4", 6)).toEqual([
-      "—",
+      "Não informado",
       "Cancelado",
       "1",
       "0",
@@ -289,7 +304,7 @@ describe("audit PDFs", () => {
       expect.stringMatching(/^Cancelado em 10\/03\/2003,? 12:00$/),
     ]);
     expect(row(texts, "Relatório D7", 6)).toEqual([
-      "—",
+      "Não informado",
       "Em revisão",
       "1",
       "0",
@@ -355,7 +370,40 @@ describe("audit PDFs", () => {
       "1",
       "4 dias",
       "0",
-      "—",
+      "-",
     ]);
+  });
+
+  it.each(["draft", "detailed", "analytic"] as const)(
+    "%s report only draws characters the standard font encodes the same everywhere",
+    (kind) => {
+      // Bytes 0x80-0x9f (em dash, curly quotes...) depend on the WinAnsi
+      // mapping of whoever reads the file; keep to ASCII and Latin-1.
+      for (const texts of drawn(buildAuditReport(kind, data)))
+        for (const text of texts) expect(text).not.toMatch(/[\u0080-\u009f]/);
+    },
+  );
+
+  it("empty values use PDF-safe placeholders", () => {
+    const none = { count: 0, averageHours: null, medianHours: null };
+    const empty: AuditReportData = {
+      ...data,
+      metrics: {
+        ...metrics,
+        period: { ...metrics.period, deliveryRate: null },
+        reviewerResponse: none,
+        teamResponse: none,
+        firstRead: none,
+        reads: { files: 0, readByReviewer: 0, rate: null },
+      },
+    };
+    const texts = pages(buildAuditReport("analytic", empty)).flat();
+    expect(row(texts, "Taxa de entrega", 1)).toEqual(["-"]);
+    expect(row(texts, "Versões lidas pela Subcontroladoria", 1)).toEqual([
+      "0 de 0 (-)",
+    ]);
+    expect(row(texts, "Primeira leitura", 3)).toEqual(["0", "-", "-"]);
+    for (const text of drawn(buildAuditReport("analytic", empty)).flat())
+      expect(text).not.toMatch(/[\u0080-\u009f]/);
   });
 });
