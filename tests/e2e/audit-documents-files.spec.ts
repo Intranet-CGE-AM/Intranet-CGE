@@ -582,3 +582,57 @@ test("leitura conta uma vez por pessoa e por versão", async ({
     await Promise.all(clients.map((client) => client.dispose()));
   }
 });
+
+test("metadados inválidos ou envio sem arquivo não criam documento", async ({
+  playwright,
+  baseURL,
+}) => {
+  const [coordinator] = (await signInAll(
+    playwright,
+    baseURL!,
+    "coordinatorA",
+  )) as [APIRequestContext];
+  try {
+    const teamA = await unitId(coordinator, auditTeams.a);
+    const title = unique("Metadados inválidos E2E");
+    const before = await titleCount(coordinator, "Metadados inválidos E2E");
+    for (const metadata of [
+      { unitId: teamA, title: "   " },
+      { unitId: teamA },
+      { unitId: "equipe-01", title },
+      { unitId: teamA, title, status: "approved" },
+    ])
+      expect(
+        (await createDocument(coordinator, metadata, docxFile())).status(),
+      ).toBe(400);
+    for (const multipart of [
+      { metadata: JSON.stringify({ unitId: teamA, title }) },
+      { metadata: "{nao é json", file: docxFile() },
+      {
+        metadata: JSON.stringify({ unitId: teamA, title }),
+        other: "campo extra",
+        file: docxFile(),
+      },
+      {
+        metadata: JSON.stringify({ unitId: teamA, title }),
+        file: docxFile(),
+        other: "campo extra",
+      },
+      {
+        metadata: JSON.stringify({ unitId: teamA, title }),
+        file: docxFile(),
+        second: docxFile("segundo.docx"),
+      },
+    ])
+      expect(
+        (
+          await coordinator.post("/api/audit-documents", { multipart })
+        ).status(),
+      ).toBe(400);
+    expect(await titleCount(coordinator, "Metadados inválidos E2E")).toBe(
+      before,
+    );
+  } finally {
+    await coordinator.dispose();
+  }
+});

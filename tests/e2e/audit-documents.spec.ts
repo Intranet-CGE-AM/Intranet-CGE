@@ -1,3 +1,4 @@
+import { auditRows } from "./audit-document-api";
 import {
   auditAccounts,
   auditTeams,
@@ -115,13 +116,10 @@ test("documento de auditoria percorre envio, correção, aprovação e reabertur
     const admin = await signIn(playwright, baseURL!, auditAccounts.admin);
     try {
       const actions = (
-        (await (
-          await admin.get(
-            "/api/audit-events?objectType=audit-document&action=audit-document.file-viewed,audit-document.file-downloaded&pageSize=100",
-          )
-        ).json()) as { events: { action: string; objectId: string }[] }
-      ).events
-        .filter((event) => event.objectId === id)
+        await auditRows(admin, id, {
+          action: "audit-document.file-viewed,audit-document.file-downloaded",
+        })
+      )
         .map((event) => event.action)
         .sort();
       expect(actions).toEqual([
