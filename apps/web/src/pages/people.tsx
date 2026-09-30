@@ -31,7 +31,13 @@ import {
   MagnifyingGlass as Search,
   Plus,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useNavigate } from "react-router";
 
 import { useAuth } from "../auth";
@@ -47,6 +53,7 @@ export function PeoplePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
+  const peopleRequest = useRef(0);
   const [categories, setCategories] = useState<EmploymentCategory[]>([]);
   const [units, setUnits] = useState<OrganizationUnit[]>([]);
   const [supervisorCandidates, setSupervisorCandidates] = useState<Person[]>(
@@ -59,6 +66,8 @@ export function PeoplePage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const peopleFilters = useRef({ page, pageSize, search });
+  peopleFilters.current = { page, pageSize, search };
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [dialogError, setDialogError] = useState("");
@@ -75,6 +84,9 @@ export function PeoplePage() {
     tone: "success" | "danger";
   } | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreviewId, setImportPreviewId] = useState<string | null>(null);
+  const [importApplied, setImportApplied] = useState(false);
+  const [reconcileFields, setReconcileFields] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<PeopleImportResult | null>(
     null,
   );
@@ -95,10 +107,11 @@ export function PeoplePage() {
 
   const loadPeople = useCallback(
     async (signal?: AbortSignal) => {
+      const requestId = ++peopleRequest.current;
+      const { page, pageSize, search } = peopleFilters.current;
       try {
         setLoading(true);
         setError("");
-        setDialogError("");
         const params = new URLSearchParams({
           page: String(page),
           pageSize: String(pageSize),
@@ -107,6 +120,7 @@ export function PeoplePage() {
         const result = await api<PeoplePageResult>(`/api/people?${params}`, {
           signal,
         });
+        if (signal?.aborted || requestId !== peopleRequest.current) return;
         if (
           result.pagination.totalPages &&
           page > result.pagination.totalPages
@@ -117,10 +131,11 @@ export function PeoplePage() {
         setPeople(result.people);
         setTotal(result.pagination.total);
       } catch (cause) {
-        if (isAbortError(cause)) return;
+        if (isAbortError(cause) || requestId !== peopleRequest.current) return;
         setError(messageFor(cause, "Não foi possível carregar o diretório."));
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!signal?.aborted && requestId === peopleRequest.current)
+          setLoading(false);
       }
     },
     [page, pageSize, search],
@@ -299,12 +314,45 @@ export function PeoplePage() {
           filename: importFile.name,
           csv: await importFile.text(),
           mode,
+          reconciliation:
+            mode === "apply" && importPreviewId && reconcileFields.length
+              ? {
+                  previewId: importPreviewId,
+                  fields: importResult?.rows.flatMap((row) =>
+                    row.comparisons
+                      .filter((item) =>
+                        reconcileFields.includes(
+                          `${row.rowNumber}:${item.field}`,
+                        ),
+                      )
+                      .map((item) => ({
+                        employeeNumber: row.employeeNumber,
+                        field: item.field,
+                      })),
+                  ),
+                }
+              : undefined,
         }),
       });
       setImportResult(result);
+      setImportApplied(mode === "apply");
+      setImportPreviewId(mode === "preview" ? result.importRunId : null);
+      setReconcileFields([]);
       if (mode === "apply") {
-        await Promise.all([loadPeople(), loadReferenceData()]);
-        setSuccess("Importação aplicada.");
+        if (result.failedRows)
+          setDialogError(
+            result.successfulRows
+              ? `Aplicação parcial: ${result.successfulRows} linha(s) aplicada(s) e ${result.failedRows} com erro. Revise os erros e valide novamente o arquivo.`
+              : "Nenhuma linha foi aplicada. Revise os erros e valide novamente o arquivo.",
+          );
+        else setSuccess("Importação aplicada.");
+        try {
+          await Promise.all([loadPeople(), loadReferenceData()]);
+        } catch {
+          setDialogError(
+            "A importação foi processada, mas não foi possível atualizar a consulta. Recarregue a página para conferir o resultado.",
+          );
+        }
       }
     } catch (cause) {
       setDialogError(messageFor(cause, "Não foi possível processar o CSV."));
@@ -941,18 +989,27 @@ export function PeoplePage() {
                 id="peopleCsv"
                 name="peopleCsv"
                 type="file"
+                disabled={busy}
                 accept=".csv,text/csv"
                 onChange={(event) => {
                   setImportFile(event.target.files?.[0] ?? null);
                   setImportResult(null);
+                  setImportApplied(false);
+                  setImportPreviewId(null);
+                  setReconcileFields([]);
                 }}
               />
             </FormField>
             {importResult ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-sm">
-                <p className="font-bold">Resultado da validação</p>
+                <p className="font-bold">
+                  {importApplied
+                    ? "Resultado da aplicação"
+                    : "Resultado da validação"}
+                </p>
                 <p className="mt-1 text-[var(--text-muted)]">
-                  {importResult.successfulRows} válidas ·{" "}
+                  {importResult.successfulRows}{" "}
+                  {importApplied ? "aplicadas" : "válidas"} ·{" "}
                   {importResult.failedRows} com erro · {importResult.totalRows}{" "}
                   linhas
                 </p>
@@ -970,6 +1027,78 @@ export function PeoplePage() {
                 ) : null}
               </div>
             ) : null}
+            {importPreviewId &&
+            importResult?.rows.some((row) =>
+              row.comparisons.some((item) => item.state === "divergent"),
+            ) ? (
+              <section
+                className="space-y-3 text-sm"
+                aria-label="Conferência das divergências"
+              >
+                <h3 className="font-semibold">Conferir divergências</h3>
+                <p>
+                  Alterações manuais serão preservadas. Marque apenas os campos
+                  que deseja substituir pelo valor importado.
+                </p>
+                <ul className="max-h-72 divide-y divide-[var(--border)] overflow-y-auto">
+                  {importResult.rows.flatMap((row) =>
+                    row.comparisons
+                      .filter((item) => item.state === "divergent")
+                      .map((item) => {
+                        const key = `${row.rowNumber}:${item.field}`;
+                        const label =
+                          importFieldLabels[item.field] ?? item.field;
+                        return (
+                          <li key={key} className="space-y-2 py-3">
+                            <p className="font-semibold">
+                              Matrícula {row.employeeNumber} · {label}
+                            </p>
+                            <p className="break-words">
+                              Local: <span>{item.localLabel}</span>
+                              <br />
+                              Importado: <span>{item.importedLabel}</span>
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)]">
+                              {item.source === "import"
+                                ? "Última fonte: importação"
+                                : "Alteração manual ou cadastro legado"}{" "}
+                              ·{" "}
+                              {new Date(item.updatedAt).toLocaleString(
+                                "pt-BR",
+                                { timeZone: "America/Manaus" },
+                              )}
+                            </p>
+                            {item.source !== "import" ? (
+                              <label className="flex min-h-11 items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={reconcileFields.includes(key)}
+                                  onChange={(event) =>
+                                    setReconcileFields((current) =>
+                                      event.target.checked
+                                        ? [...current, key]
+                                        : current.filter(
+                                            (value) => value !== key,
+                                          ),
+                                    )
+                                  }
+                                />
+                                Substituir {label} da matrícula{" "}
+                                {row.employeeNumber} pelo valor importado
+                              </label>
+                            ) : (
+                              <p>
+                                Campo controlado pela importação: será
+                                atualizado.
+                              </p>
+                            )}
+                          </li>
+                        );
+                      }),
+                  )}
+                </ul>
+              </section>
+            ) : null}
             <div className="flex justify-end gap-2">
               <Button
                 variant="secondary"
@@ -982,6 +1111,7 @@ export function PeoplePage() {
                 disabled={
                   !importFile ||
                   !importResult ||
+                  !importPreviewId ||
                   importResult.successfulRows === 0 ||
                   busy
                 }
@@ -1008,6 +1138,18 @@ export function PeoplePage() {
 function messageFor(cause: unknown, fallback: string) {
   return cause instanceof ApiError ? cause.message : fallback;
 }
+
+const importFieldLabels: Record<string, string> = {
+  fullName: "Nome",
+  preferredName: "Nome preferido",
+  birthDate: "Nascimento",
+  birthdayVisible: "Aniversário visível",
+  "employment.jobTitle": "Cargo",
+  "employment.unitId": "Unidade",
+  "employment.categoryId": "Categoria",
+  "employment.startDate": "Início do vínculo",
+  "employment.endDate": "Desligamento",
+};
 
 function isAbortError(cause: unknown) {
   return cause instanceof DOMException && cause.name === "AbortError";

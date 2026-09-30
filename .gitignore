@@ -6,8 +6,10 @@ coverage/
 !.env.example
 !.env.production.example
 !.env.homolog.example
+.idea/
 *.log
 *.tsbuildinfo
+.idea/
 .DS_Store
 data/
 backups/

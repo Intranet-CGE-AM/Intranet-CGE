@@ -1,5 +1,6 @@
 import {
   authErrorSchema,
+  dossierSchema,
   birthdaySchema,
   employmentCategoryInputSchema,
   employmentCategorySchema,
@@ -24,6 +25,7 @@ import type { Database } from "../../db/client.js";
 import {
   requireAuthenticatedUser,
   requireAnyPermission,
+  requireOneOfPermissions,
   requirePermission,
 } from "../access/authorize.js";
 import type { AccessService } from "../access/service.js";
@@ -53,6 +55,37 @@ export const peopleRoutes: FastifyPluginAsync<{
   peopleService: PeopleService;
 }> = async (app, options) => {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
+  typedApp.get(
+    "/api/me/dossier",
+    {
+      schema: {
+        querystring: z.strictObject({}),
+        response: { 200: dossierSchema, 404: authErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const user = await requireAuthenticatedUser(
+        request,
+        reply,
+        options.authenticationService,
+      );
+      if (!user) return;
+      const dossier = await options.peopleService.getDossier(user.person.id);
+      if (!dossier)
+        return reply.status(404).send({
+          code: "PERSON_NOT_FOUND",
+          message: "Cadastro não encontrado.",
+        });
+      await recordAudit(options.db, {
+        actorAccountId: user.account.id,
+        action: "person.dossier-read",
+        objectType: "person",
+        objectId: user.person.id,
+        outcome: "success",
+      });
+      return reply.header("Cache-Control", "no-store").send(dossier);
+    },
+  );
   const authorizeAvatarChange = async (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -395,7 +428,10 @@ export const peopleRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
-      const result = await options.peopleService.createPerson(request.body);
+      const result = await options.peopleService.createPerson(
+        request.body,
+        user.account.id,
+      );
       await recordAudit(options.db, {
         actorAccountId: user.account.id,
         action: "person.created",
@@ -461,6 +497,15 @@ export const peopleRoutes: FastifyPluginAsync<{
       const person = await options.peopleService.updatePerson(
         request.params.id,
         request.body,
+        {
+          actorAccountId: user.account.id,
+          permissions: user.permissions,
+          permission: "people.manage",
+          reason: "Atualização pelo cadastro de colaboradores",
+          effectiveOn: new Date().toLocaleDateString("en-CA", {
+            timeZone: "America/Manaus",
+          }),
+        },
       );
       if (!person) {
         return reply.status(404).send({
@@ -517,6 +562,13 @@ export const peopleRoutes: FastifyPluginAsync<{
       const person = await options.peopleService.deactivatePerson(
         request.params.id,
         request.body.endDate,
+        {
+          actorAccountId: user.account.id,
+          permissions: user.permissions,
+          permission: "people.manage",
+          reason: "Desligamento pelo cadastro de colaboradores",
+          effectiveOn: request.body.endDate,
+        },
       );
       if (!person) {
         return reply.status(404).send({
@@ -524,10 +576,6 @@ export const peopleRoutes: FastifyPluginAsync<{
           message: "Colaborador não encontrado.",
         });
       }
-      await options.authenticationService.deactivateAccountForPerson(
-        request.params.id,
-        user.account.id,
-      );
       await recordAudit(options.db, {
         actorAccountId: user.account.id,
         action: "person.deactivated",
@@ -585,11 +633,11 @@ export const peopleRoutes: FastifyPluginAsync<{
 
   typedApp.get("/api/organization-units", {}, async (request, reply) => {
     if (
-      !(await requireAnyPermission(
+      !(await requireOneOfPermissions(
         request,
         reply,
         options.authenticationService,
-        "people.read",
+        ["people.read", "assets.read", "assets.manage"],
       ))
     ) {
       return;
@@ -628,114 +676,90 @@ export const peopleRoutes: FastifyPluginAsync<{
   );
 
   typedApp.patch(
-  "/api/organization-units/:id",
+    "/api/organization-units/:id",
 
-  {
-    schema: {
-      params:
-        z.object({
+    {
+      schema: {
+        params: z.object({
           id: z.uuid(),
         }),
 
-      body:
-        organizationUnitInputSchema,
+        body: organizationUnitInputSchema,
+      },
     },
-  },
-  
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "people.manage",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    const updated =
-      await options.peopleService.updateUnit(
+      const updated = await options.peopleService.updateUnit(
         request.params.id,
         request.body,
       );
 
-    if (!updated) {
-      return reply
-        .status(404)
-        .send({
-          code:
-            "ORGANIZATION_UNIT_NOT_FOUND",
+      if (!updated) {
+        return reply.status(404).send({
+          code: "ORGANIZATION_UNIT_NOT_FOUND",
 
-          message:
-            "Setor não encontrado.",
+          message: "Setor não encontrado.",
         });
-    }
+      }
 
-    return updated;
-  },
-);
+      return updated;
+    },
+  );
 
-typedApp.patch(
-  "/api/organization-units/:id/active",
+  typedApp.patch(
+    "/api/organization-units/:id/active",
 
-  {
-    schema: {
-      params:
-        z.object({
+    {
+      schema: {
+        params: z.object({
           id: z.uuid(),
         }),
 
-      body:
-        z.object({
-          active:
-            z.boolean(),
+        body: z.object({
+          active: z.boolean(),
         }),
+      },
     },
-  },
 
-  async (
-    request,
-    reply,
-  ) => {
-    const user =
-      await requireAnyPermission(
+    async (request, reply) => {
+      const user = await requireAnyPermission(
         request,
         reply,
         options.authenticationService,
         "people.manage",
       );
 
-    if (!user) {
-      return;
-    }
+      if (!user) {
+        return;
+      }
 
-    const updated =
-      await options.peopleService.setUnitActive(
+      const updated = await options.peopleService.setUnitActive(
         request.params.id,
         request.body.active,
       );
 
-    if (!updated) {
-      return reply
-        .status(404)
-        .send({
-          code:
-            "ORGANIZATION_UNIT_NOT_FOUND",
+      if (!updated) {
+        return reply.status(404).send({
+          code: "ORGANIZATION_UNIT_NOT_FOUND",
 
-          message:
-            "Setor não encontrado.",
+          message: "Setor não encontrado.",
         });
-    }
+      }
 
-    return updated;
-  },
-);
+      return updated;
+    },
+  );
 
   typedApp.post(
     "/api/imports/people",

@@ -3,6 +3,7 @@ import type {
   InputHTMLAttributes,
   LabelHTMLAttributes,
   ReactNode,
+  Ref,
   TextareaHTMLAttributes,
 } from "react";
 
@@ -11,7 +12,7 @@ import { cn } from "../lib/cn";
 export function Input({
   className,
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
   return (
     <input
       className={cn(
@@ -20,6 +21,14 @@ export function Input({
       )}
       {...props}
     />
+  );
+}
+
+export function DateInput(
+  props: Omit<InputHTMLAttributes<HTMLInputElement>, "type">,
+) {
+  return (
+    <Input {...props} type="date" className={cn("min-h-11", props.className)} />
   );
 }
 

@@ -5,34 +5,19 @@ import {
   CardHeader,
   DashboardBanner,
 } from "@cge/ui";
-import { ArrowRight, Files, Megaphone, Monitor } from "@phosphor-icons/react";
+import { ArrowRight, Monitor } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { useAuth } from "../auth";
+import { CommunicationsPanel } from "./communications";
 import {
   availableModules,
   availableSystemNavigation,
   canNavigate,
 } from "../navigation";
-
-const today = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "long",
-  timeZone: "America/Manaus",
-  weekday: "long",
-});
+import { manausGreeting, manausLongDate } from "../lib/dates";
 
 const futureSpaces = [
-  {
-    description: "Avisos e notícias da instituição",
-    icon: Megaphone,
-    label: "Mural e comunicados",
-  },
-  {
-    description: "Normas, manuais e formulários",
-    icon: Files,
-    label: "Documentos internos",
-  },
   {
     description: "Atalhos para os sistemas da CGE",
     icon: Monitor,
@@ -59,11 +44,11 @@ export function HubPage() {
   return (
     <div className="hub-page space-y-6 pb-6">
       <header className="pt-2" data-reveal>
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {today.format(new Date())} · Manaus
+        <p className="text-xs font-semibold text-[var(--text-faint)]">
+          {manausLongDate()} · Manaus
         </p>
         <h1 className="mt-2 text-[32px] font-extrabold leading-tight tracking-[-0.045em] sm:text-[38px]">
-          Bom dia, {firstName}
+          {manausGreeting()}, {firstName}
         </h1>
       </header>
 
@@ -105,6 +90,7 @@ export function HubPage() {
 
       <div className="grid items-start gap-5 lg:grid-cols-2" data-reveal>
         <div className="space-y-5">
+          <CommunicationsPanel />
           <Card aria-labelledby="modules-title">
             <CardHeader>
               <div>

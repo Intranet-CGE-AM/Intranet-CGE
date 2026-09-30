@@ -1,6 +1,7 @@
 import {
   authErrorSchema,
   permissionUnitIds,
+  permissionAllows,
   vacationDecisionInputSchema,
   vacationRequestInputSchema,
   vacationRequestSchema,
@@ -19,6 +20,7 @@ import type { AccessService } from "../access/service.js";
 import { recordAudit } from "../audit/service.js";
 import type { AuthenticationService } from "../auth/service.js";
 import { VacationError, type VacationService } from "./service.js";
+import { delegationMetadata } from "../substitutions/active.js";
 
 const idParamsSchema = z.object({ id: z.uuid() });
 
@@ -84,7 +86,9 @@ export const vacationRoutes: FastifyPluginAsync<{
         });
       }
       const grants = user.permissions.filter(
-        (grant) => grant.key === permission,
+        (grant) =>
+          grant.key === permission &&
+          (request.query.scope !== "supervisor" || !grant.delegation),
       );
       const unitIds =
         request.query.scope === "mine"
@@ -95,6 +99,19 @@ export const vacationRoutes: FastifyPluginAsync<{
           user.account.id,
           request.query.scope,
           unitIds,
+          user.permissions.flatMap((grant) =>
+            grant.key === permission &&
+            grant.delegation &&
+            grant.unitId &&
+            permissionAllows(user.permissions, permission, grant.unitId)
+              ? [
+                  {
+                    personId: grant.delegation.originalPersonId,
+                    unitId: grant.unitId,
+                  },
+                ]
+              : [],
+          ),
         ),
       };
     },
@@ -205,6 +222,13 @@ export const vacationRoutes: FastifyPluginAsync<{
         request.params.id,
         user.account.id,
         request.body,
+        user.permissions.flatMap((grant) =>
+          grant.key === "vacations.review.supervisor" &&
+          grant.unitId === context.unitId &&
+          grant.delegation
+            ? [grant.delegation]
+            : [],
+        ),
       );
       await auditVacation(
         options.db,
@@ -237,16 +261,23 @@ export const vacationRoutes: FastifyPluginAsync<{
       if (!user) {
         return;
       }
+      const metadata = delegationMetadata(
+        user.permissions,
+        "vacations.review.final",
+        context.unitId,
+      );
       const updated = await options.vacationService.finalDecision(
         request.params.id,
         user.account.id,
         request.body,
+        metadata.delegation,
       );
       await auditVacation(
         options.db,
         user.account.id,
         updated.id,
         `vacation.final-${request.body.decision}`,
+        metadata,
       );
       return updated;
     },
@@ -294,6 +325,7 @@ function auditVacation(
   actorAccountId: string,
   objectId: string,
   action: string,
+  metadata?: Record<string, unknown>,
 ) {
   return recordAudit(db, {
     actorAccountId,
@@ -301,5 +333,6 @@ function auditVacation(
     objectType: "vacation-request",
     objectId,
     outcome: "success",
+    metadata,
   });
 }

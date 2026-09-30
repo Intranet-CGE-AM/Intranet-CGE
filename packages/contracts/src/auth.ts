@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { permissionEffectSchema, permissionKeySchema } from "./access.js";
+import { delegationSchema } from "./substitutions.js";
 
 export const loginRequestSchema = z.object({
   email: z.email().max(254),
@@ -18,6 +19,7 @@ export const changePasswordRequestSchema = z
   });
 
 export const effectivePermissionSchema = z.object({
+  delegation: delegationSchema.optional(),
   effect: permissionEffectSchema.optional(),
   key: permissionKeySchema,
   unitId: z.uuid().nullable(),

@@ -1,6 +1,4 @@
-import type {
-  Asset,
-} from "@cge/contracts";
+import type { Asset } from "@cge/contracts";
 
 import {
   Alert,
@@ -10,52 +8,43 @@ import {
   CardContent,
   CardHeader,
   EmptyState,
+  FormField,
   Input,
+  SearchableSelect,
+  Select,
   Table,
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 
 import {
   ArrowClockwise,
+  CaretDown,
+  CaretUp,
+  MagnifyingGlass,
   PlusCircle,
+  SlidersHorizontal,
 } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { Link, useSearchParams } from "react-router";
+
+import { api, ApiError } from "../../lib/api";
 
 import {
-  Link,
-  useSearchParams,
-} from "react-router";
-
-import {
-  api,
-  ApiError,
-} from "../../lib/api";
-
-type OrganizationUnitType =
-  | "department"
-  | "sector"
-  | "subsector";
-
-type OrganizationUnit = {
-  id: string;
-  code: string;
-  name: string;
-  type: OrganizationUnitType | null;
-  parentId: string | null;
-  active: boolean;
-};
-
-type OrganizationUnitsResponse = {
-  units: OrganizationUnit[];
-};
+  ALL,
+  assetStatusMeta,
+  formatCurrency,
+  formatDate,
+  PageHeader,
+  unitOptions,
+  type OrganizationUnit,
+  type OrganizationUnitsResponse,
+  useCanManageAssets,
+} from "./shared";
 
 type AssetListResponse = {
   assets: Asset[];
@@ -65,139 +54,64 @@ type AssetListResponse = {
   totalPages: number;
 };
 
-const assetStatusLabels = {
-  active: "Em uso",
-  maintenance: "Em manutenção",
-  disposed: "Baixado",
-} as const;
-
 export function AssetListPage() {
-  const [
-    searchParams,
-    setSearchParams,
-  ] = useSearchParams();
+  const canManage = useCanManageAssets();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const selectedUnitId =
-    searchParams.get(
-      "unitId",
-    );
+  const selectedUnitId = searchParams.get("unitId");
 
-  const selectedConservationStatus =
-    searchParams.get(
-      "conservationStatus",
-    );
+  const selectedConservationStatus = searchParams.get("conservationStatus");
 
-  const searchTerm =
-    searchParams.get(
-      "q",
-    ) ?? "";
+  const searchTerm = searchParams.get("q") ?? "";
 
-  const [
-    assets,
-    setAssets,
-  ] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
 
-  const [
-    total,
-    setTotal,
-  ] = useState(0);
+  const [total, setTotal] = useState(0);
 
-  const [
-    totalPages,
-    setTotalPages,
-  ] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const [
-    currentPage,
-    setCurrentPage,
-  ] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [
-    currentPageSize,
-    setCurrentPageSize,
-  ] = useState(10);
+  const [currentPageSize, setCurrentPageSize] = useState(10);
 
-  const [
-    units,
-    setUnits,
-  ] = useState<OrganizationUnit[]>([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [error, setError] = useState("");
 
-  const unitsById =
-    useMemo(
-      () =>
-        new Map(
-          units.map(
-            (unit) => [
-              unit.id,
-              unit,
-            ],
-          ),
-        ),
-      [units],
-    );
+  const unitsById = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit])),
+    [units],
+  );
 
-  function getAssetLocation(
-    unitId: string | null,
-  ) {
+  function getAssetLocation(unitId: string | null) {
     if (!unitId) {
       return "—";
     }
 
-    const unit =
-      unitsById.get(unitId);
+    const unit = unitsById.get(unitId);
 
     if (!unit) {
       return "—";
     }
 
     if (unit.type === "subsector") {
-      const sector =
-        unit.parentId
-          ? unitsById.get(
-            unit.parentId,
-          )
-          : null;
+      const sector = unit.parentId ? unitsById.get(unit.parentId) : null;
 
-      const department =
-        sector?.parentId
-          ? unitsById.get(
-            sector.parentId,
-          )
-          : null;
+      const department = sector?.parentId
+        ? unitsById.get(sector.parentId)
+        : null;
 
-      return [
-        department?.code,
-        sector?.code,
-        unit.code,
-      ]
+      return [department?.code, sector?.code, unit.code]
         .filter(Boolean)
         .join(" > ");
     }
 
     if (unit.type === "sector") {
-      const department =
-        unit.parentId
-          ? unitsById.get(
-            unit.parentId,
-          )
-          : null;
+      const department = unit.parentId ? unitsById.get(unit.parentId) : null;
 
-      return [
-        department?.code,
-        unit.code,
-      ]
-        .filter(Boolean)
-        .join(" > ");
+      return [department?.code, unit.code].filter(Boolean).join(" > ");
     }
 
     if (unit.type === "department") {
@@ -208,1025 +122,569 @@ export function AssetListPage() {
     return `${unit.code} - ${unit.name}`;
   }
 
-  const selectedStatus =
-    searchParams.get(
-      "status",
-    );
+  const selectedStatus = searchParams.get("status");
 
-  const sortBy =
-    searchParams.get(
-      "sortBy",
-    ) ?? "patrimonyNumber";
+  const sortBy = searchParams.get("sortBy") ?? "patrimonyNumber";
 
-  const sortDirection =
-    searchParams.get(
-      "sortDirection",
-    ) ?? "asc";
+  const sortDirection = searchParams.get("sortDirection") ?? "asc";
 
-
-  const selectedStatusLabel =
-    selectedStatus
-      ? assetStatusLabels[
-      selectedStatus as keyof typeof assetStatusLabels
-      ] ?? null
-      : null;
-
-  const selectedUnit =
-    selectedUnitId
-      ? unitsById.get(
-        selectedUnitId,
-      ) ?? null
-      : null;
+  const selectedUnit = selectedUnitId
+    ? (unitsById.get(selectedUnitId) ?? null)
+    : null;
   const selectedSubsector =
-    selectedUnit?.type === "subsector"
-      ? selectedUnit
-      : null;
+    selectedUnit?.type === "subsector" ? selectedUnit : null;
 
   const selectedSector =
     selectedUnit?.type === "sector"
       ? selectedUnit
       : selectedSubsector?.parentId
-        ? unitsById.get(
-          selectedSubsector.parentId,
-        ) ?? null
+        ? (unitsById.get(selectedSubsector.parentId) ?? null)
         : null;
 
   const selectedDepartment =
     selectedUnit?.type === "department"
       ? selectedUnit
       : selectedSector?.parentId
-        ? unitsById.get(
-          selectedSector.parentId,
-        ) ?? null
+        ? (unitsById.get(selectedSector.parentId) ?? null)
         : null;
 
-  const selectedDepartmentId =
-    selectedDepartment?.id ?? "";
+  const selectedDepartmentId = selectedDepartment?.id ?? "";
 
-  const selectedSectorId =
-    selectedSector?.id ?? "";
+  const selectedSectorId = selectedSector?.id ?? "";
 
-  const selectedSubsectorId =
-    selectedSubsector?.id ?? "";
+  const selectedSubsectorId = selectedSubsector?.id ?? "";
 
+  const departments = units.filter(
+    (unit) => unit.active && unit.type === "department",
+  );
 
-  const departments =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "department",
-    );
+  const sectors = units.filter(
+    (unit) =>
+      unit.active &&
+      unit.type === "sector" &&
+      unit.parentId === selectedDepartmentId,
+  );
 
-  const sectors =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "sector" &&
-        unit.parentId ===
-        selectedDepartmentId,
-    );
+  const subsectors = units.filter(
+    (unit) =>
+      unit.active &&
+      unit.type === "subsector" &&
+      unit.parentId === selectedSectorId,
+  );
 
-  const subsectors =
-    units.filter(
-      (unit) =>
-        unit.active &&
-        unit.type === "subsector" &&
-        unit.parentId ===
-        selectedSectorId,
-    );
-
-
-  function updateFilter(
-    key: string,
-    value: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function updateFilter(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
 
     if (value) {
-      next.set(
-        key,
-        value,
-      );
+      next.set(key, value);
     } else {
-      next.delete(
-        key,
-      );
+      next.delete(key);
     }
 
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function changePage(
-    page: number,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function changePage(page: number) {
+    const next = new URLSearchParams(searchParams);
 
-    next.set(
-      "page",
-      String(page),
-    );
+    next.set("page", String(page));
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function changePageSize(
-    value: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function changePageSize(value: string) {
+    const next = new URLSearchParams(searchParams);
 
-    next.set(
-      "pageSize",
-      value,
-    );
+    next.set("pageSize", value);
 
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  function updateSort(
-    field: string,
-  ) {
-    const next =
-      new URLSearchParams(
-        searchParams,
-      );
+  function updateSort(field: string) {
+    const next = new URLSearchParams(searchParams);
 
-    const currentField =
-      next.get(
-        "sortBy",
-      );
+    const currentField = next.get("sortBy");
 
-    const currentDirection =
-      next.get(
-        "sortDirection",
-      ) ?? "asc";
+    const currentDirection = next.get("sortDirection") ?? "asc";
 
-    if (
-      currentField ===
-      field
-    ) {
-      next.set(
-        "sortDirection",
-        currentDirection ===
-          "asc"
-          ? "desc"
-          : "asc",
-      );
+    if (currentField === field) {
+      next.set("sortDirection", currentDirection === "asc" ? "desc" : "asc");
     } else {
-      next.set(
-        "sortBy",
-        field,
-      );
+      next.set("sortBy", field);
 
-      next.set(
-        "sortDirection",
-        "asc",
-      );
-
-
+      next.set("sortDirection", "asc");
     }
-    next.set(
-      "page",
-      "1",
-    );
+    next.set("page", "1");
 
-    setSearchParams(
-      next,
-    );
+    setSearchParams(next);
   }
 
-  const queryString =
-    searchParams.toString();
+  const queryString = searchParams.toString();
 
-  const loadData =
-    useCallback(
-      async () => {
-        try {
-          setLoading(true);
-          setError("");
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-          const assetUrl =
-            queryString
-              ? `/api/assets?${queryString}`
-              : "/api/assets";
+      const assetUrl = queryString
+        ? `/api/assets?${queryString}`
+        : "/api/assets";
 
-          const [
-            assetResult,
-            unitResult,
-          ] =
-            await Promise.all([
-              api<AssetListResponse>(
-                assetUrl,
-              ),
+      const [assetResult, unitResult] = await Promise.all([
+        api<AssetListResponse>(assetUrl),
 
-              api<OrganizationUnitsResponse>(
-                "/api/organization-units",
-              ),
-            ]);
+        api<OrganizationUnitsResponse>("/api/organization-units"),
+      ]);
 
-          setAssets(
-            assetResult.assets,
-          );
+      setAssets(assetResult.assets);
 
-          setTotal(
-            assetResult.total,
-          );
+      setTotal(assetResult.total);
 
-          setTotalPages(
-            assetResult.totalPages,
-          );
+      setTotalPages(assetResult.totalPages);
 
-          setCurrentPage(
-            assetResult.page,
-          );
+      setCurrentPage(assetResult.page);
 
-          setCurrentPageSize(
-            assetResult.pageSize,
-          );
+      setCurrentPageSize(assetResult.pageSize);
 
-          setUnits(
-            unitResult.units,
-          );
-        } catch (cause) {
-          if (
-            cause instanceof
-            ApiError
-          ) {
-            setError(
-              cause.message,
-            );
-          } else {
-            setError(
-              "Não foi possível carregar os bens patrimoniais.",
-            );
-          }
-        } finally {
-          setLoading(false);
-        }
-      },
-      [
-        queryString,
-      ],
-    );
+      setUnits(unitResult.units);
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setError(cause.message);
+      } else {
+        setError("Não foi possível carregar os bens patrimoniais.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [queryString]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
+  const hasFilters = Boolean(
+    searchTerm ||
+    selectedStatus ||
+    selectedUnitId ||
+    selectedConservationStatus,
+  );
+
+  const itemLabel = total === 1 ? "bem" : "bens";
+
+  const first = total ? (currentPage - 1) * currentPageSize + 1 : 0;
+
+  const last = Math.min(currentPage * currentPageSize, total);
+
+  const statusValue = selectedStatus ?? "";
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-            Bens Patrimoniais
-          </h1>
-
-          <p className="text-sm text-[var(--text-muted)]">
-            Consulte os bens
-            patrimoniais cadastrados.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            disabled={loading}
-            onClick={() =>
-              void loadData()
-            }
-            type="button"
-            variant="secondary"
-          >
-            <ArrowClockwise
-              size={18}
-            />
-
-            Atualizar
-          </Button>
-
-          <Button asChild>
-            <Link
-              to="/patrimonio/bens/novo"
+    <div className="page-enter space-y-5">
+      <PageHeader
+        actions={
+          <>
+            <Button
+              disabled={loading}
+              onClick={() => void loadData()}
+              type="button"
+              variant="secondary"
             >
-              <PlusCircle
-                size={18}
-              />
+              <ArrowClockwise aria-hidden="true" size={16} />
+              Atualizar
+            </Button>
 
-              Novo bem
-            </Link>
-          </Button>
-        </div>
-      </div>
+            {canManage ? (
+              <Button asChild>
+                <Link to="/patrimonio/bens/novo">
+                  <PlusCircle aria-hidden="true" size={16} />
+                  Novo bem
+                </Link>
+              </Button>
+            ) : null}
+          </>
+        }
+        description="Consulte os bens patrimoniais cadastrados."
+        title="Bens patrimoniais"
+      />
 
       {error ? (
-        <Alert
-          tone="danger"
-          title="Não foi possível carregar os bens"
-        >
+        <Alert tone="danger" title="Não foi possível carregar os bens">
           {error}
         </Alert>
       ) : null}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="items-start">
           <div>
-            <h2 className="font-medium">
-              Filtros
-            </h2>
+            <h2 className="font-bold">Bens cadastrados</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
-              Localize bens por tombo, material, situação ou estrutura organizacional.
-            </p>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div>
-              <label
-                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="asset-search"
-              >
-                Tombo / Material
-              </label>
-
-              <Input
-                id="asset-search"
-                value={
-                  searchTerm
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateFilter(
-                    "q",
-                    event.target.value,
-                  )
-                }
-                placeholder="Ex.: 335 ou Notebook"
-              />
-            </div>
-
-            <div>
-              <label
-                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="status-filter"
-              >
-                Situação
-              </label>
-
-              <select
-                id="status-filter"
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={
-                  selectedStatus ?? ""
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateFilter(
-                    "status",
-                    event.target.value,
-                  )
-                }
-              >
-                <option value="">
-                  Todas
-                </option>
-
-                <option value="active">
-                  Em uso
-                </option>
-
-                <option value="maintenance">
-                  Em manutenção
-                </option>
-
-                <option value="disposed">
-                  Baixados
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="department-filter"
-              >
-                Departamento
-              </label>
-
-              <select
-                id="department-filter"
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={selectedDepartmentId}
-                onChange={(event) => {
-                  updateFilter(
-                    "unitId",
-                    event.target.value,
-                  );
-                }}
-              >
-                <option value="">
-                  Todos os departamentos
-                </option>
-
-                {departments.map(
-                  (department) => (
-                    <option
-                      key={department.id}
-                      value={department.id}
-                    >
-                      {department.code} -{" "}
-                      {department.name}
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label
-                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="sector-filter"
-              >
-                Setor
-              </label>
-
-              <select
-                id="sector-filter"
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={selectedSectorId}
-                disabled={!selectedDepartmentId}
-                onChange={(event) => {
-                  const value =
-                    event.target.value;
-
-                  updateFilter(
-                    "unitId",
-                    value ||
-                    selectedDepartmentId,
-                  );
-                }}
-              >
-                <option value="">
-                  {!selectedDepartmentId
-                    ? "Selecione primeiro o departamento"
-                    : "Todos os setores"}
-                </option>
-
-                {sectors.map(
-                  (sector) => (
-                    <option
-                      key={sector.id}
-                      value={sector.id}
-                    >
-                      {sector.code} -{" "}
-                      {sector.name}
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label
-                className="mb-1 block text-xs font-medium text-[var(--text-muted)]"
-                htmlFor="subsector-filter"
-              >
-                Subsetor
-              </label>
-
-              <select
-                id="subsector-filter"
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                value={selectedSubsectorId}
-                disabled={
-                  !selectedSectorId ||
-                  subsectors.length === 0
-                }
-                onChange={(event) => {
-                  const value =
-                    event.target.value;
-
-                  updateFilter(
-                    "unitId",
-                    value ||
-                    selectedSectorId,
-                  );
-                }}
-              >
-                <option value="">
-                  {!selectedSectorId
-                    ? "Selecione primeiro o setor"
-                    : subsectors.length === 0
-                      ? "Este setor não possui subsetores"
-                      : "Todos os subsetores"}
-                </option>
-
-                {subsectors.map(
-                  (subsector) => (
-                    <option
-                      key={subsector.id}
-                      value={subsector.id}
-                    >
-                      {subsector.code} -{" "}
-                      {subsector.name}
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                className="w-full"
-                type="button"
-                variant="secondary"
-                onClick={() =>
-                  setSearchParams(
-                    {},
-                  )
-                }
-              >
-                Limpar filtros
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-
-      <Card>
-        <CardHeader>
-          <div>
-            <h2 className="font-medium">
-              Bens cadastrados
-            </h2>
-
-            <p className="text-xs text-[var(--text-muted)]">
-              {total} bem(ns) encontrado(s).
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {total} {itemLabel} {total === 1 ? "encontrado" : "encontrados"}.
             </p>
           </div>
 
-          {selectedUnit ||
-            selectedConservationStatus ||
-            selectedStatusLabel ? (
+          {hasFilters ? (
             <Button
-              onClick={() => {
-                setSearchParams({});
-              }}
+              onClick={() => setSearchParams({})}
               size="sm"
               type="button"
-              variant="secondary"
+              variant="quiet"
             >
-              {selectedUnit
-                ? getAssetLocation(
-                  selectedUnit.id,
-                )
-                : selectedConservationStatus
-                  ? selectedConservationStatus
-                  : selectedStatusLabel}
-
-              {" · "}
-              Limpar filtro
+              <SlidersHorizontal aria-hidden="true" size={16} />
+              Limpar filtros
             </Button>
           ) : null}
         </CardHeader>
 
-        <CardContent>
-          {loading ? (
-            <p className="py-10 text-center text-sm text-[var(--text-muted)]">
-              Carregando bens...
-            </p>
-          ) : assets.length === 0 ? (
-            <EmptyState
-              description={
-                selectedUnit
-                  ? `Não existem bens vinculados ao setor ${selectedUnit.code} - ${selectedUnit.name}.`
-                  : selectedConservationStatus
-                    ? `Não existem bens com estado de conservação "${selectedConservationStatus}".`
-                    : selectedStatusLabel
-                      ? `Não existem bens com situação "${selectedStatusLabel}".`
-                      : "Ainda não existem bens patrimoniais cadastrados."
-              }
-              title={
-                selectedUnit ||
-                  selectedConservationStatus ||
-                  selectedStatusLabel
-                  ? "Nenhum bem encontrado"
-                  : "Nenhum bem cadastrado"
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHead>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "patrimonyNumber",
-                          )
-                        }
-                      >
-                        Tombo
+        <CardContent className="border-b border-[var(--border)] py-4">
+          <div className="space-y-3">
+            <FormField htmlFor="asset-search" label="Tombo ou material">
+              <div className="relative">
+                <MagnifyingGlass
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+                  size={16}
+                />
 
-                        {sortBy ===
-                          "patrimonyNumber"
-                          ? sortDirection ===
-                            "asc"
-                            ? "↑"
-                            : "↓"
-                          : null}
-                      </button>
-                    </TableHead>
-
-                    <TableHead>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "description",
-                          )
-                        }
-                      >
-                        Material
-
-                        {sortBy ===
-                          "description"
-                          ? sortDirection ===
-                            "asc"
-                            ? "↑"
-                            : "↓"
-                          : null}
-                      </button>
-                    </TableHead>
-
-                    <TableHead>
-                      {/* <button
-                        type="button"
-                        className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "unit",
-                          )
-                        }
-                      > */}
-                      Localização
-
-                      {/* {sortBy ===
-                          "unit"
-                          ? sortDirection ===
-                            "asc"
-                            ? "↑"
-                            : "↓"
-                          : null}
-                      </button> */}
-                    </TableHead>
-
-                    <TableHead>
-                      Marca / Modelo
-                    </TableHead>
-
-                    <TableHead>
-                      Nº Série
-                    </TableHead>
-
-                    <TableHead>
-                      Documento
-                    </TableHead>
-
-                    <TableHead>
-                      Empenho
-                    </TableHead>
-
-                    <TableHead>
-                      Conservação
-                    </TableHead>
-
-                    <TableHead>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 font-medium hover:underline"
-                        onClick={() =>
-                          updateSort(
-                            "value",
-                          )
-                        }
-                      >
-                        Valor
-
-                        {sortBy ===
-                          "value"
-                          ? sortDirection ===
-                            "asc"
-                            ? "↑"
-                            : "↓"
-                          : null}
-                      </button>
-                    </TableHead>
-
-                    <TableHead>
-                      Situação
-                    </TableHead>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {assets.map(
-                    (asset) => {
-                      const unit =
-                        asset.unitId
-                          ? unitsById.get(
-                            asset.unitId,
-                          )
-                          : null;
-
-                      return (
-                        <TableRow
-                          key={
-                            asset.id
-                          }
-                        >
-
-                          <TableCell>
-                            <Link
-                              className="font-semibold underline-offset-4 hover:underline"
-                              to={`/patrimonio/bens/${asset.id}`}
-                            >
-                              {asset.patrimonyNumber}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-[320px]">
-                              {
-                                asset.description
-                              }
-                            </div>
-                          </TableCell>
-
-                          <TableCell>
-                            {getAssetLocation(
-                              asset.unitId,
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            {formatBrandModel(
-                              asset.brand,
-                              asset.model,
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            {asset.serialNumber ??
-                              "—"}
-                          </TableCell>
-
-                          <TableCell>
-                            {formatDocument(
-                              asset.documentNumber,
-                              asset.documentDate,
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            {asset.commitmentNumber ??
-                              "—"}
-                          </TableCell>
-
-                          <TableCell>
-                            {asset.conservationStatus ??
-                              "—"}
-                          </TableCell>
-
-                          <TableCell>
-                            {formatCurrency(
-                              asset.acquisitionValue,
-                            )}
-                          </TableCell>
-
-                          <TableCell>
-                            <Badge variant="neutral">
-                              {
-                                assetStatusLabels[
-                                asset.status
-                                ]
-                              }
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    },
-                  )}
-                </tbody>
-              </Table>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-[var(--text-muted)]">
-                  Página{" "}
-                  {currentPage} de{" "}
-                  {totalPages}
-                  {" · "}
-                  {total} bem(ns)
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
-                    value={
-                      String(
-                        currentPageSize,
-                      )
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      changePageSize(
-                        event.target.value,
-                      )
-                    }
-                  >
-                    <option value="10">
-                      10 por página
-                    </option>
-
-                    <option value="20">
-                      20 por página
-                    </option>
-
-                    <option value="50">
-                      50 por página
-                    </option>
-                  </select>
-
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={
-                      currentPage <= 1
-                    }
-                    onClick={() =>
-                      changePage(
-                        currentPage - 1,
-                      )
-                    }
-                  >
-                    Anterior
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={
-                      currentPage >=
-                      totalPages
-                    }
-                    onClick={() =>
-                      changePage(
-                        currentPage + 1,
-                      )
-                    }
-                  >
-                    Próxima
-                  </Button>
-                </div>
+                <Input
+                  autoComplete="off"
+                  className="pl-9"
+                  id="asset-search"
+                  onChange={(event) => updateFilter("q", event.target.value)}
+                  placeholder="Ex.: 335 ou Notebook"
+                  type="search"
+                  value={searchTerm}
+                />
               </div>
+            </FormField>
 
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <FormField htmlFor="status-filter" label="Situação">
+                <Select
+                  id="status-filter"
+                  name="status"
+                  onValueChange={(value) =>
+                    updateFilter("status", value === ALL ? "" : value)
+                  }
+                  options={[
+                    { label: "Todas", value: ALL },
+                    ...Object.entries(assetStatusMeta).map(([value, meta]) => ({
+                      label: meta.label,
+                      value,
+                    })),
+                  ]}
+                  value={statusValue || ALL}
+                />
+              </FormField>
+
+              <FormField htmlFor="department-filter" label="Departamento">
+                <SearchableSelect
+                  id="department-filter"
+                  name="department"
+                  onValueChange={(value) =>
+                    updateFilter("unitId", value === ALL ? "" : value)
+                  }
+                  options={[
+                    { label: "Todos os departamentos", value: ALL },
+                    ...unitOptions(departments),
+                  ]}
+                  searchPlaceholder="Pesquisar departamento…"
+                  value={selectedDepartmentId || ALL}
+                />
+              </FormField>
+
+              <FormField htmlFor="sector-filter" label="Setor">
+                <SearchableSelect
+                  disabled={!selectedDepartmentId}
+                  id="sector-filter"
+                  name="sector"
+                  onValueChange={(value) =>
+                    updateFilter(
+                      "unitId",
+                      value === ALL ? selectedDepartmentId : value,
+                    )
+                  }
+                  options={[
+                    {
+                      label: !selectedDepartmentId
+                        ? "Selecione primeiro o departamento"
+                        : "Todos os setores",
+                      value: ALL,
+                    },
+                    ...unitOptions(sectors),
+                  ]}
+                  searchPlaceholder="Pesquisar setor…"
+                  value={selectedSectorId || ALL}
+                />
+              </FormField>
+
+              <FormField htmlFor="subsector-filter" label="Subsetor">
+                <SearchableSelect
+                  disabled={!selectedSectorId || subsectors.length === 0}
+                  id="subsector-filter"
+                  name="subsector"
+                  onValueChange={(value) =>
+                    updateFilter(
+                      "unitId",
+                      value === ALL ? selectedSectorId : value,
+                    )
+                  }
+                  options={[
+                    {
+                      label: !selectedSectorId
+                        ? "Selecione primeiro o setor"
+                        : subsectors.length === 0
+                          ? "Este setor não possui subsetores"
+                          : "Todos os subsetores",
+                      value: ALL,
+                    },
+                    ...unitOptions(subsectors),
+                  ]}
+                  searchPlaceholder="Pesquisar subsetor…"
+                  value={selectedSubsectorId || ALL}
+                />
+              </FormField>
             </div>
-          )}
+          </div>
         </CardContent>
+
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando bens"
+            headers={["Tombo", "Material", "Localização", "Valor", "Situação"]}
+            rows={Math.min(currentPageSize, 8)}
+          />
+        ) : assets.length === 0 ? (
+          <EmptyState
+            description={
+              hasFilters
+                ? "Ajuste ou limpe os filtros para ampliar a consulta."
+                : "Ainda não existem bens patrimoniais cadastrados."
+            }
+            title={
+              hasFilters ? "Nenhum bem encontrado" : "Nenhum bem cadastrado"
+            }
+          />
+        ) : (
+          <>
+            <Table aria-label="Bens patrimoniais">
+              <thead>
+                <tr>
+                  <SortHead
+                    direction={sortDirection}
+                    field="patrimonyNumber"
+                    label="Tombo"
+                    onSort={updateSort}
+                    sortBy={sortBy}
+                  />
+                  <SortHead
+                    direction={sortDirection}
+                    field="description"
+                    label="Material"
+                    onSort={updateSort}
+                    sortBy={sortBy}
+                  />
+                  <TableHead>Localização</TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    Marca / modelo
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    Nº série
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    Documento
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    Empenho
+                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">
+                    Conservação
+                  </TableHead>
+                  <SortHead
+                    className="text-right"
+                    direction={sortDirection}
+                    field="value"
+                    label="Valor"
+                    onSort={updateSort}
+                    sortBy={sortBy}
+                  />
+                  <TableHead>Situação</TableHead>
+                </tr>
+              </thead>
+
+              <tbody>
+                {assets.map((asset) => (
+                  <TableRow key={asset.id}>
+                    <TableCell>
+                      <Link
+                        className="font-semibold underline-offset-4 hover:underline"
+                        to={`/patrimonio/bens/${asset.id}`}
+                      >
+                        {asset.patrimonyNumber}
+                      </Link>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="max-w-[320px]">{asset.description}</div>
+                    </TableCell>
+
+                    <TableCell>{getAssetLocation(asset.unitId)}</TableCell>
+
+                    <TableCell className="hidden xl:table-cell">
+                      {formatBrandModel(asset.brand, asset.model)}
+                    </TableCell>
+
+                    <TableCell className="hidden xl:table-cell">
+                      {asset.serialNumber ?? "—"}
+                    </TableCell>
+
+                    <TableCell className="hidden xl:table-cell">
+                      {formatDocument(asset.documentNumber, asset.documentDate)}
+                    </TableCell>
+
+                    <TableCell className="hidden xl:table-cell">
+                      {asset.commitmentNumber ?? "—"}
+                    </TableCell>
+
+                    <TableCell className="hidden xl:table-cell">
+                      {asset.conservationStatus ?? "—"}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {formatCurrency(asset.acquisitionValue)}
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant={assetStatusMeta[asset.status].variant}>
+                        {assetStatusMeta[asset.status].label}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </Table>
+
+            <div className="flex flex-col gap-3 border-t border-[var(--border)] px-5 py-3 text-xs text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
+              <p aria-live="polite">
+                {first}–{last} de {total} {itemLabel}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="font-medium" htmlFor="asset-page-size">
+                  Itens por página
+                </label>
+
+                <Select
+                  className="min-h-9 w-20"
+                  id="asset-page-size"
+                  name="pageSize"
+                  onValueChange={changePageSize}
+                  options={["10", "20", "50"].map((size) => ({
+                    label: size,
+                    value: size,
+                  }))}
+                  value={String(currentPageSize)}
+                />
+
+                <span className="min-w-16 text-center">
+                  Página {currentPage} de {totalPages}
+                </span>
+
+                <Button
+                  aria-label="Página anterior"
+                  disabled={currentPage <= 1}
+                  onClick={() => changePage(currentPage - 1)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Anterior
+                </Button>
+
+                <Button
+                  aria-label="Próxima página"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => changePage(currentPage + 1)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );
 }
 
-function formatBrandModel(
-  brand: string | null,
-  model: string | null,
-) {
-  if (
-    !brand &&
-    !model
-  ) {
+function formatBrandModel(brand: string | null, model: string | null) {
+  if (!brand && !model) {
     return "—";
   }
 
-  if (
-    brand &&
-    model
-  ) {
+  if (brand && model) {
     return `${brand} / ${model}`;
   }
 
   return brand ?? model ?? "—";
 }
 
-function formatDocument(
-  number: string | null,
-  date: string | null,
-) {
-  if (
-    !number &&
-    !date
-  ) {
+function formatDocument(number: string | null, date: string | null) {
+  if (!number && !date) {
     return "—";
   }
 
-  if (
-    number &&
-    date
-  ) {
-    return `${number} - ${formatDate(
-      date,
-    )}`;
+  if (number && date) {
+    return `${number} - ${formatDate(date)}`;
   }
+
+  return number ?? formatDate(date);
+}
+
+function SortHead({
+  className,
+  direction,
+  field,
+  label,
+  onSort,
+  sortBy,
+}: {
+  className?: string;
+  direction: string;
+  field: string;
+  label: string;
+  onSort: (field: string) => void;
+  sortBy: string;
+}) {
+  const active = sortBy === field;
 
   return (
-    number ??
-    formatDate(date)
+    <TableHead
+      aria-sort={
+        active ? (direction === "asc" ? "ascending" : "descending") : "none"
+      }
+      className={className}
+    >
+      <button
+        className="-mx-1 inline-flex items-center gap-1 rounded px-1 font-[inherit] uppercase tracking-[inherit] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus)]"
+        onClick={() => onSort(field)}
+        type="button"
+      >
+        {label}
+        {active ? (
+          direction === "asc" ? (
+            <CaretUp aria-hidden="true" size={12} weight="bold" />
+          ) : (
+            <CaretDown aria-hidden="true" size={12} weight="bold" />
+          )
+        ) : null}
+      </button>
+    </TableHead>
   );
-}
-
-function formatDate(
-  value: string | null,
-) {
-  if (!value) {
-    return "—";
-  }
-
-  const [
-    year,
-    month,
-    day,
-  ] = value.split("-");
-
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
-}
-
-function formatCurrency(
-  value:
-    | number
-    | string
-    | null,
-) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "—";
-  }
-
-  const number =
-    Number(value);
-
-  if (
-    Number.isNaN(number)
-  ) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    },
-  ).format(number);
 }

@@ -2,10 +2,8 @@ import type {
   Visit,
   VisitLocation,
   VisitPageResult,
-  
   VisitSummary,
   VisitType,
-  VisitorConfirmationStatus,
 } from "@cge/contracts";
 
 import {
@@ -15,43 +13,34 @@ import {
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
+  DataTable,
   DatePicker,
+  Dialog,
+  DialogContent,
   EmptyState,
   FormField,
   Input,
-  Table,
-  TableCell,
-  TableHead,
-  TableRow,
+  Select,
+  TableSkeleton,
+  Textarea,
+  type ColumnDef,
 } from "@cge/ui";
 
-import {
-  Eye,
-  MagnifyingGlass,
-  PencilSimple,
-  Plus,
-  Trash,
-  UserCheck,
-  X,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
+import { VisitDetail } from "../components/visit-ui";
+import { api, json } from "../lib/api";
 import {
-  api,
-  ApiError,
-  json,
-} from "../lib/api";
-
-import {
+  formatVisitDate,
+  formatVisitDateTime,
+  formatVisitTime,
+  visitErrorMessage,
   visitLocationOptions,
-  visitStatusLabels,
+  visitorConfirmationMeta,
+  visitStatusMeta,
   visitTypeLabels,
 } from "../lib/visit-labels";
 
@@ -72,8 +61,7 @@ type VisitForm = {
 
   endTime: string;
 
-  location:
-    VisitLocation | "";
+  location: VisitLocation | "";
 
   visitorName: string;
 
@@ -91,319 +79,182 @@ type VisitForm = {
 };
 
 const initialForm: VisitForm = {
-  type:
-    "technical_visit",
+  type: "technical_visit",
 
-  subject:
-    "",
+  subject: "",
 
-  description:
-    "",
+  description: "",
 
-  organization:
-    "",
+  organization: "",
 
-  sector:
-    "",
+  sector: "",
 
-  scheduledDate:
-    "",
+  scheduledDate: "",
 
-  startTime:
-    "",
+  startTime: "",
 
-  endTime:
-    "",
+  endTime: "",
 
-  location:
-    "",
+  location: "",
 
-  visitorName:
-    "",
+  visitorName: "",
 
-  visitorPosition:
-    "",
+  visitorPosition: "",
 
-  visitorOrganization:
-    "",
+  visitorOrganization: "",
 
-  visitorSector:
-    "",
+  visitorSector: "",
 
-  visitorEmail:
-    "",
+  visitorEmail: "",
 
-  visitorPhone:
-    "",
+  visitorPhone: "",
 
-  visitorCpf:
-    "",
+  visitorCpf: "",
 };
 
-const visitorConfirmationLabels: Record<
-  VisitorConfirmationStatus,
-  string
-> = {
-  not_sent:
-    "NÃO ENVIADO",
+type FieldErrors = Partial<
+  Record<"scheduledDate" | "location" | "endTime", string>
+>;
 
-  pending:
-    "AGUARDANDO CONFIRMAÇÃO",
+const typeOptions = Object.entries(visitTypeLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
 
-  confirmed:
-    "PRESENÇA CONFIRMADA",
-
-  declined:
-    "NÃO COMPARECERÁ",
-
-  expired:
-    "CONVITE EXPIRADO",
-};
+const tableHeaders = [
+  "Protocolo",
+  "Data",
+  "Motivo",
+  "Sala",
+  "Situação",
+  "Ações",
+];
 
 export function VisitManagePage() {
-  const [
-    form,
-    setForm,
-  ] =
-    useState<VisitForm>(
-      initialForm,
-    );
+  const [form, setForm] = useState<VisitForm>(initialForm);
 
-  const [
-    formVersion,
-    setFormVersion,
-  ] =
-    useState(0);
+  const [formVersion, setFormVersion] = useState(0);
 
-  const [
-    visits,
-    setVisits,
-  ] =
-    useState<
-      VisitSummary[]
-    >([]);
+  const [visits, setVisits] = useState<VisitSummary[]>([]);
 
-  const [
-    query,
-    setQuery,
-  ] =
-    useState("");
+  const [query, setQuery] = useState("");
 
-  const [
-    search,
-    setSearch,
-  ] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
+  const [page, setPage] = useState(1);
 
-  const pageSize =
-    10;
+  const [pageSize, setPageSize] = useState(10);
 
-  const [
-    total,
-    setTotal,
-  ] =
-    useState(0);
+  const [total, setTotal] = useState(0);
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [
-    busy,
-    setBusy,
-  ] =
-    useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [
-    success,
-    setSuccess,
-  ] =
-    useState("");
+  const [success, setSuccess] = useState("");
 
-  const [
-    editingId,
-    setEditingId,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [
-    deleteId,
-    setDeleteId,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const [
-    detail,
-    setDetail,
-  ] =
-    useState<
-      Visit | null
-    >(null);
+  const [detail, setDetail] = useState<Visit | null>(null);
 
-  const loadVisits =
-    useCallback(
-      async () => {
-        try {
-          setLoading(
-            true,
-          );
+  const loadVisits = useCallback(async () => {
+    try {
+      setLoading(true);
 
-          const params =
-            new URLSearchParams({
-              page:
-                String(page),
+      const params = new URLSearchParams({
+        page: String(page),
 
-              pageSize:
-                String(pageSize),
-            });
+        pageSize: String(pageSize),
+      });
 
-          if (
-            search
-          ) {
-            params.set(
-              "query",
-              search,
-            );
-          }
+      if (search) {
+        params.set("query", search);
+      }
 
-          const result =
-            await api<VisitPageResult>(
-              `/api/visits?${params.toString()}`,
-            );
+      const result = await api<VisitPageResult>(
+        `/api/visits?${params.toString()}`,
+      );
 
-          setVisits(
-            result.visits,
-          );
+      setVisits(result.visits);
 
-          setTotal(
-            result.pagination.total,
-          );
-        } catch (
-          cause
-        ) {
-          setError(
-            getErrorMessage(
-              cause,
-              "Não foi possível carregar as visitas.",
-            ),
-          );
-        } finally {
-          setLoading(
-            false,
-          );
-        }
-      },
-      [
-        page,
-        search,
-      ],
-    );
+      setTotal(result.pagination.total);
+    } catch (cause) {
+      setError(
+        visitErrorMessage(cause, "Não foi possível carregar as visitas."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     void loadVisits();
   }, [loadVisits]);
 
   useEffect(() => {
-    const normalized =
-      query.trim();
+    const normalized = query.trim();
 
-    if (
-      normalized ===
-      search
-    ) {
+    if (normalized === search) {
       return;
     }
 
-    const timeout =
-      window.setTimeout(
-        () => {
-          setPage(1);
+    const timeout = window.setTimeout(() => {
+      setPage(1);
 
-          setSearch(
-            normalized,
-          );
-        },
-        300,
-      );
+      setSearch(normalized);
+    }, 300);
 
     return () => {
-      window.clearTimeout(
-        timeout,
-      );
+      window.clearTimeout(timeout);
     };
-  }, [
-    query,
-    search,
-  ]);
+  }, [query, search]);
 
-  function updateField<
-    K extends keyof VisitForm,
-  >(
+  function updateField<K extends keyof VisitForm>(
     field: K,
     value: VisitForm[K],
   ) {
-    setForm(
-      (current) => ({
-        ...current,
-        [field]:
-          value,
-      }),
-    );
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
   }
 
   function resetForm() {
-    setForm(
-      initialForm,
-    );
+    setForm(initialForm);
 
-    setEditingId(
-      null,
-    );
+    setEditingId(null);
 
-    setFormVersion(
-      (value) =>
-        value + 1,
-    );
+    setFieldErrors({});
+
+    setFormVersion((value) => value + 1);
   }
 
-  async function submit(
-    event:
-      FormEvent<HTMLFormElement>,
-  ) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
     setSuccess("");
 
-    const data =
-      new FormData(
-        event.currentTarget,
-      );
+    const data = new FormData(event.currentTarget);
 
-    const scheduledDate =
-      String(
-        data.get(
-          "scheduledDate",
-        ) ?? "",
-      );
+    const scheduledDate = String(data.get("scheduledDate") ?? "");
+
+    const nextFieldErrors: FieldErrors = {};
+
+    if (!scheduledDate) nextFieldErrors.scheduledDate = "Informe a data.";
+
+    if (!form.location) nextFieldErrors.location = "Selecione a sala.";
+
+    if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+      nextFieldErrors.endTime =
+        "O horário final deve ser posterior ao horário inicial.";
+    }
+
+    setFieldErrors(nextFieldErrors);
 
     if (
       !form.subject.trim() ||
@@ -415,21 +266,12 @@ export function VisitManagePage() {
       !form.visitorName.trim() ||
       !form.visitorEmail.trim()
     ) {
-      setError(
-        "Preencha todos os campos obrigatórios.",
-      );
+      setError("Preencha os campos obrigatórios destacados antes de salvar.");
 
       return;
     }
 
-    if (
-      form.endTime <=
-      form.startTime
-    ) {
-      setError(
-        "O horário final deve ser posterior ao horário inicial.",
-      );
-
+    if (nextFieldErrors.endTime) {
       return;
     }
 
@@ -437,403 +279,326 @@ export function VisitManagePage() {
       setBusy(true);
 
       const body = {
-        type:
-          form.type,
+        type: form.type,
 
-        subject:
-          form.subject.trim(),
+        subject: form.subject.trim(),
 
-        description:
-          form.description.trim() ||
-          null,
+        description: form.description.trim() || null,
 
-        organization:
-          form.organization.trim(),
+        organization: form.organization.trim(),
 
-        sector:
-          form.sector.trim() ||
-          null,
+        sector: form.sector.trim() || null,
 
         scheduledDate,
 
-        startTime:
-          form.startTime,
+        startTime: form.startTime,
 
-        endTime:
-          form.endTime,
+        endTime: form.endTime,
 
-        location:
-          form.location,
+        location: form.location,
 
-        responsibleUnitId:
-          null,
+        responsibleUnitId: null,
 
-        responsibleAccountId:
-          null,
+        responsibleAccountId: null,
 
         visitors: [
           {
-            name:
-              form.visitorName.trim(),
+            name: form.visitorName.trim(),
 
-            position:
-              form.visitorPosition.trim() ||
-              null,
+            position: form.visitorPosition.trim() || null,
 
             organization:
-              form.visitorOrganization.trim() ||
-              form.organization.trim(),
+              form.visitorOrganization.trim() || form.organization.trim(),
 
-            sector:
-              form.visitorSector.trim() ||
-              null,
+            sector: form.visitorSector.trim() || null,
 
-            email:
-              form.visitorEmail.trim() ||
-              null,
+            email: form.visitorEmail.trim() || null,
 
-            phone:
-              form.visitorPhone.trim() ||
-              null,
+            phone: form.visitorPhone.trim() || null,
 
-            cpf:
-              form.visitorCpf.trim() ||
-              null,
+            cpf: form.visitorCpf.trim() || null,
           },
         ],
       };
 
-      if (
-        editingId
-      ) {
-        await api(
-          `/api/visits/${editingId}`,
-          {
-            method:
-              "PATCH",
+      if (editingId) {
+        await api(`/api/visits/${editingId}`, {
+          method: "PATCH",
 
-            body:
-              json(body),
-          },
-        );
+          body: json(body),
+        });
 
-        setSuccess(
-          "Visita atualizada com sucesso.",
-        );
+        setSuccess("Visita atualizada com sucesso.");
       } else {
-        await api(
-          "/api/visits",
-          {
-            method:
-              "POST",
+        await api("/api/visits", {
+          method: "POST",
 
-            body:
-              json(body),
-          },
-        );
+          body: json(body),
+        });
 
-        setSuccess(
-          "Visita cadastrada com sucesso.",
-        );
+        setSuccess("Visita cadastrada com sucesso.");
       }
 
       resetForm();
 
       await loadVisits();
-    } catch (
-      cause
-    ) {
-      setError(
-        getErrorMessage(
-          cause,
-          "Não foi possível salvar a visita.",
-        ),
-      );
+    } catch (cause) {
+      setError(visitErrorMessage(cause, "Não foi possível salvar a visita."));
     } finally {
-      setBusy(
-        false,
-      );
+      setBusy(false);
     }
   }
 
-  async function viewVisit(
-    id: string,
-  ) {
+  async function viewVisit(id: string) {
     try {
-      const result =
-        await api<Visit>(
-          `/api/visits/${id}`,
-        );
+      const result = await api<Visit>(`/api/visits/${id}`);
 
-      setDetail(
-        result,
-      );
-    } catch (
-      cause
-    ) {
+      setDetail(result);
+    } catch (cause) {
       setError(
-        getErrorMessage(
-          cause,
-          "Não foi possível consultar a visita.",
-        ),
+        visitErrorMessage(cause, "Não foi possível consultar a visita."),
       );
     }
   }
 
-  async function editVisit(
-    id: string,
-  ) {
+  async function editVisit(id: string) {
     try {
-      const visit =
-        await api<Visit>(
-          `/api/visits/${id}`,
-        );
+      const visit = await api<Visit>(`/api/visits/${id}`);
 
-      const visitor =
-        visit.visitors[0];
+      const visitor = visit.visitors[0];
 
       setEditingId(id);
 
       setForm({
-        type:
-          visit.type,
+        type: visit.type,
 
-        subject:
-          visit.subject,
+        subject: visit.subject,
 
-        description:
-          visit.description ??
-          "",
+        description: visit.description ?? "",
 
-        organization:
-          visit.organization,
+        organization: visit.organization,
 
-        sector:
-          visit.sector ??
-          "",
+        sector: visit.sector ?? "",
 
-        scheduledDate:
-          visit.scheduledDate,
+        scheduledDate: visit.scheduledDate,
 
-        startTime:
-          visit.startTime.slice(
-            0,
-            5,
-          ),
+        startTime: visit.startTime.slice(0, 5),
 
-        endTime:
-          visit.endTime.slice(
-            0,
-            5,
-          ),
+        endTime: visit.endTime.slice(0, 5),
 
-        location:
-          visit.location,
+        location: visit.location,
 
-        visitorName:
-          visitor?.name ??
-          "",
+        visitorName: visitor?.name ?? "",
 
-        visitorPosition:
-          visitor?.position ??
-          "",
+        visitorPosition: visitor?.position ?? "",
 
-        visitorOrganization:
-          visitor?.organization ??
-          "",
+        visitorOrganization: visitor?.organization ?? "",
 
-        visitorSector:
-          visitor?.sector ??
-          "",
+        visitorSector: visitor?.sector ?? "",
 
-        visitorEmail:
-          visitor?.email ??
-          "",
+        visitorEmail: visitor?.email ?? "",
 
-        visitorPhone:
-          visitor?.phone ??
-          "",
+        visitorPhone: visitor?.phone ?? "",
 
-        visitorCpf:
-          visitor?.cpf ??
-          "",
+        visitorCpf: visitor?.cpf ?? "",
       });
 
-      setFormVersion(
-        (value) =>
-          value + 1,
-      );
+      setFormVersion((value) => value + 1);
 
       window.scrollTo({
-        top:
-          0,
+        top: 0,
 
-        behavior:
-          "smooth",
+        behavior: "smooth",
       });
-    } catch (
-      cause
-    ) {
-      setError(
-        getErrorMessage(
-          cause,
-          "Não foi possível carregar a visita.",
-        ),
-      );
+    } catch (cause) {
+      setError(visitErrorMessage(cause, "Não foi possível carregar a visita."));
     }
   }
 
-  async function removeVisit() {
-    if (
-      !deleteId
-    ) {
-      return;
-    }
-
+  async function removeVisit(id: string) {
     try {
       setBusy(true);
 
-      await api(
-        `/api/visits/${deleteId}`,
-        {
-          method:
-            "DELETE",
-        },
-      );
+      await api(`/api/visits/${id}`, {
+        method: "DELETE",
+      });
 
-      setDeleteId(
-        null,
-      );
-
-      setSuccess(
-        "Visita excluída com sucesso.",
-      );
+      setSuccess("Visita excluída com sucesso.");
 
       await loadVisits();
-    } catch (
-      cause
-    ) {
-      setError(
-        getErrorMessage(
-          cause,
-          "Não foi possível excluir a visita.",
-        ),
-      );
+    } catch (cause) {
+      setError(visitErrorMessage(cause, "Não foi possível excluir a visita."));
     } finally {
       setBusy(false);
     }
   }
 
-  async function releaseReception(
-    id: string,
-  ) {
+  async function releaseReception(id: string) {
     try {
       setBusy(true);
 
-      await api(
-        `/api/visits/${id}/release-reception`,
-        {
-          method:
-            "POST",
-        },
-      );
+      await api(`/api/visits/${id}/release-reception`, {
+        method: "POST",
+      });
 
-      setSuccess(
-        "Visita liberada para a recepção.",
-      );
+      setSuccess("Visita liberada para a recepção.");
 
       await loadVisits();
-    } catch (
-      cause
-    ) {
-      setError(
-        getErrorMessage(
-          cause,
-          "Não foi possível liberar a visita.",
-        ),
-      );
+    } catch (cause) {
+      setError(visitErrorMessage(cause, "Não foi possível liberar a visita."));
     } finally {
       setBusy(false);
     }
   }
 
-  async function resendConfirmation(
-    id: string,
-  ) {
+  async function resendConfirmation(id: string) {
     try {
       setBusy(true);
       setError("");
       setSuccess("");
 
-      await api(
-        `/api/visits/${id}/send-confirmation`,
-        {
-          method:
-            "POST",
-        },
-      );
+      await api(`/api/visits/${id}/send-confirmation`, {
+        method: "POST",
+      });
 
-      const updated =
-        await api<Visit>(
-          `/api/visits/${id}`,
-        );
+      const updated = await api<Visit>(`/api/visits/${id}`);
 
-      setDetail(
-        updated,
-      );
+      setDetail(updated);
 
-      setSuccess(
-        "E-mail de confirmação reenviado com sucesso.",
-      );
+      setSuccess("E-mail de confirmação reenviado com sucesso.");
 
       await loadVisits();
-    } catch (
-      cause
-    ) {
+    } catch (cause) {
       setError(
-        getErrorMessage(
+        visitErrorMessage(
           cause,
           "Não foi possível reenviar a confirmação da visita.",
         ),
       );
     } finally {
-      setBusy(
-        false,
-      );
+      setBusy(false);
     }
   }
 
+  const columns: ColumnDef<VisitSummary>[] = [
+    {
+      header: "Protocolo",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap font-semibold">
+          {row.original.protocol}
+        </span>
+      ),
+    },
+    {
+      header: "Data",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">
+          {formatVisitDate(row.original.scheduledDate)}
+        </span>
+      ),
+    },
+    {
+      header: "Motivo",
+      cell: ({ row }) => (
+        <span className="line-clamp-2 min-w-48">{row.original.subject}</span>
+      ),
+    },
+    {
+      header: "Sala",
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">{row.original.location}</span>
+      ),
+    },
+    {
+      header: "Situação",
+      cell: ({ row }) => (
+        <Badge
+          className="whitespace-nowrap"
+          variant={visitStatusMeta[row.original.status].variant}
+        >
+          {visitStatusMeta[row.original.status].label}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="block text-right">Ações</span>,
+      cell: ({ row }) => {
+        const visit = row.original;
+
+        return (
+          <div className="flex justify-end gap-1 whitespace-nowrap">
+            {["pending", "approved"].includes(visit.status) ? (
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => void releaseReception(visit.id)}
+              >
+                Liberar
+              </Button>
+            ) : null}
+
+            <Button
+              size="sm"
+              variant="quiet"
+              onClick={() => void viewVisit(visit.id)}
+            >
+              Ver detalhes
+            </Button>
+
+            <Button
+              size="sm"
+              variant="quiet"
+              onClick={() => void editVisit(visit.id)}
+            >
+              Editar
+            </Button>
+
+            {["pending", "rejected", "cancelled"].includes(visit.status) ? (
+              <ConfirmDialog
+                busyLabel="Excluindo…"
+                confirmLabel="Excluir visita"
+                description={`A visita ${visit.protocol} será removida da agenda e do histórico. Esta ação não pode ser desfeita.`}
+                onConfirm={() => removeVisit(visit.id)}
+                title="Excluir visita?"
+              >
+                <Button disabled={busy} size="sm" variant="quiet">
+                  Excluir
+                </Button>
+              </ConfirmDialog>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="page-enter space-y-5 pb-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
-          Agendamento de Visitas
-        </p>
+    <div className="page-enter space-y-5">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--text-faint)]">
+            Agendamento de Visitas
+          </p>
 
-        <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-          Nova visita
-        </h1>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em]">
+            {editingId ? "Editar visita" : "Nova visita"}
+          </h1>
 
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Cadastre e gerencie visitas,
-          reuniões e atendimentos técnicos.
-        </p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
+            Cadastre e gerencie visitas, reuniões e atendimentos técnicos.
+          </p>
+        </div>
       </div>
 
       {error ? (
-        <Alert
-          title="Erro"
-          tone="danger"
-        >
+        <Alert title="A operação não foi concluída" tone="danger">
           {error}
         </Alert>
       ) : null}
 
       {success ? (
-        <Alert
-          title="Operação concluída"
-          tone="success"
-        >
+        <Alert title="Operação concluída" tone="success">
           {success}
         </Alert>
       ) : null}
@@ -841,63 +606,30 @@ export function VisitManagePage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-extrabold">
-              {editingId
-                ? "Editar agendamento"
-                : "Cadastrar nova visita"}
+            <h2 className="font-bold">
+              {editingId ? "Editar agendamento" : "Cadastrar nova visita"}
             </h2>
+
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              O visitante recebe o convite de confirmação no e-mail informado.
+            </p>
           </div>
         </CardHeader>
 
         <CardContent>
-          <form
-            className="space-y-6"
-            onSubmit={
-              submit
-            }
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                htmlFor="visit-type"
-                label="Tipo da visita"
-              >
-                <select
+          <form className="space-y-6" onSubmit={submit}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField htmlFor="visit-type" label="Tipo da visita">
+                <Select
                   id="visit-type"
+                  name="type"
                   required
-                  className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                  value={
-                    form.type
+                  options={typeOptions}
+                  value={form.type}
+                  onValueChange={(value) =>
+                    updateField("type", value as VisitType)
                   }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "type",
-                      event.target
-                        .value as VisitType,
-                    )
-                  }
-                >
-                  {Object.entries(
-                    visitTypeLabels,
-                  ).map(
-                    ([
-                      value,
-                      label,
-                    ]) => (
-                      <option
-                        key={
-                          value
-                        }
-                        value={
-                          value
-                        }
-                      >
-                        {label}
-                      </option>
-                    ),
-                  )}
-                </select>
+                />
               </FormField>
 
               <FormField
@@ -907,36 +639,19 @@ export function VisitManagePage() {
                 <Input
                   id="visit-organization"
                   required
-                  value={
-                    form.organization
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "organization",
-                      event.target.value,
-                    )
+                  value={form.organization}
+                  onChange={(event) =>
+                    updateField("organization", event.target.value)
                   }
                 />
               </FormField>
 
-              <FormField
-                htmlFor="visit-sector"
-                label="Setor"
-              >
+              <FormField htmlFor="visit-sector" label="Setor (opcional)">
                 <Input
                   id="visit-sector"
-                  value={
-                    form.sector
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "sector",
-                      event.target.value,
-                    )
+                  value={form.sector}
+                  onChange={(event) =>
+                    updateField("sector", event.target.value)
                   }
                 />
               </FormField>
@@ -948,16 +663,9 @@ export function VisitManagePage() {
                 <Input
                   id="visit-subject"
                   required
-                  value={
-                    form.subject
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "subject",
-                      event.target.value,
-                    )
+                  value={form.subject}
+                  onChange={(event) =>
+                    updateField("subject", event.target.value)
                   }
                 />
               </FormField>
@@ -965,83 +673,44 @@ export function VisitManagePage() {
               <FormField
                 htmlFor="visit-date"
                 label="Data"
+                error={fieldErrors.scheduledDate}
               >
                 <DatePicker
                   key={`${formVersion}-${form.scheduledDate}`}
                   id="visit-date"
                   name="scheduledDate"
                   required
-                  defaultValue={
-                    form.scheduledDate
-                  }
+                  defaultValue={form.scheduledDate}
                   placeholder="Selecione a data"
                 />
               </FormField>
 
-              {/* NOVO COMBOBOX */}
-
               <FormField
                 htmlFor="visit-location"
                 label="Sala da visita"
+                error={fieldErrors.location}
               >
-                <select
+                <Select
+                  aria-invalid={Boolean(fieldErrors.location)}
                   id="visit-location"
-                  required
-                  className="h-10 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                  value={
-                    form.location
+                  name="location"
+                  options={visitLocationOptions}
+                  placeholder="Selecione a sala"
+                  value={form.location}
+                  onValueChange={(value) =>
+                    updateField("location", value as VisitLocation)
                   }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "location",
-                      event.target
-                        .value as
-                        | VisitLocation
-                        | "",
-                    )
-                  }
-                >
-                  <option value="">
-                    Selecione a sala
-                  </option>
-
-                  {visitLocationOptions.map(
-                    (option) => (
-                      <option
-                        key={
-                          option.value
-                        }
-                        value={
-                          option.value
-                        }
-                      >
-                        {option.label}
-                      </option>
-                    ),
-                  )}
-                </select>
+                />
               </FormField>
 
-              <FormField
-                htmlFor="start-time"
-                label="Hora inicial"
-              >
+              <FormField htmlFor="start-time" label="Hora inicial">
                 <Input
                   id="start-time"
                   required
                   type="time"
-                  value={
-                    form.startTime
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "startTime",
-                      event.target.value,
-                    )
+                  value={form.startTime}
+                  onChange={(event) =>
+                    updateField("startTime", event.target.value)
                   }
                 />
               </FormField>
@@ -1049,21 +718,16 @@ export function VisitManagePage() {
               <FormField
                 htmlFor="end-time"
                 label="Hora final"
+                error={fieldErrors.endTime}
               >
                 <Input
+                  aria-invalid={Boolean(fieldErrors.endTime)}
                   id="end-time"
                   required
                   type="time"
-                  value={
-                    form.endTime
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    updateField(
-                      "endTime",
-                      event.target.value,
-                    )
+                  value={form.endTime}
+                  onChange={(event) =>
+                    updateField("endTime", event.target.value)
                   }
                 />
               </FormField>
@@ -1071,777 +735,325 @@ export function VisitManagePage() {
 
             <FormField
               htmlFor="description"
-              label="Descrição / objetivo"
+              label="Descrição / objetivo (opcional)"
             >
-              <textarea
+              <Textarea
                 id="description"
-                className="min-h-28 w-full rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm"
-                value={
-                  form.description
-                }
-                onChange={(
-                  event,
-                ) =>
-                  updateField(
-                    "description",
-                    event.target.value,
-                  )
+                value={form.description}
+                onChange={(event) =>
+                  updateField("description", event.target.value)
                 }
               />
             </FormField>
 
             <section className="border-t border-[var(--border)] pt-5">
-              <h3 className="font-extrabold">
-                Dados do visitante / técnico
-              </h3>
+              <h3 className="font-bold">Dados do visitante / técnico</h3>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <FormField
-                  htmlFor="visitor-name"
-                  label="Nome completo"
-                >
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <FormField htmlFor="visitor-name" label="Nome completo">
                   <Input
                     id="visitor-name"
                     required
-                    value={
-                      form.visitorName
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorName",
-                        event.target.value,
-                      )
+                    value={form.visitorName}
+                    onChange={(event) =>
+                      updateField("visitorName", event.target.value)
                     }
                   />
                 </FormField>
 
                 <FormField
                   htmlFor="visitor-position"
-                  label="Cargo / função"
+                  label="Cargo / função (opcional)"
                 >
                   <Input
                     id="visitor-position"
-                    value={
-                      form.visitorPosition
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorPosition",
-                        event.target.value,
-                      )
+                    value={form.visitorPosition}
+                    onChange={(event) =>
+                      updateField("visitorPosition", event.target.value)
                     }
                   />
                 </FormField>
 
                 <FormField
                   htmlFor="visitor-organization"
-                  label="Órgão do visitante"
+                  label="Órgão do visitante (opcional)"
+                  hint="Se vazio, usa o órgão da visita."
                 >
                   <Input
                     id="visitor-organization"
-                    value={
-                      form.visitorOrganization
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorOrganization",
-                        event.target.value,
-                      )
+                    value={form.visitorOrganization}
+                    onChange={(event) =>
+                      updateField("visitorOrganization", event.target.value)
                     }
                   />
                 </FormField>
 
-                <FormField
-                  htmlFor="visitor-sector"
-                  label="Setor"
-                >
+                <FormField htmlFor="visitor-sector" label="Setor (opcional)">
                   <Input
                     id="visitor-sector"
-                    value={
-                      form.visitorSector
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorSector",
-                        event.target.value,
-                      )
+                    value={form.visitorSector}
+                    onChange={(event) =>
+                      updateField("visitorSector", event.target.value)
                     }
                   />
                 </FormField>
 
-                <FormField
-                  htmlFor="visitor-email"
-                  label="E-mail"
-                >
+                <FormField htmlFor="visitor-email" label="E-mail">
                   <Input
                     id="visitor-email"
                     type="email"
                     required
-                    value={
-                      form.visitorEmail
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorEmail",
-                        event.target.value,
-                      )
+                    value={form.visitorEmail}
+                    onChange={(event) =>
+                      updateField("visitorEmail", event.target.value)
                     }
                   />
                 </FormField>
 
-                <FormField
-                  htmlFor="visitor-phone"
-                  label="Telefone"
-                >
+                <FormField htmlFor="visitor-phone" label="Telefone (opcional)">
                   <Input
                     id="visitor-phone"
-                    value={
-                      form.visitorPhone
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorPhone",
-                        event.target.value,
-                      )
+                    type="tel"
+                    value={form.visitorPhone}
+                    onChange={(event) =>
+                      updateField("visitorPhone", event.target.value)
                     }
                   />
                 </FormField>
 
-                <FormField
-                  htmlFor="visitor-cpf"
-                  label="CPF"
-                >
+                <FormField htmlFor="visitor-cpf" label="CPF (opcional)">
                   <Input
                     id="visitor-cpf"
-                    value={
-                      form.visitorCpf
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateField(
-                        "visitorCpf",
-                        event.target.value,
-                      )
+                    inputMode="numeric"
+                    value={form.visitorCpf}
+                    onChange={(event) =>
+                      updateField("visitorCpf", event.target.value)
                     }
                   />
                 </FormField>
               </div>
             </section>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-2">
               {editingId ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={
-                    resetForm
-                  }
-                >
+                <Button type="button" variant="secondary" onClick={resetForm}>
                   Cancelar edição
                 </Button>
               ) : null}
 
-              <Button
-                type="submit"
-                disabled={
-                  busy
-                }
-              >
-                <Plus size={16} />
-
-                {editingId
-                  ? "Salvar alterações"
-                  : "Salvar visita"}
+              <Button type="submit" disabled={busy}>
+                {busy
+                  ? "Salvando…"
+                  : editingId
+                    ? "Salvar alterações"
+                    : "Salvar visita"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {/* CONSULTA */}
-
       <Card>
         <CardHeader>
-          <h2 className="font-extrabold">
-            Consultar visitas
-          </h2>
+          <div>
+            <h2 className="font-bold">Visitas cadastradas</h2>
+
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Consulte, edite ou libere os agendamentos para a recepção.
+            </p>
+          </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="relative mb-5">
-            <MagnifyingGlass
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-            />
+        <CardContent className="border-b border-[var(--border)] py-4">
+          <FormField htmlFor="manage-search" label="Buscar">
+            <div className="relative">
+              <MagnifyingGlass
+                aria-hidden="true"
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+              />
 
-            <Input
-              className="pl-9"
-              placeholder="Protocolo, órgão ou motivo"
-              value={
-                query
-              }
-              onChange={(
-                event,
-              ) =>
-                setQuery(
-                  event.target.value,
-                )
-              }
-            />
-          </div>
-
-          {loading ? (
-            <p className="py-10 text-center">
-              Carregando...
-            </p>
-          ) : visits.length ===
-            0 ? (
-            <EmptyState
-              title="Nenhuma visita encontrada"
-              description="Os agendamentos aparecerão aqui."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHead>
-                      Protocolo
-                    </TableHead>
-
-                    <TableHead>
-                      Data
-                    </TableHead>
-
-                    <TableHead>
-                      Motivo
-                    </TableHead>
-
-                    <TableHead>
-                      Sala
-                    </TableHead>
-
-                    <TableHead>
-                      Status
-                    </TableHead>
-
-                    <TableHead>
-                      Ações
-                    </TableHead>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {visits.map(
-                    (visit) => (
-                      <TableRow
-                        key={
-                          visit.id
-                        }
-                      >
-                        <TableCell>
-                          {
-                            visit.protocol
-                          }
-                        </TableCell>
-
-                        <TableCell>
-                          {formatDate(
-                            visit.scheduledDate,
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          {
-                            visit.subject
-                          }
-                        </TableCell>
-
-                        <TableCell>
-                          {
-                            visit.location
-                          }
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge variant="neutral">
-                            {
-                              visitStatusLabels[
-                                visit.status
-                              ]
-                            }
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() =>
-                                void viewVisit(
-                                  visit.id,
-                                )
-                              }
-                            >
-                              <Eye size={15} />
-                              Consultar
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() =>
-                                void editVisit(
-                                  visit.id,
-                                )
-                              }
-                            >
-                              <PencilSimple size={15} />
-                              Editar
-                            </Button>
-
-                            {[
-                              "pending",
-                              "approved",
-                            ].includes(
-                              visit.status,
-                            ) ? (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() =>
-                                  void releaseReception(
-                                    visit.id,
-                                  )
-                                }
-                              >
-                                <UserCheck size={15} />
-                                Liberar
-                              </Button>
-                            ) : null}
-
-                            {[
-                              "pending",
-                              "rejected",
-                              "cancelled",
-                            ].includes(
-                              visit.status,
-                            ) ? (
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                onClick={() =>
-                                  setDeleteId(
-                                    visit.id,
-                                  )
-                                }
-                              >
-                                <Trash size={15} />
-                                Excluir
-                              </Button>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ),
-                  )}
-                </tbody>
-              </Table>
+              <Input
+                autoComplete="off"
+                className="pl-9"
+                id="manage-search"
+                placeholder="Protocolo, órgão ou motivo"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
             </div>
-          )}
-
-          <p className="mt-4 text-xs text-[var(--text-muted)]">
-            {total} registro(s)
-          </p>
+          </FormField>
         </CardContent>
+
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando visitas"
+            headers={tableHeaders}
+            rows={4}
+          />
+        ) : total ? (
+          <DataTable
+            ariaLabel="Visitas cadastradas"
+            columns={columns}
+            data={visits}
+            getRowId={(visit) => visit.id}
+            itemLabel="visitas"
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPage(1);
+              setPageSize(size);
+            }}
+            page={page}
+            pageSize={pageSize}
+            pageSizeOptions={[10, 25, 50]}
+            total={total}
+          />
+        ) : search ? (
+          <EmptyState
+            title="Nenhum resultado para a busca"
+            description="Confira o protocolo, o órgão ou o motivo informado."
+          />
+        ) : (
+          <EmptyState
+            title="Nenhuma visita cadastrada"
+            description="Os agendamentos salvos no formulário acima aparecerão aqui."
+          />
+        )}
       </Card>
 
-      {deleteId ? (
-        <ModalOverlay>
-          <div className="w-full max-w-md rounded-xl bg-white p-6">
-            <h2 className="font-extrabold">
-              Excluir visita?
-            </h2>
+      <Dialog
+        open={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          title="Detalhes da visita"
+          description="Consulte o agendamento e acompanhe a confirmação enviada ao visitante."
+        >
+          {detail ? (
+            <>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <VisitDetail label="Protocolo">{detail.protocol}</VisitDetail>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  setDeleteId(null)
-                }
-              >
-                Cancelar
-              </Button>
+                <VisitDetail label="Sala">{detail.location}</VisitDetail>
 
-              <Button
-                variant="danger"
-                onClick={() =>
-                  void removeVisit()
-                }
-              >
-                Excluir
-              </Button>
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                <VisitDetail label="Órgão">{detail.organization}</VisitDetail>
 
-      {detail ? (
-        <ModalOverlay>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-extrabold">
-                  Detalhes da visita
-                </h2>
+                <VisitDetail label="Motivo">{detail.subject}</VisitDetail>
 
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  Consulte o agendamento e acompanhe a confirmação
-                  enviada ao visitante.
-                </p>
-              </div>
+                <VisitDetail label="Data">
+                  {formatVisitDate(detail.scheduledDate)}
+                </VisitDetail>
 
-              <button
-                type="button"
-                aria-label="Fechar"
-                onClick={() =>
-                  setDetail(null)
-                }
-              >
-                <X size={20} />
-              </button>
-            </div>
+                <VisitDetail label="Horário">
+                  {formatVisitTime(detail.startTime, detail.endTime)}
+                </VisitDetail>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <DetailItem
-                label="Protocolo"
-                value={
-                  detail.protocol
-                }
-              />
+                <VisitDetail label="Situação">
+                  <Badge
+                    className="whitespace-nowrap"
+                    variant={visitStatusMeta[detail.status].variant}
+                  >
+                    {visitStatusMeta[detail.status].label}
+                  </Badge>
+                </VisitDetail>
 
-              <DetailItem
-                label="Sala"
-                value={
-                  detail.location
-                }
-              />
+                <VisitDetail label="Tipo">
+                  {visitTypeLabels[detail.type] ?? detail.type}
+                </VisitDetail>
+              </dl>
 
-              <DetailItem
-                label="Órgão"
-                value={
-                  detail.organization
-                }
-              />
+              <section className="mt-6 border-t border-[var(--border)] pt-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold">Visitantes e confirmação</h3>
 
-              <DetailItem
-                label="Motivo"
-                value={
-                  detail.subject
-                }
-              />
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      A situação é atualizada quando o visitante responde ao
+                      link recebido por e-mail.
+                    </p>
+                  </div>
 
-              <DetailItem
-                label="Data"
-                value={
-                  formatDate(
-                    detail.scheduledDate,
-                  )
-                }
-              />
-
-              <DetailItem
-                label="Horário"
-                value={`${detail.startTime.slice(
-                  0,
-                  5,
-                )} às ${detail.endTime.slice(
-                  0,
-                  5,
-                )}`}
-              />
-
-              <DetailItem
-                label="Situação"
-                value={
-                  visitStatusLabels[
-                    detail.status
-                  ] ?? detail.status
-                }
-              />
-
-              <DetailItem
-                label="Tipo"
-                value={
-                  visitTypeLabels[
-                    detail.type
-                  ] ?? detail.type
-                }
-              />
-            </div>
-
-            <section className="mt-6 border-t border-[var(--border)] pt-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-extrabold">
-                    Visitantes e confirmação
-                  </h3>
-
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    O status abaixo é atualizado quando o visitante
-                    responde ao link recebido por e-mail.
-                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={
+                      busy ||
+                      !detail.visitors.some((visitor) =>
+                        Boolean(visitor.email?.trim()),
+                      )
+                    }
+                    onClick={() => void resendConfirmation(detail.id)}
+                  >
+                    {busy ? "Reenviando…" : "Reenviar confirmação"}
+                  </Button>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={
-                    busy ||
-                    !detail.visitors.some(
-                      (visitor) =>
-                        Boolean(
-                          visitor.email?.trim(),
-                        ),
-                    )
-                  }
-                  onClick={() =>
-                    void resendConfirmation(
-                      detail.id,
-                    )
-                  }
-                >
-                  Reenviar confirmação
-                </Button>
-              </div>
+                <ul className="mt-4 divide-y divide-[var(--border)] border-t border-[var(--border)]">
+                  {detail.visitors.map((visitor) => {
+                    const confirmation =
+                      visitorConfirmationMeta[visitor.confirmationStatus];
 
-              <div className="mt-4 space-y-3">
-                {detail.visitors.map(
-                  (visitor) => (
-                    <div
-                      key={
-                        visitor.id
-                      }
-                      className="rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-bold">
-                            {
-                              visitor.name
-                            }
-                          </p>
+                    return (
+                      <li className="py-4" key={visitor.id}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {visitor.name}
+                            </p>
 
-                          <p className="mt-1 text-xs text-[var(--text-muted)]">
-                            {visitor.position ??
-                              "Cargo / função não informado"}
-                          </p>
+                            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                              {visitor.position ?? "Cargo não informado"}
+                            </p>
+                          </div>
+
+                          <Badge variant={confirmation?.variant ?? "neutral"}>
+                            {confirmation?.label ?? "Não informado"}
+                          </Badge>
                         </div>
 
-                        <Badge variant="neutral">
-                          {
-                            visitorConfirmationLabels[
-                              visitor.confirmationStatus
-                            ] ?? "NÃO INFORMADO"
-                          }
-                        </Badge>
-                      </div>
+                        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <VisitDetail label="E-mail">
+                            {visitor.email ?? "Não informado"}
+                          </VisitDetail>
 
-                      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                        <DetailItem
-                          label="E-mail"
-                          value={
-                            visitor.email ??
-                            "Não informado"
-                          }
-                        />
+                          <VisitDetail label="Telefone">
+                            {visitor.phone ?? "Não informado"}
+                          </VisitDetail>
 
-                        <DetailItem
-                          label="Telefone"
-                          value={
-                            visitor.phone ??
-                            "Não informado"
-                          }
-                        />
+                          <VisitDetail label="Órgão">
+                            {visitor.organization}
+                          </VisitDetail>
 
-                        <DetailItem
-                          label="Órgão"
-                          value={
-                            visitor.organization
-                          }
-                        />
+                          <VisitDetail label="Setor">
+                            {visitor.sector ?? "Não informado"}
+                          </VisitDetail>
 
-                        <DetailItem
-                          label="Setor"
-                          value={
-                            visitor.sector ??
-                            "Não informado"
-                          }
-                        />
+                          <VisitDetail label="Convite enviado em">
+                            {formatVisitDateTime(visitor.confirmationSentAt)}
+                          </VisitDetail>
 
-                        <DetailItem
-                          label="Convite enviado em"
-                          value={
-                            formatOptionalDateTime(
-                              visitor.confirmationSentAt,
-                            )
-                          }
-                        />
-
-                        <DetailItem
-                          label="Resposta recebida em"
-                          value={
-                            formatOptionalDateTime(
+                          <VisitDetail label="Resposta recebida em">
+                            {formatVisitDateTime(
                               visitor.confirmationRespondedAt,
-                            )
-                          }
-                        />
+                            )}
+                          </VisitDetail>
 
-                        <DetailItem
-                          label="Validade do convite"
-                          value={
-                            formatOptionalDateTime(
-                              visitor.confirmationExpiresAt,
-                            )
-                          }
-                        />
-
-                        <DetailItem
-                          label="Confirmação"
-                          value={
-                            visitorConfirmationLabels[
-                              visitor.confirmationStatus
-                            ] ?? "NÃO INFORMADO"
-                          }
-                        />
-                      </div>
-                    </div>
-                  ),
-                )}
-              </div>
-            </section>
-
-            <div className="mt-6 flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() =>
-                  setDetail(null)
-                }
-              >
-                Fechar
-              </Button>
-            </div>
-          </div>
-        </ModalOverlay>
-      ) : null}
+                          <VisitDetail label="Validade do convite">
+                            {formatVisitDateTime(visitor.confirmationExpiresAt)}
+                          </VisitDetail>
+                        </dl>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function ModalOverlay({
-  children,
-}: {
-  children:
-    ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      {children}
-    </div>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-}: {
-  label:
-    string;
-
-  value:
-    string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase text-[var(--text-faint)]">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function formatDate(
-  value: string,
-) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-  ).format(
-    new Date(
-      `${value}T12:00:00`,
-    ),
-  );
-}
-
-function formatOptionalDateTime(
-  value:
-    Date | string | null | undefined,
-) {
-  if (!value) {
-    return "—";
-  }
-
-  const date =
-    value instanceof Date
-      ? value
-      : new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
-    return "—";
-  }
-
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle:
-        "short",
-
-      timeStyle:
-        "short",
-    },
-  ).format(
-    date,
-  );
-}
-
-function getErrorMessage(
-  cause: unknown,
-  fallback: string,
-) {
-  return cause instanceof
-    ApiError
-    ? cause.message
-    : fallback;
 }

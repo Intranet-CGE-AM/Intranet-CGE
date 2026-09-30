@@ -1,6 +1,4 @@
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
 /* =========================================================
  * LINKS INSTITUCIONAIS
@@ -11,43 +9,33 @@ import {
 
 const institutionalLinks = [
   {
-    label:
-      "PORTAL DA TRANSPARÊNCIA",
+    label: "PORTAL DA TRANSPARÊNCIA",
 
-    href:
-      "https://www.transparencia.am.gov.br/",
+    href: "https://www.transparencia.am.gov.br/",
   },
 
   {
-    label:
-      "DIÁRIO OFICIAL",
+    label: "DIÁRIO OFICIAL",
 
-    href:
-      "https://diario.imprensaoficial.am.gov.br/",
+    href: "https://diario.imprensaoficial.am.gov.br/",
   },
 
   {
-    label:
-      "ACESSO À INFORMAÇÃO",
+    label: "ACESSO À INFORMAÇÃO",
 
-    href:
-      "https://www.transparencia.am.gov.br/",
+    href: "https://www.transparencia.am.gov.br/",
   },
 
   {
-    label:
-      "OUVIDORIA",
+    label: "OUVIDORIA",
 
-    href:
-      "https://www.ouvidoria.am.gov.br/",
+    href: "https://www.ouvidoria.am.gov.br/",
   },
 
   {
-    label:
-      "RADAR DA TRANSPARÊNCIA",
+    label: "RADAR DA TRANSPARÊNCIA",
 
-    href:
-      "https://radardatransparencia.atricon.org.br/",
+    href: "https://radardatransparencia.atricon.org.br/",
   },
 ] as const;
 
@@ -56,38 +44,18 @@ const institutionalLinks = [
  * ======================================================= */
 
 export function GovernmentTopBar() {
-  const [
-    fontLevel,
-    setFontLevel,
-  ] =
-    useState(0);
+  const [fontLevel, setFontLevel] = useState(0);
 
-  const [
-    highContrast,
-    setHighContrast,
-  ] =
-    useState(false);
+  const [highContrast, setHighContrast] = useState(false);
 
   /* =======================================================
    * TAMANHO DA FONTE
    * ===================================================== */
 
-  function applyFontLevel(
-    level:
-      number,
-  ) {
-    const normalized =
-      Math.max(
-        -1,
-        Math.min(
-          1,
-          level,
-        ),
-      );
+  function applyFontLevel(level: number) {
+    const normalized = Math.max(-1, Math.min(1, level));
 
-    setFontLevel(
-      normalized,
-    );
+    setFontLevel(normalized);
 
     /*
      * 0  = padrão
@@ -96,21 +64,9 @@ export function GovernmentTopBar() {
      */
 
     const size =
-      normalized ===
-      -1
-        ? "15px"
-        : normalized ===
-            1
-          ? "17px"
-          : "16px";
+      normalized === -1 ? "15px" : normalized === 1 ? "17px" : "16px";
 
-    document
-      .documentElement
-      .style
-      .setProperty(
-        "font-size",
-        size,
-      );
+    document.documentElement.style.setProperty("font-size", size);
   }
 
   /* =======================================================
@@ -118,22 +74,14 @@ export function GovernmentTopBar() {
    * ===================================================== */
 
   function toggleContrast() {
-    const enabled =
-      !highContrast;
+    const enabled = !highContrast;
 
-    setHighContrast(
-      enabled,
+    setHighContrast(enabled);
+
+    document.documentElement.style.setProperty(
+      "filter",
+      enabled ? "contrast(1.15)" : "",
     );
-
-    document
-      .documentElement
-      .style
-      .setProperty(
-        "filter",
-        enabled
-          ? "contrast(1.15)"
-          : "",
-      );
   }
 
   return (
@@ -193,26 +141,14 @@ export function GovernmentTopBar() {
                 aria-label="Diminuir tamanho da fonte"
                 className={[
                   "gov-text-action",
-                  fontLevel ===
-                  -1
-                    ? "bg-white/10"
-                    : "",
-                ].join(
-                  " ",
-                )}
-                onClick={() =>
-                  applyFontLevel(
-                    -1,
-                  )
-                }
+                  fontLevel === -1 ? "bg-white/10" : "",
+                ].join(" ")}
+                onClick={() => applyFontLevel(-1)}
                 title="Diminuir fonte"
                 type="button"
               >
                 A
-                <span
-                  aria-hidden="true"
-                  className="ml-[1px] text-[10px]"
-                >
+                <span aria-hidden="true" className="ml-[1px] text-[10px]">
                   −
                 </span>
               </button>
@@ -221,20 +157,12 @@ export function GovernmentTopBar() {
 
               <button
                 aria-label="Alternar alto contraste"
-                aria-pressed={
-                  highContrast
-                }
+                aria-pressed={highContrast}
                 className={[
                   "gov-action",
-                  highContrast
-                    ? "bg-white/10"
-                    : "",
-                ].join(
-                  " ",
-                )}
-                onClick={
-                  toggleContrast
-                }
+                  highContrast ? "bg-white/10" : "",
+                ].join(" ")}
+                onClick={toggleContrast}
                 title="Alto contraste"
                 type="button"
               >
@@ -247,18 +175,9 @@ export function GovernmentTopBar() {
                 aria-label="Aumentar tamanho da fonte"
                 className={[
                   "gov-text-action",
-                  fontLevel ===
-                  1
-                    ? "bg-white/10"
-                    : "",
-                ].join(
-                  " ",
-                )}
-                onClick={() =>
-                  applyFontLevel(
-                    1,
-                  )
-                }
+                  fontLevel === 1 ? "bg-white/10" : "",
+                ].join(" ")}
+                onClick={() => applyFontLevel(1)}
                 title="Aumentar fonte"
                 type="button"
               >
@@ -271,18 +190,9 @@ export function GovernmentTopBar() {
                 aria-label="Restaurar tamanho padrão da fonte"
                 className={[
                   "gov-text-action",
-                  fontLevel ===
-                  0
-                    ? "bg-white/5"
-                    : "",
-                ].join(
-                  " ",
-                )}
-                onClick={() =>
-                  applyFontLevel(
-                    0,
-                  )
-                }
+                  fontLevel === 0 ? "bg-white/5" : "",
+                ].join(" ")}
+                onClick={() => applyFontLevel(0)}
                 title="Fonte padrão"
                 type="button"
               >
@@ -294,11 +204,7 @@ export function GovernmentTopBar() {
               <button
                 aria-label="Diminuir tamanho da fonte"
                 className="gov-text-action"
-                onClick={() =>
-                  applyFontLevel(
-                    -1,
-                  )
-                }
+                onClick={() => applyFontLevel(-1)}
                 title="Diminuir fonte"
                 type="button"
               >
@@ -334,60 +240,44 @@ export function GovernmentTopBar() {
               aria-label="Links institucionais"
               className="flex h-[34px] shrink-0 items-center"
             >
-              {institutionalLinks.map(
-                (
-                  item,
-                  index,
-                ) => (
-                  <a
-                    className="gov-institutional-link"
-                    href={
-                      item.href
-                    }
-                    key={
-                      item.label
-                    }
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {index ===
-                    2 ? (
-                      <span
-                        aria-hidden="true"
-                        className="mr-2 inline-grid size-[18px] shrink-0 place-items-center rounded-full bg-[#168bb2] text-[9px]"
-                      >
-                        i
-                      </span>
-                    ) : null}
-
-                    {index ===
-                    3 ? (
-                      <span
-                        aria-hidden="true"
-                        className="mr-2 inline-flex items-center"
-                      >
-                        <MegaphoneIcon />
-                      </span>
-                    ) : null}
-
-                    {index ===
-                    4 ? (
-                      <span
-                        aria-hidden="true"
-                        className="mr-2 inline-flex items-center"
-                      >
-                        <RadarIcon />
-                      </span>
-                    ) : null}
-
-                    <span>
-                      {
-                        item.label
-                      }
+              {institutionalLinks.map((item, index) => (
+                <a
+                  className="gov-institutional-link"
+                  href={item.href}
+                  key={item.label}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {index === 2 ? (
+                    <span
+                      aria-hidden="true"
+                      className="mr-2 inline-grid size-[18px] shrink-0 place-items-center rounded-full bg-[#168bb2] text-[9px]"
+                    >
+                      i
                     </span>
-                  </a>
-                ),
-              )}
+                  ) : null}
+
+                  {index === 3 ? (
+                    <span
+                      aria-hidden="true"
+                      className="mr-2 inline-flex items-center"
+                    >
+                      <MegaphoneIcon />
+                    </span>
+                  ) : null}
+
+                  {index === 4 ? (
+                    <span
+                      aria-hidden="true"
+                      className="mr-2 inline-flex items-center"
+                    >
+                      <RadarIcon />
+                    </span>
+                  ) : null}
+
+                  <span>{item.label}</span>
+                </a>
+              ))}
             </nav>
           </div>
         </div>
@@ -518,13 +408,7 @@ function AccessibilityIcon() {
         strokeWidth="1.5"
       />
 
-      <circle
-        cx="12"
-        cy="12"
-        r="2.7"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
+      <circle cx="12" cy="12" r="2.7" stroke="currentColor" strokeWidth="1.5" />
 
       <path
         d="M5 4 19 20"
@@ -538,12 +422,7 @@ function AccessibilityIcon() {
 
 function ContrastIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      height="18"
-      viewBox="0 0 24 24"
-      width="18"
-    >
+    <svg aria-hidden="true" height="18" viewBox="0 0 24 24" width="18">
       <circle
         cx="12"
         cy="12"
@@ -553,10 +432,7 @@ function ContrastIcon() {
         strokeWidth="1.7"
       />
 
-      <path
-        d="M12 4a8 8 0 0 0 0 16V4Z"
-        fill="currentColor"
-      />
+      <path d="M12 4a8 8 0 0 0 0 16V4Z" fill="currentColor" />
     </svg>
   );
 }
@@ -628,10 +504,7 @@ function MegaphoneIcon() {
       viewBox="0 0 24 24"
       width="17"
     >
-      <path
-        d="M4 13.5v-3L16.5 5v14L4 13.5Z"
-        fill="#e7c22e"
-      />
+      <path d="M4 13.5v-3L16.5 5v14L4 13.5Z" fill="#e7c22e" />
 
       <path
         d="M7 14.5 8.4 19h3.2l-1.2-3.4"
@@ -651,11 +524,7 @@ function RadarIcon() {
       viewBox="0 0 24 24"
       width="17"
     >
-      <path
-        d="M12 4a8 8 0 1 0 8 8"
-        stroke="#e7c22e"
-        strokeWidth="1.6"
-      />
+      <path d="M12 4a8 8 0 1 0 8 8" stroke="#e7c22e" strokeWidth="1.6" />
 
       <path
         d="M12 12 19 7"
@@ -664,12 +533,7 @@ function RadarIcon() {
         strokeWidth="1.8"
       />
 
-      <circle
-        cx="12"
-        cy="12"
-        fill="#e7c22e"
-        r="1.7"
-      />
+      <circle cx="12" cy="12" fill="#e7c22e" r="1.7" />
     </svg>
   );
 }

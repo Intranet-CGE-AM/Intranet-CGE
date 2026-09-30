@@ -1,7 +1,4 @@
-import type {
-  Asset,
-  AssetCreate,
-} from "@cge/contracts";
+import type { Asset, AssetCreate } from "@cge/contracts";
 
 import {
   Alert,
@@ -12,87 +9,66 @@ import {
   DatePicker,
   FormField,
   Input,
+  SearchableSelect,
+  Select,
   Textarea,
 } from "@cge/ui";
 
-import {
-  ArrowLeft,
-  FloppyDisk,
-} from "@phosphor-icons/react";
+import { useEffect, useState, type FormEvent } from "react";
+
+import { Link, useNavigate } from "react-router";
+
+import { api, ApiError, json } from "../../lib/api";
 
 import {
-  useEffect,
-  useState,
-  type FormEvent,
-} from "react";
+  conservationOptions,
+  optionalString,
+  PageHeader,
+  unitOptions,
+  type OrganizationUnit,
+  type OrganizationUnitsResponse,
+} from "./shared";
 
-import {
-  Link,
-  useNavigate,
-} from "react-router";
+// Radix Select rejects "" as an item value, so "Não informado" uses a sentinel.
+const NONE = "__none__";
 
-import {
-  api,
-  ApiError,
-  json,
-} from "../../lib/api";
+const conservationSelectOptions = [
+  { label: "Não informado", value: NONE },
+  ...conservationOptions,
+];
 
-type OrganizationUnitType =
-  | "department"
-  | "sector"
-  | "subsector";
-
-type OrganizationUnit = {
-  id: string;
-  code: string;
-  name: string;
-  type: OrganizationUnitType | null;
-  parentId: string | null;
-  active: boolean;
-};
-
-type OrganizationUnitsResponse = {
-  units: OrganizationUnit[];
-};
+type FieldErrors = Partial<
+  Record<
+    | "patrimonyNumber"
+    | "description"
+    | "departmentId"
+    | "sectorId"
+    | "unitId"
+    | "acquisitionValue",
+    string
+  >
+>;
 
 export function AssetCreatePage() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [
-    loadingUnits,
-    setLoadingUnits,
-  ] = useState(true);
+  const [loadingUnits, setLoadingUnits] = useState(true);
 
-  const [
-    units,
-    setUnits,
-  ] = useState<OrganizationUnit[]>([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [
-  selectedDepartmentId,
-  setSelectedDepartmentId,
-  ] = useState("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
 
-  const [
-    selectedSectorId,
-    setSelectedSectorId,
-  ] = useState("");
+  const [selectedSectorId, setSelectedSectorId] = useState("");
 
-  const [
-    selectedSubsectorId,
-    setSelectedSubsectorId,
-  ] = useState("");
+  const [selectedSubsectorId, setSelectedSubsectorId] = useState("");
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [conservationStatus, setConservationStatus] = useState("");
+
+  const [error, setError] = useState("");
+
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     void loadUnits();
@@ -102,803 +78,464 @@ export function AssetCreatePage() {
     try {
       setLoadingUnits(true);
 
-      const result =
-        await api<OrganizationUnitsResponse>(
-          "/api/organization-units",
-        );
-
-      setUnits(
-        result.units.filter(
-          (unit) =>
-            unit.active,
-        ),
+      const result = await api<OrganizationUnitsResponse>(
+        "/api/organization-units",
       );
+
+      setUnits(result.units.filter((unit) => unit.active));
     } catch (cause) {
-      if (
-        cause instanceof
-        ApiError
-      ) {
-        setError(
-          cause.message,
-        );
+      if (cause instanceof ApiError) {
+        setError(cause.message);
       } else {
-        setError(
-          "Não foi possível carregar a estrutura organizacional.",
-        );
+        setError("Não foi possível carregar a estrutura organizacional.");
       }
     } finally {
       setLoadingUnits(false);
     }
   }
 
-  async function handleSubmit(
-    event:
-      FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const form =
-      event.currentTarget;
+    const data = new FormData(event.currentTarget);
 
-    const data =
-      new FormData(form);
+    const patrimonyNumber = String(data.get("patrimonyNumber") ?? "").trim();
 
-    const patrimonyNumber =
-      requiredString(
-        data.get(
-          "patrimonyNumber",
-        ),
-      );
+    const description = String(data.get("description") ?? "").trim();
 
-    const description =
-      requiredString(
-        data.get(
-          "description",
-        ),
-      );
+    const unitId = optionalString(data.get("unitId"));
 
-    const unitId =
-      optionalString(
-        data.get(
-          "unitId",
-        ),
-      );
+    const acquisitionValueText = String(
+      data.get("acquisitionValue") ?? "",
+    ).trim();
 
-    const brand =
-      optionalString(
-        data.get(
-          "brand",
-        ),
-      );
-
-    const model =
-      optionalString(
-        data.get(
-          "model",
-        ),
-      );
-
-    const serialNumber =
-      optionalString(
-        data.get(
-          "serialNumber",
-        ),
-      );
-
-    const usageDate =
-      optionalString(
-        data.get(
-          "usageDate",
-        ),
-      );
-
-    const documentNumber =
-      optionalString(
-        data.get(
-          "documentNumber",
-        ),
-      );
-
-    const documentDate =
-      optionalString(
-        data.get(
-          "documentDate",
-        ),
-      );
-
-    const acquisitionDate =
-      optionalString(
-        data.get(
-          "acquisitionDate",
-        ),
-      );
-
-    const commitmentNumber =
-      optionalString(
-        data.get(
-          "commitmentNumber",
-        ),
-      );
-
-    const conservationStatus =
-      optionalString(
-        data.get(
-          "conservationStatus",
-        ),
-      );
-
-    const renavam =
-      optionalString(
-        data.get(
-          "renavam",
-        ),
-      );
-
-    const chassis =
-      optionalString(
-        data.get(
-          "chassis",
-        ),
-      );
-
-    const notes =
-      optionalString(
-        data.get(
-          "notes",
-        ),
-      );
-
-    const acquisitionValueText =
-      String(
-        data.get(
-          "acquisitionValue",
-        ) ?? "",
-      ).trim();
+    const nextErrors: FieldErrors = {};
 
     if (!patrimonyNumber) {
-      setError(
-        "Informe o número do tombo.",
-      );
-
-      return;
+      nextErrors.patrimonyNumber = "Informe o número do tombo.";
     }
 
-    if (
-      !description ||
-      description.length < 2
-    ) {
-      setError(
-        "Informe o material ou descrição do bem.",
-      );
-
-      return;
+    if (!description || description.length < 2) {
+      nextErrors.description = "Informe o material ou descrição do bem.";
     }
 
     if (!selectedDepartmentId) {
-      setError(
-        "Selecione o departamento onde o bem está localizado.",
-      );
-
-      return;
+      nextErrors.departmentId =
+        "Selecione o departamento onde o bem está localizado.";
     }
 
     if (!selectedSectorId) {
-      setError(
-        "Selecione o setor onde o bem está localizado.",
-      );
-
-      return;
+      nextErrors.sectorId = "Selecione o setor onde o bem está localizado.";
     }
 
     if (!unitId) {
-      setError(
-        "Selecione o subsetor onde o bem está localizado.",
-      );
+      nextErrors.unitId = "Selecione o subsetor onde o bem está localizado.";
+    }
 
+    let acquisitionValue: number | null = null;
+
+    if (acquisitionValueText) {
+      const parsed = Number(acquisitionValueText.replace(",", "."));
+
+      if (Number.isNaN(parsed) || parsed < 0) {
+        nextErrors.acquisitionValue = "Informe um valor de aquisição válido.";
+      } else {
+        acquisitionValue = parsed;
+      }
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0 || !unitId) {
       return;
     }
 
-    let acquisitionValue:
-      number | null = null;
+    const input: AssetCreate = {
+      patrimonyNumber,
+      description,
 
-    if (
-      acquisitionValueText
-    ) {
-      const parsed =
-        Number(
-          acquisitionValueText,
-        );
+      unitId,
 
-      if (
-        Number.isNaN(parsed) ||
-        parsed < 0
-      ) {
-        setError(
-          "Informe um valor de aquisição válido.",
-        );
+      brand: optionalString(data.get("brand")),
+      model: optionalString(data.get("model")),
+      serialNumber: optionalString(data.get("serialNumber")),
 
-        return;
-      }
+      usageDate: optionalString(data.get("usageDate")),
 
-      acquisitionValue =
-        parsed;
-    }
+      documentNumber: optionalString(data.get("documentNumber")),
+      documentDate: optionalString(data.get("documentDate")),
 
-    const input:
-      AssetCreate = {
-        patrimonyNumber,
-        description,
+      acquisitionDate: optionalString(data.get("acquisitionDate")),
+      acquisitionValue,
 
-        unitId,
+      commitmentNumber: optionalString(data.get("commitmentNumber")),
 
-        brand,
-        model,
-        serialNumber,
+      conservationStatus: optionalString(conservationStatus),
 
-        usageDate,
+      renavam: optionalString(data.get("renavam")),
+      chassis: optionalString(data.get("chassis")),
 
-        documentNumber,
-        documentDate,
-
-        acquisitionDate,
-        acquisitionValue,
-
-        commitmentNumber,
-
-        conservationStatus,
-
-        renavam,
-        chassis,
-
-        notes,
-      };
+      notes: optionalString(data.get("notes")),
+    };
 
     try {
       setSaving(true);
       setError("");
 
-      await api<Asset>(
-        "/api/assets",
-        {
-          method: "POST",
+      await api<Asset>("/api/assets", {
+        method: "POST",
 
-          body:
-            json(input),
-        },
-      );
+        body: json(input),
+      });
 
-      navigate(
-        "/patrimonio/bens",
-      );
+      navigate("/patrimonio/bens");
     } catch (cause) {
-      if (
-        cause instanceof
-        ApiError
-      ) {
-        setError(
-          cause.message,
-        );
+      if (cause instanceof ApiError) {
+        setError(cause.message);
       } else {
-        setError(
-          "Não foi possível cadastrar o bem patrimonial.",
-        );
+        setError("Não foi possível cadastrar o bem patrimonial.");
       }
     } finally {
       setSaving(false);
     }
   }
 
-  const departments = units.filter(
-    (unit) =>
-      unit.type === "department",
-  );
+  const departments = units.filter((unit) => unit.type === "department");
 
   const sectors = units.filter(
-    (unit) =>
-      unit.type === "sector" &&
-      unit.parentId === selectedDepartmentId,
+    (unit) => unit.type === "sector" && unit.parentId === selectedDepartmentId,
   );
 
   const subsectors = units.filter(
-    (unit) =>
-      unit.type === "subsector" &&
-      unit.parentId === selectedSectorId,
+    (unit) => unit.type === "subsector" && unit.parentId === selectedSectorId,
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-            Novo Bem Patrimonial
-          </h1>
-
-          <p className="text-sm text-[var(--text-muted)]">
-            Cadastre um novo bem
-            patrimonial.
-          </p>
-        </div>
-
-        <Button
-          asChild
-          variant="secondary"
-        >
-          <Link
-            to="/patrimonio/bens"
-          >
-            <ArrowLeft
-              size={18}
-            />
-
-            Voltar
-          </Link>
-        </Button>
-      </div>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        backTo="/patrimonio/bens"
+        description="Cadastre um novo bem patrimonial."
+        title="Novo bem patrimonial"
+      />
 
       {error ? (
-        <Alert
-          tone="danger"
-          title="Não foi possível cadastrar o bem"
-        >
+        <Alert tone="danger" title="Não foi possível cadastrar o bem">
           {error}
         </Alert>
       ) : null}
 
-      <form
-        onSubmit={
-          handleSubmit
-        }
-      >
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-medium">
-                  Identificação
-                </h2>
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Identificação</h2>
 
-                <p className="text-xs text-[var(--text-muted)]">
-                  Dados principais de identificação do bem.
-                </p>
-              </div>
-            </CardHeader>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Dados principais de identificação do bem.
+              </p>
+            </div>
+          </CardHeader>
 
-            <CardContent>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  htmlFor="patrimonyNumber"
-                  label="Número do Tombo"
-                >
-                  <Input
-                    autoComplete="off"
-                    id="patrimonyNumber"
-                    name="patrimonyNumber"
-                    placeholder="Ex.: 335"
-                    required
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="serialNumber"
-                  label="Número de série"
-                >
-                  <Input
-                    autoComplete="off"
-                    id="serialNumber"
-                    name="serialNumber"
-                    placeholder="Número de série"
-                  />
-                </FormField>
-
-                <FormField
-                  className="sm:col-span-2"
-                  htmlFor="description"
-                  label="Material / Descrição"
-                >
-                  <Textarea
-                    id="description"
-                    name="description"
-                    placeholder="Ex.: NOBREAK, potência 3000VA..."
-                    required
-                    rows={4}
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="brand"
-                  label="Marca"
-                >
-                  <Input
-                    id="brand"
-                    name="brand"
-                    placeholder="Ex.: APC"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="model"
-                  label="Modelo"
-                >
-                  <Input
-                    id="model"
-                    name="model"
-                    placeholder="Modelo do bem"
-                  />
-                </FormField>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-medium">
-                  Localização
-                </h2>
-
-                <p className="text-xs text-[var(--text-muted)]">
-                  Informe onde o
-                  bem está localizado.
-                </p>
-              </div>
-            </CardHeader>
-
-            <CardContent>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  htmlFor="departmentId"
-                  label="Departamento"
-                >
-                  <select
-                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                    disabled={loadingUnits}
-                    id="departmentId"
-                    value={selectedDepartmentId}
-                    onChange={(event) => {
-                      setSelectedDepartmentId(
-                        event.target.value,
-                      );
-
-                      setSelectedSectorId("");
-                      setSelectedSubsectorId("");
-                    }}
-                    required
-                  >
-                    <option value="">
-                      {loadingUnits
-                        ? "Carregando departamentos..."
-                        : "Selecione um departamento"}
-                    </option>
-
-                    {departments.map(
-                      (department) => (
-                        <option
-                          key={department.id}
-                          value={department.id}
-                        >
-                          {department.code} -{" "}
-                          {department.name}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </FormField>
-
-                <FormField
-                  htmlFor="sectorId"
-                  label="Setor"
-                >
-                  <select
-                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                    disabled={
-                      loadingUnits ||
-                      !selectedDepartmentId
-                    }
-                    id="sectorId"
-                    value={selectedSectorId}
-                    onChange={(event) => {
-                      setSelectedSectorId(
-                        event.target.value,
-                      );
-
-                      setSelectedSubsectorId("");
-                    }}
-                    required
-                  >
-                    <option value="">
-                      {!selectedDepartmentId
-                        ? "Selecione primeiro o departamento"
-                        : "Selecione um setor"}
-                    </option>
-
-                    {sectors.map((sector) => (
-                      <option
-                        key={sector.id}
-                        value={sector.id}
-                      >
-                        {sector.code} -{" "}
-                        {sector.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <FormField
-                  htmlFor="unitId"
-                  label="Subsetor"
-                >
-                  <select
-                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                    disabled={
-                      loadingUnits ||
-                      !selectedSectorId
-                    }
-                    id="unitId"
-                    name="unitId"
-                    value={selectedSubsectorId}
-                    onChange={(event) =>
-                      setSelectedSubsectorId(
-                        event.target.value,
-                      )
-                    }
-                    required
-                  >
-                    <option value="">
-                      {!selectedSectorId
-                        ? "Selecione primeiro o setor"
-                        : "Selecione um subsetor"}
-                    </option>
-
-                    {subsectors.map(
-                      (subsector) => (
-                        <option
-                          key={subsector.id}
-                          value={subsector.id}
-                        >
-                          {subsector.code} -{" "}
-                          {subsector.name}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </FormField>
-
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-medium">
-                  Nota Fiscal/ Documentação e aquisição
-                </h2>
-
-                <p className="text-xs text-[var(--text-muted)]">
-                  Informações do
-                  documento de aquisição
-                  do bem.
-                </p>
-              </div>
-            </CardHeader>
-
-            <CardContent>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  htmlFor="usageDate"
-                  label="Data de utilização"
-                >
-                  <DatePicker
-                    id="usageDate"
-                    name="usageDate"
-                    placeholder="Selecione a data"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="acquisitionDate"
-                  label="Data de aquisição"
-                >
-                  <DatePicker
-                    id="acquisitionDate"
-                    name="acquisitionDate"
-                    placeholder="Selecione a data"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="documentNumber"
-                  label="Documento"
-                >
-                  <Input
-                    id="documentNumber"
-                    name="documentNumber"
-                    placeholder="Ex.: NF551"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="documentDate"
-                  label="Data do documento"
-                >
-                  <DatePicker
-                    id="documentDate"
-                    name="documentDate"
-                    placeholder="Selecione a data"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="acquisitionValue"
-                  label="Valor de aquisição"
-                >
-                  <Input
-                    id="acquisitionValue"
-                    min="0"
-                    name="acquisitionValue"
-                    placeholder="0.00"
-                    step="0.01"
-                    type="number"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="commitmentNumber"
-                  label="Empenho"
-                >
-                  <Input
-                    id="commitmentNumber"
-                    name="commitmentNumber"
-                    placeholder="Ex.: 2021NE00045"
-                  />
-                </FormField>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div>
-                <h2 className="font-medium">
-                  Estado e informações complementares
-                </h2>
-
-                <p className="text-xs text-[var(--text-muted)]">
-                  Condição física e
-                  informações adicionais
-                  do patrimônio.
-                </p>
-              </div>
-            </CardHeader>
-
-            <CardContent>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <FormField
-                  htmlFor="conservationStatus"
-                  label="Conservação"
-                >
-                  <select
-                    className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                    id="conservationStatus"
-                    name="conservationStatus"
-                  >
-                    <option value="">
-                      Selecione
-                    </option>
-
-                    <option value="Ótimo">
-                      Ótimo
-                    </option>
-
-                    <option value="Bom">
-                      Bom
-                    </option>
-
-                    <option value="Regular">
-                      Regular
-                    </option>
-
-                    <option value="Ruim">
-                      Ruim
-                    </option>
-
-                    <option value="Inservível">
-                      Inservível
-                    </option>
-                  </select>
-                </FormField>
-
-                <div />
-
-                <FormField
-                  htmlFor="renavam"
-                  label="RENAVAM"
-                >
-                  <Input
-                    id="renavam"
-                    name="renavam"
-                    placeholder="Aplicável a veículos"
-                  />
-                </FormField>
-
-                <FormField
-                  htmlFor="chassis"
-                  label="Chassi"
-                >
-                  <Input
-                    id="chassis"
-                    name="chassis"
-                    placeholder="Aplicável a veículos"
-                  />
-                </FormField>
-
-                <FormField
-                  className="sm:col-span-2"
-                  htmlFor="notes"
-                  label="Observações"
-                >
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    placeholder="Informações adicionais sobre o bem..."
-                    rows={4}
-                  />
-                </FormField>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end gap-3">
-            <Button
-              asChild
-              variant="secondary"
-            >
-              <Link
-                to="/patrimonio/bens"
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                error={errors.patrimonyNumber}
+                htmlFor="patrimonyNumber"
+                label="Número do tombo"
               >
-                Cancelar
-              </Link>
-            </Button>
+                <Input
+                  aria-invalid={Boolean(errors.patrimonyNumber)}
+                  autoComplete="off"
+                  id="patrimonyNumber"
+                  name="patrimonyNumber"
+                  placeholder="Ex.: 335"
+                  required
+                />
+              </FormField>
 
-            <Button
-              disabled={
-                saving ||
-                loadingUnits
-              }
-              type="submit"
-            >
-              <FloppyDisk
-                size={18}
-              />
+              <FormField
+                htmlFor="serialNumber"
+                label="Número de série (opcional)"
+              >
+                <Input
+                  autoComplete="off"
+                  id="serialNumber"
+                  name="serialNumber"
+                  placeholder="Número de série"
+                />
+              </FormField>
 
-              {saving
-                ? "Salvando..."
-                : "Cadastrar bem"}
-            </Button>
-          </div>
+              <FormField
+                className="sm:col-span-2"
+                error={errors.description}
+                htmlFor="description"
+                label="Material / descrição"
+              >
+                <Textarea
+                  aria-invalid={Boolean(errors.description)}
+                  id="description"
+                  name="description"
+                  placeholder="Ex.: NOBREAK, potência 3000VA..."
+                  required
+                  rows={4}
+                />
+              </FormField>
+
+              <FormField htmlFor="brand" label="Marca (opcional)">
+                <Input id="brand" name="brand" placeholder="Ex.: APC" />
+              </FormField>
+
+              <FormField htmlFor="model" label="Modelo (opcional)">
+                <Input id="model" name="model" placeholder="Modelo do bem" />
+              </FormField>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Localização</h2>
+
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Informe onde o bem está localizado.
+              </p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                error={errors.departmentId}
+                htmlFor="departmentId"
+                label="Departamento"
+              >
+                <SearchableSelect
+                  aria-invalid={Boolean(errors.departmentId)}
+                  disabled={loadingUnits}
+                  id="departmentId"
+                  name="departmentId"
+                  options={unitOptions(departments)}
+                  placeholder={
+                    loadingUnits
+                      ? "Carregando departamentos..."
+                      : "Selecione um departamento"
+                  }
+                  required
+                  value={selectedDepartmentId}
+                  onValueChange={(value) => {
+                    setSelectedDepartmentId(value);
+
+                    setSelectedSectorId("");
+                    setSelectedSubsectorId("");
+                  }}
+                />
+              </FormField>
+
+              <FormField
+                error={errors.sectorId}
+                htmlFor="sectorId"
+                label="Setor"
+              >
+                <SearchableSelect
+                  aria-invalid={Boolean(errors.sectorId)}
+                  disabled={loadingUnits || !selectedDepartmentId}
+                  id="sectorId"
+                  name="sectorId"
+                  options={unitOptions(sectors)}
+                  placeholder={
+                    !selectedDepartmentId
+                      ? "Selecione primeiro o departamento"
+                      : "Selecione um setor"
+                  }
+                  required
+                  value={selectedSectorId}
+                  onValueChange={(value) => {
+                    setSelectedSectorId(value);
+
+                    setSelectedSubsectorId("");
+                  }}
+                />
+              </FormField>
+
+              <FormField
+                error={errors.unitId}
+                htmlFor="unitId"
+                label="Subsetor"
+              >
+                <SearchableSelect
+                  aria-invalid={Boolean(errors.unitId)}
+                  disabled={loadingUnits || !selectedSectorId}
+                  id="unitId"
+                  name="unitId"
+                  options={unitOptions(subsectors)}
+                  placeholder={
+                    !selectedSectorId
+                      ? "Selecione primeiro o setor"
+                      : "Selecione um subsetor"
+                  }
+                  required
+                  value={selectedSubsectorId}
+                  onValueChange={setSelectedSubsectorId}
+                />
+              </FormField>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">
+                Nota fiscal, documentação e aquisição
+              </h2>
+
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Informações do documento de aquisição do bem.
+              </p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                htmlFor="usageDate"
+                label="Data de utilização (opcional)"
+              >
+                <DatePicker
+                  id="usageDate"
+                  name="usageDate"
+                  placeholder="Selecione a data"
+                />
+              </FormField>
+
+              <FormField
+                htmlFor="acquisitionDate"
+                label="Data de aquisição (opcional)"
+              >
+                <DatePicker
+                  id="acquisitionDate"
+                  name="acquisitionDate"
+                  placeholder="Selecione a data"
+                />
+              </FormField>
+
+              <FormField htmlFor="documentNumber" label="Documento (opcional)">
+                <Input
+                  id="documentNumber"
+                  name="documentNumber"
+                  placeholder="Ex.: NF551"
+                />
+              </FormField>
+
+              <FormField
+                htmlFor="documentDate"
+                label="Data do documento (opcional)"
+              >
+                <DatePicker
+                  id="documentDate"
+                  name="documentDate"
+                  placeholder="Selecione a data"
+                />
+              </FormField>
+
+              <FormField
+                error={errors.acquisitionValue}
+                htmlFor="acquisitionValue"
+                label="Valor de aquisição (opcional)"
+              >
+                <Input
+                  aria-invalid={Boolean(errors.acquisitionValue)}
+                  id="acquisitionValue"
+                  inputMode="decimal"
+                  name="acquisitionValue"
+                  placeholder="0,00"
+                />
+              </FormField>
+
+              <FormField htmlFor="commitmentNumber" label="Empenho (opcional)">
+                <Input
+                  id="commitmentNumber"
+                  name="commitmentNumber"
+                  placeholder="Ex.: 2021NE00045"
+                />
+              </FormField>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Estado e informações complementares</h2>
+
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Condição física e informações adicionais do patrimônio.
+              </p>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                className="sm:col-span-2"
+                htmlFor="conservationStatus"
+                label="Conservação (opcional)"
+              >
+                <Select
+                  id="conservationStatus"
+                  name="conservationStatus"
+                  options={conservationSelectOptions}
+                  placeholder="Selecione"
+                  value={conservationStatus}
+                  onValueChange={(value) =>
+                    setConservationStatus(value === NONE ? "" : value)
+                  }
+                />
+              </FormField>
+
+              <FormField htmlFor="renavam" label="RENAVAM (opcional)">
+                <Input
+                  id="renavam"
+                  name="renavam"
+                  placeholder="Aplicável a veículos"
+                />
+              </FormField>
+
+              <FormField htmlFor="chassis" label="Chassi (opcional)">
+                <Input
+                  id="chassis"
+                  name="chassis"
+                  placeholder="Aplicável a veículos"
+                />
+              </FormField>
+
+              <FormField
+                className="sm:col-span-2"
+                htmlFor="notes"
+                label="Observações (opcional)"
+              >
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  placeholder="Informações adicionais sobre o bem..."
+                  rows={4}
+                />
+              </FormField>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button asChild variant="secondary">
+            <Link to="/patrimonio/bens">Cancelar</Link>
+          </Button>
+
+          <Button disabled={saving || loadingUnits} type="submit">
+            {saving ? "Salvando..." : "Cadastrar bem"}
+          </Button>
         </div>
       </form>
     </div>
   );
-}
-
-function optionalString(
-  value:
-    FormDataEntryValue | null,
-) {
-  const text =
-    String(
-      value ?? "",
-    ).trim();
-
-  return text || null;
-}
-
-function requiredString(
-  value:
-    FormDataEntryValue | null,
-) {
-  return String(
-    value ?? "",
-  ).trim();
 }

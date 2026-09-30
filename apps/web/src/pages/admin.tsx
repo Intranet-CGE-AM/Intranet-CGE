@@ -52,6 +52,26 @@ import {
 } from "../modules/hr/person-form-fields";
 
 const permissionLabels: Record<PermissionKey, string> = {
+  "occurrences.create": "Solicitar ocorrências",
+  "occurrences.review.supervisor": "Analisar ocorrências da equipe",
+  "occurrences.review.final": "Decisão final de ocorrências",
+  "occurrences.manage_types": "Administrar tipos de ocorrência",
+  "training.create": "Registrar capacitações próprias",
+  "training.review": "Analisar capacitações",
+  "onboarding.manage_templates": "Administrar modelos de checklist",
+  "onboarding.manage": "Gerenciar checklists",
+  "workflows.manage_substitutions": "Gerenciar substituições temporárias",
+  "organization.read": "Consultar estrutura e cargos",
+  "organization.manage_positions": "Gerenciar quadro de cargos",
+  "hr_communications.manage": "Gerenciar comunicados internos",
+  "hr_resources.manage": "Gerenciar políticas e formulários",
+  "employment.manage_history": "Registrar movimentações funcionais",
+  "documents.read": "Consultar documentos funcionais",
+  "documents.manage": "Publicar e arquivar documentos",
+  "documents.sensitive.read": "Consultar documentos sensíveis",
+  "documents.sensitive.manage": "Publicar documentos sensíveis",
+  "hr_requests.create": "Abrir solicitações de RH",
+  "hr_requests.manage": "Tratar solicitações de RH",
   "access.manage": "Perfis e permissões",
   "accounts.manage": "Contas de acesso",
   "audit.read": "Consultar auditoria",
@@ -63,72 +83,145 @@ const permissionLabels: Record<PermissionKey, string> = {
   "vacations.create": "Solicitar férias",
   "vacations.review.supervisor": "Decisão da chefia",
   "vacations.review.final": "Decisão final de férias",
-
-  "visits.read": "Consultar agendamentos de visitas",
-  "visits.create": "Criar agendamentos de visitas",
-  "visits.manage": "Gerenciar agendamentos de visitas",
-  "visits.approve": "Aprovar agendamentos de visitas",
-
+  "tickets.create": "Abrir chamados de TI",
+  "tickets.read": "Consultar chamados de TI",
+  "tickets.approve": "Deliberar aprovação de TI",
+  "tickets.attend": "Atendimento técnico ATEC",
+  "tickets.manage": "Gestão e métricas de TI",
+  "visits.read": "Consultar visitas",
+  "visits.create": "Agendar visitas",
+  "visits.update": "Editar visitas",
+  "visits.delete": "Cancelar/Excluir visitas",
+  "visits.approve": "Aprovar visitas",
+  "visits.release": "Liberar acesso na portaria",
+  "visits.history": "Histórico de visitas",
+  "visits.reports": "Relatórios de visitas",
+  "visits.export": "Exportar visitas",
+  "visits.manage": "Administrar módulo de visitas",
+  "visits.confirmation.manage": "Gerenciar confirmações de visitas",
   "assets.read": "Visualizar patrimônio",
   "assets.manage": "Gerenciar patrimônio",
+  "audit_documents.read": "Consultar documentos de auditoria",
+  "audit_documents.submit": "Enviar documentos de auditoria",
+  "audit_documents.review": "Analisar documentos de auditoria",
+  "audit_documents.reports": "Indicadores de documentos de auditoria",
 };
 
 const permissionDescriptions: Record<PermissionKey, string> = {
+  "occurrences.create": "Solicita ocorrências no próprio vínculo ativo.",
+  "occurrences.review.supervisor":
+    "Analisa informações administrativas da equipe, sem documentos sensíveis.",
+  "occurrences.review.final":
+    "Decide ocorrências nas unidades autorizadas, sem conceder acesso automático a documentos sensíveis.",
+  "occurrences.manage_types":
+    "Configura o catálogo e as exigências de análise e documentação.",
+  "training.create": "Envia capacitações do próprio vínculo para validação.",
+  "training.review": "Valida, rejeita e arquiva capacitações dentro do escopo.",
+  "onboarding.manage_templates":
+    "Configura modelos de ingresso e desligamento.",
+  "onboarding.manage":
+    "Inicia checklists e acompanha responsáveis nas unidades autorizadas.",
+  "workflows.manage_substitutions":
+    "Define responsáveis substitutos por unidade, fluxo e período.",
+  "organization.read":
+    "Consulta estrutura, equipe e ocupação nas unidades autorizadas.",
+  "organization.manage_positions":
+    "Organiza hierarquia, previsão e vínculos do quadro de cargos por unidade.",
+  "hr_communications.manage":
+    "Publica comunicados para toda a CGE, unidades ou categorias funcionais.",
+  "hr_resources.manage":
+    "Publica políticas, manuais e formulários com versão e vigência.",
+  "employment.manage_history":
+    "Registra alterações e desligamentos com histórico nas unidades autorizadas.",
+  "documents.read": "Baixa documentos funcionais nas unidades autorizadas.",
+  "documents.manage":
+    "Publica e arquiva documentos com finalidade e retenção definidas.",
+  "documents.sensitive.read":
+    "Autoriza leitura sensível em conjunto com consultar documentos.",
+  "documents.sensitive.manage":
+    "Autoriza publicação sensível em conjunto com publicar documentos.",
+  "hr_requests.create": "Abre e acompanha solicitações do próprio vínculo.",
+  "hr_requests.manage":
+    "Analisa e responde solicitações nas unidades autorizadas.",
   "access.manage":
     "Cria e altera perfis de acesso, além de concedê-los às pessoas.",
-
-  "accounts.manage":
-    "Cria, desativa e redefine senhas das contas da intranet.",
-
-  "audit.read":
-    "Consulta o histórico recente de ações da plataforma.",
-
-  "audit.export":
-    "Baixa o histórico de auditoria em formato CSV.",
-
-  "people.read":
-    "Consulta colaboradores dentro das unidades autorizadas.",
-
+  "accounts.manage": "Cria, desativa e redefine senhas das contas da intranet.",
+  "audit.read": "Consulta o histórico recente de ações da plataforma.",
+  "audit.export": "Baixa o histórico de auditoria em formato CSV.",
+  "people.read": "Consulta colaboradores dentro das unidades autorizadas.",
   "people.manage":
     "Cadastra, altera e desativa pessoas, vínculos, chefias e lotações.",
-
-  "people.import":
-    "Valida e aplica importações de colaboradores por CSV.",
-
+  "people.import": "Valida e aplica importações de colaboradores por CSV.",
   "birthdays.read":
     "Vê nome, dia e mês de quem autorizou a exibição do aniversário.",
-
-  "vacations.create":
-    "Cria, envia e cancela solicitações próprias de férias.",
-
+  "vacations.create": "Cria, envia e cancela solicitações próprias de férias.",
   "vacations.review.supervisor":
     "Analisa solicitações das pessoas vinculadas à chefia responsável.",
-
   "vacations.review.final":
     "Registra a decisão final após a aprovação da chefia.",
-
-  "visits.read":
-    "Consulta visitas, reuniões institucionais e atendimentos técnicos.",
-
-  "visits.create":
-    "Cria novos agendamentos de visitas e registra seus visitantes.",
-
-  "visits.manage":
-    "Altera, acompanha e conclui agendamentos de visitas.",
-
-  "visits.approve":
-    "Analisa, aprova ou rejeita solicitações de agendamento de visitas.",
-
-  "assets.read":
-  "Permite consultar os bens patrimoniais.",
-
-  "assets.manage":
-  "Permite cadastrar, editar e gerenciar bens patrimoniais.",
+  "tickets.create":
+    "Abre chamados de suporte técnico de informática e sistemas.",
+  "tickets.read": "Consulta chamados de TI no âmbito das unidades autorizadas.",
+  "tickets.approve": "Aprova ou rejeita solicitações restritas de TI do setor.",
+  "tickets.attend":
+    "Assume, executa e conclui atendimentos na fila técnica da ATEC.",
+  "tickets.manage":
+    "Administra todo o fluxo, filas, categorias e relatórios de TI.",
+  "visits.read": "Consulta agendamentos de visitas na instituição.",
+  "visits.create": "Cria novos agendamentos de visitas e reuniões.",
+  "visits.update": "Altera dados de agendamentos existentes.",
+  "visits.delete": "Cancela ou remove agendamentos de visitas.",
+  "visits.approve": "Analisa e aprova solicitações de visitas institucionais.",
+  "visits.release":
+    "Registra entrada e saída de visitantes na recepção/portaria.",
+  "visits.history": "Consulta histórico completo de visitas realizadas.",
+  "visits.reports": "Gera relatórios estatísticos e gerenciais de visitas.",
+  "visits.export": "Exporta dados de visitas em formatos PDF e Excel.",
+  "visits.manage": "Administra parâmetros e configurações gerais de visitas.",
+  "visits.confirmation.manage": "Envia e gerencia confirmações aos visitantes.",
+  "assets.read": "Permite consultar os bens patrimoniais.",
+  "assets.manage": "Permite cadastrar, editar e gerenciar bens patrimoniais.",
+  "audit_documents.read":
+    "Consulta documentos de auditoria das equipes autorizadas.",
+  "audit_documents.submit":
+    "Envia documentos e novas versões para análise da Subcontroladoria.",
+  "audit_documents.review":
+    "Aprova, solicita correção, cancela e reabre documentos de auditoria.",
+  "audit_documents.reports":
+    "Consulta indicadores e relatórios dos documentos de auditoria.",
 };
 
-type PermissionModule = "administration" | "audit" | "people" | "vacations" | "visits" | "patrimony";
+type PermissionModule =
+  | "administration"
+  | "audit"
+  | "people"
+  | "vacations"
+  | "tickets"
+  | "visits"
+  | "patrimony"
+  | "audit_documents";
 
 const permissionModule: Record<PermissionKey, PermissionModule> = {
+  "occurrences.create": "people",
+  "occurrences.review.supervisor": "people",
+  "occurrences.review.final": "people",
+  "occurrences.manage_types": "people",
+  "training.create": "people",
+  "training.review": "people",
+  "onboarding.manage_templates": "people",
+  "onboarding.manage": "people",
+  "workflows.manage_substitutions": "people",
+  "organization.read": "people",
+  "organization.manage_positions": "people",
+  "hr_communications.manage": "people",
+  "hr_resources.manage": "people",
+  "employment.manage_history": "people",
+  "documents.read": "people",
+  "documents.manage": "people",
+  "documents.sensitive.read": "people",
+  "documents.sensitive.manage": "people",
+  "hr_requests.create": "people",
+  "hr_requests.manage": "people",
   "access.manage": "administration",
   "accounts.manage": "administration",
   "audit.read": "audit",
@@ -140,50 +233,74 @@ const permissionModule: Record<PermissionKey, PermissionModule> = {
   "vacations.create": "vacations",
   "vacations.review.supervisor": "vacations",
   "vacations.review.final": "vacations",
+  "tickets.create": "tickets",
+  "tickets.read": "tickets",
+  "tickets.approve": "tickets",
+  "tickets.attend": "tickets",
+  "tickets.manage": "tickets",
   "visits.read": "visits",
   "visits.create": "visits",
-  "visits.manage": "visits",
+  "visits.update": "visits",
+  "visits.delete": "visits",
   "visits.approve": "visits",
-
+  "visits.release": "visits",
+  "visits.history": "visits",
+  "visits.reports": "visits",
+  "visits.export": "visits",
+  "visits.manage": "visits",
+  "visits.confirmation.manage": "visits",
   "assets.read": "patrimony",
   "assets.manage": "patrimony",
-
-
+  "audit_documents.read": "audit_documents",
+  "audit_documents.submit": "audit_documents",
+  "audit_documents.review": "audit_documents",
+  "audit_documents.reports": "audit_documents",
 };
 
-const permissionGroups = [
-  {
-    key: "administration",
-    title: "Administração do sistema",
-    description: "Perfis e contas da plataforma",
-  },
-  {
-    key: "audit",
-    title: "Auditoria",
-    description: "Consulta e exportação dos registros",
-  },
-  {
-    key: "people",
-    title: "Pessoas e RH",
-    description: "Diretório, cadastros e aniversários",
-  },
-  {
-    key: "vacations",
-    title: "Férias",
-    description: "Solicitações e decisões",
-  },
-  {
-    key: "visits",
-    title: "Agendamento de Visitas",
-    description: "Visitas, reuniões e atendimentos institucionais",
-  },
-
-  {
-    key: "patrimony",
-    title: "Controle de patrimônio",
-    description:"Consulta e gerenciamento de bens patrimonias",
-  }
-].map((group) => ({
+const permissionGroups = (
+  [
+    {
+      key: "administration",
+      title: "Administração",
+      description: "Perfis e contas de acesso",
+    },
+    {
+      key: "audit",
+      title: "Auditoria",
+      description: "Consulta e exportação dos registros",
+    },
+    {
+      key: "people",
+      title: "Pessoas e RH",
+      description: "Diretório, cadastros e aniversários",
+    },
+    {
+      key: "vacations",
+      title: "Férias",
+      description: "Solicitações e decisões",
+    },
+    {
+      key: "tickets",
+      title: "Suporte e chamados de TI",
+      description: "Abertura, aprovações e atendimento ATEC",
+    },
+    {
+      key: "visits",
+      title: "Visitas",
+      description: "Agendamentos, portaria e relatórios",
+    },
+    {
+      key: "patrimony",
+      title: "Controle de patrimônio",
+      description: "Consulta e gerenciamento de bens patrimoniais",
+    },
+    {
+      key: "audit_documents",
+      title: "Documentos de auditoria",
+      description: "Envio, análise e indicadores do Controle Interno",
+    },
+  ] as const
+).map((group) => ({
   ...group,
   permissions: permissionKeys.filter(
     (permission) => permissionModule[permission] === group.key,
@@ -271,17 +388,17 @@ export function AdminPage() {
   const sections = [
     managesAccounts || managesAccess
       ? {
-        key: "accounts" as const,
-        label: "Pessoas e acessos",
-        count: users.length,
-      }
+          key: "accounts" as const,
+          label: "Pessoas e acessos",
+          count: users.length,
+        }
       : null,
     managesAccess
       ? {
-        key: "access" as const,
-        label: "Perfis",
-        count: roles.length,
-      }
+          key: "access" as const,
+          label: "Perfis",
+          count: roles.length,
+        }
       : null,
   ].filter(
     (
@@ -313,21 +430,21 @@ export function AdminPage() {
           : Promise.resolve({ users: [] }),
         managesPeople
           ? api<{ categories: EmploymentCategory[] }>(
-            "/api/employment-categories",
-          )
+              "/api/employment-categories",
+            )
           : Promise.resolve({ categories: [] }),
         managesAccess
           ? api<{ roles: Role[] }>("/api/admin/roles")
           : Promise.resolve({ roles: [] }),
         managesAccess
           ? api<{ assignments: RoleAssignment[] }>(
-            "/api/admin/role-assignments",
-          )
+              "/api/admin/role-assignments",
+            )
           : Promise.resolve({ assignments: [] }),
         managesAccess
           ? api<{ overrides: PermissionOverride[] }>(
-            "/api/admin/permission-overrides",
-          )
+              "/api/admin/permission-overrides",
+            )
           : Promise.resolve({ overrides: [] }),
         managesAccounts || managesAccess
           ? api<{ units: OrganizationUnit[] }>("/api/admin/organization-units")
@@ -810,8 +927,8 @@ export function AdminPage() {
                           </Button>
                         ) : null}
                         {managesAccounts &&
-                          account.status === "active" &&
-                          account.id !== user?.account.id ? (
+                        account.status === "active" &&
+                        account.id !== user?.account.id ? (
                           <ConfirmDialog
                             confirmLabel="Desativar conta"
                             description={`A conta de ${account.person.displayName} será desativada e todas as sessões abertas serão encerradas.`}
@@ -1183,14 +1300,15 @@ export function AdminPage() {
                   options={[
                     ...(onboardingAccount?.unitId
                       ? [
-                        {
-                          label: `Unidade de lotação — ${units.find(
-                            (unit) => unit.id === onboardingAccount.unitId,
-                          )?.name ?? "unidade atual"
+                          {
+                            label: `Unidade de lotação — ${
+                              units.find(
+                                (unit) => unit.id === onboardingAccount.unitId,
+                              )?.name ?? "unidade atual"
                             }`,
-                          value: "unit",
-                        },
-                      ]
+                            value: "unit",
+                          },
+                        ]
                       : []),
                     {
                       label: "Toda a organização",
@@ -1427,8 +1545,9 @@ export function AdminPage() {
                   const unit = units.find(
                     (item) => item.id === assignment.unitId,
                   );
-                  const label = `${role?.name ?? "Perfil"} · ${unit?.name ?? "Toda a organização"
-                    }`;
+                  const label = `${role?.name ?? "Perfil"} · ${
+                    unit?.name ?? "Toda a organização"
+                  }`;
                   return (
                     <div
                       className="flex min-h-12 items-center gap-3 py-2"
@@ -1702,7 +1821,11 @@ export function AdminPage() {
 
 function LoadingRows() {
   return (
-    <CardContent className="space-y-3" aria-label="Carregando conteúdo">
+    <CardContent
+      aria-label="Carregando conteúdo"
+      className="space-y-3"
+      role="status"
+    >
       <Skeleton className="h-12" />
       <Skeleton className="h-12" />
       <Skeleton className="h-12" />

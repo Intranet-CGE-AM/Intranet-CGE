@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T08:06:24Z",
+  "title": "Design System: Intranet CGE Amazonas",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "button-primary",
+        "value": "0 1px 2px rgb(4 75 78 / 10%)",
+        "purpose": "Sombra do botão principal."
+      },
+      {
+        "name": "dialog",
+        "value": "0 24px 70px rgb(16 35 38 / 18%)",
+        "purpose": "Elevação do diálogo."
+      },
+      {
+        "name": "focus",
+        "value": "0 0 0 3px rgb(7 95 99 / 26%)",
+        "purpose": "Anel de foco de botões e campos; navegação usa 2px internos."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-transition",
+        "value": "150ms",
+        "purpose": "Transições de estado do Button."
+      },
+      {
+        "name": "sidebar-width",
+        "value": "200ms",
+        "purpose": "Recolhimento da navegação lateral."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Duração global de animação/transição quando prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão primary",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Variante existente de Button em packages/ui.",
+      "html": "<button class=\"ds-button ds-primary\" type=\"button\">Salvar</button>",
+      "css": ".ds-button{display:inline-flex;min-height:40px;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:0 16px;font-family:\"Manrope Variable\",sans-serif;font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:background-color 150ms,border-color 150ms,color 150ms,transform 150ms,box-shadow 150ms}.ds-button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-primary{border:1px solid transparent;background:var(--action);color:var(--action-foreground);box-shadow:0 1px 2px rgb(4 75 78 / 10%)}.ds-primary:hover{background:var(--action-hover)}"
+    },
+    {
+      "name": "Botão secondary",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Variante existente de Button em packages/ui.",
+      "html": "<button class=\"ds-button ds-secondary\" type=\"button\">Cancelar</button>",
+      "css": ".ds-button{display:inline-flex;min-height:40px;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:0 16px;font-family:\"Manrope Variable\",sans-serif;font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:background-color 150ms,border-color 150ms,color 150ms,transform 150ms,box-shadow 150ms}.ds-button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-secondary{border:1px solid var(--border);background:var(--surface);color:var(--text)}.ds-secondary:hover{background:var(--surface-subtle)}"
+    },
+    {
+      "name": "Botão quiet",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Variante existente de Button em packages/ui.",
+      "html": "<button class=\"ds-button ds-quiet\" type=\"button\">Arquivar</button>",
+      "css": ".ds-button{display:inline-flex;min-height:40px;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:0 16px;font-family:\"Manrope Variable\",sans-serif;font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:background-color 150ms,border-color 150ms,color 150ms,transform 150ms,box-shadow 150ms}.ds-button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-quiet{border:0;background:transparent;color:var(--text-muted)}.ds-quiet:hover{background:var(--surface-subtle);color:var(--text)}"
+    },
+    {
+      "name": "Botão danger",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Variante existente de Button em packages/ui.",
+      "html": "<button class=\"ds-button ds-danger\" type=\"button\">Excluir</button>",
+      "css": ".ds-button{display:inline-flex;min-height:40px;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:0 16px;font-family:\"Manrope Variable\",sans-serif;font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:background-color 150ms,border-color 150ms,color 150ms,transform 150ms,box-shadow 150ms}.ds-button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-danger{border:0;background:var(--danger);color:white}.ds-danger:hover{background:var(--danger-strong)}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Input compartilhado com rótulo acessível.",
+      "html": "<label class=\"ds-label\" for=\"ds-name\">Nome</label><input class=\"ds-input\" id=\"ds-name\" placeholder=\"Digite o nome\">",
+      "css": ".ds-label{display:block;font-family:\"Manrope Variable\",sans-serif;font-size:14px;font-weight:600;color:var(--text)}.ds-input{min-height:40px;width:100%;border-radius:10px;border:1px solid var(--border);background:var(--surface);padding:0 12px;font-family:\"Manrope Variable\",sans-serif;font-size:14px;color:var(--text)}.ds-input::placeholder{color:var(--text-faint)}.ds-input:focus-visible{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--focus)}.ds-input[aria-invalid=true]{border-color:var(--danger)}.ds-input:disabled{cursor:not-allowed;background:var(--surface-subtle)}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card com CardHeader e CardContent; sem sombra base.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-header\">Documentos</div><div class=\"ds-card-content\">Conteúdo do serviço.</div></section>",
+      "css": ".ds-card{border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);font-family:\"Manrope Variable\",sans-serif}.ds-card-header{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border);padding:16px 20px}.ds-card-content{padding:20px}"
+    },
+    {
+      "name": "Badge neutro",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "Rótulo de estado não interativo.",
+      "html": "<span class=\"ds-badge\">Em análise</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;border-radius:6px;border:1px solid var(--border);padding:2px 8px;background:var(--surface-subtle);color:var(--text-muted);font-family:\"Manrope Variable\",sans-serif;font-size:12px;line-height:16px;font-weight:600}"
+    },
+    {
+      "name": "Navegação ativa",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Link de rota aninhada do shell.",
+      "html": "<nav aria-label=\"Recursos Humanos\"><a class=\"ds-nav\" href=\"#dossie\" aria-current=\"page\">Meu dossiê</a></nav>",
+      "css": ".ds-nav{position:relative;display:flex;align-items:center;min-height:36px;padding:0 10px;border-radius:9px;background:var(--brand-soft);color:var(--brand-strong);font-family:\"Manrope Variable\",sans-serif;font-size:13px;line-height:1.5;font-weight:500;text-decoration:none;transition:background-color 150ms,color 150ms,transform 150ms}.ds-nav:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--focus)}.ds-nav:active{transform:scale(.99)}"
+    }
+  ],
+  "narrative": {
+    "overview": "Intranet institucional, calma e precisa, com texto em português e ações diretas. Preservar o sistema visual existente e evitar formulários desnecessariamente complexos.",
+    "dos": [
+      "Do preservar os tokens e componentes compartilhados antes de criar novas variantes.",
+      "Do manter linguagem PT-BR, rótulos semânticos, foco visível e estados compreensíveis.",
+      "Do validar a composição móvel a 390px e respeitar a preferência de movimento reduzido.",
+      "Do apresentar valores comparados com rótulos compreensíveis e a consequência junto da confirmação em fluxos sensíveis de RH.",
+      "Do distinguir falha, aplicação parcial e gravação concluída com consulta desatualizada, oferecendo a recuperação adequada ao estado.",
+      "Do manter o registro salvo acessível quando uma etapa posterior falha, orientando a retomada no mesmo rascunho.",
+      "Do identificar o período e a unidade efetivamente consultados, mantendo os resultados associados aos filtros aplicados enquanto o formulário é editado; distinguir resultados confirmados de pedidos ainda sujeitos a decisão.",
+      "Do orientar a correção de filtros inválidos e oferecer nova tentativa para falhas da consulta, como em Indicadores.",
+      "Do identificar fontes indisponíveis em consultas agregadas, explicar que o total considera apenas as fontes disponíveis e preservar seus resultados com uma ação para tentar novamente, como em Pendências.",
+      "Do preservar o foco no acionador ao carregar detalhes em linha, anunciar o carregamento e associar o controle à região expandida, como no acompanhamento de Capacitações.",
+      "Do preservar os campos em edição e desabilitar ações concorrentes que substituam ou desmontem o formulário em linha, como atualização, paginação e edição de outro registro em Substituições.",
+      "Do oferecer atualização explícita dos dados de referência após conflito de edição, preservando o rascunho para comparação com os dados atuais, limpando confirmações dependentes e orientando um novo salvar deliberado, como em Estrutura organizacional.",
+      "Do explicar junto à ação quando um aviso permite prosseguir e quais providências podem ser concluídas depois, mantendo a confirmação exigida pelo fluxo.",
+      "Do preservar na navegação o modo de leitura ou gestão escolhido; a permissão administrativa não deve ocultar ações do leitor, como confirmar ciência em Comunicados.",
+      "Do preservar busca, filtros aplicados e página ao abrir detalhes e voltar à lista, como na biblioteca de Políticas e formulários.",
+      "Do distinguir contagem indisponível de zero, inclusive no nome acessível do indicador, como no sino de Notificações."
+    ],
+    "donts": [
+      "Don't transformar a composição de uma página de RH em regra global.",
+      "Don't acrescentar decoração, metáforas visuais ou formulários complexos sem necessidade do fluxo."
+    ]
+  }
+}

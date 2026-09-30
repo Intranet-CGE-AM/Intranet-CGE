@@ -14,6 +14,13 @@ import {
   people,
 } from "./schema.js";
 import { avatarUrl } from "./avatar.js";
+import {
+  changeEmployment,
+  recordAdmission,
+  recordManualFields,
+  type MovementContext,
+  type Transaction,
+} from "./history.js";
 
 export class PeopleService {
   constructor(private readonly db: Database) {}
@@ -22,6 +29,7 @@ export class PeopleService {
     unitIds: string[] | null,
     includeSensitive: boolean,
     options: {
+      personId?: string;
       employmentId?: string;
       limit?: number;
       offset?: number;
@@ -48,6 +56,7 @@ export class PeopleService {
     const where = and(
       scope,
       search,
+      options.personId ? eq(people.id, options.personId) : undefined,
       options.employmentId
         ? eq(employmentRelationships.id, options.employmentId)
         : undefined,
@@ -154,7 +163,7 @@ export class PeopleService {
     };
   }
 
-  async createPerson(input: PersonInput) {
+  async createPerson(input: PersonInput, actorAccountId: string) {
     return this.db.transaction(async (transaction) => {
       const [person] = await transaction
         .insert(people)
@@ -177,12 +186,54 @@ export class PeopleService {
           supervisorRelationshipId:
             input.employment.supervisorRelationshipId ?? null,
         })
-        .returning({ id: employmentRelationships.id });
+        .returning();
       if (!employment) {
         throw new Error("Employment was not created");
       }
+      await recordAdmission(transaction, employment, actorAccountId);
       return { personId: person.id, employmentId: employment.id };
     });
+  }
+
+  async getDossier(personId: string) {
+    const result = await this.listPeople(null, true, { personId, limit: 1 });
+    const current = result.people[0];
+    if (!current) {
+      const [person] = await this.db
+        .select({
+          id: people.id,
+          fullName: people.fullName,
+          preferredName: people.preferredName,
+          birthDate: people.birthDate,
+          birthdayVisible: people.birthdayVisible,
+          avatarObjectKey: people.avatarObjectKey,
+          avatarUpdatedAt: people.avatarUpdatedAt,
+        })
+        .from(people)
+        .where(eq(people.id, personId));
+      if (!person) return null;
+      return {
+        id: person.id,
+        fullName: person.fullName,
+        preferredName: person.preferredName,
+        birthDate: person.birthDate,
+        birthdayVisible: person.birthdayVisible,
+        avatarUrl: person.avatarObjectKey
+          ? avatarUrl(person.id, person.avatarUpdatedAt)
+          : null,
+        employment: null,
+        supervisorName: null,
+      };
+    }
+    const supervisorId = current.employment?.supervisorRelationshipId;
+    const [supervisor] = supervisorId
+      ? await this.db
+          .select({ name: people.fullName })
+          .from(employmentRelationships)
+          .innerJoin(people, eq(people.id, employmentRelationships.personId))
+          .where(eq(employmentRelationships.id, supervisorId))
+      : [];
+    return { ...current, supervisorName: supervisor?.name ?? null };
   }
 
   async getActiveUnitId(personId: string) {
@@ -238,8 +289,19 @@ export class PeopleService {
     return person ?? null;
   }
 
-  async updatePerson(personId: string, input: PersonUpdate) {
-    return this.db.transaction(async (transaction) => {
+  async updatePerson(
+    personId: string,
+    input: PersonUpdate,
+    context: MovementContext,
+    transaction?: Transaction,
+  ) {
+    const update = async (transaction: Transaction) => {
+      const [before] = await transaction
+        .select()
+        .from(people)
+        .where(eq(people.id, personId))
+        .for("update");
+      if (!before) return null;
       const personChanges = {
         ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
         ...(input.preferredName !== undefined
@@ -261,43 +323,46 @@ export class PeopleService {
       if (!person) {
         return null;
       }
-      if (input.employment) {
-        await transaction
-          .update(employmentRelationships)
-          .set({
-            ...input.employment,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(employmentRelationships.personId, personId),
-              isNull(employmentRelationships.endDate),
-            ),
-          );
-      }
-      return person;
-    });
-  }
-
-  async deactivatePerson(personId: string, endDate: string) {
-    const [person] = await this.db
-      .select({ id: people.id })
-      .from(people)
-      .where(eq(people.id, personId))
-      .limit(1);
-    if (!person) {
-      return null;
-    }
-    await this.db
-      .update(employmentRelationships)
-      .set({ endDate, updatedAt: new Date() })
-      .where(
-        and(
-          eq(employmentRelationships.personId, personId),
-          isNull(employmentRelationships.endDate),
+      const personalFields = [
+        "fullName",
+        "preferredName",
+        "birthDate",
+        "birthdayVisible",
+      ] as const;
+      await recordManualFields(
+        transaction,
+        personId,
+        Object.fromEntries(
+          personalFields
+            .filter(
+              (field) =>
+                input[field] !== undefined && input[field] !== before[field],
+            )
+            .map((field) => [field, input[field] ?? null]),
         ),
       );
-    return person;
+      if (input.employment) {
+        await changeEmployment(
+          transaction,
+          personId,
+          input.employment,
+          context,
+        );
+      }
+      return person;
+    };
+    return transaction ? update(transaction) : this.db.transaction(update);
+  }
+
+  async deactivatePerson(
+    personId: string,
+    endDate: string,
+    context: MovementContext,
+  ) {
+    return this.db.transaction(async (tx) => {
+      await changeEmployment(tx, personId, { endDate }, context);
+      return { id: personId };
+    });
   }
 
   listCategories() {
@@ -325,55 +390,58 @@ export class PeopleService {
       .orderBy(organizationUnits.name);
   }
 
-
-private async validateUnitHierarchy(
-  input: OrganizationUnitInput,
-  currentUnitId?: string,
-) {
-  if (input.type === "department") {
-    if (input.parentId) {
-      throw new Error("DEPARTMENT_CANNOT_HAVE_PARENT");
+  private async validateUnitHierarchy(
+    input: OrganizationUnitInput,
+    currentUnitId?: string,
+  ) {
+    if (!input.type) {
+      return;
     }
 
-    return;
+    if (input.type === "department") {
+      if (input.parentId) {
+        throw new Error("DEPARTMENT_CANNOT_HAVE_PARENT");
+      }
+
+      return;
+    }
+
+    if (!input.parentId) {
+      throw new Error("ORGANIZATION_UNIT_PARENT_REQUIRED");
+    }
+
+    if (currentUnitId && input.parentId === currentUnitId) {
+      throw new Error("ORGANIZATION_UNIT_CANNOT_BE_OWN_PARENT");
+    }
+
+    const [parent] = await this.db
+      .select({
+        id: organizationUnits.id,
+        type: organizationUnits.type,
+        active: organizationUnits.active,
+      })
+      .from(organizationUnits)
+      .where(eq(organizationUnits.id, input.parentId))
+      .limit(1);
+
+    if (!parent) {
+      throw new Error("ORGANIZATION_UNIT_PARENT_NOT_FOUND");
+    }
+
+    if (!parent.active) {
+      throw new Error("ORGANIZATION_UNIT_PARENT_INACTIVE");
+    }
+
+    if (input.type === "sector" && parent.type !== "department") {
+      throw new Error("SECTOR_PARENT_MUST_BE_DEPARTMENT");
+    }
+
+    if (input.type === "subsector" && parent.type !== "sector") {
+      throw new Error("SUBSECTOR_PARENT_MUST_BE_SECTOR");
+    }
   }
 
-  if (!input.parentId) {
-    throw new Error("ORGANIZATION_UNIT_PARENT_REQUIRED");
-  }
-
-  if (currentUnitId && input.parentId === currentUnitId) {
-    throw new Error("ORGANIZATION_UNIT_CANNOT_BE_OWN_PARENT");
-  }
-
-  const [parent] = await this.db
-    .select({
-      id: organizationUnits.id,
-      type: organizationUnits.type,
-      active: organizationUnits.active,
-    })
-    .from(organizationUnits)
-    .where(eq(organizationUnits.id, input.parentId))
-    .limit(1);
-
-  if (!parent) {
-    throw new Error("ORGANIZATION_UNIT_PARENT_NOT_FOUND");
-  }
-
-  if (!parent.active) {
-    throw new Error("ORGANIZATION_UNIT_PARENT_INACTIVE");
-  }
-
-  if (input.type === "sector" && parent.type !== "department") {
-    throw new Error("SECTOR_PARENT_MUST_BE_DEPARTMENT");
-  }
-
-  if (input.type === "subsector" && parent.type !== "sector") {
-    throw new Error("SUBSECTOR_PARENT_MUST_BE_SECTOR");
-  }
-}
-
-//Criar setor
+  //Criar setor
   async createUnit(input: OrganizationUnitInput) {
     await this.validateUnitHierarchy(input);
 
@@ -390,51 +458,35 @@ private async validateUnitHierarchy(
     return unit;
   }
 
+  //Atualizar setor
+  async updateUnit(id: string, input: OrganizationUnitInput) {
+    await this.validateUnitHierarchy(input, id);
 
+    const [unit] = await this.db
+      .update(organizationUnits)
+      .set({
+        code: input.code,
+        name: input.name,
+        type: input.type,
+        parentId: input.parentId ?? null,
+      })
+      .where(eq(organizationUnits.id, id))
+      .returning();
 
-//Atualizar setor
-async updateUnit(
-  id: string,
-  input: OrganizationUnitInput,
-) {
-  await this.validateUnitHierarchy(input, id);
+    return unit ?? null;
+  }
 
-  const [unit] = await this.db
-    .update(organizationUnits)
-    .set({
-      code: input.code,
-      name: input.name,
-      type: input.type,
-      parentId: input.parentId ?? null,
-    })
-    .where(eq(organizationUnits.id, id))
-    .returning();
-
-  return unit ?? null;
-}
-
-//Ativa e desativa o setor (O setor não pode ser excluido do banco, 
-//apenas desativado, pois ele estará associado a algum bem e será ultil para o historico de transferência)
-  async setUnitActive(
-  id: string,
-  active: boolean,
-) {
-  const [unit] =
-    await this.db
-      .update(
-        organizationUnits,
-      )
+  //Ativa e desativa o setor (O setor não pode ser excluido do banco,
+  //apenas desativado, pois ele estará associado a algum bem e será ultil para o historico de transferência)
+  async setUnitActive(id: string, active: boolean) {
+    const [unit] = await this.db
+      .update(organizationUnits)
       .set({
         active,
       })
-      .where(
-        eq(
-          organizationUnits.id,
-          id,
-        ),
-      )
+      .where(eq(organizationUnits.id, id))
       .returning();
 
-  return unit ?? null;
-}
+    return unit ?? null;
+  }
 }

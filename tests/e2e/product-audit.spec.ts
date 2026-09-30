@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Person } from "@cge/contracts";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 const password = "Homolog-Password-2026";
 const accounts = {
@@ -25,7 +25,9 @@ test("default home exposes permitted destinations and account context", async ({
 }) => {
   await login(page, accounts.worker, password);
   await expect(
-    page.getByRole("heading", { name: "Bom dia, Caio" }),
+    page.getByRole("heading", {
+      name: /^(Bom dia|Boa tarde|Boa noite), Caio$/,
+    }),
   ).toBeVisible();
 
   const hrModule = page.getByRole("region", { name: "Recursos Humanos" });
@@ -38,14 +40,17 @@ test("default home exposes permitted destinations and account context", async ({
   await expect(
     routine.getByText("Colaboradores", { exact: true }),
   ).toBeVisible();
+  // Routine follows the HR menu order, which now starts with the inbox.
+  expect(
+    await routine
+      .getByRole("link", { name: "Abrir" })
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+  ).toEqual(expect.arrayContaining(["/rh/colaboradores", "/rh/ferias"]));
+  // The placeholder mural became the live communications panel.
   await expect(
-    routine.getByRole("link", { name: "Abrir" }).nth(0),
-  ).toHaveAttribute("href", "/rh/colaboradores");
-  await expect(
-    routine.getByRole("link", { name: "Abrir" }).nth(1),
-  ).toHaveAttribute("href", "/rh/ferias");
-  await expect(
-    page.getByText("Mural e comunicados", { exact: true }),
+    page
+      .getByRole("region", { name: "Comunicados vigentes" })
+      .getByRole("heading", { name: "Comunicados", exact: true }),
   ).toBeVisible();
   await expect(
     page
@@ -205,7 +210,11 @@ test("homolog worker sees every vacation state and immutable history", async ({
   const approvedBySupervisor = page
     .getByRole("row")
     .filter({ hasText: "Aguardando decisão final" });
-  await approvedBySupervisor.getByRole("button", { name: "Histórico" }).click();
+  // Other specs add requests for this worker; any row at this stage passed the chief.
+  await approvedBySupervisor
+    .first()
+    .getByRole("button", { name: "Histórico" })
+    .click();
   await expect(page.getByText("Aprovada pela chefia")).toBeVisible();
   await page.getByRole("button", { name: "Fechar" }).click();
 
@@ -531,7 +540,7 @@ test("individual access overrides and audit module work end to end", async ({
     .getByRole("combobox", { name: "Permissão específica", exact: true })
     .click();
   await expect(
-    page.getByText("Administração do sistema", { exact: true }),
+    page.getByRole("listbox").getByText("Administração", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Pessoas e RH", { exact: true })).toBeVisible();
   await expectAccessiblePage(page, "seletor de permissões", 1280);
@@ -600,7 +609,8 @@ test("individual access overrides and audit module work end to end", async ({
   await page
     .getByRole("searchbox", { name: "Buscar nos registros" })
     .fill("permission-override.created");
-  await expect(page.getByText("Página 1 de 1")).toBeVisible();
+  // Searching resets to the first page; HR specs add overrides, so the total varies.
+  await expect(page.getByText(/^Página 1 de \d+$/)).toBeVisible();
   await chooseMultiOption(page, "Resultado", "Sucesso");
   await chooseMultiOption(page, "Resultado", "Falha");
   await expect(
@@ -609,9 +619,16 @@ test("individual access overrides and audit module work end to end", async ({
   await chooseMultiOption(page, "Área", "Ajuste individual");
   await chooseMultiOption(page, "Evento", "Ajuste individual aplicado");
   await chooseMultiOption(page, "Evento", "Ajuste individual removido");
+  // HR specs also create overrides, so check what the rows are, not how many.
+  const auditRows = page.getByRole("row").filter({
+    has: page.getByRole("button", { name: /^Ver detalhes de / }),
+  });
   await expect(
-    page.getByText("Ajuste individual aplicado", { exact: true }),
-  ).toHaveCount(2);
+    auditRows.filter({ hasText: "Ajuste individual aplicado" }).first(),
+  ).toBeVisible();
+  await expect(
+    auditRows.filter({ hasNotText: "Ajuste individual aplicado" }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", {
       name: "Ver detalhes de Ajuste individual aplicado",
@@ -692,8 +709,9 @@ test("supervisor and HR receive only their decision stages", async ({
   await expect(
     supervisorPage.getByRole("heading", { name: "Decisão final" }),
   ).toHaveCount(0);
+  // HR specs also leave requests from Caio in this queue.
   await expect(
-    supervisorPage.getByRole("row", { name: /Caio Nascimento/ }),
+    supervisorPage.getByRole("row", { name: /Caio Nascimento/ }).first(),
   ).toBeVisible();
   await supervisorContext.close();
 
@@ -708,7 +726,7 @@ test("supervisor and HR receive only their decision stages", async ({
     hrPage.getByRole("heading", { name: "Decisões da chefia" }),
   ).toHaveCount(0);
   await expect(
-    hrPage.getByRole("row", { name: /Caio Nascimento/ }),
+    hrPage.getByRole("row", { name: /Caio Nascimento/ }).first(),
   ).toBeVisible();
   await expect(hrPage.getByRole("link", { name: "Administração" })).toHaveCount(
     0,
@@ -1080,13 +1098,13 @@ test("administration onboards an employee and supports account operations", asyn
     name: "Editar perfil de acesso",
   });
   for (const module of [
-    "Administração do sistema",
+    "Administração",
     "Auditoria",
     "Pessoas e RH",
     "Férias",
   ]) {
     await expect(
-      roleDialog.getByRole("heading", { name: module }),
+      roleDialog.getByRole("heading", { name: module, exact: true }),
     ).toBeVisible();
   }
   await roleDialog
@@ -1213,12 +1231,19 @@ test("desktop collapse control remains fully visible and interactive", async ({
   page,
 }) => {
   await login(page, accounts.worker, password);
-  await expect(page.getByRole("banner")).toBeHidden();
+  // The desktop top bar stays to host the notification bell.
+  const banner = page.getByRole("banner");
+  await expect(
+    banner.getByRole("link", { name: /^Notificações/ }),
+  ).toBeVisible();
+  const bannerBottom = await banner.evaluate(
+    (header) => header.getBoundingClientRect().bottom,
+  );
   expect(
     await page.getByRole("main").evaluate((main) => {
       return main.getBoundingClientRect().top;
     }),
-  ).toBeLessThan(40);
+  ).toBeLessThan(bannerBottom + 40);
   const control = page.getByRole("button", {
     name: "Recolher barra lateral",
   });
@@ -1298,7 +1323,9 @@ async function login(page: Page, email: string, loginPassword: string) {
   await page.getByRole("button", { name: "Entrar na intranet" }).click();
   if (email !== accounts.disabled) {
     await expect(
-      page.getByRole("heading", { name: /^(Olá|Bom dia),/ }),
+      page.getByRole("heading", {
+        name: /^(Olá|Bom dia|Boa tarde|Boa noite),/,
+      }),
     ).toBeVisible();
   }
 }
@@ -1344,36 +1371,19 @@ async function chooseFirstOption(page: Page, field: string) {
 
 async function chooseDateRange(
   page: Page,
-  field: string,
+  _field: string,
   start: string,
   end: string,
 ) {
-  await page.getByRole("button", { name: field, exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Selecionar período" });
-  for (const [index, date] of [start, end].entries()) {
-    const dateButton = dialog.getByRole("button", {
-      name: `Selecionar ${date}`,
-      exact: true,
-    });
-    for (
-      let month = 0;
-      month < 36 && !(await dateButton.isVisible());
-      month++
-    ) {
-      await dialog.getByRole("button", { name: "Próximo mês" }).click();
-    }
-    if (index === 1) {
-      await dateButton.hover();
-      await expect(
-        dialog.locator(".cge-range-preview-middle").first(),
-      ).toBeVisible();
-    }
-    await dateButton.click();
-  }
+  await page.getByLabel("Data inicial", { exact: true }).fill(start);
+  await page.getByLabel("Data final", { exact: true }).fill(end);
 }
 
 async function chooseDate(page: Page, field: string, date: string) {
   const [year, month] = date.split("-");
+  if (!year || !month) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
   await page.getByRole("button", { name: field, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Selecionar data" });
   await dialog.getByRole("combobox", { name: "Ano" }).selectOption(year);

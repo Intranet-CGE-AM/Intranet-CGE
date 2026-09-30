@@ -19,10 +19,10 @@ export function SheetContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/40" />
+      <DialogPrimitive.Overlay className="cge-sheet-overlay fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-[1px]" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[min(300px,calc(100%-2rem))] overscroll-contain border-r border-[var(--border)] bg-[var(--surface)] p-4 shadow-[16px_0_50px_rgb(16_35_38/16%)] focus:outline-none",
+          "cge-sheet-content fixed inset-y-0 left-0 z-50 w-[min(300px,calc(100%-2rem))] overscroll-contain overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)] p-4 shadow-[16px_0_50px_rgb(16_35_38/16%)] focus:outline-none",
           className,
         )}
       >

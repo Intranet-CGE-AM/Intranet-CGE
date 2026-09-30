@@ -9,7 +9,7 @@ import {
 } from "@cge/ui";
 import { Key, Trash } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { useAuth } from "../auth";
 import { api, ApiError } from "../lib/api";
@@ -135,6 +135,18 @@ export function AccountPage() {
           Gerencie sua foto e a segurança do seu acesso. Dados funcionais e
           e-mail institucional são mantidos pela administração.
         </p>
+        <Link
+          to="/rh/meu-dossie"
+          className="mt-3 inline-block text-sm font-semibold underline underline-offset-4"
+        >
+          Consultar meu dossiê
+        </Link>
+        <Link
+          to="/notificacoes"
+          className="mt-3 flex min-h-11 w-fit items-center text-sm font-semibold underline underline-offset-4"
+        >
+          Histórico de notificações
+        </Link>
       </header>
 
       <section

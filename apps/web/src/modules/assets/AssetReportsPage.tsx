@@ -1,20 +1,41 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
+
+import { FilePdf, FileXls, FunnelSimple } from "@phosphor-icons/react";
 
 import {
-  ClipboardText,
-  FileArrowDown,
-  FunnelSimple,
-} from "@phosphor-icons/react";
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  DateRangePicker,
+  EmptyState,
+  FormField,
+  Select,
+  SearchableSelect,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableSkeleton,
+} from "@cge/ui";
 
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 
-import * as XLSX from "xlsx"
-
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+
+import {
+  ALL,
+  assetStatusMeta,
+  conservationOptions,
+  formatCurrency,
+  PageHeader,
+  unitOptions,
+  type OrganizationUnit,
+} from "./shared";
 
 type ReportType =
   | "inventory"
@@ -24,21 +45,6 @@ type ReportType =
   | "movements"
   | "financial";
 
-type OrganizationUnit = {
-  id: string;
-  code: string;
-  name: string;
-  type:
-    | "department"
-    | "sector"
-    | "subsector"
-    | null;
-  parentId:
-    | string
-    | null;
-  active: boolean;
-};
-
 type ReportAsset = {
   id: string;
   patrimonyNumber: string;
@@ -46,21 +52,14 @@ type ReportAsset = {
   brand: string | null;
   model: string | null;
   serialNumber: string | null;
-  status:
-    | "active"
-    | "maintenance"
-    | "disposed";
+  status: "active" | "maintenance" | "disposed";
   conservationStatus: string | null;
   acquisitionDate: string | null;
   acquisitionValue: string | null;
   unitId: string | null;
   unitCode: string | null;
   unitName: string | null;
-  unitType:
-    | "department"
-    | "sector"
-    | "subsector"
-    | null;
+  unitType: "department" | "sector" | "subsector" | null;
 };
 
 type AssetReportResponse = {
@@ -72,6 +71,7 @@ type AssetReportResponse = {
   };
 };
 
+<<<<<<< HEAD
 type MovementReportItem = {
   id: string;
   assetId: string;
@@ -110,78 +110,100 @@ function formatDateForSpreadsheet(
     month,
     day,
   ] = value.split("-");
+=======
+function formatDateForSpreadsheet(value: string) {
+  const [year, month, day] = value.split("-");
+>>>>>>> origin/dev
 
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
+  if (!year || !month || !day) {
     return value;
   }
 
   return `${day}/${month}/${year}`;
 }
 
+function buildExportRows(assets: ReportAsset[]) {
+  return assets.map((asset) => ({
+    Patrimônio: asset.patrimonyNumber,
+
+    Descrição: asset.description,
+
+    Marca: asset.brand ?? "",
+
+    Modelo: asset.model ?? "",
+
+    "Número de série": asset.serialNumber ?? "",
+
+    Localização: asset.unitCode
+      ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+      : "Não informado",
+
+    Situação: assetStatusMeta[asset.status].label,
+
+    Conservação: asset.conservationStatus ?? "Não informado",
+
+    "Data de aquisição": asset.acquisitionDate
+      ? formatDateForSpreadsheet(asset.acquisitionDate)
+      : "",
+
+    "Valor de aquisição": asset.acquisitionValue
+      ? Number(asset.acquisitionValue)
+      : "",
+  }));
+}
+
+const reportTypeLabels: Record<ReportType, string> = {
+  inventory: "Inventário geral",
+  sector: "Bens por setor",
+  status: "Bens por situação",
+  conservation: "Estado de conservação",
+  movements: "Movimentações",
+  financial: "Relatório financeiro",
+};
+
+const currency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+function fileDate() {
+  const now = new Date();
+
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 export function AssetReportsPage() {
-  const [reportType, setReportType] =
-    useState<ReportType>("inventory");
+  const [reportType, setReportType] = useState<ReportType>("inventory");
 
-  const [
-  departmentId,
-  setDepartmentId,
-  ] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
 
-  const [
-    sectorId,
-    setSectorId,
-  ] = useState("");
+  const [sectorId, setSectorId] = useState("");
 
-  const [
-    subsectorId,
-    setSubsectorId,
-  ] = useState("");
+  const [subsectorId, setSubsectorId] = useState("");
 
-  const [units, setUnits] =
-  useState<OrganizationUnit[]>([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [loadingUnits, setLoadingUnits] =
-    useState(true);
+  const [loadingUnits, setLoadingUnits] = useState(true);
 
-  const [unitsError, setUnitsError] =
-    useState<string | null>(null);
+  const [unitsError, setUnitsError] = useState<string | null>(null);
 
-  const [status, setStatus] =
-    useState("");
+  const [status, setStatus] = useState("");
 
-  const [
-    conservationStatus,
-    setConservationStatus,
-  ] = useState("");
+  const [conservationStatus, setConservationStatus] = useState("");
 
-  const [startDate, setStartDate] =
-    useState("");
+  const [startDate, setStartDate] = useState("");
 
-  const [endDate, setEndDate] =
-    useState("");
+  const [endDate, setEndDate] = useState("");
 
-  const [
-    report,
-    setReport,
-  ] = useState<AssetReportResponse | null>(
-    null,
-  );
+  const [report, setReport] = useState<AssetReportResponse | null>(null);
 
-  const [
-    loadingReport,
-    setLoadingReport,
-  ] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
 
-  const [
-    reportError,
-    setReportError,
-  ] = useState<string | null>(
-    null,
-  );
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const [
   movementReport,
@@ -192,13 +214,14 @@ export function AssetReportsPage() {
   );
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function loadUnits() {
-    try {
-      setLoadingUnits(true);
-      setUnitsError(null);
+    async function loadUnits() {
+      try {
+        setLoadingUnits(true);
+        setUnitsError(null);
 
+<<<<<<< HEAD
           if (
       reportType ===
       "movements"
@@ -241,89 +264,76 @@ export function AssetReportsPage() {
 
       const result =
         await api<
+=======
+        const result = await api<
+>>>>>>> origin/dev
           | OrganizationUnit[]
           | {
               units: OrganizationUnit[];
             }
         >("/api/organization-units");
 
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      const loadedUnits =
-        Array.isArray(result)
-          ? result
-          : result.units;
+        const loadedUnits = Array.isArray(result) ? result : result.units;
 
-      setUnits(
-        loadedUnits.filter(
-          (unit) => unit.active,
-        ),
-      );
-      } catch (error) {
-      if (cancelled) {
-        return;
-      }
+        setUnits(loadedUnits.filter((unit) => unit.active));
+      } catch (cause) {
+        if (cancelled) {
+          return;
+        }
 
-      console.error(
-        "Erro ao carregar setores:",
-        error,
-      );
-
-      setUnitsError(
-        "Não foi possível carregar a estrutura organizacional.",
-      );
-    } finally {
-      if (!cancelled) {
-        setLoadingUnits(false);
+        setUnitsError(
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível carregar a estrutura organizacional.",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoadingUnits(false);
+        }
       }
     }
-  }
 
-  void loadUnits();
+    void loadUnits();
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-const departments =
-  units.filter(
-    (unit) =>
-      unit.type === "department" &&
-      unit.active,
+  const departments = units.filter(
+    (unit) => unit.type === "department" && unit.active,
   );
 
-const sectors =
-  units.filter(
+  const sectors = units.filter(
     (unit) =>
       unit.type === "sector" &&
       unit.active &&
-      (
-        !departmentId ||
-        unit.parentId === departmentId
-      ),
+      (!departmentId || unit.parentId === departmentId),
   );
 
-const subsectors =
-  units.filter(
+  const subsectors = units.filter(
     (unit) =>
       unit.type === "subsector" &&
       unit.active &&
-      (
-        !sectorId ||
-        unit.parentId === sectorId
-      ),
+      (!sectorId || unit.parentId === sectorId),
   );
 
+  async function handleGenerateReport() {
+    try {
+      setLoadingReport(true);
+      setReportError(null);
 
+      const params = new URLSearchParams();
 
-async function handleGenerateReport() {
-  try {
-    setLoadingReport(true);
-    setReportError(null);
+      if (departmentId) {
+        params.set("departmentId", departmentId);
+      }
 
+<<<<<<< HEAD
     if (
       reportType ===
       "movements"
@@ -368,713 +378,261 @@ async function handleGenerateReport() {
 
     const params =
       new URLSearchParams();
+=======
+      if (sectorId) {
+        params.set("sectorId", sectorId);
+      }
+>>>>>>> origin/dev
 
-    if (departmentId) {
-      params.set(
-        "departmentId",
-        departmentId,
-      );
-    }
+      if (subsectorId) {
+        params.set("subsectorId", subsectorId);
+      }
 
-    if (sectorId) {
-      params.set(
-        "sectorId",
-        sectorId,
-      );
-    }
+      if (status) {
+        params.set("status", status);
+      }
 
-    if (subsectorId) {
-      params.set(
-        "subsectorId",
-        subsectorId,
-      );
-    }
+      if (conservationStatus) {
+        params.set("conservationStatus", conservationStatus);
+      }
 
-    if (status) {
-      params.set(
-        "status",
-        status,
-      );
-    }
+      if (startDate) {
+        params.set("startDate", startDate);
+      }
 
-    if (
-      conservationStatus
-    ) {
-      params.set(
-        "conservationStatus",
-        conservationStatus,
-      );
-    }
+      if (endDate) {
+        params.set("endDate", endDate);
+      }
 
-    if (startDate) {
-      params.set(
-        "startDate",
-        startDate,
-      );
-    }
+      const queryString = params.toString();
 
-    if (endDate) {
-      params.set(
-        "endDate",
-        endDate,
-      );
-    }
-
-    const queryString =
-      params.toString();
-
-    const result =
-      await api<AssetReportResponse>(
+      const result = await api<AssetReportResponse>(
         queryString
           ? `/api/assets/reports?${queryString}`
           : "/api/assets/reports",
       );
 
-    setReport(result);
-  } catch (error) {
-    console.error(
-      "Erro ao gerar relatório:",
-      error,
-    );
-
-    setReportError(
-      "Não foi possível gerar o relatório.",
-    );
-  } finally {
-    setLoadingReport(false);
+      setReport(result);
+    } catch (cause) {
+      setReportError(
+        cause instanceof ApiError
+          ? cause.message
+          : "Não foi possível gerar o relatório.",
+      );
+    } finally {
+      setLoadingReport(false);
+    }
   }
-}
 
-const departmentLabel =
-  getUnitLabel(
-    units,
-    departmentId,
-  );
+  const unitById = new Map(units.map((unit) => [unit.id, unit]));
 
-const sectorLabel =
-  getUnitLabel(
-    units,
-    sectorId,
-  );
+  // Subsector assets roll up into their parent sector.
+  function sectorOf(asset: ReportAsset) {
+    const unit = asset.unitId ? unitById.get(asset.unitId) : undefined;
+    const sector =
+      asset.unitType === "subsector" && unit?.parentId
+        ? unitById.get(unit.parentId)
+        : asset.unitType === "sector"
+          ? unit
+          : undefined;
 
-const subsectorLabel =
-  getUnitLabel(
-    units,
-    subsectorId,
-  );
+    return sector
+      ? { code: sector.code, name: sector.name }
+      : { code: "SEM SETOR", name: "Sem setor informado" };
+  }
 
-//Agrupar por Setor
-const assetsBySector =
-  report
-    ? (() => {
-        const groups =
-          new Map<
-            string,
-            {
-              code: string;
-              name: string;
-              total: number;
-              totalValue: number;
-            }
-          >();
+  const assetsBySector = (() => {
+    const groups = new Map<
+      string,
+      { code: string; name: string; total: number; totalValue: number }
+    >();
 
-        for (
-          const asset of
-          report.assets
-        ) {
-          let sectorCode =
-            "SEM SETOR";
+    for (const asset of report?.assets ?? []) {
+      const sector = sectorOf(asset);
+      const key = `${sector.code}-${sector.name}`;
+      const group = groups.get(key) ?? { ...sector, total: 0, totalValue: 0 };
 
-          let sectorName =
-            "Sem setor informado";
+      group.total += 1;
+      group.totalValue += Number(asset.acquisitionValue ?? 0);
+      groups.set(key, group);
+    }
 
-          if (
-            asset.unitId &&
-            asset.unitType ===
-              "sector"
-          ) {
-            const sector =
-              units.find(
-                (unit) =>
-                  unit.id ===
-                  asset.unitId,
-              );
+    return [...groups.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR"),
+    );
+  })();
 
-            if (sector) {
-              sectorCode =
-                sector.code;
+  const assetsByStatus = (
+    Object.keys(assetStatusMeta) as ReportAsset["status"][]
+  ).map((key) => ({
+    key,
+    label: assetStatusMeta[key].label,
+    total: report?.assets.filter((asset) => asset.status === key).length ?? 0,
+  }));
 
-              sectorName =
-                sector.name;
-            }
-          }
+  const assetsByConservation = [
+    ...(report?.assets ?? [])
+      .reduce((groups, asset) => {
+        const key = asset.conservationStatus ?? "Não informado";
 
-          if (
-            asset.unitId &&
-            asset.unitType ===
-              "subsector"
-          ) {
-            const subsector =
-              units.find(
-                (unit) =>
-                  unit.id ===
-                  asset.unitId,
-              );
+        return groups.set(key, (groups.get(key) ?? 0) + 1);
+      }, new Map<string, number>())
+      .entries(),
+  ].map(([label, total]) => ({ label, total }));
 
-            const sector =
-              subsector?.parentId
-                ? units.find(
-                    (unit) =>
-                      unit.id ===
-                      subsector.parentId,
-                  )
-                : null;
+  function reportToExport() {
+    if (!report) {
+      setReportError("Gere o relatório antes de exportar.");
 
-            if (sector) {
-              sectorCode =
-                sector.code;
+      return null;
+    }
 
-              sectorName =
-                sector.name;
-            }
-          }
+    if (report.assets.length === 0) {
+      setReportError("Não há dados para exportar.");
 
-          const key =
-            `${sectorCode}-${sectorName}`;
+      return null;
+    }
 
-          const current =
-            groups.get(key);
+    setReportError(null);
 
-          const value =
-            Number(
-              asset.acquisitionValue ??
-                0,
-            );
+    return report;
+  }
 
-          if (current) {
-            current.total += 1;
+  function describeFilters() {
+    const unitName = (id: string) =>
+      units.find((unit) => unit.id === id)?.name ?? id;
 
-            current.totalValue +=
-              value;
-          } else {
-            groups.set(
-              key,
-              {
-                code:
-                  sectorCode,
+    const parts = [
+      departmentId && `Departamento: ${unitName(departmentId)}`,
+      sectorId && `Setor: ${unitName(sectorId)}`,
+      subsectorId && `Subsetor: ${unitName(subsectorId)}`,
+      status &&
+        `Situação: ${assetStatusMeta[status as ReportAsset["status"]]?.label ?? status}`,
+      conservationStatus && `Conservação: ${conservationStatus}`,
+      startDate && `De: ${formatDateForSpreadsheet(startDate)}`,
+      endDate && `Até: ${formatDateForSpreadsheet(endDate)}`,
+    ].filter(Boolean);
 
-                name:
-                  sectorName,
+    return parts.length > 0 ? parts.join(" | ") : "Todos os registros";
+  }
 
-                total:
-                  1,
+  function handleExportPdf() {
+    const data = reportToExport();
 
-                totalValue:
-                  value,
-              },
-            );
-          }
-        }
+    if (!data) {
+      return;
+    }
 
-        return Array.from(
-          groups.values(),
-        ).sort(
-          (a, b) =>
-            a.name.localeCompare(
-              b.name,
-              "pt-BR",
-            ),
-        );
-      })()
-    : [];
+    const rows = buildExportRows(data.assets);
 
-//Agrupar por situação
-const assetsByStatus =
-  report
-    ? [
-        {
-          key: "active",
-          label: "Ativo",
-          total:
-            report.assets.filter(
-              (asset) =>
-                asset.status ===
-                "active",
-            ).length,
-        },
+    const document = new jsPDF({
+      orientation: "landscape",
 
-        {
-          key: "maintenance",
-          label:
-            "Em manutenção",
-          total:
-            report.assets.filter(
-              (asset) =>
-                asset.status ===
-                "maintenance",
-            ).length,
-        },
+      unit: "mm",
 
-        {
-          key: "disposed",
-          label: "Baixado",
-          total:
-            report.assets.filter(
-              (asset) =>
-                asset.status ===
-                "disposed",
-            ).length,
-        },
-      ]
-    : [];
+      format: "a4",
+    });
 
-// Agrupar por conservação
-const assetsByConservation =
-  report
-    ? Array.from(
-        report.assets.reduce(
-          (
-            groups,
-            asset,
-          ) => {
-            const status =
-              asset.conservationStatus ??
-              "Não informado";
+    const pageWidth = document.internal.pageSize.getWidth();
 
-            groups.set(
-              status,
-              (
-                groups.get(
-                  status,
-                ) ?? 0
-              ) + 1,
-            );
+    const pageHeight = document.internal.pageSize.getHeight();
 
-            return groups;
-          },
+    document.setFont("helvetica", "bold");
 
-          new Map<
-            string,
-            number
-          >(),
+    document.setFontSize(15);
+
+    document.text(
+      `RELATÓRIO PATRIMONIAL - ${reportTypeLabels[reportType].toUpperCase()}`,
+      14,
+      15,
+    );
+
+    document.setFont("helvetica", "normal");
+
+    document.setFontSize(9);
+
+    document.text("Controladoria-Geral do Estado do Amazonas", 14, 21);
+
+    document.text(
+      `Total de bens: ${data.summary.total} | Valor total: ${currency.format(data.summary.totalValue)}`,
+      pageWidth - 14,
+      15,
+      { align: "right" },
+    );
+
+    document.text(
+      `Emitido em: ${new Date().toLocaleString("pt-BR")}`,
+      pageWidth - 14,
+      21,
+      { align: "right" },
+    );
+
+    const filtersText = document.splitTextToSize(
+      `Filtros: ${describeFilters()}`,
+      pageWidth - 28,
+    );
+
+    document.setFontSize(8);
+
+    document.text(filtersText, 14, 28);
+
+    autoTable(document, {
+      startY: 34 + filtersText.length * 3,
+
+      theme: "grid",
+
+      head: [Object.keys(rows[0] ?? {})],
+
+      body: rows.map((row) =>
+        Object.values(row).map((value) =>
+          typeof value === "number" ? currency.format(value) : value,
         ),
-      ).map(
-        ([
-          status,
-          total,
-        ]) => ({
-          status,
-          total,
-        }),
-      )
-    : [];
-
-const statusLabel =
-  status === "active"
-    ? "Ativo"
-    : status === "maintenance"
-      ? "Em manutenção"
-      : status === "disposed"
-        ? "Baixado"
-        : "Todas";
-
-const conservationLabel =
-  conservationStatus ||
-  "Todas";
-
-const periodLabel =
-  startDate || endDate
-    ? `${startDate
-        ? formatDateForSpreadsheet(
-            startDate,
-          )
-        : "Início"} até ${endDate
-        ? formatDateForSpreadsheet(
-            endDate,
-          )
-        : "Hoje"}`
-    : "Todos";
-
-function handleExportPdf() {
-  if (!report) {
-    setReportError(
-      "Gere o relatório antes de exportar.",
-    );
-
-    return;
-  }
-
-  if (report.assets.length === 0) {
-    setReportError(
-      "Não há dados para exportar.",
-    );
-
-    return;
-  }
-
-  setReportError(null);
-
-const doc =
-  new jsPDF({
-    orientation: "landscape",
-    unit: "mm",
-    format: "a4",
-  });
-
-const pageWidth =
-  doc.internal.pageSize.getWidth();
-
-const pageHeight =
-  doc.internal.pageSize.getHeight();
-
-const generatedAt =
-  new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle: "short",
-      timeStyle: "short",
-    },
-  ).format(
-    new Date(),
-  );
-
-doc.setFontSize(16);
-
-doc.text(
-  "Relatório Patrimonial",
-  14,
-  15,
-);
-
-doc.setFontSize(9);
-
-let currentY = 22;
-const lineHeight = 6;
-
-doc.text(
-  `Gerado em: ${generatedAt}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Departamento: ${departmentLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Setor: ${sectorLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Subsetor: ${subsectorLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Situação: ${statusLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Conservação: ${conservationLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Período: ${periodLabel}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Quantidade de bens: ${report.summary.total}`,
-  14,
-  currentY,
-);
-
-currentY += lineHeight;
-
-doc.text(
-  `Valor patrimonial: ${new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    },
-  ).format(
-    report.summary.totalValue,
-  )}`,
-  14,
-  currentY,
-);
-
-currentY += 7;
-
-  autoTable(
-    doc,
-    {
-      startY: currentY,
-
-      head: [
-        [
-          "Patrimônio",
-          "Descrição",
-          "Marca",
-          "Modelo",
-          "Localização",
-          "Situação",
-          "Conservação",
-          "Aquisição",
-          "Valor",
-        ],
-      ],
-
-      body:
-        report.assets.map(
-          (asset) => [
-            asset.patrimonyNumber,
-
-            asset.description,
-
-            asset.brand ??
-              "—",
-
-            asset.model ??
-              "—",
-
-            asset.unitCode
-              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-              : "Não informado",
-
-            asset.status === "active"
-              ? "Ativo"
-              : asset.status ===
-                  "maintenance"
-                ? "Em manutenção"
-                : "Baixado",
-
-            asset.conservationStatus ??
-              "Não informado",
-
-            asset.acquisitionDate
-              ? formatDateForSpreadsheet(
-                  asset.acquisitionDate,
-                )
-              : "—",
-
-            asset.acquisitionValue
-              ? new Intl.NumberFormat(
-                  "pt-BR",
-                  {
-                    style:
-                      "currency",
-                    currency:
-                      "BRL",
-                  },
-                ).format(
-                  Number(
-                    asset.acquisitionValue,
-                  ),
-                )
-              : "—",
-          ],
-        ),
+      ),
 
       styles: {
         fontSize: 7,
         cellPadding: 2,
         overflow: "linebreak",
+        valign: "top",
       },
 
       headStyles: {
-        fontSize: 7,
         fontStyle: "bold",
       },
 
-      columnStyles: {
-        0: {
-          cellWidth: 22,
-        },
-
-        1: {
-          cellWidth: 45,
-        },
-
-        2: {
-          cellWidth: 24,
-        },
-
-        3: {
-          cellWidth: 24,
-        },
-
-        4: {
-          cellWidth: 55,
-        },
-
-        5: {
-          cellWidth: 25,
-        },
-
-        6: {
-          cellWidth: 25,
-        },
-
-        7: {
-          cellWidth: 22,
-        },
-
-        8: {
-          cellWidth: 28,
-          halign: "right",
-        },
-      },
-
       margin: {
-        left: 14,
-        right: 14,
+        left: 10,
+        right: 10,
+        bottom: 14,
       },
 
       didDrawPage: () => {
-        const pageNumber =
-          doc.getNumberOfPages();
+        document.setFontSize(7);
 
-        doc.setFontSize(8);
+        document.text("CGE-AM - Controle de Patrimônio", 14, pageHeight - 7);
 
-        doc.text(
-          `Página ${pageNumber}`,
+        document.text(
+          `Página ${document.getNumberOfPages()}`,
           pageWidth - 14,
-          doc.internal.pageSize.getHeight() - 8,
-          {
-            align: "right",
-          },
+          pageHeight - 7,
+          { align: "right" },
         );
       },
-    },
-  );
+    });
 
-  const now =
-    new Date();
-
-  const date =
-    [
-      now.getFullYear(),
-      String(
-        now.getMonth() + 1,
-      ).padStart(
-        2,
-        "0",
-      ),
-      String(
-        now.getDate(),
-      ).padStart(
-        2,
-        "0",
-      ),
-    ].join("-");
-
-  doc.save(
-    `relatorio-patrimonial-${date}.pdf`,
-  );
-}
+    document.save(`relatorio-patrimonial-${fileDate()}.pdf`);
+  }
 
   function handleExportXlsx() {
-    if (!report) {
-      setReportError(
-        "Gere o relatório antes de exportar.",
-      );
+    const data = reportToExport();
 
+    if (!data) {
       return;
     }
 
-    if (
-      report.assets.length === 0
-    ) {
-      setReportError(
-        "Não há dados para exportar.",
-      );
+    const rows = buildExportRows(data.assets);
 
-      return;
-    }
-
-    setReportError(null);
-
-    const rows =
-      report.assets.map(
-        (asset) => ({
-          Patrimônio:
-            asset.patrimonyNumber,
-
-          Descrição:
-            asset.description,
-
-          Marca:
-            asset.brand ?? "",
-
-          Modelo:
-            asset.model ?? "",
-
-          "Número de série":
-            asset.serialNumber ?? "",
-
-          Localização:
-            asset.unitCode
-              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-              : "Não informado",
-
-          Situação:
-            asset.status === "active"
-              ? "Ativo"
-              : asset.status ===
-                  "maintenance"
-                ? "Em manutenção"
-                : "Baixado",
-
-          Conservação:
-            asset.conservationStatus ??
-            "Não informado",
-
-          "Data de aquisição":
-            asset.acquisitionDate
-              ? formatDateForSpreadsheet(
-                  asset.acquisitionDate,
-                )
-              : "",
-
-          "Valor de aquisição":
-            asset.acquisitionValue
-              ? Number(
-                  asset.acquisitionValue,
-                )
-              : "",
-        }),
-      );
-
-    const worksheet =
-      XLSX.utils.json_to_sheet(
-        rows,
-      );
+    const worksheet = XLSX.utils.json_to_sheet(rows);
 
     worksheet["!cols"] = [
       { wch: 15 },
@@ -1089,486 +647,248 @@ currentY += 7;
       { wch: 20 },
     ];
 
-    const workbook =
-      XLSX.utils.book_new();
+    const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Inventário",
-    );
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventário");
+
+    const unitLabel = (id: string) => {
+      const unit = unitById.get(id);
+
+      return unit ? `${unit.code} - ${unit.name}` : "Todos";
+    };
 
     const summaryRows = [
+      { Informação: "Tipo de relatório", Valor: reportTypeLabels[reportType] },
+
+      { Informação: "Departamento", Valor: unitLabel(departmentId) },
+
+      { Informação: "Setor", Valor: unitLabel(sectorId) },
+
+      { Informação: "Subsetor", Valor: unitLabel(subsectorId) },
+
       {
-        Informação:
-          "Tipo de relatório",
+        Informação: "Situação",
+
+        Valor: status
+          ? assetStatusMeta[status as ReportAsset["status"]].label
+          : "Todas",
+      },
+
+      { Informação: "Conservação", Valor: conservationStatus || "Todas" },
+
+      {
+        Informação: "Período",
+
         Valor:
-          "Inventário geral",
+          startDate || endDate
+            ? `${startDate ? formatDateForSpreadsheet(startDate) : "Início"} até ${endDate ? formatDateForSpreadsheet(endDate) : "Hoje"}`
+            : "Todos",
       },
 
       {
-        Informação:
-          "Departamento",
-        Valor:
-          departmentLabel,
+        Informação: "Quantidade de bens",
+
+        Valor: data.summary.total,
       },
 
       {
-        Informação:
-          "Setor",
-        Valor:
-          sectorLabel,
-      },
+        Informação: "Valor patrimonial total",
 
-      {
-        Informação:
-          "Subsetor",
-        Valor:
-          subsectorLabel,
-      },
-
-      {
-        Informação:
-          "Situação",
-        Valor:
-          statusLabel,
-      },
-
-      {
-        Informação:
-          "Conservação",
-        Valor:
-          conservationLabel,
-      },
-
-      {
-        Informação:
-          "Período",
-        Valor:
-          periodLabel,
-      },
-
-      {
-        Informação:
-          "Quantidade de bens",
-        Valor:
-          report.summary.total,
-      },
-
-      {
-        Informação:
-          "Valor patrimonial total",
-        Valor:
-          report.summary.totalValue,
+        Valor: data.summary.totalValue,
       },
     ];
 
-    const summaryWorksheet =
-      XLSX.utils.json_to_sheet(
-        summaryRows,
-      );
+    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryRows);
 
-    summaryWorksheet["!cols"] = [
-      { wch: 30 },
-      { wch: 25 },
-    ];
+    summaryWorksheet["!cols"] = [{ wch: 30 }, { wch: 25 }];
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      summaryWorksheet,
-      "Resumo",
-    );
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Resumo");
 
-    const now =
-      new Date();
-
-    const date =
-      [
-        now.getFullYear(),
-        String(
-          now.getMonth() + 1,
-        ).padStart(2, "0"),
-        String(
-          now.getDate(),
-        ).padStart(2, "0"),
-      ].join("-");
-
-    XLSX.writeFile(
-      workbook,
-      `relatorio-patrimonial-${date}.xlsx`,
-    );
+    XLSX.writeFile(workbook, `relatorio-patrimonial-${fileDate()}.xlsx`);
   }
 
-  function getUnitLabel(
-  units: OrganizationUnit[],
-  id: string,
-  ) {
-    if (!id) {
-      return "Todos";
-    }
-
-    const unit =
-      units.find(
-        (item) =>
-          item.id === id,
-      );
-
-    if (!unit) {
-      return "Todos";
-    }
-
-    return `${unit.code} - ${unit.name}`;
-  }
+  const statusOptions = [
+    { label: "Todas", value: ALL },
+    ...(Object.keys(assetStatusMeta) as ReportAsset["status"][]).map(
+      (value) => ({ label: assetStatusMeta[value].label, value }),
+    ),
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* CABEÇALHO */}
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Controle de Patrimônio
-        </p>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        description="Consulte informações patrimoniais e exporte relatórios em PDF ou XLSX."
+        title="Relatórios"
+      />
 
-        <h1 className="text-2xl font-semibold">
-          Relatórios patrimoniais
-        </h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Consulte informações patrimoniais e exporte
-          relatórios em PDF ou XLSX.
-        </p>
-      </div>
-
-      {/* FILTROS */}
-      <div className="rounded-lg border bg-background p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <FunnelSimple size={22} />
-
-          <div>
-            <h2 className="font-semibold">
-              Filtros do relatório
-            </h2>
-
-            <p className="text-sm text-muted-foreground">
-              Selecione o tipo de relatório e os
-              filtros desejados.
-            </p>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <FunnelSimple aria-hidden="true" size={20} />
+            <div>
+              <h2 className="font-bold">Filtros do relatório</h2>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Selecione o tipo de relatório e os filtros desejados.
+              </p>
+            </div>
           </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {unitsError ? (
+            <Alert title="Não foi possível carregar as unidades" tone="danger">
+              {unitsError}
+            </Alert>
+          ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {/* TIPO */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Tipo de relatório
-            </span>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <FormField htmlFor="reportType" label="Tipo de relatório">
+              <Select
+                id="reportType"
+                name="reportType"
+                onValueChange={(value) => setReportType(value as ReportType)}
+                options={Object.entries(reportTypeLabels).map(
+                  ([value, label]) => ({ label, value }),
+                )}
+                value={reportType}
+              />
+            </FormField>
 
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={reportType}
-              onChange={(event) =>
-                setReportType(
-                  event.target.value as ReportType,
-                )
-              }
+            <FormField htmlFor="departmentId" label="Departamento">
+              <SearchableSelect
+                disabled={loadingUnits}
+                id="departmentId"
+                name="departmentId"
+                onValueChange={(value) => {
+                  setDepartmentId(value === ALL ? "" : value);
+                  setSectorId("");
+                  setSubsectorId("");
+                }}
+                options={[
+                  { label: "Todos os departamentos", value: ALL },
+                  ...unitOptions(departments),
+                ]}
+                placeholder={loadingUnits ? "Carregando..." : undefined}
+                value={departmentId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="sectorId" label="Setor">
+              <SearchableSelect
+                disabled={loadingUnits || !departmentId}
+                id="sectorId"
+                name="sectorId"
+                onValueChange={(value) => {
+                  setSectorId(value === ALL ? "" : value);
+                  setSubsectorId("");
+                }}
+                options={[
+                  { label: "Todos os setores", value: ALL },
+                  ...unitOptions(sectors),
+                ]}
+                placeholder="Selecione primeiro o departamento"
+                value={sectorId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="subsectorId" label="Subsetor">
+              <SearchableSelect
+                disabled={loadingUnits || !sectorId}
+                id="subsectorId"
+                name="subsectorId"
+                onValueChange={(value) =>
+                  setSubsectorId(value === ALL ? "" : value)
+                }
+                options={[
+                  { label: "Todos os subsetores", value: ALL },
+                  ...unitOptions(subsectors),
+                ]}
+                placeholder="Selecione primeiro o setor"
+                value={subsectorId || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="status" label="Situação">
+              <Select
+                id="status"
+                name="status"
+                onValueChange={(value) => setStatus(value === ALL ? "" : value)}
+                options={statusOptions}
+                value={status || ALL}
+              />
+            </FormField>
+
+            <FormField htmlFor="conservationStatus" label="Conservação">
+              <Select
+                id="conservationStatus"
+                name="conservationStatus"
+                onValueChange={(value) =>
+                  setConservationStatus(value === ALL ? "" : value)
+                }
+                options={[
+                  { label: "Todas", value: ALL },
+                  ...conservationOptions,
+                ]}
+                value={conservationStatus || ALL}
+              />
+            </FormField>
+
+            <FormField
+              className="sm:col-span-2 lg:col-span-1"
+              htmlFor="reportRange"
+              label="Período de aquisição"
             >
-              <option value="inventory">
-                Inventário geral
-              </option>
+              <DateRangePicker
+                id="reportRange"
+                onChange={(range) => {
+                  setStartDate(range.from);
+                  setEndDate(range.to);
+                }}
+                placeholder="Todas as datas"
+                value={{ from: startDate, to: endDate }}
+              />
+            </FormField>
+          </div>
 
-              <option value="sector">
-                Bens por setor
-              </option>
-
-              <option value="status">
-                Bens por situação
-              </option>
-
-              <option value="conservation">
-                Estado de conservação
-              </option>
-
-              <option value="movements">
-                Movimentações
-              </option>
-
-              <option value="financial">
-                Relatório financeiro
-              </option>
-            </select>
-          </label>
-
-          {/* Departamento */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Departamento
-            </span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={departmentId}
-              onChange={(event) => {
-                setDepartmentId(
-                  event.target.value,
-                );
-
-                setSectorId("");
-                setSubsectorId("");
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={loadingReport}
+              onClick={() => {
+                void handleGenerateReport();
               }}
-              disabled={loadingUnits}
+              type="button"
+              variant="primary"
             >
-              <option value="">
-                {loadingUnits
-                  ? "Carregando..."
-                  : "Todos os departamentos"}
-              </option>
-
-              {departments.map(
-                (department) => (
-                  <option
-                    key={department.id}
-                    value={department.id}
-                  >
-                    {department.code}
-                    {" - "}
-                    {department.name}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-
-          {/* SETOR */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Setor
-            </span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={sectorId}
-              onChange={(event) => {
-                setSectorId(
-                  event.target.value,
-                );
-
-                setSubsectorId("");
-              }}
-              disabled={
-                loadingUnits ||
-                !departmentId
-              }
+              {loadingReport ? "Gerando..." : "Gerar relatório"}
+            </Button>
+            <Button
+              disabled={!report}
+              onClick={handleExportPdf}
+              type="button"
+              variant="secondary"
             >
-              <option value="">
-                {!departmentId
-                  ? "Selecione primeiro o departamento"
-                  : "Todos os setores"}
-              </option>
-
-              {sectors.map(
-                (sector) => (
-                  <option
-                    key={sector.id}
-                    value={sector.id}
-                  >
-                    {sector.code}
-                    {" - "}
-                    {sector.name}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-
-        {/* SUBSETOR */}
-        <label className="space-y-1">
-          <span className="text-sm font-medium">
-            Subsetor
-          </span>
-
-          <select
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            value={subsectorId}
-            onChange={(event) =>
-              setSubsectorId(
-                event.target.value,
-              )
-            }
-            disabled={
-              loadingUnits ||
-              !sectorId
-            }
-          >
-            <option value="">
-              {!sectorId
-                ? "Selecione primeiro o setor"
-                : "Todos os subsetores"}
-            </option>
-
-            {subsectors.map(
-              (subsector) => (
-                <option
-                  key={subsector.id}
-                  value={subsector.id}
-                >
-                  {subsector.code}
-                  {" - "}
-                  {subsector.name}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-
-          {/* STATUS */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Situação
-            </span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={status}
-              onChange={(event) =>
-                setStatus(event.target.value)
-              }
+              <FilePdf aria-hidden="true" size={16} />
+              Exportar PDF
+            </Button>
+            <Button
+              disabled={!report}
+              onClick={handleExportXlsx}
+              type="button"
+              variant="secondary"
             >
-              <option value="">
-                Todas
-              </option>
+              <FileXls aria-hidden="true" size={16} />
+              Exportar XLSX
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-              <option value="active">
-                Ativo
-              </option>
-
-              <option value="maintenance">
-                Em manutenção
-              </option>
-
-              <option value="disposed">
-                Baixado
-              </option>
-            </select>
-          </label>
-
-          {/* CONSERVAÇÃO */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Conservação
-            </span>
-
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={conservationStatus}
-              onChange={(event) =>
-                setConservationStatus(
-                  event.target.value,
-                )
-              }
-            >
-              <option value="">
-                Todas
-              </option>
-
-              <option value="Ótimo">
-                Ótimo
-              </option>
-
-              <option value="Bom">
-                Bom
-              </option>
-
-              <option value="Regular">
-                Regular
-              </option>
-
-              <option value="Ruim">
-                Ruim
-              </option>
-
-              <option value="Inservível">
-                Inservível
-              </option>
-            </select>
-          </label>
-
-          {/* DATA INICIAL */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Data inicial
-            </span>
-
-            <input
-              type="date"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={startDate}
-              onChange={(event) =>
-                setStartDate(event.target.value)
-              }
-            />
-          </label>
-
-          {/* DATA FINAL */}
-          <label className="space-y-1">
-            <span className="text-sm font-medium">
-              Data final
-            </span>
-
-            <input
-              type="date"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={endDate}
-              onChange={(event) =>
-                setEndDate(event.target.value)
-              }
-            />
-          </label>
-        </div>
-
-        {/* BOTÕES */}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              void handleGenerateReport();
-            }}
-            disabled={loadingReport}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <ClipboardText size={18} />
-
-            {loadingReport
-              ? "Gerando..."
-              : "Gerar relatório"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <FileArrowDown size={18} />
-
-            Exportar PDF
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportXlsx}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            <FileArrowDown size={18} />
-
-            Exportar XLSX
-          </button>
-        </div>
-      </div>
-
-      {unitsError ? (
-        <p className="text-sm text-red-600">
-          {unitsError}
-        </p>
+      {reportError ? (
+        <Alert title="Erro no relatório" tone="danger">
+          {reportError}
+        </Alert>
       ) : null}
 
+<<<<<<< HEAD
       {/* RESULTADO */}
       <div className="rounded-lg border bg-background p-6">
         <div className="mb-4">
@@ -1604,14 +924,42 @@ currentY += 7;
                 </p>
 
                 <p className="mt-1 text-2xl font-semibold">
+=======
+      {loadingReport ? (
+        <TableSkeleton
+          ariaLabel="Carregando relatório"
+          headers={[
+            "Patrimônio",
+            "Descrição",
+            "Localização",
+            "Situação",
+            "Conservação",
+            "Valor",
+          ]}
+        />
+      ) : report ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardContent>
+                <p className="text-2xl font-extrabold tabular-nums">
+>>>>>>> origin/dev
                   {report.summary.total}
                 </p>
-              </div>
-
-              <div className="rounded-md border p-4">
-                <p className="text-sm text-muted-foreground">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Quantidade de bens
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent>
+                <p className="text-2xl font-extrabold tabular-nums">
+                  {formatCurrency(report.summary.totalValue)}
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Valor patrimonial
                 </p>
+<<<<<<< HEAD
 
                 <p className="mt-1 text-2xl font-semibold">
                   {new Intl.NumberFormat(
@@ -2107,9 +1455,212 @@ report ? (
             <strong>
               Gerar relatório
             </strong>.
+=======
+              </CardContent>
+            </Card>
+>>>>>>> origin/dev
           </div>
-        )}
-      </div>
+
+          {report.assets.length === 0 ? (
+            <EmptyState
+              description="Ajuste os filtros e gere o relatório novamente."
+              title="Nenhum bem encontrado"
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <div>
+                  <h2 className="font-bold">Resultado</h2>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {reportTypeLabels[reportType]}
+                  </p>
+                </div>
+              </CardHeader>
+              {reportType === "inventory" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Patrimônio</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Localização</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead>Conservação</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.assets.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell>{asset.patrimonyNumber}</TableCell>
+                        <TableCell>{asset.description}</TableCell>
+                        <TableCell>
+                          {asset.unitCode
+                            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                            : "Não informado"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={assetStatusMeta[asset.status].variant}
+                          >
+                            {assetStatusMeta[asset.status].label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {asset.conservationStatus ?? "Não informado"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(asset.acquisitionValue)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "sector" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Setor</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">
+                        Valor patrimonial
+                      </TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assetsBySector.map((sector) => (
+                      <TableRow key={`${sector.code}-${sector.name}`}>
+                        <TableCell>
+                          {sector.code} - {sector.name}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {sector.total}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(sector.totalValue)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "status" ? (
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                  {assetsByStatus.map((item) => (
+                    <Card key={item.key}>
+                      <CardContent>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {item.label}
+                        </p>
+                        <p className="mt-1 text-2xl font-extrabold tabular-nums">
+                          {item.total}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                          bens patrimoniais
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </CardContent>
+              ) : null}
+
+              {reportType === "conservation" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Estado de conservação</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assetsByConservation.map((item) => (
+                      <TableRow key={item.label}>
+                        <TableCell>{item.label}</TableCell>
+                        <TableCell className="text-right">
+                          {item.total}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "financial" ? (
+                <>
+                  <CardContent className="grid gap-4 sm:grid-cols-3">
+                    {[
+                      ["Bens considerados", String(report.summary.total)],
+                      [
+                        "Valor patrimonial",
+                        formatCurrency(report.summary.totalValue),
+                      ],
+                      [
+                        "Valor médio",
+                        formatCurrency(
+                          report.summary.total > 0
+                            ? report.summary.totalValue / report.summary.total
+                            : 0,
+                        ),
+                      ],
+                    ].map(([label, value]) => (
+                      <Card key={label}>
+                        <CardContent>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-2xl font-extrabold tabular-nums">
+                            {value}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </CardContent>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <TableHead>Setor</TableHead>
+                        <TableHead className="text-right">Bens</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assetsBySector.map((sector) => (
+                        <TableRow key={`${sector.code}-${sector.name}`}>
+                          <TableCell>
+                            {sector.code} - {sector.name}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {sector.total}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(sector.totalValue)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </tbody>
+                  </Table>
+                </>
+              ) : null}
+
+              {reportType === "movements" ? (
+                <CardContent>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    O relatório de movimentações será carregado pelo histórico
+                    de movimentações patrimoniais.
+                  </p>
+                </CardContent>
+              ) : null}
+            </Card>
+          )}
+        </>
+      ) : (
+        <EmptyState
+          description="Selecione os filtros e clique em Gerar relatório."
+          title="Gere um relatório"
+        />
+      )}
     </div>
   );
 }

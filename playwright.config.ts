@@ -12,6 +12,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     ...devices["Desktop Chrome"],
+    // Axe must not sample colors mid-transition; the app honors reduced motion.
+    contextOptions: { reducedMotion: "reduce" },
     baseURL: "http://127.0.0.1:4173",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
@@ -22,6 +24,7 @@ export default defineConfig({
       command: [
         "NODE_ENV=test",
         "API_PORT=3101",
+        "OBJECT_STORAGE_BUCKET=intranet-cge-e2e",
         "WEB_ORIGIN=http://127.0.0.1:4173",
         `DATABASE_URL=${databaseUrl}`,
         `SESSION_SECRET=${sessionSecret}`,

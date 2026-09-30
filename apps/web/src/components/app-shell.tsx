@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { useAuth } from "../auth";
+import { NotificationBell } from "../pages/notifications";
 import {
   availableModules,
   availableSystemNavigation,
@@ -155,7 +156,7 @@ function Navigation({
                       <CaretDown
                         aria-hidden="true"
                         className={[
-                          "ml-auto text-[var(--text-faint)] transition-transform duration-200",
+                          "ml-auto text-[var(--text-faint)] transition-transform duration-300 ease-in-out",
                           expanded ? "rotate-180" : "rotate-0",
                         ].join(" ")}
                         size={14}
@@ -163,18 +164,30 @@ function Navigation({
                       />
                     ) : null}
                   </button>
-                  {expanded && !collapsed ? (
-                    <div className="relative ml-[17px] mt-0.5 space-y-0.5 pl-[18px] before:absolute before:bottom-[18px] before:left-0 before:top-0 before:border-l before:border-[var(--border)]">
-                      {module.routes
-                        .filter((route) => canNavigate(user, route))
-                        .map((route) => (
-                          <NavigationLink
-                            item={route}
-                            key={route.href}
-                            nested
-                            onNavigate={onNavigate}
-                          />
-                        ))}
+                  {!collapsed ? (
+                    <div
+                      className={[
+                        "grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-in-out",
+                        // visibility keeps collapsed links out of focus order and the a11y tree
+                        expanded
+                          ? "visible grid-rows-[1fr] opacity-100"
+                          : "invisible grid-rows-[0fr] opacity-0 pointer-events-none",
+                      ].join(" ")}
+                    >
+                      <div className="overflow-hidden">
+                        <div className="relative ml-[17px] mt-0.5 space-y-0.5 pl-[18px] before:absolute before:bottom-[18px] before:left-0 before:top-0 before:border-l before:border-[var(--border)]">
+                          {module.routes
+                            .filter((route) => canNavigate(user, route))
+                            .map((route) => (
+                              <NavigationLink
+                                item={route}
+                                key={route.href}
+                                nested
+                                onNavigate={onNavigate}
+                              />
+                            ))}
+                        </div>
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -230,7 +243,7 @@ function NavigationLink({
       aria-label={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         [
-          "relative flex items-center rounded-[9px] transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus)] active:scale-[0.99]",
+          "relative flex items-center rounded-[9px] transition-[background-color,color,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-[var(--focus)] active:scale-[0.99]",
           nested
             ? "min-h-9 px-2.5 text-[13px] font-medium"
             : collapsed
@@ -399,7 +412,12 @@ export function AppShell() {
               <CaretLeft aria-hidden="true" size={14} weight="bold" />
             )}
           </button>
-          <div className={collapsed ? "px-1 pt-1" : "px-2 pt-1"}>
+          <div
+            className={[
+              "min-h-0 flex-1 overflow-y-auto",
+              collapsed ? "px-1 pt-1" : "px-2 pt-1",
+            ].join(" ")}
+          >
             <Logo collapsed={collapsed} />
             <Navigation
               collapsed={collapsed}
@@ -425,7 +443,7 @@ export function AppShell() {
         </SheetContent>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white/90 px-4 backdrop-blur-md md:px-6 lg:hidden">
+          <header className="sticky top-0 z-40 flex h-[68px] items-center gap-3 border-b border-[var(--border)] bg-white px-4 md:px-6">
             <SheetTrigger asChild>
               <Button
                 variant="quiet"
@@ -447,6 +465,7 @@ export function AppShell() {
                 {contextDescription}
               </p>
             </div>
+            <NotificationBell />
           </header>
 
           <main

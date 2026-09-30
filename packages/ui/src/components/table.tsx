@@ -127,6 +127,7 @@ type DataTableProps<TData> = {
   getRowId: (row: TData) => string;
   itemLabel?: string;
   onPageChange: (page: number) => void;
+  onRowClick?: (row: TData) => void;
   onPageSizeChange: (pageSize: number) => void;
   page: number;
   pageSize: number;
@@ -142,6 +143,7 @@ export function DataTable<TData>({
   itemLabel = "itens",
   onPageChange,
   onPageSizeChange,
+  onRowClick,
   page,
   pageSize,
   pageSizeOptions = [5, 10, 25, 50],
@@ -182,7 +184,23 @@ export function DataTable<TData>({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              className={onRowClick ? "cursor-pointer" : undefined}
+              key={row.id}
+              onClick={
+                onRowClick &&
+                ((event) => {
+                  // Links and buttons inside the row keep their own behavior.
+                  if (
+                    (event.target as Element).closest(
+                      "a, button, input, select, textarea, label",
+                    )
+                  )
+                    return;
+                  onRowClick(row.original);
+                })
+              }
+            >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

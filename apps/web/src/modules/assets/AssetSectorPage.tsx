@@ -1,15 +1,23 @@
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
+  ConfirmDialog,
+  Dialog,
+  DialogContent,
+  EmptyState,
   FormField,
   Input,
+  SearchableSelect,
+  Select,
   Table,
   TableCell,
   TableHead,
   TableRow,
+  TableSkeleton,
 } from "@cge/ui";
 
 import {
@@ -19,260 +27,211 @@ import {
   Prohibit,
 } from "@phosphor-icons/react";
 
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
+
+import { api, ApiError, json } from "../../lib/api";
 
 import {
-  api,
-  ApiError,
-  json,
-} from "../../lib/api";
+  type OrganizationUnit,
+  type OrganizationUnitType,
+  type OrganizationUnitsResponse,
+  PageHeader,
+  unitOptions,
+} from "./shared";
 
-type OrganizationUnitType =
-  | "department"
-  | "sector"
-  | "subsector";
-
-type OrganizationUnit = {
-  id: string;
+type UnitForm = {
   code: string;
   name: string;
-  type: OrganizationUnitType | null;
-  parentId: string | null;
-  active: boolean;
+  type: OrganizationUnitType;
+  parentId: string;
+  departmentId: string;
 };
 
-type OrganizationUnitsResponse = {
-  units: OrganizationUnit[];
+type FieldErrors = Partial<
+  Record<"code" | "name" | "department" | "parent", string>
+>;
+
+const emptyForm: UnitForm = {
+  code: "",
+  name: "",
+  type: "department",
+  parentId: "",
+  departmentId: "",
 };
+
+const typeOptions = [
+  { label: "Departamento", value: "department" },
+  { label: "Setor", value: "sector" },
+  { label: "Subsetor", value: "subsector" },
+];
+
+function getUnitTypeLabel(type: OrganizationUnitType | null) {
+  return (
+    typeOptions.find((option) => option.value === type)?.label ?? "Não definido"
+  );
+}
+
+function ParentUnitFields({
+  form,
+  units,
+  errors,
+  onChange,
+}: {
+  form: UnitForm;
+  units: OrganizationUnit[];
+  errors: FieldErrors;
+  onChange: (patch: Partial<UnitForm>) => void;
+}) {
+  if (form.type === "department") {
+    return null;
+  }
+
+  const departments = units.filter(
+    (unit) => unit.type === "department" && unit.active,
+  );
+
+  if (form.type === "sector") {
+    return (
+      <FormField
+        label="Departamento"
+        htmlFor="parent-department"
+        error={errors.parent}
+      >
+        <SearchableSelect
+          id="parent-department"
+          name="parentId"
+          required
+          aria-invalid={Boolean(errors.parent)}
+          options={unitOptions(departments)}
+          value={form.parentId}
+          onValueChange={(parentId) => onChange({ parentId })}
+          placeholder="Selecione..."
+        />
+      </FormField>
+    );
+  }
+
+  const sectors = units.filter(
+    (unit) =>
+      unit.type === "sector" &&
+      unit.active &&
+      (!form.departmentId || unit.parentId === form.departmentId),
+  );
+
+  return (
+    <>
+      <FormField
+        label="Departamento"
+        htmlFor="subsector-department"
+        error={errors.department}
+      >
+        <SearchableSelect
+          id="subsector-department"
+          name="departmentId"
+          required
+          aria-invalid={Boolean(errors.department)}
+          options={unitOptions(departments)}
+          value={form.departmentId}
+          onValueChange={(departmentId) =>
+            onChange({ departmentId, parentId: "" })
+          }
+          placeholder="Selecione..."
+        />
+      </FormField>
+
+      <FormField label="Setor" htmlFor="parent-sector" error={errors.parent}>
+        <SearchableSelect
+          id="parent-sector"
+          name="parentId"
+          required
+          aria-invalid={Boolean(errors.parent)}
+          disabled={!form.departmentId}
+          options={unitOptions(sectors)}
+          value={form.parentId}
+          onValueChange={(parentId) => onChange({ parentId })}
+          placeholder={
+            form.departmentId
+              ? "Selecione..."
+              : "Selecione primeiro o departamento"
+          }
+        />
+      </FormField>
+    </>
+  );
+}
 
 export function AssetSectorPage() {
-  const [
-    units,
-    setUnits,
-  ] = useState<
-    OrganizationUnit[]
-  >([]);
+  const [units, setUnits] = useState<OrganizationUnit[]>([]);
 
-  const [
-    code,
-    setCode,
-  ] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const [
-    name,
-    setName,
-  ] = useState("");
+  const [saving, setSaving] = useState(false);
 
-    const [
-    unitType,
-    setUnitType,
-  ] = useState<OrganizationUnitType>(
-    "department",
-  );
+  const [error, setError] = useState("");
 
-  const [
-    parentId,
-    setParentId,
-  ] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [
-  selectedDepartmentId,
-  setSelectedDepartmentId,
-  ] = useState("");
+  const [query, setQuery] = useState("");
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const [
-    saving,
-    setSaving,
-  ] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<OrganizationUnit | null>(null);
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  const [form, setForm] = useState<UnitForm>(emptyForm);
 
-  const [
-    success,
-    setSuccess,
-  ] = useState("");
+  const [dialogError, setDialogError] = useState("");
 
-  const [
-    editingUnit,
-    setEditingUnit,
-  ] =
-    useState<OrganizationUnit | null>(
-      null,
-    );
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const [
-    editType,
-    setEditType,
-  ] = useState<OrganizationUnitType>(
-    "department",
-  );
+  const loadUnits = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-  const [
-    editParentId,
-    setEditParentId,
-  ] = useState("");
+      const result = await api<OrganizationUnitsResponse>(
+        "/api/organization-units",
+      );
 
-  const [
-    editDepartmentId,
-    setEditDepartmentId,
-  ] = useState("");
-
-  const [
-    editCode,
-    setEditCode,
-  ] = useState("");
-
-  const [
-    editName,
-    setEditName,
-  ] = useState("");
-
-  const loadUnits =
-    useCallback(
-      async () => {
-        try {
-          setLoading(true);
-          setError("");
-
-          const result =
-            await api<OrganizationUnitsResponse>(
-              "/api/organization-units",
-            );
-
-          setUnits(
-            result.units,
-          );
-        } catch (cause) {
-          if (
-            cause instanceof
-            ApiError
-          ) {
-            setError(
-              cause.message,
-            );
-          } else {
-            setError(
-              "Não foi possível carregar as unidades organizacionais.",
-            );
-          }
-        } finally {
-          setLoading(false);
-        }
-      },
-      [],
-    );
+      setUnits(result.units);
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setError(cause.message);
+      } else {
+        setError("Não foi possível carregar as unidades organizacionais.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadUnits();
   }, [loadUnits]);
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    if (
-      !code.trim() ||
-      !name.trim()
-    ) {
-      setError(
-        "Informe o código e o nome da unidade organizacional.",
-      );
-
-      return;
-    }
-
-    if (
-      unitType === "subsector" &&
-      !selectedDepartmentId
-    ) {
-      setError(
-        "Selecione o departamento ao qual o subsetor pertence.",
-      );
-
-      return;
-    }
-
-    if (
-      unitType !== "department" &&
-      !parentId
-    ) {
-      setError(
-        unitType === "sector"
-          ? "Selecione o departamento ao qual o setor pertence."
-          : "Selecione o setor ao qual o subsetor pertence.",
-      );
-
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      await api(
-        "/api/organization-units",
-        {
-          method: "POST",
-
-          body: json({
-          code: code.trim(),
-          name: name.trim(),
-          type: unitType,
-          parentId:
-            unitType === "department"
-              ? null
-              : parentId || null,
-        }),
-        },
-      );
-
-      setCode("");
-      setName("");
-      setUnitType("department");
-      setParentId("");
-      setSelectedDepartmentId("");
-
-      setSuccess("Unidade organizacional cadastrada com sucesso.",);
-      
-      await loadUnits();
-    } catch (cause) {
-      if (
-        cause instanceof
-        ApiError
-      ) {
-        setError(
-          cause.message,
-        );
-      } else {
-        setError(
-          "Não foi possível cadastrar a unidade organizacional.",
-        );
-      }
-    } finally {
-      setSaving(false);
-    }
+  function updateForm(patch: Partial<UnitForm>) {
+    setForm((current) => ({ ...current, ...patch }));
+    setFieldErrors({});
   }
 
-  function startEdit(
-    
-    unit: OrganizationUnit,
-  ) {
-        if (!unit.type) {
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingUnit(null);
+    setForm(emptyForm);
+    setDialogError("");
+    setFieldErrors({});
+  }
+
+  function startCreate() {
+    setEditingUnit(null);
+    setForm(emptyForm);
+    setDialogError("");
+    setFieldErrors({});
+    setSuccess("");
+    setDialogOpen(true);
+  }
+
+  function startEdit(unit: OrganizationUnit) {
+    if (!unit.type) {
       setError(
         "Esta unidade ainda não possui um tipo organizacional definido.",
       );
@@ -280,154 +239,101 @@ export function AssetSectorPage() {
       return;
     }
 
-    setEditingUnit(
-      unit,
-    );
+    const parentSector =
+      unit.type === "subsector" && unit.parentId
+        ? units.find((item) => item.id === unit.parentId)
+        : undefined;
 
-    setEditCode(
-      unit.code,
-    );
-
-    setEditName(
-      unit.name,
-    );
-
-    setEditType(
-      unit.type,
-    );
-
-    setEditParentId(
-      unit.parentId ?? "",
-    );
-
-    if (
-      unit.type === "subsector" &&
-      unit.parentId
-    ) {
-      const parentSector = units.find(
-        (item) =>
-          item.id === unit.parentId,
-      );
-
-      setEditDepartmentId(
-        parentSector?.parentId ?? "",
-      );
-    } else {
-      setEditDepartmentId("");
-    }
-
+    setEditingUnit(unit);
+    setForm({
+      code: unit.code,
+      name: unit.name,
+      type: unit.type,
+      parentId: unit.parentId ?? "",
+      departmentId: parentSector?.parentId ?? "",
+    });
+    setDialogError("");
+    setFieldErrors({});
     setError("");
     setSuccess("");
+    setDialogOpen(true);
   }
 
-  function cancelEdit() {
-    setEditingUnit(
-      null,
-    );
+  function validate() {
+    const errors: FieldErrors = {};
+    let message = "";
 
-    setEditCode("");
-    setEditName("");
+    if (!form.code.trim() || !form.name.trim()) {
+      message = "Informe o código e o nome da unidade organizacional.";
+      if (!form.code.trim()) errors.code = "Informe o código.";
+      if (!form.name.trim()) errors.name = "Informe o nome.";
+    } else if (form.type === "subsector" && !form.departmentId) {
+      message = "Selecione o departamento ao qual o subsetor pertence.";
+      errors.department = "Selecione o departamento.";
+    } else if (form.type !== "department" && !form.parentId) {
+      message =
+        form.type === "sector"
+          ? "Selecione o departamento ao qual o setor pertence."
+          : "Selecione o setor ao qual o subsetor pertence.";
+      errors.parent =
+        form.type === "sector"
+          ? "Selecione o departamento."
+          : "Selecione o setor.";
+    }
 
-    setError("");
-    setEditType("department");
-    setEditParentId("");
-    setEditDepartmentId("");
+    setFieldErrors(errors);
+    setDialogError(message);
+
+    return !message;
   }
 
-  async function handleUpdate(
-    event: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (
-      !editingUnit
-    ) {
-      return;
-    }
-
-    if (
-      !editCode.trim() ||
-      !editName.trim()
-    ) {
-      setError(
-        "Informe o código e o nome da unidade organizacional.",
-      );
-
-      return;
-    }
-
-    if (
-    editType === "subsector" &&
-    !editDepartmentId
-    ) {
-      setError(
-        "Selecione o departamento ao qual o subsetor pertence.",
-      );
-
-      return;
-    }
-
-    if (
-      editType !== "department" &&
-      !editParentId
-    ) {
-      setError(
-        editType === "sector"
-          ? "Selecione o departamento ao qual o setor pertence."
-          : "Selecione o setor ao qual o subsetor pertence.",
-      );
-
+    if (!validate()) {
       return;
     }
 
     try {
       setSaving(true);
-      setError("");
+      setDialogError("");
       setSuccess("");
 
       await api(
-        `/api/organization-units/${editingUnit.id}`,
+        editingUnit
+          ? `/api/organization-units/${editingUnit.id}`
+          : "/api/organization-units",
         {
-          method: "PATCH",
+          method: editingUnit ? "PATCH" : "POST",
 
           body: json({
-          code: editCode.trim(),
-          name: editName.trim(),
-          type: editType,
-          parentId:
-            editType === "department"
-              ? null
-              : editParentId || null,
-        }),
+            code: form.code.trim(),
+            name: form.name.trim(),
+            type: form.type,
+            parentId: form.type === "department" ? null : form.parentId || null,
+          }),
         },
       );
 
-      setEditingUnit(
-        null,
-      );
+      const wasEditing = Boolean(editingUnit);
 
-      setEditType("department");
-      setEditParentId("");
-      setEditDepartmentId("");
-      setEditCode("");
-      setEditName("");
+      closeDialog();
 
       setSuccess(
-        "Unidade organizacional atualizada com sucesso.",
+        wasEditing
+          ? "Unidade organizacional atualizada com sucesso."
+          : "Unidade organizacional cadastrada com sucesso.",
       );
 
       await loadUnits();
     } catch (cause) {
-      if (
-        cause instanceof
-        ApiError
-      ) {
-        setError(
-          cause.message,
-        );
+      if (cause instanceof ApiError) {
+        setDialogError(cause.message);
       } else {
-        setError(
-          "Não foi possível atualizar a unidade organizacional.",
+        setDialogError(
+          editingUnit
+            ? "Não foi possível atualizar a unidade organizacional."
+            : "Não foi possível cadastrar a unidade organizacional.",
         );
       }
     } finally {
@@ -435,134 +341,81 @@ export function AssetSectorPage() {
     }
   }
 
-  async function handleToggleActive(
-  unit: OrganizationUnit,
-) {
-  const newActive =
-    !unit.active;
+  async function handleToggleActive(unit: OrganizationUnit) {
+    const newActive = !unit.active;
 
-  try {
-    setSaving(true);
-    setError("");
-    setSuccess("");
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
-    await api(
-      `/api/organization-units/${unit.id}/active`,
-      {
+      await api(`/api/organization-units/${unit.id}/active`, {
         method: "PATCH",
 
         body: json({
-          active:
-            newActive,
+          active: newActive,
         }),
-      },
-    );
+      });
 
-    setSuccess(
-      newActive
-        ? "Unidade organizacional ativada com sucesso."
-        : "Unidade organizacional inativada com sucesso.",
-    );
-
-    await loadUnits();
-  } catch (cause) {
-    if (
-      cause instanceof
-      ApiError
-    ) {
-      setError(
-        cause.message,
-      );
-    } else {
-      setError(
+      setSuccess(
         newActive
-          ? "Não foi possível ativar a unidade organizacional."
-          : "Não foi possível inativar a unidade organizacional.",
+          ? "Unidade organizacional ativada com sucesso."
+          : "Unidade organizacional inativada com sucesso.",
       );
+
+      await loadUnits();
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setError(cause.message);
+      } else {
+        setError(
+          newActive
+            ? "Não foi possível ativar a unidade organizacional."
+            : "Não foi possível inativar a unidade organizacional.",
+        );
+      }
+    } finally {
+      setSaving(false);
     }
-  } finally {
-    setSaving(false);
   }
-}
 
-  const departments = units.filter(
-    (unit) =>
-      unit.type === "department" &&
-      unit.active,
-  );
+  function getParentLabel(unit: OrganizationUnit) {
+    const parent = units.find((item) => item.id === unit.parentId);
 
-  const sectors = units.filter(
-    (unit) =>
-      unit.type === "sector" &&
-      unit.active &&
-      (
-        !selectedDepartmentId ||
-        unit.parentId === selectedDepartmentId
-      ),
-  );
-
-  function getParentLabel(
-    unit: OrganizationUnit,
-  ) {
-    if (!unit.parentId) {
-      return "—";
-    }
-
-    const parent = units.find(
-      (item) =>
-        item.id === unit.parentId,
-    );
-
-    if (!parent) {
-      return "—";
-    }
-
-    return `${parent.code} - ${parent.name}`;
+    return parent ? `${parent.code} - ${parent.name}` : "—";
   }
-  function getUnitTypeLabel(
-  type: OrganizationUnitType | null,
-  ) {
-    if (type === "department") {
-      return "Departamento";
-    }
 
-    if (type === "sector") {
-      return "Setor";
-    }
+  const term = query.trim().toLowerCase();
 
-    if (type === "subsector") {
-      return "Subsetor";
-    }
-
-    return "Não definido";
-  }
+  const visibleUnits = term
+    ? units.filter(
+        (unit) =>
+          unit.code.toLowerCase().includes(term) ||
+          unit.name.toLowerCase().includes(term),
+      )
+    : units;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="mt-1 text-2xl font-extrabold md:text-[30px]">
-          Estrutura Organizacional
-        </h1>
-
-        <p className="text-sm text-[var(--text-muted)]">
-          Cadastre e consulte departamentos, setores e subsetores disponíveis para localização dos bens patrimoniais.
-        </p>
-      </div>
+    <div className="page-enter space-y-5">
+      <PageHeader
+        title="Estrutura organizacional"
+        description="Cadastre e consulte departamentos, setores e subsetores disponíveis para localização dos bens patrimoniais."
+        actions={
+          <Button type="button" onClick={startCreate}>
+            <PlusCircle aria-hidden="true" size={16} />
+            Nova unidade
+          </Button>
+        }
+      />
 
       {error ? (
-        <Alert
-          tone="danger"
-          title="Não foi possível concluir a operação"
-        >
+        <Alert tone="danger" title="Não foi possível concluir a operação">
           {error}
         </Alert>
       ) : null}
 
       {success ? (
-        <Alert
-          tone="success"
-          title="Operação concluída"
-        >
+        <Alert tone="success" title="Operação concluída">
           {success}
         </Alert>
       ) : null}
@@ -570,591 +423,242 @@ export function AssetSectorPage() {
       <Card>
         <CardHeader>
           <div>
-            <h2 className="font-medium">
-              Nova unidade organizacional
-            </h2>
+            <h2 className="font-bold">Unidades organizacionais cadastradas</h2>
 
-            <p className="text-xs text-[var(--text-muted)]">
-              Informe o tipo, o código e o nome da unidade organizacional.
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Departamentos, setores e subsetores disponíveis para utilização no
+              cadastro dos bens.
             </p>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <form
-            className="grid gap-4 md:grid-cols-2"
-            onSubmit={handleSubmit}
-          >
+        {units.length > 0 ? (
+          <CardContent className="border-b border-[var(--border)] py-4">
+            <Input
+              type="search"
+              aria-label="Buscar por código ou nome"
+              placeholder="Buscar por código ou nome"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </CardContent>
+        ) : null}
 
-          <FormField
-            label="Tipo"
-            htmlFor="unit-type"
-          >
-            <select
-              id="unit-type"
-              value={unitType}
-              onChange={(event) => {
-                setUnitType(
-                  event.target.value as OrganizationUnitType,
-                );
+        {loading ? (
+          <TableSkeleton
+            ariaLabel="Carregando unidades organizacionais"
+            headers={[
+              "Código",
+              "Nome",
+              "Tipo",
+              "Vinculado a",
+              "Situação",
+              "Ações",
+            ]}
+          />
+        ) : visibleUnits.length === 0 ? (
+          <EmptyState
+            title={
+              units.length === 0
+                ? "Nenhuma unidade organizacional cadastrada"
+                : "Nenhuma unidade encontrada"
+            }
+            description={
+              units.length === 0
+                ? "Cadastre a primeira unidade para usá-la na localização dos bens."
+                : "Nenhuma unidade corresponde à busca."
+            }
+          />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <TableHead>Código</TableHead>
 
-                setParentId("");
-                setSelectedDepartmentId("");
-              }}
-              className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-            >
-              <option value="department">
-                Departamento
-              </option>
+                <TableHead>Nome</TableHead>
 
-              <option value="sector">
-                Setor
-              </option>
+                <TableHead className="hidden xl:table-cell">Tipo</TableHead>
 
-              <option value="subsector">
-                Subsetor
-              </option>
-            </select>
-          </FormField>
+                <TableHead>Vinculado a</TableHead>
 
-            <FormField
-              label="Código"
-              htmlFor="code"
-            >
-              <Input
-                id="code"
-                value={code}
-                onChange={(
-                  event,
-                ) =>
-                  setCode(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Ex.: DAF"
-              />
-            </FormField>
+                <TableHead>Situação</TableHead>
 
-            <FormField
-              label="Nome da unidade"
-              htmlFor="name"
-            >
-              <Input
-                id="name"
-                value={name}
-                onChange={(
-                  event,
-                ) =>
-                  setName(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Ex.: Diretoria Administrativa e Financeira"
-              />
-            </FormField>
+                <TableHead className="text-right">Ações</TableHead>
+              </tr>
+            </thead>
 
-            {unitType === "sector" ? (
-            <FormField
-              label="Departamento"
-              htmlFor="parent-department"
-            >
-              <select
-                id="parent-department"
-                value={parentId}
-                onChange={(event) =>
-                  setParentId(event.target.value)
-                }
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-              >
-                <option value="">
-                  Selecione...
-                </option>
+            <tbody>
+              {visibleUnits.map((unit) => (
+                <TableRow key={unit.id}>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="font-bold">{unit.code}</span>
+                  </TableCell>
 
-                {departments.map(
-                  (department) => (
-                    <option
-                      key={department.id}
-                      value={department.id}
-                    >
-                      {department.code} -{" "}
-                      {department.name}
-                    </option>
-                  ),
-                )}
-              </select>
-            </FormField>
-          ) : null}
+                  <TableCell>{unit.name}</TableCell>
 
-          {unitType === "subsector" ? (
-            <>
-              <FormField
-                label="Departamento"
-                htmlFor="subsector-department"
-              >
-                <select
-                  id="subsector-department"
-                  value={selectedDepartmentId}
-                  onChange={(event) => {
-                    setSelectedDepartmentId(
-                      event.target.value,
-                    );
+                  <TableCell className="hidden xl:table-cell">
+                    {getUnitTypeLabel(unit.type)}
+                  </TableCell>
 
-                    setParentId("");
-                  }}
-                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                >
-                  <option value="">
-                    Selecione...
-                  </option>
+                  <TableCell>{getParentLabel(unit)}</TableCell>
 
-                  {departments.map((department) => (
-                    <option
-                      key={department.id}
-                      value={department.id}
-                    >
-                      {department.code} -{" "}
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
+                  <TableCell>
+                    <Badge variant={unit.active ? "success" : "neutral"}>
+                      {unit.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </TableCell>
 
-              <FormField
-                label="Setor"
-                htmlFor="parent-sector"
-              >
-                <select
-                  id="parent-sector"
-                  value={parentId}
-                  onChange={(event) =>
-                    setParentId(event.target.value)
-                  }
-                  disabled={!selectedDepartmentId}
-                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                >
-                  <option value="">
-                    {selectedDepartmentId
-                      ? "Selecione..."
-                      : "Selecione primeiro o departamento"}
-                  </option>
+                  <TableCell className="py-2">
+                    <div className="flex justify-end gap-1 whitespace-nowrap">
+                      <Button
+                        type="button"
+                        aria-label={`Editar ${unit.code}`}
+                        size="icon"
+                        title="Editar"
+                        variant="quiet"
+                        disabled={saving}
+                        onClick={() => startEdit(unit)}
+                      >
+                        <PencilSimple aria-hidden="true" size={16} />
+                      </Button>
 
-                  {sectors.map((sector) => (
-                    <option
-                      key={sector.id}
-                      value={sector.id}
-                    >
-                      {sector.code} -{" "}
-                      {sector.name}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </>
-          ) : null}
-
-            <div className="flex items-end">
-              <Button
-                type="submit"
-                disabled={
-                  saving
-                }
-              >
-                <PlusCircle
-                  size={18}
-                />
-
-                {saving
-                  ? "Salvando..."
-                  : "Cadastrar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
+                      {unit.active ? (
+                        <ConfirmDialog
+                          title="Inativar unidade?"
+                          description={`A unidade ${unit.code} - ${unit.name} deixará de estar disponível para novos cadastros e movimentações de bens.`}
+                          confirmLabel="Inativar"
+                          onConfirm={() => handleToggleActive(unit)}
+                        >
+                          <Button
+                            type="button"
+                            aria-label={`Inativar ${unit.code}`}
+                            size="icon"
+                            title="Inativar"
+                            variant="quiet"
+                            disabled={saving}
+                          >
+                            <Prohibit aria-hidden="true" size={16} />
+                          </Button>
+                        </ConfirmDialog>
+                      ) : (
+                        <Button
+                          type="button"
+                          aria-label={`Ativar ${unit.code}`}
+                          size="icon"
+                          title="Ativar"
+                          variant="quiet"
+                          disabled={saving}
+                          onClick={() => void handleToggleActive(unit)}
+                        >
+                          <CheckCircle aria-hidden="true" size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </Card>
 
-      {editingUnit ? (
-        <Card>
-          <CardHeader>
-            <div>
-              <h2 className="font-medium">
-                Editar unidade organizacional
-              </h2>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !saving) closeDialog();
+        }}
+      >
+        <DialogContent
+          title={
+            editingUnit
+              ? "Editar unidade organizacional"
+              : "Nova unidade organizacional"
+          }
+          description={
+            editingUnit
+              ? "Atualize os dados da unidade organizacional."
+              : "Informe o tipo, o código e o nome da unidade organizacional."
+          }
+        >
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {dialogError ? (
+              <Alert tone="danger" title="Revise os dados informados">
+                {dialogError}
+              </Alert>
+            ) : null}
 
-              <p className="text-xs text-[var(--text-muted)]">
-                Atualize os dados da unidade organizacional.
-              </p>
-            </div>
-          </CardHeader>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Tipo" htmlFor="unit-type">
+                <Select
+                  id="unit-type"
+                  name="type"
+                  required
+                  options={typeOptions}
+                  value={form.type}
+                  onValueChange={(type) => {
+                    updateForm({
+                      type: type as OrganizationUnitType,
+                      parentId: "",
+                      departmentId: "",
+                    });
+                  }}
+                />
+              </FormField>
 
-          <CardContent>
-            <form
-              className="grid gap-4 sm:grid-cols-[180px_1fr_auto]"
-              onSubmit={
-                handleUpdate
-              }
-            >
-              <FormField
-              label="Tipo"
-              htmlFor="edit-type"
-            >
-              <select
-                id="edit-type"
-                value={editType}
-                onChange={(event) => {
-                  setEditType(
-                    event.target
-                      .value as OrganizationUnitType,
-                  );
-
-                  setEditParentId("");
-                  setEditDepartmentId("");
-                }}
-                className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-              >
-                <option value="department">
-                  Departamento
-                </option>
-
-                <option value="sector">
-                  Setor
-                </option>
-
-                <option value="subsector">
-                  Subsetor
-                </option>
-              </select>
-            </FormField>
-
-              <FormField
-                label="Código"
-                htmlFor="edit-code"
-              >
+              <FormField label="Código" htmlFor="code" error={fieldErrors.code}>
                 <Input
-                  id="edit-code"
-                  value={
-                    editCode
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setEditCode(
-                      event.target
-                        .value,
-                    )
-                  }
+                  id="code"
+                  name="code"
+                  required
+                  aria-invalid={Boolean(fieldErrors.code)}
+                  value={form.code}
+                  onChange={(event) => updateForm({ code: event.target.value })}
+                  placeholder="Ex.: DAF"
                 />
               </FormField>
 
               <FormField
                 label="Nome da unidade"
-                htmlFor="edit-name"
+                htmlFor="name"
+                error={fieldErrors.name}
+                className="sm:col-span-2"
               >
                 <Input
-                  id="edit-name"
-                  value={
-                    editName
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setEditName(
-                      event.target
-                        .value,
-                    )
-                  }
+                  id="name"
+                  name="name"
+                  required
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  value={form.name}
+                  onChange={(event) => updateForm({ name: event.target.value })}
+                  placeholder="Ex.: Diretoria Administrativa e Financeira"
                 />
               </FormField>
-              {editType === "sector" ? (
-              <FormField
-                label="Departamento"
-                htmlFor="edit-parent-department"
+
+              <ParentUnitFields
+                form={form}
+                units={units}
+                errors={fieldErrors}
+                onChange={updateForm}
+              />
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={saving}
+                onClick={closeDialog}
               >
-                <select
-                  id="edit-parent-department"
-                  value={editParentId}
-                  onChange={(event) =>
-                    setEditParentId(
-                      event.target.value,
-                    )
-                  }
-                  className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-                >
-                  <option value="">
-                    Selecione...
-                  </option>
+                Cancelar
+              </Button>
 
-                  {departments.map(
-                    (department) => (
-                      <option
-                        key={department.id}
-                        value={department.id}
-                      >
-                        {department.code} -{" "}
-                        {department.name}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </FormField>
-            ) : null}
-
-            {editType === "subsector" ? (
-  <>
-    <FormField
-      label="Departamento"
-      htmlFor="edit-subsector-department"
-    >
-      <select
-        id="edit-subsector-department"
-        value={editDepartmentId}
-        onChange={(event) => {
-          setEditDepartmentId(
-            event.target.value,
-          );
-
-          setEditParentId("");
-        }}
-        className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-      >
-        <option value="">
-          Selecione...
-        </option>
-
-        {departments.map(
-          (department) => (
-            <option
-              key={department.id}
-              value={department.id}
-            >
-              {department.code} -{" "}
-              {department.name}
-            </option>
-          ),
-        )}
-      </select>
-    </FormField>
-
-          <FormField
-            label="Setor"
-            htmlFor="edit-parent-sector"
-          >
-            <select
-              id="edit-parent-sector"
-              value={editParentId}
-              onChange={(event) =>
-                setEditParentId(
-                  event.target.value,
-                )
-              }
-              disabled={!editDepartmentId}
-              className="h-10 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
-            >
-              <option value="">
-                {editDepartmentId
-                  ? "Selecione..."
-                  : "Selecione primeiro o departamento"}
-              </option>
-
-              {units
-                .filter(
-                  (unit) =>
-                    unit.type === "sector" &&
-                    unit.active &&
-                    unit.parentId ===
-                      editDepartmentId,
-                )
-                .map((sector) => (
-                  <option
-                    key={sector.id}
-                    value={sector.id}
-                  >
-                    {sector.code} -{" "}
-                    {sector.name}
-                  </option>
-                ))}
-            </select>
-          </FormField>
-        </>
-      ) : null}
-
-              <div className="flex items-end gap-2">
-                <Button
-                  type="submit"
-                  disabled={
-                    saving
-                  }
-                >
-                  {saving
-                    ? "Salvando..."
-                    : "Salvar"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={
-                    saving
-                  }
-                  onClick={
-                    cancelEdit
-                  }
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <div>
-            <h2 className="font-medium">
-              Unidades organizacionais cadastradas
-            </h2>
-
-            <p className="text-xs text-[var(--text-muted)]">
-              Departamentos, setores e subsetores disponíveis para utilização no cadastro dos bens.
-            </p>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              Carregando unidades organizacionais...
-            </p>
-          ) : units.length ===
-            0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              Nenhuma unidade organizacional cadastrada.
-            </p>
-          ) : (
-            <Table>
-              <thead>
-                <TableRow>
-                  <TableHead>
-                    Código
-                  </TableHead>
-
-                  <TableHead>
-                    Nome
-                  </TableHead>
-
-                  <TableHead>
-                    Tipo
-                  </TableHead>
-
-                  <TableHead>
-                    Vinculado a
-                  </TableHead>
-
-                  <TableHead>
-                    Situação
-                  </TableHead>
-
-                  <TableHead>
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </thead>
-
-              <tbody>
-                {units.map(
-                  (unit) => (
-                    <TableRow
-                      key={
-                        unit.id
-                      }
-                    >
-                  <TableCell>
-                    <strong>
-                      {unit.code}
-                    </strong>
-                  </TableCell>
-
-                  <TableCell>
-                    {unit.name}
-                  </TableCell>
-
-                  <TableCell>
-                    {getUnitTypeLabel(
-                      unit.type,
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {getParentLabel(
-                      unit,
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {unit.active
-                      ? "Ativo"
-                      : "Inativo"}
-                  </TableCell>
-
-                      <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          disabled={saving}
-                          onClick={() =>
-                            startEdit(
-                              unit,
-                            )
-                          }
-                        >
-                          <PencilSimple
-                            size={16}
-                          />
-
-                          Editar
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          disabled={saving}
-                          onClick={() =>
-                            void handleToggleActive(
-                              unit,
-                            )
-                          }
-                        >
-                          {unit.active ? (
-                            <>
-                              <Prohibit
-                                size={16}
-                              />
-
-                              Inativar
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle
-                                size={16}
-                              />
-
-                              Ativar
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    </TableRow>
-                  ),
-                )}
-              </tbody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Salvando..." : editingUnit ? "Salvar" : "Cadastrar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

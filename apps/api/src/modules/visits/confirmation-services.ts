@@ -1,34 +1,16 @@
-import {
-  createHash,
-  randomBytes,
-} from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
-import {
-  and,
-  eq,
-} from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import type {
-  VisitorConfirmationResponse,
-} from "@cge/contracts";
+import type { VisitorConfirmationResponse } from "@cge/contracts";
 
-import type {
-  Database,
-} from "../../db/client.js";
+import type { Database } from "../../db/client.js";
 
-import {
-  auditEvents,
-} from "../audit/schema.js";
+import { auditEvents } from "../audit/schema.js";
 
-import {
-  visitVisitors,
-  visits,
-} from "./schema.js";
+import { visitVisitors, visits } from "./schema.js";
 
-import {
-  buildConfirmationUrl,
-  sendVisitConfirmationMail,
-} from "./mail.js";
+import { buildConfirmationUrl, sendVisitConfirmationMail } from "./mail.js";
 
 /* =========================================================
  * SERVICE DE CONFIRMAÇÃO
@@ -47,39 +29,26 @@ import {
  * ======================================================= */
 
 export class VisitConfirmationService {
-  constructor(
-    private readonly db:
-      Database,
-  ) {}
+  constructor(private readonly db: Database) {}
 
   /* =======================================================
    * ENVIAR CONVITE PARA UM VISITANTE
    * ===================================================== */
 
   async send(
-    visitId:
-      string,
+    visitId: string,
 
-    visitorId:
-      string,
+    visitorId: string,
   ) {
-    const record =
-      await this.getVisitVisitor(
-        visitId,
-        visitorId,
-      );
+    const record = await this.getVisitVisitor(visitId, visitorId);
 
-    const visitorEmail =
-      record.email
-        ?.trim();
+    const visitorEmail = record.email?.trim();
 
     /* =====================================================
      * VALIDAR E-MAIL
      * =================================================== */
 
-    if (
-      !visitorEmail
-    ) {
+    if (!visitorEmail) {
       throw new VisitConfirmationError(
         "VISITOR_WITHOUT_EMAIL",
 
@@ -96,12 +65,7 @@ export class VisitConfirmationService {
      * visitante.
      * =================================================== */
 
-    const token =
-      randomBytes(
-        32,
-      ).toString(
-        "hex",
-      );
+    const token = randomBytes(32).toString("hex");
 
     /* =====================================================
      * HASH DO TOKEN
@@ -109,10 +73,7 @@ export class VisitConfirmationService {
      * O banco NÃO armazena o token verdadeiro.
      * =================================================== */
 
-    const tokenHash =
-      hashToken(
-        token,
-      );
+    const tokenHash = hashToken(token);
 
     /* =====================================================
      * EXPIRAÇÃO
@@ -120,13 +81,9 @@ export class VisitConfirmationService {
      * Convite válido por 7 dias.
      * =================================================== */
 
-    const expiresAt =
-      new Date();
+    const expiresAt = new Date();
 
-    expiresAt.setDate(
-      expiresAt.getDate() +
-        7,
-    );
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     /* =====================================================
      * PREPARAR CONFIRMAÇÃO NO BANCO
@@ -139,36 +96,23 @@ export class VisitConfirmationService {
      * =================================================== */
 
     await this.db
-      .update(
-        visitVisitors,
-      )
+      .update(visitVisitors)
       .set({
-        confirmationStatus:
-          "pending",
+        confirmationStatus: "pending",
 
-        confirmationTokenHash:
-          tokenHash,
+        confirmationTokenHash: tokenHash,
 
-        confirmationSentAt:
-          new Date(),
+        confirmationSentAt: new Date(),
 
-        confirmationRespondedAt:
-          null,
+        confirmationRespondedAt: null,
 
-        confirmationExpiresAt:
-          expiresAt,
+        confirmationExpiresAt: expiresAt,
       })
       .where(
         and(
-          eq(
-            visitVisitors.id,
-            visitorId,
-          ),
+          eq(visitVisitors.id, visitorId),
 
-          eq(
-            visitVisitors.visitId,
-            visitId,
-          ),
+          eq(visitVisitors.visitId, visitId),
         ),
       );
 
@@ -176,66 +120,45 @@ export class VisitConfirmationService {
      * URL PÚBLICA
      * =================================================== */
 
-    const confirmationUrl =
-      buildConfirmationUrl(
-        token,
-      );
+    const confirmationUrl = buildConfirmationUrl(token);
 
     /* =====================================================
      * ENVIAR E-MAIL
      * =================================================== */
 
     try {
-      const mailResult =
-        await sendVisitConfirmationMail({
-          visitorName:
-            record.visitorName,
+      const mailResult = await sendVisitConfirmationMail({
+        visitorName: record.visitorName,
 
-          visitorEmail,
+        visitorEmail,
 
-          protocol:
-            record.protocol,
+        protocol: record.protocol,
 
-          subject:
-            record.subject,
+        subject: record.subject,
 
-          scheduledDate:
-            record.scheduledDate,
+        scheduledDate: record.scheduledDate,
 
-          startTime:
-            normalizeTime(
-              record.startTime,
-            ),
+        startTime: normalizeTime(record.startTime),
 
-          endTime:
-            normalizeTime(
-              record.endTime,
-            ),
+        endTime: normalizeTime(record.endTime),
 
-          location:
-            record.location,
+        location: record.location,
 
-          confirmationUrl,
-        });
+        confirmationUrl,
+      });
 
       return {
         visitorId,
 
-        email:
-          visitorEmail,
+        email: visitorEmail,
 
-        sent:
-          true,
+        sent: true,
 
-        confirmationStatus:
-          "pending" as const,
+        confirmationStatus: "pending" as const,
 
-        messageId:
-          mailResult.messageId,
+        messageId: mailResult.messageId,
       };
-    } catch (
-      cause
-    ) {
+    } catch (cause) {
       /* ===================================================
        * FALHA DE SMTP
        *
@@ -249,37 +172,24 @@ export class VisitConfirmationService {
        * ================================================= */
 
       await this.db
-        .update(
-          visitVisitors,
-        )
+        .update(visitVisitors)
         .set({
-          confirmationStatus:
-            "not_sent",
+          confirmationStatus: "not_sent",
 
-          confirmationTokenHash:
-            null,
+          confirmationTokenHash: null,
 
-          confirmationSentAt:
-            null,
+          confirmationSentAt: null,
 
-          confirmationRespondedAt:
-            null,
+          confirmationRespondedAt: null,
 
-          confirmationExpiresAt:
-            null,
+          confirmationExpiresAt: null,
         })
-        .where(
-          eq(
-            visitVisitors.id,
-            visitorId,
-          ),
-        );
+        .where(eq(visitVisitors.id, visitorId));
 
       throw new VisitConfirmationError(
         "CONFIRMATION_EMAIL_FAILED",
 
-        cause instanceof
-          Error
+        cause instanceof Error
           ? `Falha ao enviar e-mail: ${cause.message}`
           : "Falha ao enviar o e-mail de confirmação.",
 
@@ -298,70 +208,42 @@ export class VisitConfirmationService {
    * onde temos o usuário autenticado responsável.
    * ===================================================== */
 
-  async sendForVisit(
-    visitId:
-      string,
-  ) {
-    const visitors =
-      await this.db
-        .select({
-          id:
-            visitVisitors.id,
+  async sendForVisit(visitId: string) {
+    const visitors = await this.db
+      .select({
+        id: visitVisitors.id,
 
-          email:
-            visitVisitors.email,
-        })
-        .from(
-          visitVisitors,
-        )
-        .where(
-          eq(
-            visitVisitors.visitId,
-            visitId,
-          ),
-        );
+        email: visitVisitors.email,
+      })
+      .from(visitVisitors)
+      .where(eq(visitVisitors.visitId, visitId));
 
     const results: Array<{
-      visitorId:
-        string;
+      visitorId: string;
 
-      email:
-        string | null;
+      email: string | null;
 
-      sent:
-        boolean;
+      sent: boolean;
 
-      error?:
-        string;
+      error?: string;
     }> = [];
 
-    for (
-      const visitor of
-        visitors
-    ) {
-      const email =
-        visitor.email
-          ?.trim();
+    for (const visitor of visitors) {
+      const email = visitor.email?.trim();
 
       /* ===================================================
        * SEM E-MAIL
        * ================================================= */
 
-      if (
-        !email
-      ) {
+      if (!email) {
         results.push({
-          visitorId:
-            visitor.id,
+          visitorId: visitor.id,
 
-          email:
-            null,
+          email: null,
 
-          sent:
-            false,
+          sent: false,
 
-          error:
-            "Visitante sem e-mail cadastrado.",
+          error: "Visitante sem e-mail cadastrado.",
         });
 
         continue;
@@ -372,37 +254,24 @@ export class VisitConfirmationService {
        * ================================================= */
 
       try {
-        await this.send(
-          visitId,
-          visitor.id,
-        );
+        await this.send(visitId, visitor.id);
 
         results.push({
-          visitorId:
-            visitor.id,
+          visitorId: visitor.id,
 
           email,
 
-          sent:
-            true,
+          sent: true,
         });
-      } catch (
-        cause
-      ) {
+      } catch (cause) {
         results.push({
-          visitorId:
-            visitor.id,
+          visitorId: visitor.id,
 
           email,
 
-          sent:
-            false,
+          sent: false,
 
-          error:
-            cause instanceof
-              Error
-              ? cause.message
-              : "Falha no envio.",
+          error: cause instanceof Error ? cause.message : "Falha no envio.",
         });
       }
     }
@@ -418,18 +287,10 @@ export class VisitConfirmationService {
    * /confirmar-visita?token=...
    * ===================================================== */
 
-  async getPublic(
-    token:
-      string,
-  ) {
-    const record =
-      await this.findByToken(
-        token,
-      );
+  async getPublic(token: string) {
+    const record = await this.findByToken(token);
 
-    await this.ensureNotExpired(
-      record,
-    );
+    await this.ensureNotExpired(record);
 
     /* =====================================================
      * DADOS PÚBLICOS
@@ -444,36 +305,23 @@ export class VisitConfirmationService {
      * =================================================== */
 
     return {
-      visitorName:
-        record.visitorName,
+      visitorName: record.visitorName,
 
-      organization:
-        record.organization,
+      organization: record.organization,
 
-      protocol:
-        record.protocol,
+      protocol: record.protocol,
 
-      subject:
-        record.subject,
+      subject: record.subject,
 
-      scheduledDate:
-        record.scheduledDate,
+      scheduledDate: record.scheduledDate,
 
-      startTime:
-        normalizeTime(
-          record.startTime,
-        ),
+      startTime: normalizeTime(record.startTime),
 
-      endTime:
-        normalizeTime(
-          record.endTime,
-        ),
+      endTime: normalizeTime(record.endTime),
 
-      location:
-        record.location,
+      location: record.location,
 
-      status:
-        record.confirmationStatus,
+      status: record.confirmationStatus,
     };
   }
 
@@ -514,28 +362,21 @@ export class VisitConfirmationService {
    * ===================================================== */
 
   async respond(
-    token:
-      string,
+    token: string,
 
-    input:
-      VisitorConfirmationResponse,
+    input: VisitorConfirmationResponse,
   ) {
     /* =====================================================
      * ENCONTRAR REGISTRO PELO HASH
      * =================================================== */
 
-    const record =
-      await this.findByToken(
-        token,
-      );
+    const record = await this.findByToken(token);
 
     /* =====================================================
      * VALIDAR EXPIRAÇÃO
      * =================================================== */
 
-    await this.ensureNotExpired(
-      record,
-    );
+    await this.ensureNotExpired(record);
 
     /* =====================================================
      * IDEMPOTÊNCIA
@@ -548,44 +389,32 @@ export class VisitConfirmationService {
      * =================================================== */
 
     if (
-      record.confirmationStatus ===
-        "confirmed" ||
-      record.confirmationStatus ===
-        "declined"
+      record.confirmationStatus === "confirmed" ||
+      record.confirmationStatus === "declined"
     ) {
       return {
-        success:
-          true,
+        success: true,
 
-        alreadyResponded:
-          true,
+        alreadyResponded: true,
 
-        confirmationStatus:
-          record.confirmationStatus,
+        confirmationStatus: record.confirmationStatus,
 
-        visitStatus:
-          record.visitStatus,
+        visitStatus: record.visitStatus,
 
-        protocol:
-          record.protocol,
+        protocol: record.protocol,
 
-        visitorName:
-          record.visitorName,
+        visitorName: record.visitorName,
       };
     }
 
-    const now =
-      new Date();
+    const now = new Date();
 
     /* =====================================================
      * STATUS SOLICITADO
      * =================================================== */
 
     const requestedVisitStatus =
-      input.response ===
-      "confirmed"
-        ? "scheduled"
-        : "rejected";
+      input.response === "confirmed" ? "scheduled" : "rejected";
 
     /* =====================================================
      * PROTEGER STATUS OPERACIONAIS
@@ -600,27 +429,22 @@ export class VisitConfirmationService {
      * não retornamos a visita para scheduled/rejected.
      * =================================================== */
 
-    const statusIsProtected =
-      [
-        "in_progress",
-        "completed",
-        "cancelled",
-      ].includes(
-        record.visitStatus,
-      );
+    const statusIsProtected = [
+      "in_progress",
+      "completed",
+      "cancelled",
+    ].includes(record.visitStatus);
 
-    const resultingVisitStatus =
-      statusIsProtected
-        ? record.visitStatus
-        : requestedVisitStatus;
+    const resultingVisitStatus = statusIsProtected
+      ? record.visitStatus
+      : requestedVisitStatus;
 
     /* =====================================================
      * EVENTO DE AUDITORIA
      * =================================================== */
 
     const auditAction =
-      input.response ===
-      "confirmed"
+      input.response === "confirmed"
         ? "visit.visitor-confirmed"
         : "visit.visitor-declined";
 
@@ -636,148 +460,101 @@ export class VisitConfirmationService {
      * Se qualquer etapa falhar, tudo será revertido.
      * =================================================== */
 
-    await this.db.transaction(
-      async (
-        tx,
-      ) => {
-        /* =================================================
-         * ATUALIZAR VISITANTE
-         * =============================================== */
+    await this.db.transaction(async (tx) => {
+      /* =================================================
+       * ATUALIZAR VISITANTE
+       * =============================================== */
 
+      await tx
+        .update(visitVisitors)
+        .set({
+          confirmationStatus: input.response,
+
+          confirmationRespondedAt: now,
+        })
+        .where(eq(visitVisitors.id, record.visitorId));
+
+      /* =================================================
+       * ATUALIZAR VISITA
+       * =============================================== */
+
+      if (!statusIsProtected) {
         await tx
-          .update(
-            visitVisitors,
-          )
+          .update(visits)
           .set({
-            confirmationStatus:
-              input.response,
+            status: requestedVisitStatus,
 
-            confirmationRespondedAt:
-              now,
+            updatedAt: now,
           })
-          .where(
-            eq(
-              visitVisitors.id,
-              record.visitorId,
-            ),
-          );
+          .where(eq(visits.id, record.visitId));
+      }
 
-        /* =================================================
-         * ATUALIZAR VISITA
-         * =============================================== */
+      /* =================================================
+       * AUDITORIA CORPORATIVA
+       *
+       * actorAccountId = null
+       *
+       * porque a resposta é feita por uma pessoa externa,
+       * sem uma sessão autenticada da Intranet.
+       *
+       * NÃO registramos:
+       *
+       * - token;
+       * - hash;
+       * - e-mail;
+       * - telefone;
+       * - CPF.
+       * =============================================== */
 
-        if (
-          !statusIsProtected
-        ) {
-          await tx
-            .update(
-              visits,
-            )
-            .set({
-              status:
-                requestedVisitStatus,
+      await tx.insert(auditEvents).values({
+        actorAccountId: null,
 
-              updatedAt:
-                now,
-            })
-            .where(
-              eq(
-                visits.id,
-                record.visitId,
-              ),
-            );
-        }
+        action: auditAction,
 
-        /* =================================================
-         * AUDITORIA CORPORATIVA
-         *
-         * actorAccountId = null
-         *
-         * porque a resposta é feita por uma pessoa externa,
-         * sem uma sessão autenticada da Intranet.
-         *
-         * NÃO registramos:
-         *
-         * - token;
-         * - hash;
-         * - e-mail;
-         * - telefone;
-         * - CPF.
-         * =============================================== */
+        objectType: "visit",
 
-        await tx
-          .insert(
-            auditEvents,
-          )
-          .values({
-            actorAccountId:
-              null,
+        objectId: record.visitId,
 
-            action:
-              auditAction,
+        outcome: "success",
 
-            objectType:
-              "visit",
+        metadata: {
+          protocol: record.protocol,
 
-            objectId:
-              record.visitId,
+          visitId: record.visitId,
 
-            outcome:
-              "success",
+          visitorId: record.visitorId,
 
-            metadata: {
-              protocol:
-                record.protocol,
+          response: input.response,
 
-              visitId:
-                record.visitId,
+          previousVisitStatus: record.visitStatus,
 
-              visitorId:
-                record.visitorId,
+          resultingVisitStatus,
 
-              response:
-                input.response,
+          scheduledDate: record.scheduledDate,
 
-              previousVisitStatus:
-                record.visitStatus,
+          location: record.location,
 
-              resultingVisitStatus,
-
-              scheduledDate:
-                record.scheduledDate,
-
-              location:
-                record.location,
-
-              source:
-                "public-confirmation",
-            },
-          });
-      },
-    );
+          source: "public-confirmation",
+        },
+      });
+    });
 
     /* =====================================================
      * RESPOSTA PARA O FRONTEND PÚBLICO
      * =================================================== */
 
     return {
-      success:
-        true,
+      success: true,
 
-      alreadyResponded:
-        false,
+      alreadyResponded: false,
 
-      confirmationStatus:
-        input.response,
+      confirmationStatus: input.response,
 
-      visitStatus:
-        resultingVisitStatus,
+      visitStatus: resultingVisitStatus,
 
-      protocol:
-        record.protocol,
+      protocol: record.protocol,
 
-      visitorName:
-        record.visitorName,
+      visitorName: record.visitorName,
     };
   }
 
@@ -788,78 +565,48 @@ export class VisitConfirmationService {
    * ===================================================== */
 
   private async getVisitVisitor(
-    visitId:
-      string,
+    visitId: string,
 
-    visitorId:
-      string,
+    visitorId: string,
   ) {
-    const [
-      record,
-    ] =
-      await this.db
-        .select({
-          visitorId:
-            visitVisitors.id,
+    const [record] = await this.db
+      .select({
+        visitorId: visitVisitors.id,
 
-          visitorName:
-            visitVisitors.name,
+        visitorName: visitVisitors.name,
 
-          email:
-            visitVisitors.email,
+        email: visitVisitors.email,
 
-          organization:
-            visitVisitors.organization,
+        organization: visitVisitors.organization,
 
-          protocol:
-            visits.protocol,
+        protocol: visits.protocol,
 
-          subject:
-            visits.subject,
+        subject: visits.subject,
 
-          scheduledDate:
-            visits.scheduledDate,
+        scheduledDate: visits.scheduledDate,
 
-          startTime:
-            visits.startTime,
+        startTime: visits.startTime,
 
-          endTime:
-            visits.endTime,
+        endTime: visits.endTime,
 
-          location:
-            visits.location,
-        })
-        .from(
-          visitVisitors,
-        )
-        .innerJoin(
-          visits,
+        location: visits.location,
+      })
+      .from(visitVisitors)
+      .innerJoin(
+        visits,
 
-          eq(
-            visitVisitors.visitId,
-            visits.id,
-          ),
-        )
-        .where(
-          and(
-            eq(
-              visits.id,
-              visitId,
-            ),
+        eq(visitVisitors.visitId, visits.id),
+      )
+      .where(
+        and(
+          eq(visits.id, visitId),
 
-            eq(
-              visitVisitors.id,
-              visitorId,
-            ),
-          ),
-        )
-        .limit(
-          1,
-        );
+          eq(visitVisitors.id, visitorId),
+        ),
+      )
+      .limit(1);
 
-    if (
-      !record
-    ) {
+    if (!record) {
       throw new VisitConfirmationError(
         "VISITOR_NOT_FOUND",
 
@@ -880,25 +627,18 @@ export class VisitConfirmationService {
    * armazenado no banco.
    * ===================================================== */
 
-  private async findByToken(
-    token:
-      string,
-  ) {
+  private async findByToken(token: string) {
     /* =====================================================
      * NORMALIZAR
      * =================================================== */
 
-    const normalizedToken =
-      token.trim();
+    const normalizedToken = token.trim();
 
     /* =====================================================
      * VALIDAÇÃO BÁSICA
      * =================================================== */
 
-    if (
-      normalizedToken.length <
-      32
-    ) {
+    if (normalizedToken.length < 32) {
       throw new VisitConfirmationError(
         "INVALID_CONFIRMATION_TOKEN",
 
@@ -912,87 +652,54 @@ export class VisitConfirmationService {
      * HASH
      * =================================================== */
 
-    const tokenHash =
-      hashToken(
-        normalizedToken,
-      );
+    const tokenHash = hashToken(normalizedToken);
 
     /* =====================================================
      * CONSULTA
      * =================================================== */
 
-    const [
-      record,
-    ] =
-      await this.db
-        .select({
-          visitorId:
-            visitVisitors.id,
+    const [record] = await this.db
+      .select({
+        visitorId: visitVisitors.id,
 
-          visitId:
-            visitVisitors.visitId,
+        visitId: visitVisitors.visitId,
 
-          visitorName:
-            visitVisitors.name,
+        visitorName: visitVisitors.name,
 
-          organization:
-            visitVisitors.organization,
+        organization: visitVisitors.organization,
 
-          confirmationStatus:
-            visitVisitors.confirmationStatus,
+        confirmationStatus: visitVisitors.confirmationStatus,
 
-          confirmationExpiresAt:
-            visitVisitors.confirmationExpiresAt,
+        confirmationExpiresAt: visitVisitors.confirmationExpiresAt,
 
-          protocol:
-            visits.protocol,
+        protocol: visits.protocol,
 
-          subject:
-            visits.subject,
+        subject: visits.subject,
 
-          scheduledDate:
-            visits.scheduledDate,
+        scheduledDate: visits.scheduledDate,
 
-          startTime:
-            visits.startTime,
+        startTime: visits.startTime,
 
-          endTime:
-            visits.endTime,
+        endTime: visits.endTime,
 
-          location:
-            visits.location,
+        location: visits.location,
 
-          visitStatus:
-            visits.status,
-        })
-        .from(
-          visitVisitors,
-        )
-        .innerJoin(
-          visits,
+        visitStatus: visits.status,
+      })
+      .from(visitVisitors)
+      .innerJoin(
+        visits,
 
-          eq(
-            visitVisitors.visitId,
-            visits.id,
-          ),
-        )
-        .where(
-          eq(
-            visitVisitors.confirmationTokenHash,
-            tokenHash,
-          ),
-        )
-        .limit(
-          1,
-        );
+        eq(visitVisitors.visitId, visits.id),
+      )
+      .where(eq(visitVisitors.confirmationTokenHash, tokenHash))
+      .limit(1);
 
     /* =====================================================
      * TOKEN NÃO ENCONTRADO
      * =================================================== */
 
-    if (
-      !record
-    ) {
+    if (!record) {
       throw new VisitConfirmationError(
         "INVALID_CONFIRMATION_TOKEN",
 
@@ -1012,37 +719,26 @@ export class VisitConfirmationService {
    * registra visit.confirmation-expired na Auditoria.
    * ===================================================== */
 
-  private async ensureNotExpired(
-    record: {
-      visitorId:
-        string;
+  private async ensureNotExpired(record: {
+    visitorId: string;
 
-      visitId?:
-        string;
+    visitId?: string;
 
-      protocol?:
-        string;
+    protocol?: string;
 
-      scheduledDate?:
-        string;
+    scheduledDate?: string;
 
-      location?:
-        string;
+    location?: string;
 
-      confirmationStatus:
-        string;
+    confirmationStatus: string;
 
-      confirmationExpiresAt:
-        Date | null;
-    },
-  ) {
+    confirmationExpiresAt: Date | null;
+  }) {
     /* =====================================================
      * SEM DATA DE EXPIRAÇÃO
      * =================================================== */
 
-    if (
-      !record.confirmationExpiresAt
-    ) {
+    if (!record.confirmationExpiresAt) {
       throw new VisitConfirmationError(
         "CONFIRMATION_WITHOUT_EXPIRATION",
 
@@ -1056,11 +752,7 @@ export class VisitConfirmationService {
      * AINDA VÁLIDO
      * =================================================== */
 
-    if (
-      record.confirmationExpiresAt
-        .getTime() >=
-      Date.now()
-    ) {
+    if (record.confirmationExpiresAt.getTime() >= Date.now()) {
       return;
     }
 
@@ -1074,91 +766,56 @@ export class VisitConfirmationService {
      * não gera vários eventos iguais.
      * =================================================== */
 
-    if (
-      record.confirmationStatus ===
-      "pending"
-    ) {
-      await this.db.transaction(
-        async (
-          tx,
-        ) => {
-          /* ===============================================
-           * VISITANTE
-           * ============================================= */
+    if (record.confirmationStatus === "pending") {
+      await this.db.transaction(async (tx) => {
+        /* ===============================================
+         * VISITANTE
+         * ============================================= */
 
-          await tx
-            .update(
-              visitVisitors,
-            )
-            .set({
-              confirmationStatus:
-                "expired",
-            })
-            .where(
-              eq(
-                visitVisitors.id,
-                record.visitorId,
-              ),
-            );
+        await tx
+          .update(visitVisitors)
+          .set({
+            confirmationStatus: "expired",
+          })
+          .where(eq(visitVisitors.id, record.visitorId));
 
-          /* ===============================================
-           * AUDITORIA
-           *
-           * Só registramos se temos visitId.
-           *
-           * getPublic/respond usam findByToken(), portanto
-           * normalmente esses dados estarão disponíveis.
-           * ============================================= */
+        /* ===============================================
+         * AUDITORIA
+         *
+         * Só registramos se temos visitId.
+         *
+         * getPublic/respond usam findByToken(), portanto
+         * normalmente esses dados estarão disponíveis.
+         * ============================================= */
 
-          if (
-            record.visitId
-          ) {
-            await tx
-              .insert(
-                auditEvents,
-              )
-              .values({
-                actorAccountId:
-                  null,
+        if (record.visitId) {
+          await tx.insert(auditEvents).values({
+            actorAccountId: null,
 
-                action:
-                  "visit.confirmation-expired",
+            action: "visit.confirmation-expired",
 
-                objectType:
-                  "visit-confirmation",
+            objectType: "visit-confirmation",
 
-                objectId:
-                  record.visitId,
+            objectId: record.visitId,
 
-                outcome:
-                  "success",
+            outcome: "success",
 
-                metadata: {
-                  visitId:
-                    record.visitId,
+            metadata: {
+              visitId: record.visitId,
 
-                  visitorId:
-                    record.visitorId,
+              visitorId: record.visitorId,
 
-                  protocol:
-                    record.protocol ??
-                    null,
+              protocol: record.protocol ?? null,
 
-                  scheduledDate:
-                    record.scheduledDate ??
-                    null,
+              scheduledDate: record.scheduledDate ?? null,
 
-                  location:
-                    record.location ??
-                    null,
+              location: record.location ?? null,
 
-                  source:
-                    "confirmation-expiration",
-                },
-              });
-          }
-        },
-      );
+              source: "confirmation-expiration",
+            },
+          });
+        }
+      });
     }
 
     throw new VisitConfirmationError(
@@ -1175,24 +832,17 @@ export class VisitConfirmationService {
  * ERRO DO DOMÍNIO
  * ======================================================= */
 
-export class VisitConfirmationError
-  extends Error {
+export class VisitConfirmationError extends Error {
   constructor(
-    readonly code:
-      string,
+    readonly code: string,
 
-    message:
-      string,
+    message: string,
 
-    readonly statusCode:
-      number,
+    readonly statusCode: number,
   ) {
-    super(
-      message,
-    );
+    super(message);
 
-    this.name =
-      "VisitConfirmationError";
+    this.name = "VisitConfirmationError";
   }
 }
 
@@ -1204,31 +854,14 @@ export class VisitConfirmationError
  * O token verdadeiro não é armazenado.
  * ======================================================= */
 
-function hashToken(
-  token:
-    string,
-) {
-  return createHash(
-    "sha256",
-  )
-    .update(
-      token,
-    )
-    .digest(
-      "hex",
-    );
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 /* =========================================================
  * NORMALIZAR HORÁRIO
  * ======================================================= */
 
-function normalizeTime(
-  value:
-    string,
-) {
-  return value.slice(
-    0,
-    5,
-  );
+function normalizeTime(value: string) {
+  return value.slice(0, 5);
 }
