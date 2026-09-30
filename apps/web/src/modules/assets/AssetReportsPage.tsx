@@ -72,6 +72,36 @@ type AssetReportResponse = {
   };
 };
 
+type MovementReportItem = {
+  id: string;
+  assetId: string;
+  patrimonyNumber: string | null;
+  description: string | null;
+  movementDate: string;
+  notes: string | null;
+
+  fromUnit: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+
+  toUnit: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+};
+
+type MovementReportResponse = {
+  movements:
+    MovementReportItem[];
+
+  summary: {
+    total: number;
+  };
+};
+
 function formatDateForSpreadsheet(
   value: string,
 ) {
@@ -153,6 +183,14 @@ export function AssetReportsPage() {
     null,
   );
 
+  const [
+  movementReport,
+  setMovementReport,
+  ] =
+  useState<MovementReportResponse | null>(
+    null,
+  );
+
   useEffect(() => {
   let cancelled = false;
 
@@ -160,6 +198,46 @@ export function AssetReportsPage() {
     try {
       setLoadingUnits(true);
       setUnitsError(null);
+
+          if (
+      reportType ===
+      "movements"
+    ) {
+      const params =
+        new URLSearchParams();
+
+      if (startDate) {
+        params.set(
+          "startDate",
+          startDate,
+        );
+      }
+
+      if (endDate) {
+        params.set(
+          "endDate",
+          endDate,
+        );
+      }
+
+      const queryString =
+        params.toString();
+
+      const result =
+        await api<MovementReportResponse>(
+          queryString
+            ? `/api/assets/reports/movements?${queryString}`
+            : "/api/assets/reports/movements",
+        );
+
+      setMovementReport(
+        result,
+      );
+      setMovementReport(null);
+      setReport(null);
+
+      return;
+    }
 
       const result =
         await api<
@@ -245,6 +323,48 @@ async function handleGenerateReport() {
   try {
     setLoadingReport(true);
     setReportError(null);
+
+    if (
+      reportType ===
+      "movements"
+    ) {
+      const params =
+        new URLSearchParams();
+
+      if (startDate) {
+        params.set(
+          "startDate",
+          startDate,
+        );
+      }
+
+      if (endDate) {
+        params.set(
+          "endDate",
+          endDate,
+        );
+      }
+
+      const queryString =
+        params.toString();
+
+      const result =
+        await api<MovementReportResponse>(
+          queryString
+            ? `/api/assets/reports/movements?${queryString}`
+            : "/api/assets/reports/movements",
+        );
+
+      setMovementReport(
+        result,
+      );
+
+      setMovementReport(null);
+
+      setReport(null);
+
+      return;
+    }
 
     const params =
       new URLSearchParams();
@@ -1472,8 +1592,11 @@ currentY += 7;
           <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
             Carregando relatório...
           </div>
-        ) : report ? (
+        ) :  report || movementReport ? (
           <>
+          {reportType !==
+        "movements" &&
+      report ? (
             <div className="mb-4 grid gap-4 md:grid-cols-2">
               <div className="rounded-md border p-4">
                 <p className="text-sm text-muted-foreground">
@@ -1503,337 +1626,265 @@ currentY += 7;
                 </p>
               </div>
             </div>
-
-            {report.assets.length === 0 ? (
-              <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Nenhum bem encontrado com os filtros informados.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                {reportType ===
-"inventory" ? (
-  <div className="overflow-x-auto">
-    <table className="w-full border-collapse text-sm">
-      <thead>
-        <tr className="border-b text-left">
-          <th className="px-3 py-3">
-            Patrimônio
-          </th>
-
-          <th className="px-3 py-3">
-            Descrição
-          </th>
-
-          <th className="px-3 py-3">
-            Localização
-          </th>
-
-          <th className="px-3 py-3">
-            Situação
-          </th>
-
-          <th className="px-3 py-3">
-            Conservação
-          </th>
-
-          <th className="px-3 py-3 text-right">
-            Valor
-          </th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {report.assets.map(
-          (asset) => (
-            <tr
-              key={asset.id}
-              className="border-b"
-            >
-              <td className="px-3 py-3">
-                {
-                  asset.patrimonyNumber
-                }
-              </td>
-
-              <td className="px-3 py-3">
-                {
-                  asset.description
-                }
-              </td>
-
-              <td className="px-3 py-3">
-                {asset.unitCode
-                  ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                  : "Não informado"}
-              </td>
-
-              <td className="px-3 py-3">
-                {asset.status ===
-                "active"
-                  ? "Ativo"
-                  : asset.status ===
-                      "maintenance"
-                    ? "Em manutenção"
-                    : "Baixado"}
-              </td>
-
-              <td className="px-3 py-3">
-                {asset.conservationStatus ??
-                  "Não informado"}
-              </td>
-
-              <td className="px-3 py-3 text-right">
-                {asset.acquisitionValue
-                  ? new Intl.NumberFormat(
-                      "pt-BR",
-                      {
-                        style:
-                          "currency",
-
-                        currency:
-                          "BRL",
-                      },
-                    ).format(
-                      Number(
-                        asset.acquisitionValue,
-                      ),
-                    )
-                  : "—"}
-              </td>
-            </tr>
-          ),
-        )}
-      </tbody>
-    </table>
-  </div>
 ) : null}
 
-{reportType ===
-"sector" ? (
-  <div className="overflow-x-auto">
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b text-left">
-          <th className="px-3 py-3">
-            Setor
-          </th>
 
-          <th className="px-3 py-3 text-right">
-            Quantidade
-          </th>
 
-          <th className="px-3 py-3 text-right">
-            Valor patrimonial
-          </th>
-        </tr>
-      </thead>
 
-      <tbody>
-        {assetsBySector.map(
-          (sector) => (
-            <tr
-              key={`${sector.code}-${sector.name}`}
-              className="border-b"
-            >
-              <td className="px-3 py-3">
-                <strong>
-                  {sector.code}
-                </strong>
-
-                {" - "}
-
-                {sector.name}
-              </td>
-
-              <td className="px-3 py-3 text-right">
-                {sector.total}
-              </td>
-
-              <td className="px-3 py-3 text-right">
-                {new Intl.NumberFormat(
-                  "pt-BR",
-                  {
-                    style:
-                      "currency",
-
-                    currency:
-                      "BRL",
-                  },
-                ).format(
-                  sector.totalValue,
-                )}
-              </td>
-            </tr>
-          ),
-        )}
-      </tbody>
-    </table>
-  </div>
-) : null}
-
-{reportType ===
-"status" ? (
-  <div className="grid gap-4 md:grid-cols-3">
-    {assetsByStatus.map(
-      (item) => (
-        <div
-          key={item.key}
-          className="rounded-md border p-5"
-        >
-          <p className="text-sm text-muted-foreground">
-            {item.label}
-          </p>
-
-          <p className="mt-2 text-3xl font-semibold">
-            {item.total}
-          </p>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            bens patrimoniais
-          </p>
-        </div>
-      ),
-    )}
-  </div>
-) : null}
-
-{reportType ===
-"conservation" ? (
-  <div className="overflow-x-auto">
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b text-left">
-          <th className="px-3 py-3">
-            Estado de conservação
-          </th>
-
-          <th className="px-3 py-3 text-right">
-            Quantidade
-          </th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {assetsByConservation.map(
-          (item) => (
-            <tr
-              key={item.status}
-              className="border-b"
-            >
-              <td className="px-3 py-3">
-                {item.status}
-              </td>
-
-              <td className="px-3 py-3 text-right">
-                {item.total}
-              </td>
-            </tr>
-          ),
-        )}
-      </tbody>
-    </table>
-  </div>
-) : null}
-
-{reportType ===
-"financial" ? (
-  <div className="space-y-5">
-    <div className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-md border p-5">
-        <p className="text-sm text-muted-foreground">
-          Bens considerados
-        </p>
-
-        <p className="mt-2 text-2xl font-semibold">
-          {report.summary.total}
-        </p>
-      </div>
-
-      <div className="rounded-md border p-5">
-        <p className="text-sm text-muted-foreground">
-          Valor patrimonial
-        </p>
-
-        <p className="mt-2 text-2xl font-semibold">
-          {new Intl.NumberFormat(
-            "pt-BR",
-            {
-              style:
-                "currency",
-
-              currency:
-                "BRL",
-            },
-          ).format(
-            report.summary.totalValue,
-          )}
-        </p>
-      </div>
-
-      <div className="rounded-md border p-5">
-        <p className="text-sm text-muted-foreground">
-          Valor médio
-        </p>
-
-        <p className="mt-2 text-2xl font-semibold">
-          {new Intl.NumberFormat(
-            "pt-BR",
-            {
-              style:
-                "currency",
-
-              currency:
-                "BRL",
-            },
-          ).format(
-            report.summary.total >
-              0
-              ? report.summary
-                  .totalValue /
-                  report.summary
-                    .total
-              : 0,
-          )}
-        </p>
-      </div>
+{reportType !==
+  "movements" &&
+report ? (
+  report.assets.length ===
+  0 ? (
+    <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+      Nenhum bem encontrado com os filtros informados.
     </div>
+  ) : (
+            <div className="overflow-x-auto">
+            {reportType === "inventory" ? (
+              <div>
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="px-3 py-3">
+                    Patrimônio
+                  </th>
 
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="px-3 py-3">
-              Setor
-            </th>
+                  <th className="px-3 py-3">
+                    Descrição
+                  </th>
 
-            <th className="px-3 py-3 text-right">
-              Bens
-            </th>
+                  <th className="px-3 py-3">
+                    Localização
+                  </th>
 
-            <th className="px-3 py-3 text-right">
-              Valor
-            </th>
-          </tr>
-        </thead>
+                  <th className="px-3 py-3">
+                    Situação
+                  </th>
 
-        <tbody>
-          {assetsBySector.map(
-            (sector) => (
-              <tr
-                key={`${sector.code}-${sector.name}-financial`}
-                className="border-b"
-              >
-                <td className="px-3 py-3">
-                  {sector.code}
-                  {" - "}
-                  {sector.name}
-                </td>
+                  <th className="px-3 py-3">
+                    Conservação
+                  </th>
 
-                <td className="px-3 py-3 text-right">
-                  {sector.total}
-                </td>
+                  <th className="px-3 py-3 text-right">
+                    Valor
+                  </th>
+                </tr>
+              </thead>
 
-                <td className="px-3 py-3 text-right">
+              <tbody>
+                {report.assets.map(
+                  (asset) => (
+                    <tr
+                      key={asset.id}
+                      className="border-b"
+                    >
+                      <td className="px-3 py-3">
+                        {
+                          asset.patrimonyNumber
+                        }
+                      </td>
+
+                      <td className="px-3 py-3">
+                        {
+                          asset.description
+                        }
+                      </td>
+
+                      <td className="px-3 py-3">
+                        {asset.unitCode
+                          ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                          : "Não informado"}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        {asset.status ===
+                        "active"
+                          ? "Ativo"
+                          : asset.status ===
+                              "maintenance"
+                            ? "Em manutenção"
+                            : "Baixado"}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        {asset.conservationStatus ??
+                          "Não informado"}
+                      </td>
+
+                      <td className="px-3 py-3 text-right">
+                        {asset.acquisitionValue
+                          ? new Intl.NumberFormat(
+                              "pt-BR",
+                              {
+                                style:
+                                  "currency",
+
+                                currency:
+                                  "BRL",
+                              },
+                            ).format(
+                              Number(
+                                asset.acquisitionValue,
+                              ),
+                            )
+                          : "—"}
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {reportType ===
+        "sector" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="px-3 py-3">
+                    Setor
+                  </th>
+
+                  <th className="px-3 py-3 text-right">
+                    Quantidade
+                  </th>
+
+                  <th className="px-3 py-3 text-right">
+                    Valor patrimonial
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {assetsBySector.map(
+                  (sector) => (
+                    <tr
+                      key={`${sector.code}-${sector.name}`}
+                      className="border-b"
+                    >
+                      <td className="px-3 py-3">
+                        <strong>
+                          {sector.code}
+                        </strong>
+
+                        {" - "}
+
+                        {sector.name}
+                      </td>
+
+                      <td className="px-3 py-3 text-right">
+                        {sector.total}
+                      </td>
+
+                      <td className="px-3 py-3 text-right">
+                        {new Intl.NumberFormat(
+                          "pt-BR",
+                          {
+                            style:
+                              "currency",
+
+                            currency:
+                              "BRL",
+                          },
+                        ).format(
+                          sector.totalValue,
+                        )}
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {reportType ===
+        "status" ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            {assetsByStatus.map(
+              (item) => (
+                <div
+                  key={item.key}
+                  className="rounded-md border p-5"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    {item.label}
+                  </p>
+
+                  <p className="mt-2 text-3xl font-semibold">
+                    {item.total}
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    bens patrimoniais
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        ) : null}
+
+        {reportType ===
+        "conservation" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="px-3 py-3">
+                    Estado de conservação
+                  </th>
+
+                  <th className="px-3 py-3 text-right">
+                    Quantidade
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {assetsByConservation.map(
+                  (item) => (
+                    <tr
+                      key={item.status}
+                      className="border-b"
+                    >
+                      <td className="px-3 py-3">
+                        {item.status}
+                      </td>
+
+                      <td className="px-3 py-3 text-right">
+                        {item.total}
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {reportType ===
+        "financial" ? (
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-md border p-5">
+                <p className="text-sm text-muted-foreground">
+                  Bens considerados
+                </p>
+
+                <p className="mt-2 text-2xl font-semibold">
+                  {report.summary.total}
+                </p>
+              </div>
+
+              <div className="rounded-md border p-5">
+                <p className="text-sm text-muted-foreground">
+                  Valor patrimonial
+                </p>
+
+                <p className="mt-2 text-2xl font-semibold">
                   {new Intl.NumberFormat(
                     "pt-BR",
                     {
@@ -1844,28 +1895,211 @@ currentY += 7;
                         "BRL",
                     },
                   ).format(
-                    sector.totalValue,
+                    report.summary.totalValue,
                   )}
-                </td>
-              </tr>
-            ),
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
+                </p>
+              </div>
+
+              <div className="rounded-md border p-5">
+                <p className="text-sm text-muted-foreground">
+                  Valor médio
+                </p>
+
+                <p className="mt-2 text-2xl font-semibold">
+                  {new Intl.NumberFormat(
+                    "pt-BR",
+                    {
+                      style:
+                        "currency",
+
+                      currency:
+                        "BRL",
+                    },
+                  ).format(
+                    report.summary.total >
+                      0
+                      ? report.summary
+                          .totalValue /
+                          report.summary
+                            .total
+                      : 0,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="px-3 py-3">
+                      Setor
+                    </th>
+
+                    <th className="px-3 py-3 text-right">
+                      Bens
+                    </th>
+
+                    <th className="px-3 py-3 text-right">
+                      Valor
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {assetsBySector.map(
+                    (sector) => (
+                      <tr
+                        key={`${sector.code}-${sector.name}-financial`}
+                        className="border-b"
+                      >
+                        <td className="px-3 py-3">
+                          {sector.code}
+                          {" - "}
+                          {sector.name}
+                        </td>
+
+                        <td className="px-3 py-3 text-right">
+                          {sector.total}
+                        </td>
+
+                        <td className="px-3 py-3 text-right">
+                          {new Intl.NumberFormat(
+                            "pt-BR",
+                            {
+                              style:
+                                "currency",
+
+                              currency:
+                                "BRL",
+                            },
+                          ).format(
+                            sector.totalValue,
+                          )}
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+ </div>
+  )
 ) : null}
 
-{reportType ===
-"movements" ? (
-  <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-    O relatório de movimentações será carregado
-    pelo histórico de movimentações patrimoniais.
-  </div>
-) : null}
 
+ {/* relatório de movimentações */}
+
+        {reportType ===
+          "movements" &&
+        movementReport ? (
+          <div className="space-y-4">
+            <div className="rounded-md border p-4">
+              <p className="text-sm text-muted-foreground">
+                Total de movimentações
+              </p>
+
+              <p className="mt-1 text-2xl font-semibold">
+                {
+                  movementReport
+                    .summary.total
+                }
+              </p>
+            </div>
+
+            {movementReport
+              .movements.length ===
+            0 ? (
+              <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Nenhuma movimentação encontrada.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="px-3 py-3">
+                        Data
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Patrimônio
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Descrição
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Origem
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Destino
+                      </th>
+
+                      <th className="px-3 py-3">
+                        Observação
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {movementReport
+                      .movements.map(
+                        (
+                          movement,
+                        ) => (
+                          <tr
+                            key={
+                              movement.id
+                            }
+                            className="border-b"
+                          >
+                            <td className="px-3 py-3">
+                              {formatDateForSpreadsheet(
+                                movement.movementDate,
+                              )}
+                            </td>
+
+                            <td className="px-3 py-3">
+                              {movement.patrimonyNumber ??
+                                "—"}
+                            </td>
+
+                            <td className="px-3 py-3">
+                              {movement.description ??
+                                "—"}
+                            </td>
+
+                            <td className="px-3 py-3">
+                              {movement.fromUnit
+                                ? `${movement.fromUnit.code} - ${movement.fromUnit.name}`
+                                : "Não informado"}
+                            </td>
+
+                            <td className="px-3 py-3">
+                              {movement.toUnit
+                                ? `${movement.toUnit.code} - ${movement.toUnit.name}`
+                                : "Não informado"}
+                            </td>
+
+                            <td className="px-3 py-3">
+                              {movement.notes ??
+                                "—"}
+                            </td>
+                          </tr>
+                        ),
+                      )}
+                  </tbody>
+                </table>
               </div>
             )}
+          </div>
+
+        ) : null}
           </>
         ) : (
           <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">

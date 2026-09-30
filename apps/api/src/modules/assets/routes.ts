@@ -184,6 +184,49 @@ typedApp.get(
             },
           );
 
+                  /* RELATÓRIO DE MOVIMENTAÇÕES */
+
+            typedApp.get(
+              "/api/assets/reports/movements",
+
+              {
+                schema: {
+                  querystring:
+                    z.object({
+                      startDate:
+                        z.string()
+                          .optional(),
+
+                      endDate:
+                        z.string()
+                          .optional(),
+                    }),
+                },
+              },
+
+              async (
+                request,
+                reply,
+              ) => {
+                const user =
+                  await requireAnyPermission(
+                    request,
+                    reply,
+                    options.authenticationService,
+                    "assets.read",
+                  );
+
+                if (!user) {
+                  return;
+                }
+
+                return options
+                  .assetService
+                  .getMovementReport(
+                    request.query,
+                  );
+              },
+            );
 
           /* CONSULTAR BEM */
 
@@ -764,5 +807,7 @@ typedApp.patch(
               };
         },
         );
+
+
 
   };

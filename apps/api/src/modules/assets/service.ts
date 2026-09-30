@@ -40,6 +40,200 @@ export class AssetService {
     private readonly db: Database,
   ) {}
 
+    async getMovementReport(query: {
+  startDate?: string;
+  endDate?: string;
+}) {
+  const conditions = [];
+
+  if (query.startDate) {
+    conditions.push(
+      gte(
+        assetMovements.movementDate,
+        query.startDate,
+      ),
+    );
+  }
+
+  if (query.endDate) {
+    conditions.push(
+      lte(
+        assetMovements.movementDate,
+        query.endDate,
+      ),
+    );
+  }
+
+  const where =
+    conditions.length > 0
+      ? and(...conditions)
+      : undefined;
+
+  const movementRows =
+    await this.db
+      .select({
+        id:
+          assetMovements.id,
+
+        assetId:
+          assetMovements.assetId,
+
+        fromUnitId:
+          assetMovements.fromUnitId,
+
+        toUnitId:
+          assetMovements.toUnitId,
+
+        movementDate:
+          assetMovements.movementDate,
+
+        notes:
+          assetMovements.notes,
+      })
+      .from(assetMovements)
+      .where(where)
+      .orderBy(
+        desc(
+          assetMovements.movementDate,
+        ),
+      );
+
+  const [
+    assetRows,
+    unitRows,
+  ] =
+    await Promise.all([
+      this.db
+        .select({
+          id:
+            assets.id,
+
+          patrimonyNumber:
+            assets.patrimonyNumber,
+
+          description:
+            assets.description,
+        })
+        .from(assets),
+
+      this.db
+        .select({
+          id:
+            organizationUnits.id,
+
+          code:
+            organizationUnits.code,
+
+          name:
+            organizationUnits.name,
+        })
+        .from(
+          organizationUnits,
+        ),
+    ]);
+
+  const assetById =
+    new Map(
+      assetRows.map(
+        (asset) => [
+          asset.id,
+          asset,
+        ],
+      ),
+    );
+
+  const unitById =
+    new Map(
+      unitRows.map(
+        (unit) => [
+          unit.id,
+          unit,
+        ],
+      ),
+    );
+
+  const movements =
+    movementRows.map(
+      (movement) => {
+        const asset =
+          assetById.get(
+            movement.assetId,
+          );
+
+        const fromUnit =
+          movement.fromUnitId
+            ? unitById.get(
+                movement.fromUnitId,
+              )
+            : null;
+
+        const toUnit =
+          unitById.get(
+            movement.toUnitId,
+          );
+
+        return {
+          id:
+            movement.id,
+
+          assetId:
+            movement.assetId,
+
+          patrimonyNumber:
+            asset?.patrimonyNumber ??
+            null,
+
+          description:
+            asset?.description ??
+            null,
+
+          movementDate:
+            movement.movementDate,
+
+          notes:
+            movement.notes,
+
+          fromUnit:
+            fromUnit
+              ? {
+                  id:
+                    fromUnit.id,
+
+                  code:
+                    fromUnit.code,
+
+                  name:
+                    fromUnit.name,
+                }
+              : null,
+
+          toUnit:
+            toUnit
+              ? {
+                  id:
+                    toUnit.id,
+
+                  code:
+                    toUnit.code,
+
+                  name:
+                    toUnit.name,
+                }
+              : null,
+        };
+      },
+    );
+
+  return {
+    movements,
+
+    summary: {
+      total:
+        movements.length,
+    },
+  };
+}
+
 async list(
   query: AssetListQuery,
 ) {
@@ -278,6 +472,8 @@ async list(
 
     totalPages,
   };
+
+
 }
 
     async getReport(query: {
