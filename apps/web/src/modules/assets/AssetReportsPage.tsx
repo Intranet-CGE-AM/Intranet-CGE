@@ -283,6 +283,62 @@ export function AssetReportsPage() {
     }
   }
 
+  const unitById = new Map(units.map((unit) => [unit.id, unit]));
+
+  // Subsector assets roll up into their parent sector.
+  function sectorOf(asset: ReportAsset) {
+    const unit = asset.unitId ? unitById.get(asset.unitId) : undefined;
+    const sector =
+      asset.unitType === "subsector" && unit?.parentId
+        ? unitById.get(unit.parentId)
+        : asset.unitType === "sector"
+          ? unit
+          : undefined;
+
+    return sector
+      ? { code: sector.code, name: sector.name }
+      : { code: "SEM SETOR", name: "Sem setor informado" };
+  }
+
+  const assetsBySector = (() => {
+    const groups = new Map<
+      string,
+      { code: string; name: string; total: number; totalValue: number }
+    >();
+
+    for (const asset of report?.assets ?? []) {
+      const sector = sectorOf(asset);
+      const key = `${sector.code}-${sector.name}`;
+      const group = groups.get(key) ?? { ...sector, total: 0, totalValue: 0 };
+
+      group.total += 1;
+      group.totalValue += Number(asset.acquisitionValue ?? 0);
+      groups.set(key, group);
+    }
+
+    return [...groups.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR"),
+    );
+  })();
+
+  const assetsByStatus = (
+    Object.keys(assetStatusMeta) as ReportAsset["status"][]
+  ).map((key) => ({
+    key,
+    label: assetStatusMeta[key].label,
+    total: report?.assets.filter((asset) => asset.status === key).length ?? 0,
+  }));
+
+  const assetsByConservation = [
+    ...(report?.assets ?? [])
+      .reduce((groups, asset) => {
+        const key = asset.conservationStatus ?? "Não informado";
+
+        return groups.set(key, (groups.get(key) ?? 0) + 1);
+      }, new Map<string, number>())
+      .entries(),
+  ].map(([label, total]) => ({ label, total }));
+
   function reportToExport() {
     if (!report) {
       setReportError("Gere o relatório antes de exportar.");
@@ -454,7 +510,40 @@ export function AssetReportsPage() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Inventário");
 
+    const unitLabel = (id: string) => {
+      const unit = unitById.get(id);
+
+      return unit ? `${unit.code} - ${unit.name}` : "Todos";
+    };
+
     const summaryRows = [
+      { Informação: "Tipo de relatório", Valor: reportTypeLabels[reportType] },
+
+      { Informação: "Departamento", Valor: unitLabel(departmentId) },
+
+      { Informação: "Setor", Valor: unitLabel(sectorId) },
+
+      { Informação: "Subsetor", Valor: unitLabel(subsectorId) },
+
+      {
+        Informação: "Situação",
+
+        Valor: status
+          ? assetStatusMeta[status as ReportAsset["status"]].label
+          : "Todas",
+      },
+
+      { Informação: "Conservação", Valor: conservationStatus || "Todas" },
+
+      {
+        Informação: "Período",
+
+        Valor:
+          startDate || endDate
+            ? `${startDate ? formatDateForSpreadsheet(startDate) : "Início"} até ${endDate ? formatDateForSpreadsheet(endDate) : "Hoje"}`
+            : "Todos",
+      },
+
       {
         Informação: "Quantidade de bens",
 
@@ -710,42 +799,182 @@ export function AssetReportsPage() {
                   </p>
                 </div>
               </CardHeader>
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHead>Patrimônio</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Localização</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Conservação</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.assets.map((asset) => (
-                    <TableRow key={asset.id}>
-                      <TableCell>{asset.patrimonyNumber}</TableCell>
-                      <TableCell>{asset.description}</TableCell>
-                      <TableCell>
-                        {asset.unitCode
-                          ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                          : "Não informado"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={assetStatusMeta[asset.status].variant}>
-                          {assetStatusMeta[asset.status].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {asset.conservationStatus ?? "Não informado"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(asset.acquisitionValue)}
-                      </TableCell>
-                    </TableRow>
+              {reportType === "inventory" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Patrimônio</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Localização</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead>Conservação</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.assets.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell>{asset.patrimonyNumber}</TableCell>
+                        <TableCell>{asset.description}</TableCell>
+                        <TableCell>
+                          {asset.unitCode
+                            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                            : "Não informado"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={assetStatusMeta[asset.status].variant}
+                          >
+                            {assetStatusMeta[asset.status].label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {asset.conservationStatus ?? "Não informado"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(asset.acquisitionValue)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "sector" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Setor</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">
+                        Valor patrimonial
+                      </TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assetsBySector.map((sector) => (
+                      <TableRow key={`${sector.code}-${sector.name}`}>
+                        <TableCell>
+                          {sector.code} - {sector.name}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {sector.total}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(sector.totalValue)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "status" ? (
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                  {assetsByStatus.map((item) => (
+                    <Card key={item.key}>
+                      <CardContent>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {item.label}
+                        </p>
+                        <p className="mt-1 text-2xl font-extrabold tabular-nums">
+                          {item.total}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                          bens patrimoniais
+                        </p>
+                      </CardContent>
+                    </Card>
                   ))}
-                </tbody>
-              </Table>
+                </CardContent>
+              ) : null}
+
+              {reportType === "conservation" ? (
+                <Table>
+                  <thead>
+                    <tr>
+                      <TableHead>Estado de conservação</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assetsByConservation.map((item) => (
+                      <TableRow key={item.label}>
+                        <TableCell>{item.label}</TableCell>
+                        <TableCell className="text-right">
+                          {item.total}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : null}
+
+              {reportType === "financial" ? (
+                <>
+                  <CardContent className="grid gap-4 sm:grid-cols-3">
+                    {[
+                      ["Bens considerados", String(report.summary.total)],
+                      [
+                        "Valor patrimonial",
+                        formatCurrency(report.summary.totalValue),
+                      ],
+                      [
+                        "Valor médio",
+                        formatCurrency(
+                          report.summary.total > 0
+                            ? report.summary.totalValue / report.summary.total
+                            : 0,
+                        ),
+                      ],
+                    ].map(([label, value]) => (
+                      <Card key={label}>
+                        <CardContent>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-2xl font-extrabold tabular-nums">
+                            {value}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </CardContent>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <TableHead>Setor</TableHead>
+                        <TableHead className="text-right">Bens</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assetsBySector.map((sector) => (
+                        <TableRow key={`${sector.code}-${sector.name}`}>
+                          <TableCell>
+                            {sector.code} - {sector.name}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {sector.total}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(sector.totalValue)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </tbody>
+                  </Table>
+                </>
+              ) : null}
+
+              {reportType === "movements" ? (
+                <CardContent>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    O relatório de movimentações será carregado pelo histórico
+                    de movimentações patrimoniais.
+                  </p>
+                </CardContent>
+              ) : null}
             </Card>
           )}
         </>
