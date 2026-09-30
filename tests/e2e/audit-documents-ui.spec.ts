@@ -686,3 +686,39 @@ test("Subcontroladoria e equipe editam o Word no navegador", async ({
       .getByText("Texto corrigido pela equipe"),
   ).toBeVisible();
 });
+
+test("clicar em qualquer célula da linha abre o documento", async ({
+  page,
+  playwright,
+  baseURL,
+}) => {
+  const title = `Linha clicável ${Date.now()}`;
+  const team = await apiSignIn(
+    playwright,
+    baseURL!,
+    auditAccounts.coordinatorA,
+  );
+  try {
+    const created = await createDocument(
+      team,
+      { unitId: await teamId(team, auditTeams.a), title },
+      pdfFile(),
+    );
+    expect(created.status()).toBe(201);
+    const doc = (await created.json()) as Doc;
+
+    await signIn(page, auditAccounts.coordinatorA);
+    await page.goto("/controle-interno/documentos");
+    await page.getByLabel("Buscar documentos").fill(title);
+    await page
+      .getByRole("row", { name: new RegExp(title) })
+      .getByText(auditTeams.a, { exact: true })
+      .click();
+    await expect(page).toHaveURL(
+      new RegExp(`/controle-interno/documentos/${doc.id}$`),
+    );
+    await act(team, doc, "cancel", "Encerrado pelo teste.");
+  } finally {
+    await team.dispose();
+  }
+});

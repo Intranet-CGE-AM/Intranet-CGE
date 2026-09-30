@@ -94,6 +94,7 @@ export const compareUrl = (
 
 export function AuditDocumentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab = (tabs.find((item) => item.key === params.get("tab"))?.key ??
     "in_review") as Tab;
@@ -401,6 +402,9 @@ export function AuditDocumentsPage() {
             itemLabel="documentos"
             onPageChange={(next) => update({ pagina: String(next) })}
             onPageSizeChange={() => undefined}
+            onRowClick={(document) =>
+              void navigate(`/controle-interno/documentos/${document.id}`)
+            }
             page={result.page}
             pageSize={result.pageSize}
             pageSizeOptions={[result.pageSize]}
