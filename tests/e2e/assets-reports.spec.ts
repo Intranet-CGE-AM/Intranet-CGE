@@ -2,10 +2,15 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { chooseOption, expect, test } from "./fixtures";
 
-// xlsx is a dependency of the web app only.
+// xlsx is a dependency of the web app only, so it has no types from here.
 const XLSX = createRequire(
   new URL("../../apps/web/package.json", import.meta.url),
-)("xlsx") as typeof import("xlsx");
+)("xlsx") as {
+  read(data: Buffer): { Sheets: Record<string, unknown> };
+  utils: {
+    sheet_to_json(sheet: unknown): Record<string, unknown>[];
+  };
+};
 
 test.use({ actionTimeout: 15000 });
 
@@ -144,9 +149,7 @@ test("exportações registram os filtros aplicados", async ({ page }) => {
   const xlsDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Exportar XLSX" }).click();
   const workbook = XLSX.read(readFileSync((await (await xlsDownload).path())!));
-  const summary = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    workbook.Sheets["Resumo"]!,
-  );
+  const summary = XLSX.utils.sheet_to_json(workbook.Sheets["Resumo"]!);
   const info = Object.fromEntries(
     summary.map((row) => [row["Informação"], row["Valor"]]),
   );
