@@ -5,13 +5,9 @@ import type {
   AssetMovementCreate,
   AssetUpdate,
 } from "@cge/contracts";
-
 import type { Database } from "../../db/client.js";
-
 import { assetDisposals, assetMovements, assets } from "./schema.js";
-
 import { organizationUnits } from "../people/schema.js";
-
 import {
   and,
   asc,
@@ -25,246 +21,108 @@ import {
   lte,
   or,
 } from "drizzle-orm";
-
 export class AssetService {
   constructor(private readonly db: Database) {}
-
-<<<<<<< HEAD
-    async getMovementReport(query: {
-  startDate?: string;
-  endDate?: string;
-}) {
-  const conditions = [];
-
-  if (query.startDate) {
-    conditions.push(
-      gte(
-        assetMovements.movementDate,
-        query.startDate,
-      ),
-    );
-  }
-
-  if (query.endDate) {
-    conditions.push(
-      lte(
-        assetMovements.movementDate,
-        query.endDate,
-      ),
-    );
-  }
-
-  const where =
-    conditions.length > 0
-      ? and(...conditions)
-      : undefined;
-
-  const movementRows =
-    await this.db
+  async getMovementReport(query: { startDate?: string; endDate?: string }) {
+    const conditions = [];
+    if (query.startDate) {
+      conditions.push(gte(assetMovements.movementDate, query.startDate));
+    }
+    if (query.endDate) {
+      conditions.push(lte(assetMovements.movementDate, query.endDate));
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const movementRows = await this.db
       .select({
-        id:
-          assetMovements.id,
-
-        assetId:
-          assetMovements.assetId,
-
-        fromUnitId:
-          assetMovements.fromUnitId,
-
-        toUnitId:
-          assetMovements.toUnitId,
-
-        movementDate:
-          assetMovements.movementDate,
-
-        notes:
-          assetMovements.notes,
+        id: assetMovements.id,
+        assetId: assetMovements.assetId,
+        fromUnitId: assetMovements.fromUnitId,
+        toUnitId: assetMovements.toUnitId,
+        movementDate: assetMovements.movementDate,
+        notes: assetMovements.notes,
       })
       .from(assetMovements)
       .where(where)
-      .orderBy(
-        desc(
-          assetMovements.movementDate,
-        ),
-      );
-
-  const [
-    assetRows,
-    unitRows,
-  ] =
-    await Promise.all([
+      .orderBy(desc(assetMovements.movementDate));
+    const [assetRows, unitRows] = await Promise.all([
       this.db
         .select({
-          id:
-            assets.id,
-
-          patrimonyNumber:
-            assets.patrimonyNumber,
-
-          description:
-            assets.description,
+          id: assets.id,
+          patrimonyNumber: assets.patrimonyNumber,
+          description: assets.description,
         })
         .from(assets),
-
       this.db
         .select({
-          id:
-            organizationUnits.id,
-
-          code:
-            organizationUnits.code,
-
-          name:
-            organizationUnits.name,
+          id: organizationUnits.id,
+          code: organizationUnits.code,
+          name: organizationUnits.name,
         })
-        .from(
-          organizationUnits,
-        ),
+        .from(organizationUnits),
     ]);
-
-  const assetById =
-    new Map(
-      assetRows.map(
-        (asset) => [
-          asset.id,
-          asset,
-        ],
-      ),
-    );
-
-  const unitById =
-    new Map(
-      unitRows.map(
-        (unit) => [
-          unit.id,
-          unit,
-        ],
-      ),
-    );
-
-  const movements =
-    movementRows.map(
-      (movement) => {
-        const asset =
-          assetById.get(
-            movement.assetId,
-          );
-
-        const fromUnit =
-          movement.fromUnitId
-            ? unitById.get(
-                movement.fromUnitId,
-              )
-            : null;
-
-        const toUnit =
-          unitById.get(
-            movement.toUnitId,
-          );
-
-        return {
-          id:
-            movement.id,
-
-          assetId:
-            movement.assetId,
-
-          patrimonyNumber:
-            asset?.patrimonyNumber ??
-            null,
-
-          description:
-            asset?.description ??
-            null,
-
-          movementDate:
-            movement.movementDate,
-
-          notes:
-            movement.notes,
-
-          fromUnit:
-            fromUnit
-              ? {
-                  id:
-                    fromUnit.id,
-
-                  code:
-                    fromUnit.code,
-
-                  name:
-                    fromUnit.name,
-                }
-              : null,
-
-          toUnit:
-            toUnit
-              ? {
-                  id:
-                    toUnit.id,
-
-                  code:
-                    toUnit.code,
-
-                  name:
-                    toUnit.name,
-                }
-              : null,
-        };
+    const assetById = new Map(assetRows.map((asset) => [asset.id, asset]));
+    const unitById = new Map(unitRows.map((unit) => [unit.id, unit]));
+    const movements = movementRows.map((movement) => {
+      const asset = assetById.get(movement.assetId);
+      const fromUnit = movement.fromUnitId
+        ? unitById.get(movement.fromUnitId)
+        : null;
+      const toUnit = unitById.get(movement.toUnitId);
+      return {
+        id: movement.id,
+        assetId: movement.assetId,
+        patrimonyNumber: asset?.patrimonyNumber ?? null,
+        description: asset?.description ?? null,
+        movementDate: movement.movementDate,
+        notes: movement.notes,
+        fromUnit: fromUnit
+          ? {
+              id: fromUnit.id,
+              code: fromUnit.code,
+              name: fromUnit.name,
+            }
+          : null,
+        toUnit: toUnit
+          ? {
+              id: toUnit.id,
+              code: toUnit.code,
+              name: toUnit.name,
+            }
+          : null,
+      };
+    });
+    return {
+      movements,
+      summary: {
+        total: movements.length,
       },
-    );
-
-  return {
-    movements,
-
-    summary: {
-      total:
-        movements.length,
-    },
-  };
-}
-
-async list(
-  query: AssetListQuery,
-) {
-  const conditions = [];
-=======
+    };
+  }
   async list(query: AssetListQuery) {
     const conditions = [];
->>>>>>> origin/dev
-
     const search = query.q?.trim();
-
     if (search) {
       conditions.push(
         or(
           ilike(assets.patrimonyNumber, `%${search}%`),
-
           ilike(assets.description, `%${search}%`),
         ),
       );
     }
-
     if (query.status) {
       conditions.push(eq(assets.status, query.status));
     }
-
     if (query.unitId) {
       const unitRows = await this.db
         .select({
           id: organizationUnits.id,
-
           parentId: organizationUnits.parentId,
         })
         .from(organizationUnits);
-
       const selectedUnitIds = new Set<string>([query.unitId]);
-
       let foundNewUnit = true;
-
       while (foundNewUnit) {
         foundNewUnit = false;
-
         for (const unit of unitRows) {
           if (
             unit.parentId &&
@@ -272,55 +130,40 @@ async list(
             !selectedUnitIds.has(unit.id)
           ) {
             selectedUnitIds.add(unit.id);
-
             foundNewUnit = true;
           }
         }
       }
-
       conditions.push(inArray(assets.unitId, Array.from(selectedUnitIds)));
     }
-
     if (query.conservationStatus) {
       conditions.push(eq(assets.conservationStatus, query.conservationStatus));
     }
-
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-
     const direction = query.sortDirection === "desc" ? desc : asc;
-
     const orderBy = (() => {
       switch (query.sortBy) {
         case "description":
           return [direction(assets.description), asc(assets.patrimonyNumber)];
-
         case "unit":
           return [
             direction(organizationUnits.name),
-
             direction(organizationUnits.code),
-
             asc(assets.patrimonyNumber),
           ];
-
         case "value":
           return [
             direction(assets.acquisitionValue),
-
             asc(assets.patrimonyNumber),
           ];
-
         case "createdAt":
           return [direction(assets.createdAt)];
-
         case "patrimonyNumber":
         default:
           return [direction(assets.patrimonyNumber)];
       }
     })();
-
     const offset = (query.page - 1) * query.pageSize;
-
     const [rows, totalResult] = await Promise.all([
       this.db
         .select({
@@ -332,7 +175,6 @@ async list(
         .orderBy(...orderBy)
         .limit(query.pageSize)
         .offset(offset),
-
       this.db
         .select({
           total: count(),
@@ -340,32 +182,16 @@ async list(
         .from(assets)
         .where(where),
     ]);
-
     const total = totalResult[0]?.total ?? 0;
-
     const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
-
     return {
       assets: rows,
-
       total,
-
       page: query.page,
-
       pageSize: query.pageSize,
-
-<<<<<<< HEAD
-    totalPages,
-  };
-
-
-}
-=======
       totalPages,
     };
   }
->>>>>>> origin/dev
-
   async getReport(query: {
     departmentId?: string;
     sectorId?: string;
@@ -376,13 +202,11 @@ async list(
     endDate?: string;
   }) {
     const conditions = [];
-
     /*
      * Descobre quais unidades devem fazer
      * parte do filtro de localização.
      */
     let unitIds: string[] = [];
-
     if (query.subsectorId) {
       unitIds = [query.subsectorId];
     } else if (query.sectorId) {
@@ -392,7 +216,6 @@ async list(
         })
         .from(organizationUnits)
         .where(eq(organizationUnits.parentId, query.sectorId));
-
       unitIds = [query.sectorId, ...childUnits.map((unit) => unit.id)];
     } else if (query.departmentId) {
       const sectors = await this.db
@@ -401,11 +224,8 @@ async list(
         })
         .from(organizationUnits)
         .where(eq(organizationUnits.parentId, query.departmentId));
-
       const sectorIds = sectors.map((sector) => sector.id);
-
       let subsectorIds: string[] = [];
-
       if (sectorIds.length > 0) {
         const subsectors = await this.db
           .select({
@@ -413,275 +233,193 @@ async list(
           })
           .from(organizationUnits)
           .where(inArray(organizationUnits.parentId, sectorIds));
-
         subsectorIds = subsectors.map((subsector) => subsector.id);
       }
-
       unitIds = [query.departmentId, ...sectorIds, ...subsectorIds];
     }
-
     /*
      * Localização.
      */
     if (unitIds.length > 0) {
       conditions.push(inArray(assets.unitId, unitIds));
     }
-
     /*
      * Situação.
      */
     if (query.status) {
       conditions.push(eq(assets.status, query.status));
     }
-
     /*
      * Estado de conservação.
      */
     if (query.conservationStatus) {
       conditions.push(eq(assets.conservationStatus, query.conservationStatus));
     }
-
     /*
      * Período de aquisição.
      */
     if (query.startDate) {
       conditions.push(gte(assets.acquisitionDate, query.startDate));
     }
-
     if (query.endDate) {
       conditions.push(lte(assets.acquisitionDate, query.endDate));
     }
-
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-
     const rows = await this.db
       .select({
         id: assets.id,
-
         patrimonyNumber: assets.patrimonyNumber,
-
         description: assets.description,
-
         brand: assets.brand,
-
         model: assets.model,
-
         serialNumber: assets.serialNumber,
-
         status: assets.status,
-
         conservationStatus: assets.conservationStatus,
-
         acquisitionDate: assets.acquisitionDate,
-
         acquisitionValue: assets.acquisitionValue,
-
         unitId: assets.unitId,
-
         unitCode: organizationUnits.code,
-
         unitName: organizationUnits.name,
-
         unitType: organizationUnits.type,
       })
       .from(assets)
       .leftJoin(organizationUnits, eq(assets.unitId, organizationUnits.id))
       .where(where)
       .orderBy(asc(assets.patrimonyNumber));
-
     const totalValue = rows.reduce(
       (total, asset) => total + Number(asset.acquisitionValue ?? 0),
       0,
     );
-
     return {
       assets: rows,
-
       summary: {
         total: rows.length,
-
         totalValue,
       },
     };
   }
-
   async getDashboard() {
     const [assetRows, unitRows, recentMovementRows, recentDisposalRows] =
       await Promise.all([
         this.db
           .select({
             id: assets.id,
-
             patrimonyNumber: assets.patrimonyNumber,
-
             status: assets.status,
-
             acquisitionValue: assets.acquisitionValue,
-
             unitId: assets.unitId,
-
             conservationStatus: assets.conservationStatus,
           })
           .from(assets),
-
         this.db
           .select({
             id: organizationUnits.id,
-
             code: organizationUnits.code,
-
             name: organizationUnits.name,
-
             type: organizationUnits.type,
-
             parentId: organizationUnits.parentId,
           })
           .from(organizationUnits),
-
         this.db
           .select({
             id: assetMovements.id,
-
             assetId: assetMovements.assetId,
-
             fromUnitId: assetMovements.fromUnitId,
-
             toUnitId: assetMovements.toUnitId,
-
             movementDate: assetMovements.movementDate,
           })
           .from(assetMovements)
           .orderBy(desc(assetMovements.movementDate))
           .limit(5),
-
         this.db
           .select({
             id: assetDisposals.id,
-
             assetId: assetDisposals.assetId,
-
             disposalDate: assetDisposals.disposalDate,
-
             reason: assetDisposals.reason,
           })
           .from(assetDisposals)
           .orderBy(desc(assetDisposals.disposalDate))
           .limit(5),
       ]);
-
     /*
      * Resumo geral
      */
-
     const total = assetRows.length;
-
     const active = assetRows.filter(
       (asset) => asset.status === "active",
     ).length;
-
     const maintenance = assetRows.filter(
       (asset) => asset.status === "maintenance",
     ).length;
-
     const disposed = assetRows.filter(
       (asset) => asset.status === "disposed",
     ).length;
-
     const totalValue = assetRows.reduce(
       (totalValue, asset) => totalValue + Number(asset.acquisitionValue ?? 0),
       0,
     );
-
     const assetsWithValue = assetRows.filter(
       (asset) =>
         asset.acquisitionValue !== null && Number(asset.acquisitionValue) > 0,
     );
-
     const assetsWithValueCount = assetsWithValue.length;
-
     const averageValue =
       assetsWithValueCount > 0 ? totalValue / assetsWithValueCount : 0;
-
     /*
      * Mapas auxiliares
      */
-
     const assetById = new Map(assetRows.map((asset) => [asset.id, asset]));
-
     const unitById = new Map(unitRows.map((unit) => [unit.id, unit]));
-
     const formatUnitPath = (unitId: string | null) => {
       if (!unitId) {
         return null;
       }
-
       const parts: string[] = [];
-
       const visited = new Set<string>();
-
       let current = unitById.get(unitId);
-
       while (current && !visited.has(current.id)) {
         visited.add(current.id);
-
         parts.unshift(current.code ?? current.name ?? "Unidade");
-
         current = current.parentId ? unitById.get(current.parentId) : undefined;
       }
-
       return parts.length ? parts.join(" > ") : null;
     };
     /*
      * Bens por setor
      */
-
     const unitTotals = new Map<string, number>();
-
     for (const asset of assetRows) {
       if (!asset.unitId) {
         continue;
       }
-
       const unit = unitById.get(asset.unitId);
-
       if (!unit) {
         continue;
       }
-
       const sectorId =
         unit.type === "subsector" && unit.parentId ? unit.parentId : unit.id;
-
       unitTotals.set(sectorId, (unitTotals.get(sectorId) ?? 0) + 1);
     }
-
     const byUnit = Array.from(unitTotals.entries())
       .map(([unitId, total]) => {
         const unit = unitById.get(unitId);
-
         return {
           unitId,
-
           code: unit?.code ?? null,
-
           name: unit?.name ?? null,
-
           total,
         };
       })
       .sort((a, b) => b.total - a.total);
-
     /*
      * Estado de conservação
      */
-
     const conservationTotals = new Map<string, number>();
-
     for (const asset of assetRows) {
       const status = asset.conservationStatus?.trim() || "Não informado";
-
       conservationTotals.set(status, (conservationTotals.get(status) ?? 0) + 1);
     }
-
     const conservationOrder = [
       "Ótimo",
       "Bom",
@@ -690,7 +428,6 @@ async list(
       "Inservível",
       "Não informado",
     ];
-
     const byConservation = Array.from(conservationTotals.entries())
       .map(([status, total]) => ({
         status,
@@ -698,108 +435,72 @@ async list(
       }))
       .sort((a, b) => {
         const aIndex = conservationOrder.indexOf(a.status);
-
         const bIndex = conservationOrder.indexOf(b.status);
-
         const normalizedA = aIndex === -1 ? conservationOrder.length : aIndex;
-
         const normalizedB = bIndex === -1 ? conservationOrder.length : bIndex;
-
         return normalizedA - normalizedB;
       });
-
     /*
      * Movimentações recentes
      */
-
     const recentMovements = recentMovementRows.map((movement) => {
       const asset = assetById.get(movement.assetId);
-
       const fromUnit = movement.fromUnitId
         ? unitById.get(movement.fromUnitId)
         : null;
-
       const toUnit = unitById.get(movement.toUnitId);
-
       return {
         id: movement.id,
-
         assetId: movement.assetId,
-
         patrimonyNumber: asset?.patrimonyNumber ?? null,
-
         movementDate: movement.movementDate,
-
         fromUnit: fromUnit
           ? {
               id: fromUnit.id,
-
               code: fromUnit.code,
-
               name: fromUnit.name,
-
               path: formatUnitPath(fromUnit.id),
             }
           : null,
-
         toUnit: toUnit
           ? {
               id: toUnit.id,
-
               code: toUnit.code,
-
               name: toUnit.name,
-
               path: formatUnitPath(toUnit.id),
             }
           : null,
       };
     });
-
     /*
      * Baixas recentes
      */
-
     const recentDisposals = recentDisposalRows.map((disposal) => {
       const asset = assetById.get(disposal.assetId);
-
       return {
         id: disposal.id,
-
         assetId: disposal.assetId,
-
         patrimonyNumber: asset?.patrimonyNumber ?? null,
-
         disposalDate: disposal.disposalDate,
-
         reason: disposal.reason,
       };
     });
-
     return {
       summary: {
         total,
         active,
         maintenance,
         disposed,
-
         totalValue: Number(totalValue.toFixed(2)),
-
         assetsWithValueCount,
-
         averageValue: Number(averageValue.toFixed(2)),
       },
-
       byUnit,
-
       byConservation,
-
       recentMovements,
-
       recentDisposals,
     };
   }
-
   async listMovements(assetId: string) {
     return this.db
       .select()
@@ -807,43 +508,36 @@ async list(
       .where(eq(assetMovements.assetId, assetId))
       .orderBy(assetMovements.createdAt);
   }
-
   async findById(id: string) {
     const [asset] = await this.db
       .select()
       .from(assets)
       .where(eq(assets.id, id))
       .limit(1);
-
     return asset ?? null;
   }
-
   //Servico de editar Bem patrimonio
   async update(id: string, input: AssetUpdate) {
     const [asset] = await this.db
       .select({
         id: assets.id,
-
         status: assets.status,
       })
       .from(assets)
       .where(eq(assets.id, id))
       .limit(1);
-
     if (!asset) {
       return {
         success: false as const,
         reason: "ASSET_NOT_FOUND" as const,
       };
     }
-
     if (asset.status === "disposed") {
       return {
         success: false as const,
         reason: "ASSET_DISPOSED" as const,
       };
     }
-
     const [updated] = await this.db
       .update(assets)
       .set({
@@ -852,91 +546,71 @@ async list(
               patrimonyNumber: input.patrimonyNumber,
             }
           : {}),
-
         ...(input.description !== undefined
           ? {
               description: input.description,
             }
           : {}),
-
         ...(input.brand !== undefined
           ? {
               brand: input.brand,
             }
           : {}),
-
         ...(input.model !== undefined
           ? {
               model: input.model,
             }
           : {}),
-
         ...(input.serialNumber !== undefined
           ? {
               serialNumber: input.serialNumber,
             }
           : {}),
-
         ...(input.responsiblePersonId !== undefined
           ? {
               responsiblePersonId: input.responsiblePersonId,
             }
           : {}),
-
-        ...(input.room !== undefined
-          ? {
-              room: input.room,
-            }
-          : {}),
-
         ...(input.usageDate !== undefined
           ? {
               usageDate: input.usageDate,
             }
           : {}),
-
         ...(input.documentNumber !== undefined
           ? {
               documentNumber: input.documentNumber,
             }
           : {}),
-
         ...(input.documentDate !== undefined
           ? {
               documentDate: input.documentDate,
             }
           : {}),
-
         ...(input.commitmentNumber !== undefined
           ? {
               commitmentNumber: input.commitmentNumber,
             }
           : {}),
-
         ...(input.conservationStatus !== undefined
           ? {
               conservationStatus: input.conservationStatus,
             }
           : {}),
-
         ...(input.renavam !== undefined
           ? {
               renavam: input.renavam,
             }
           : {}),
-
         ...(input.chassis !== undefined
           ? {
               chassis: input.chassis,
             }
           : {}),
-
         ...(input.acquisitionDate !== undefined
           ? {
               acquisitionDate: input.acquisitionDate,
             }
           : {}),
-
         ...(input.acquisitionValue !== undefined
           ? {
               acquisitionValue:
@@ -945,39 +619,32 @@ async list(
                   : String(input.acquisitionValue),
             }
           : {}),
-
         ...(input.notes !== undefined
           ? {
               notes: input.notes,
             }
           : {}),
-
         updatedAt: new Date(),
       })
       .where(eq(assets.id, id))
       .returning();
-
     return {
       success: true as const,
       asset: updated,
     };
   }
-
   //Para mover Bem(patrimonio) de setor
   async move(id: string, input: AssetMovementCreate) {
     return this.db.transaction(async (transaction) => {
       const [asset] = await transaction
         .select({
           id: assets.id,
-
           unitId: assets.unitId,
-
           status: assets.status,
         })
         .from(assets)
         .where(eq(assets.id, id))
         .limit(1);
-
       if (!asset) {
         return {
           success: false as const,
@@ -990,63 +657,50 @@ async list(
           reason: "ASSET_DISPOSED" as const,
         };
       }
-
       const [destinationUnit] = await transaction
         .select({
           id: organizationUnits.id,
-
           active: organizationUnits.active,
         })
         .from(organizationUnits)
         .where(eq(organizationUnits.id, input.toUnitId))
         .limit(1);
-
       if (!destinationUnit) {
         return {
           success: false as const,
           reason: "UNIT_NOT_FOUND" as const,
         };
       }
-
       if (!destinationUnit.active) {
         return {
           success: false as const,
           reason: "UNIT_INACTIVE" as const,
         };
       }
-
       if (asset.unitId === input.toUnitId) {
         return {
           success: false as const,
           reason: "SAME_UNIT" as const,
         };
       }
-
       const [movement] = await transaction
         .insert(assetMovements)
         .values({
           assetId: asset.id,
-
           fromUnitId: asset.unitId,
-
           toUnitId: input.toUnitId,
-
           movementDate: input.movementDate,
-
           notes: input.notes ?? null,
         })
         .returning();
-
       const [updatedAsset] = await transaction
         .update(assets)
         .set({
           unitId: input.toUnitId,
-
           updatedAt: new Date(),
         })
         .where(eq(assets.id, asset.id))
         .returning();
-
       return {
         success: true as const,
         movement,
@@ -1054,82 +708,57 @@ async list(
       };
     });
   }
-
   //Servico de cadastro de Bem patrimonio
   async create(input: AssetCreate) {
     const [created] = await this.db
       .insert(assets)
       .values({
         patrimonyNumber: input.patrimonyNumber,
-
         description: input.description,
-
         brand: input.brand ?? null,
-
         model: input.model ?? null,
-
         serialNumber: input.serialNumber ?? null,
-
         unitId: input.unitId ?? null,
-
         responsiblePersonId: input.responsiblePersonId ?? null,
-
-        room: input.room ?? null,
-
         usageDate: input.usageDate ?? null,
-
         documentNumber: input.documentNumber ?? null,
-
         documentDate: input.documentDate ?? null,
-
         commitmentNumber: input.commitmentNumber ?? null,
-
         conservationStatus: input.conservationStatus ?? null,
-
         renavam: input.renavam ?? null,
-
         chassis: input.chassis ?? null,
-
         acquisitionDate: input.acquisitionDate ?? null,
-
         acquisitionValue:
           input.acquisitionValue !== null &&
           input.acquisitionValue !== undefined
             ? String(input.acquisitionValue)
             : null,
-
         notes: input.notes ?? null,
       })
       .returning();
-
     return created;
   }
-
   async setStatus(id: string, status: "active" | "maintenance") {
     const [asset] = await this.db
       .select({
         id: assets.id,
-
         status: assets.status,
       })
       .from(assets)
       .where(eq(assets.id, id))
       .limit(1);
-
     if (!asset) {
       return {
         success: false as const,
         reason: "ASSET_NOT_FOUND" as const,
       };
     }
-
     if (asset.status === "disposed") {
       return {
         success: false as const,
         reason: "ASSET_DISPOSED" as const,
       };
     }
-
     const [updated] = await this.db
       .update(assets)
       .set({
@@ -1138,63 +767,51 @@ async list(
       })
       .where(eq(assets.id, id))
       .returning();
-
     return {
       success: true as const,
       asset: updated,
     };
   }
-
   //Servico de disponibilidade do Bem patrimonio
   async dispose(id: string, input: AssetDisposalCreate) {
     return this.db.transaction(async (transaction) => {
       const [asset] = await transaction
         .select({
           id: assets.id,
-
           status: assets.status,
         })
         .from(assets)
         .where(eq(assets.id, id))
         .limit(1);
-
       if (!asset) {
         return {
           success: false as const,
           reason: "ASSET_NOT_FOUND" as const,
         };
       }
-
       if (asset.status === "disposed") {
         return {
           success: false as const,
           reason: "ALREADY_DISPOSED" as const,
         };
       }
-
       const [disposal] = await transaction
         .insert(assetDisposals)
         .values({
           assetId: asset.id,
-
           disposalDate: input.disposalDate,
-
           reason: input.reason,
-
           notes: input.notes ?? null,
         })
         .returning();
-
       const [updatedAsset] = await transaction
         .update(assets)
         .set({
           status: "disposed",
-
           updatedAt: new Date(),
         })
         .where(eq(assets.id, asset.id))
         .returning();
-
       return {
         success: true as const,
         disposal,
@@ -1202,14 +819,12 @@ async list(
       };
     });
   }
-
   async getDisposal(assetId: string) {
     const [disposal] = await this.db
       .select()
       .from(assetDisposals)
       .where(eq(assetDisposals.assetId, assetId))
       .limit(1);
-
     return disposal ?? null;
   }
 }
