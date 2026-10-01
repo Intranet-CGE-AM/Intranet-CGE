@@ -434,7 +434,11 @@ test("cada papel vê só as ações da etapa e escolhe a versão exibida", async
     );
     expect(response.status()).toBe(201);
     await open(corrected);
-    await expectActions(page, ["Cancelar"]);
+    await expectActions(page, [
+      "Editar no navegador",
+      "Enviar nova versão",
+      "Cancelar",
+    ]);
     await expect(
       page
         .frameLocator('iframe[title="Visualização da versão 2"]')
