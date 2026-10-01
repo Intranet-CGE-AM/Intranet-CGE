@@ -115,7 +115,7 @@ test("assessoria envia documento, mas não aprova", async ({
     const detail = await (
       await assessor.get(`/api/audit-documents/${id}`)
     ).json();
-    expect(detail.allowedActions).toEqual(["cancel"]);
+    expect(detail.allowedActions).toEqual(["submit_version", "cancel"]);
     expect(
       (
         await assessor.post(`/api/audit-documents/${id}/transition`, {

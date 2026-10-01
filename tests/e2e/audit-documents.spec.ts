@@ -373,48 +373,57 @@ test("versões editadas no navegador respeitam etapa, papel e concorrência", as
     ) =>
       uploadVersion(client, id, { version, source }, docxFile("editado.docx"));
 
-    // Em análise, só a Subcontroladoria salva uma versão editada.
-    expect((await edit(assessor, 1)).status()).toBe(403);
-    const edited = await edit(reviewer, 1);
+    // Em análise, equipe e Subcontroladoria salvam versão, cada uma no seu papel.
+    const byTeam = await edit(assessor, 1);
+    expect(byTeam.status()).toBe(201);
+    const afterTeamEdit = (await byTeam.json()) as Versioned;
+    expect(afterTeamEdit).toMatchObject({ status: "in_review", version: 2 });
+    expect(afterTeamEdit.files[1]).toMatchObject({
+      number: 2,
+      source: "editor",
+      uploadedAs: "team",
+    });
+    expect(afterTeamEdit.events.at(-1)!.type).toBe("resubmitted");
+    const edited = await edit(reviewer, 2);
     expect(edited.status()).toBe(201);
     const afterEdit = (await edited.json()) as Versioned;
-    expect(afterEdit).toMatchObject({ status: "in_review", version: 2 });
-    expect(afterEdit.files[1]).toMatchObject({
-      number: 2,
+    expect(afterEdit).toMatchObject({ status: "in_review", version: 3 });
+    expect(afterEdit.files[2]).toMatchObject({
+      number: 3,
       source: "editor",
       uploadedAs: "reviewer",
     });
     expect(afterEdit.events.at(-1)!.type).toBe("edited");
-    expect((await edit(reviewer, 1)).status()).toBe(409);
+    expect((await edit(reviewer, 2)).status()).toBe(409);
 
     const correction = await reviewer.post(
       `/api/audit-documents/${id}/transition`,
       {
         data: {
           action: "request_correction",
-          version: 2,
+          version: 3,
           message: "Revise o trecho que editei.",
         },
       },
     );
     expect(correction.status()).toBe(200);
     // Na correção, a equipe salva pelo editor e o documento volta à análise.
-    expect((await edit(reviewer, 3)).status()).toBe(403);
-    const resubmitted = await edit(coordinator, 3);
+    expect((await edit(reviewer, 4)).status()).toBe(403);
+    const resubmitted = await edit(coordinator, 4);
     expect(resubmitted.status()).toBe(201);
     const afterTeam = (await resubmitted.json()) as Versioned;
-    expect(afterTeam).toMatchObject({ status: "in_review", version: 4 });
-    expect(afterTeam.files[2]).toMatchObject({
+    expect(afterTeam).toMatchObject({ status: "in_review", version: 5 });
+    expect(afterTeam.files[3]).toMatchObject({
       source: "editor",
       uploadedAs: "team",
     });
     expect(afterTeam.events.at(-1)!.type).toBe("resubmitted");
 
     // Quem só editou como revisora pode aprovar a própria edição.
-    expect((await edit(reviewer, 4)).status()).toBe(201);
+    expect((await edit(reviewer, 5)).status()).toBe(201);
     const approved = await reviewer.post(
       `/api/audit-documents/${id}/transition`,
-      { data: { action: "approve", version: 5 } },
+      { data: { action: "approve", version: 6 } },
     );
     expect(approved.status()).toBe(200);
     expect((await approved.json()).status).toBe("approved");
