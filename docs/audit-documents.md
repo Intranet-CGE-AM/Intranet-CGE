@@ -17,6 +17,7 @@ precisa recarregar.
 | em análise             | pedir correção (justificativa)      | revisão (`review`) | correção solicitada | `correction_requested` |
 | em análise             | aprovar                             | revisão            | aprovado            | `approved`             |
 | em análise             | salvar versão editada               | revisão            | em análise          | `edited`               |
+| em análise             | enviar nova versão (arquivo/editor) | equipe             | em análise          | `resubmitted`          |
 | correção solicitada    | enviar nova versão (arquivo/editor) | equipe             | em análise          | `resubmitted`          |
 | em análise ou correção | cancelar (justificativa)            | equipe ou revisão  | cancelado           | `cancelled`            |
 | aprovado               | reabrir (justificativa)             | revisão            | em análise          | `reopened`             |
@@ -34,6 +35,12 @@ Quem enviou a versão atual como equipe não pode aprová-la, pedir correção d
 nem editá-la no navegador como revisão. A revisora que apenas editou a versão
 pode aprová-la. Cada versão guarda
 `uploaded_as` (`team` ou `reviewer`) para essa regra.
+
+Em análise, quem tem `submit` salva versão de equipe e quem tem `review` salva
+edição da revisão. Quem tem as duas chaves salva como revisão, menos sobre uma
+versão de equipe enviada por ela mesma: essa nova versão também entra como
+equipe, e a pessoa continua sem poder aprová-la. Aprovar com a versão anterior
+à edição da equipe responde `409`.
 
 ## Papéis e permissões
 
@@ -142,8 +149,9 @@ leitura se o leitor tinha `review` naquele momento.
 
 ## Avisos e caixa de pendências
 
-- Envio e nova versão avisam as contas ativas com `review` na equipe, incluindo
-  substitutos em vigor.
+- Envio e nova versão da equipe (em análise ou em resposta a uma correção)
+  avisam as contas ativas com `review` na equipe, incluindo substitutos em
+  vigor.
 - Pedido de correção, aprovação, cancelamento, reabertura e edição da revisão
   avisam quem enviou alguma versão e ainda tem acesso ao documento (quem
   enviou como substituto deixa de ser avisado quando a substituição termina).
