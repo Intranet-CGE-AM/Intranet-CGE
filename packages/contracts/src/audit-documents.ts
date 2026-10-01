@@ -41,7 +41,8 @@ const transitions: Record<
   AuditDocumentAction,
   Partial<Record<AuditDocumentStatus, AuditDocumentStatus>>
 > = {
-  submit_version: { correction_requested: "in_review" },
+  // The team may also save a new version while the review is under way.
+  submit_version: { correction_requested: "in_review", in_review: "in_review" },
   request_correction: { in_review: "correction_requested" },
   approve: { in_review: "approved" },
   cancel: { in_review: "cancelled", correction_requested: "cancelled" },

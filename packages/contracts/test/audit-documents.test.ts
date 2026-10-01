@@ -16,6 +16,7 @@ describe("audit document state machine", () => {
     ["in_review", "approve", "approved"],
     ["in_review", "request_correction", "correction_requested"],
     ["correction_requested", "submit_version", "in_review"],
+    ["in_review", "submit_version", "in_review"],
     ["in_review", "cancel", "cancelled"],
     ["correction_requested", "cancel", "cancelled"],
     ["approved", "reopen", "in_review"],
@@ -24,11 +25,12 @@ describe("audit document state machine", () => {
     expect(nextAuditDocumentStatus(status, action)).toBe(next);
   });
 
-  // Every (status, action) cell; only the seven rows of the flow are legal.
+  // Every (status, action) cell; only the eight rows of the flow are legal.
   const legal: Record<string, string> = {
     "in_review:approve": "approved",
     "in_review:request_correction": "correction_requested",
     "correction_requested:submit_version": "in_review",
+    "in_review:submit_version": "in_review",
     "in_review:cancel": "cancelled",
     "correction_requested:cancel": "cancelled",
     "approved:reopen": "in_review",
@@ -43,7 +45,7 @@ describe("audit document state machine", () => {
 
   it("covers the 24 cells of the grid", () => {
     expect(grid).toHaveLength(24);
-    expect(grid.filter(([, , next]) => next === null)).toHaveLength(17);
+    expect(grid.filter(([, , next]) => next === null)).toHaveLength(16);
   });
 
   it.each(grid)("%s + %s -> %s (full grid)", (status, action, next) => {
