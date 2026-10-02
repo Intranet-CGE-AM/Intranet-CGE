@@ -265,27 +265,36 @@ export class AssetService {
       conditions.push(lte(assets.acquisitionDate, query.endDate));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows = await this.db
+    const rows =
+    await this.db
       .select({
-        id: assets.id,
-        patrimonyNumber: assets.patrimonyNumber,
-        description: assets.description,
-        brand: assets.brand,
-        model: assets.model,
-        serialNumber: assets.serialNumber,
-        status: assets.status,
-        conservationStatus: assets.conservationStatus,
-        acquisitionDate: assets.acquisitionDate,
-        acquisitionValue: assets.acquisitionValue,
-        unitId: assets.unitId,
-        unitCode: organizationUnits.code,
-        unitName: organizationUnits.name,
-        unitType: organizationUnits.type,
+        ...getTableColumns(assets),
+
+        unitCode:
+          organizationUnits.code,
+
+        unitName:
+          organizationUnits.name,
+
+        unitType:
+          organizationUnits.type,
       })
       .from(assets)
-      .leftJoin(organizationUnits, eq(assets.unitId, organizationUnits.id))
+      .leftJoin(
+        organizationUnits,
+        eq(
+          assets.unitId,
+          organizationUnits.id,
+        ),
+      )
       .where(where)
-      .orderBy(asc(assets.patrimonyNumber));
+      .orderBy(
+        asc(
+          assets.patrimonyNumber,
+        ),
+      );
+
+      
     const totalValue = rows.reduce(
       (total, asset) => total + Number(asset.acquisitionValue ?? 0),
       0,

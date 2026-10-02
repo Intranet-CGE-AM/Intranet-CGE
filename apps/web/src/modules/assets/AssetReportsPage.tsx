@@ -37,22 +37,88 @@ type ReportType =
   | "conservation"
   | "movements"
   | "financial";
+
 type ReportAsset = {
   id: string;
+
   patrimonyNumber: string;
   description: string;
+
   brand: string | null;
   model: string | null;
   serialNumber: string | null;
-  status: "active" | "maintenance" | "disposed";
-  conservationStatus: string | null;
-  acquisitionDate: string | null;
-  acquisitionValue: string | null;
+
+  status:
+    | "active"
+    | "maintenance"
+    | "disposed";
+
   unitId: string | null;
-  unitCode: string | null;
-  unitName: string | null;
-  unitType: "department" | "sector" | "subsector" | null;
+  responsiblePersonId:
+    | string
+    | null;
+
+  usageDate:
+    | string
+    | null;
+
+  documentNumber:
+    | string
+    | null;
+
+  documentDate:
+    | string
+    | null;
+
+  commitmentNumber:
+    | string
+    | null;
+
+  conservationStatus:
+    | string
+    | null;
+
+  renavam:
+    | string
+    | null;
+
+  chassis:
+    | string
+    | null;
+
+  acquisitionDate:
+    | string
+    | null;
+
+  acquisitionValue:
+    | string
+    | null;
+
+  notes:
+    | string
+    | null;
+
+  createdAt:
+    string;
+
+  updatedAt:
+    string;
+
+  unitCode:
+    | string
+    | null;
+
+  unitName:
+    | string
+    | null;
+
+  unitType:
+    | "department"
+    | "sector"
+    | "subsector"
+    | null;
 };
+
 type AssetReportResponse = {
   assets: ReportAsset[];
   summary: {
@@ -316,7 +382,7 @@ function rowsToExport():
               movement.movementDate,
             ),
 
-          Patrimônio:
+          Tombo:
             movement.patrimonyNumber ??
             "",
 
@@ -356,53 +422,82 @@ function rowsToExport():
     reportType ===
     "inventory"
   ) {
-    return report.assets.map(
-      (asset) => ({
-        Patrimônio:
-          asset.patrimonyNumber,
+  return report.assets.map(
+    (asset) => ({
+      Tombo:
+        asset.patrimonyNumber,
 
-        Descrição:
-          asset.description,
+      Descrição:
+        asset.description,
 
-        Marca:
-          asset.brand ?? "",
+      Marca:
+        asset.brand ?? "",
 
-        Modelo:
-          asset.model ?? "",
+      Modelo:
+        asset.model ?? "",
 
-        Localização:
-          asset.unitCode
-            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-            : "Não informado",
+      "Num. Série":
+        asset.serialNumber ?? "",
 
-        Situação:
-          asset.status ===
-          "active"
-            ? "Ativo"
-            : asset.status ===
-                "maintenance"
-              ? "Em manutenção"
-              : "Baixado",
+      Localização:
+        asset.unitCode
+          ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+          : "Não informado",
 
-        Conservação:
-          asset.conservationStatus ??
-          "Não informado",
+      Situação:
+        assetStatusMeta[
+          asset.status
+        ].label,
 
-        Aquisição:
-          asset.acquisitionDate
-            ? formatDateForSpreadsheet(
-                asset.acquisitionDate,
-              )
-            : "",
+      Conservação:
+        asset.conservationStatus ??
+        "Não informado",
 
-        Valor:
-          asset.acquisitionValue
-            ? Number(
-                asset.acquisitionValue,
-              )
-            : 0,
-      }),
-    );
+      "Dta. Uso":
+        asset.usageDate
+          ? formatDateForSpreadsheet(
+              asset.usageDate,
+            )
+          : "",
+
+      Doc:
+        asset.documentNumber ?? "",
+
+      "Dta. Doc":
+        asset.documentDate
+          ? formatDateForSpreadsheet(
+              asset.documentDate,
+            )
+          : "",
+
+      Empenho:
+        asset.commitmentNumber ??
+        "",
+
+      "Dta. Aquisição":
+        asset.acquisitionDate
+          ? formatDateForSpreadsheet(
+              asset.acquisitionDate,
+            )
+          : "",
+
+      "Valor aquisição":
+        asset.acquisitionValue
+          ? Number(
+              asset.acquisitionValue,
+            )
+          : 0,
+
+      RENAVAM:
+        asset.renavam ?? "",
+
+      Chassi:
+        asset.chassis ?? "",
+
+      Obs:
+        asset.notes ?? "",
+    }),
+  );
   }
 
   if (
@@ -880,7 +975,7 @@ function handleExportXlsx() {
     const rows =
       report.assets.map(
         (asset) => ({
-          Patrimônio:
+          Tombo:
             asset.patrimonyNumber,
 
           Descrição:
@@ -1107,7 +1202,7 @@ function handleExportXlsx() {
               movement.movementDate,
             ),
 
-          Patrimônio:
+          Tombo:
             movement.patrimonyNumber ??
             "",
 
@@ -1478,7 +1573,7 @@ function handleExportXlsx() {
                 <tr>
                   {[
                     "Data",
-                    "Patrimônio",
+                    "Tombo",
                     "Descrição",
                     "Origem",
                     "Destino",
@@ -1550,45 +1645,193 @@ function handleExportXlsx() {
                   </p>
                 </div>
               </CardHeader>
-              {reportType === "inventory" ? (
-                <Table>
-                  <thead>
-                    <tr>
-                      <TableHead>Patrimônio</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Localização</TableHead>
-                      <TableHead>Situação</TableHead>
-                      <TableHead>Conservação</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.assets.map((asset) => (
-                      <TableRow key={asset.id}>
-                        <TableCell>{asset.patrimonyNumber}</TableCell>
-                        <TableCell>{asset.description}</TableCell>
-                        <TableCell>
-                          {asset.unitCode
-                            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                            : "Não informado"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={assetStatusMeta[asset.status].variant}
+              {reportType ===
+              "inventory" ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <thead>
+                      <tr>
+                        <TableHead>
+                          Tombo
+                        </TableHead>
+
+                        <TableHead>
+                          Descrição
+                        </TableHead>
+
+                        <TableHead>
+                          Marca
+                        </TableHead>
+
+                        <TableHead>
+                          Modelo
+                        </TableHead>
+
+                        <TableHead>
+                          Nº de série
+                        </TableHead>
+
+                        <TableHead>
+                          Localização
+                        </TableHead>
+
+                        <TableHead>
+                          Situação
+                        </TableHead>
+
+                        <TableHead>
+                          Conservação
+                        </TableHead>
+
+                        <TableHead>
+                          Dta. Uso
+                        </TableHead>
+
+                        <TableHead>
+                          Doc
+                        </TableHead>
+
+                        <TableHead>
+                          Dta. Doc
+                        </TableHead>
+
+                        <TableHead>
+                          Empenho
+                        </TableHead>
+
+                        <TableHead>
+                          Dta. Aquisição
+                        </TableHead>
+
+                        <TableHead className="text-right">
+                          Valor
+                        </TableHead>
+
+                        <TableHead>
+                          RENAVAM
+                        </TableHead>
+
+                        <TableHead>
+                          Chassi
+                        </TableHead>
+
+                        <TableHead>
+                          Observações
+                        </TableHead>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {report.assets.map(
+                        (asset) => (
+                          <TableRow
+                            key={asset.id}
                           >
-                            {assetStatusMeta[asset.status].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {asset.conservationStatus ?? "Não informado"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(asset.acquisitionValue)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </tbody>
-                </Table>
+                            <TableCell>
+                              {asset.patrimonyNumber}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.description}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.brand ?? "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.model ?? "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.serialNumber ??
+                                "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.unitCode
+                                ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+                                : "Não informado"}
+                            </TableCell>
+
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  assetStatusMeta[
+                                    asset.status
+                                  ].variant
+                                }
+                              >
+                                {
+                                  assetStatusMeta[
+                                    asset.status
+                                  ].label
+                                }
+                              </Badge>
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.conservationStatus ??
+                                "Não informado"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.usageDate
+                                ? formatDateForSpreadsheet(
+                                    asset.usageDate,
+                                  )
+                                : "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.documentNumber ??
+                                "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.documentDate
+                                ? formatDateForSpreadsheet(
+                                    asset.documentDate,
+                                  )
+                                : "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.commitmentNumber ??
+                                "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.acquisitionDate
+                                ? formatDateForSpreadsheet(
+                                    asset.acquisitionDate,
+                                  )
+                                : "—"}
+                            </TableCell>
+
+                            <TableCell className="text-right">
+                              {formatCurrency(
+                                asset.acquisitionValue,
+                              )}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.renavam ?? "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.chassis ?? "—"}
+                            </TableCell>
+
+                            <TableCell>
+                              {asset.notes ?? "—"}
+                            </TableCell>
+                          </TableRow>
+                        ),
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
               ) : null}
               {reportType === "sector" ? (
                 <Table>
