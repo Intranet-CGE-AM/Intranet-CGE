@@ -91,46 +91,76 @@ function formatDateForSpreadsheet(value: string) {
   }
   return `${day}/${month}/${year}`;
 }
-function buildExportRows(assets: ReportAsset[]) {
-  return assets.map((asset) => ({
-    Patrimônio: asset.patrimonyNumber,
-    Descrição: asset.description,
-    Marca: asset.brand ?? "",
-    Modelo: asset.model ?? "",
-    "Número de série": asset.serialNumber ?? "",
-    Localização: asset.unitCode
-      ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-      : "Não informado",
-    Situação: assetStatusMeta[asset.status].label,
-    Conservação: asset.conservationStatus ?? "Não informado",
-    "Data de aquisição": asset.acquisitionDate
-      ? formatDateForSpreadsheet(asset.acquisitionDate)
-      : "",
-    "Valor de aquisição": asset.acquisitionValue
-      ? Number(asset.acquisitionValue)
-      : "",
-  }));
-}
-const reportTypeLabels: Record<ReportType, string> = {
-  inventory: "Inventário geral",
-  sector: "Bens por setor",
-  status: "Bens por situação",
-  conservation: "Estado de conservação",
-  movements: "Movimentações",
-  financial: "Relatório financeiro",
+
+const reportTypeLabels: Record<
+  ReportType,
+  string
+> = {
+  inventory:
+    "Inventário geral",
+
+  sector:
+    "Bens por setor",
+
+  status:
+    "Bens por situação",
+
+  conservation:
+    "Estado de conservação",
+
+  movements:
+    "Movimentações",
+
+  financial:
+    "Relatório financeiro",
 };
-const currency = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
+
+const currency =
+  new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    },
+  );
+
 function fileDate() {
-  const now = new Date();
+  const now =
+    new Date();
+
   return [
     now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
+    String(
+      now.getMonth() + 1,
+    ).padStart(2, "0"),
+    String(
+      now.getDate(),
+    ).padStart(2, "0"),
   ].join("-");
 }
+
+
+function getUnitLabel(
+  units: OrganizationUnit[],
+  id: string,
+) {
+  if (!id) {
+    return "Todos";
+  }
+
+  const unit =
+    units.find(
+      (item) =>
+        item.id === id,
+    );
+
+  if (!unit) {
+    return "Todos";
+  }
+
+  return `${unit.code} - ${unit.name}`;
+}
+
 export function AssetReportsPage() {
   const [reportType, setReportType] = useState<ReportType>("inventory");
   const [departmentId, setDepartmentId] = useState("");
@@ -200,6 +230,251 @@ export function AssetReportsPage() {
       unit.active &&
       (!sectorId || unit.parentId === sectorId),
   );
+
+function describeFilters() {
+  const filters: string[] =
+    [];
+
+  if (departmentId) {
+    filters.push(
+      `Departamento: ${departmentLabel}`,
+    );
+  }
+
+  if (sectorId) {
+    filters.push(
+      `Setor: ${sectorLabel}`,
+    );
+  }
+
+  if (subsectorId) {
+    filters.push(
+      `Subsetor: ${subsectorLabel}`,
+    );
+  }
+
+  if (
+    reportType !==
+    "movements"
+  ) {
+    if (status) {
+      filters.push(
+        `Situação: ${statusLabel}`,
+      );
+    }
+
+    if (
+      conservationStatus
+    ) {
+      filters.push(
+        `Conservação: ${conservationLabel}`,
+      );
+    }
+  }
+
+  if (
+    startDate ||
+    endDate
+  ) {
+    filters.push(
+      `Período: ${periodLabel}`,
+    );
+  }
+
+  return filters.length > 0
+    ? filters.join(" | ")
+    : "Nenhum filtro aplicado";
+}
+
+function rowsToExport():
+  | Record<
+      string,
+      string | number
+    >[]
+  | null {
+  if (
+    reportType ===
+    "movements"
+  ) {
+    if (
+      !movementReport ||
+      movementReport
+        .movements.length === 0
+    ) {
+      setReportError(
+        "Não há movimentações para exportar.",
+      );
+
+      return null;
+    }
+
+    return movementReport
+      .movements.map(
+        (movement) => ({
+          Data:
+            formatDateForSpreadsheet(
+              movement.movementDate,
+            ),
+
+          Patrimônio:
+            movement.patrimonyNumber ??
+            "",
+
+          Descrição:
+            movement.description ??
+            "",
+
+          Origem:
+            movement.fromUnit
+              ? `${movement.fromUnit.code} - ${movement.fromUnit.name}`
+              : "Não informado",
+
+          Destino:
+            movement.toUnit
+              ? `${movement.toUnit.code} - ${movement.toUnit.name}`
+              : "Não informado",
+
+          Observação:
+            movement.notes ??
+            "",
+        }),
+      );
+  }
+
+  if (
+    !report ||
+    report.assets.length === 0
+  ) {
+    setReportError(
+      "Não há dados para exportar.",
+    );
+
+    return null;
+  }
+
+  if (
+    reportType ===
+    "inventory"
+  ) {
+    return report.assets.map(
+      (asset) => ({
+        Patrimônio:
+          asset.patrimonyNumber,
+
+        Descrição:
+          asset.description,
+
+        Marca:
+          asset.brand ?? "",
+
+        Modelo:
+          asset.model ?? "",
+
+        Localização:
+          asset.unitCode
+            ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+            : "Não informado",
+
+        Situação:
+          asset.status ===
+          "active"
+            ? "Ativo"
+            : asset.status ===
+                "maintenance"
+              ? "Em manutenção"
+              : "Baixado",
+
+        Conservação:
+          asset.conservationStatus ??
+          "Não informado",
+
+        Aquisição:
+          asset.acquisitionDate
+            ? formatDateForSpreadsheet(
+                asset.acquisitionDate,
+              )
+            : "",
+
+        Valor:
+          asset.acquisitionValue
+            ? Number(
+                asset.acquisitionValue,
+              )
+            : 0,
+      }),
+    );
+  }
+
+  if (
+    reportType ===
+    "sector"
+  ) {
+    return assetsBySector.map(
+      (sector) => ({
+        Setor:
+          `${sector.code} - ${sector.name}`,
+
+        Quantidade:
+          sector.total,
+
+        Valor:
+          sector.totalValue,
+      }),
+    );
+  }
+
+  if (
+    reportType ===
+    "status"
+  ) {
+    return assetsByStatus.map(
+      (item) => ({
+        Situação:
+          item.label,
+
+        Quantidade:
+          item.total,
+      }),
+    );
+  }
+
+  if (
+    reportType ===
+    "conservation"
+  ) {
+    return assetsByConservation.map(
+      (item) => ({
+        Conservação:
+          item.label,
+
+        Quantidade:
+          item.total,
+      }),
+    );
+  }
+
+  if (
+    reportType ===
+    "financial"
+  ) {
+    return assetsBySector.map(
+      (sector) => ({
+        Setor:
+          `${sector.code} - ${sector.name}`,
+
+        Bens:
+          sector.total,
+
+        Valor:
+          sector.totalValue,
+      }),
+    );
+  }
+
+  return null;
+}
+
+
   async function handleGenerateReport() {
     if (startDate && endDate && startDate > endDate) {
       setReportError("A data inicial deve ser anterior ou igual à data final.");
@@ -305,187 +580,692 @@ export function AssetReportsPage() {
       }, new Map<string, number>())
       .entries(),
   ].map(([label, total]) => ({ label, total }));
-  function describeFilters() {
-    const unitName = (id: string) => unitById.get(id)?.name ?? id;
-    const parts = [
-      ...(reportType === "movements"
-        ? []
-        : [
-            departmentId && `Departamento: ${unitName(departmentId)}`,
-            sectorId && `Setor: ${unitName(sectorId)}`,
-            subsectorId && `Subsetor: ${unitName(subsectorId)}`,
-            status &&
-              `Situação: ${assetStatusMeta[status as ReportAsset["status"]]?.label ?? status}`,
-            conservationStatus && `Conservação: ${conservationStatus}`,
-          ]),
-      startDate && `De: ${formatDateForSpreadsheet(startDate)}`,
-      endDate && `Até: ${formatDateForSpreadsheet(endDate)}`,
-    ].filter(Boolean);
-    return parts.length ? parts.join(" | ") : "Todos os registros";
+
+
+  const departmentLabel =
+  getUnitLabel(
+    units,
+    departmentId,
+  );
+
+  const sectorLabel =
+  getUnitLabel(
+    units,
+    sectorId,
+  );
+
+  const subsectorLabel =
+  getUnitLabel(
+    units,
+    subsectorId,
+  );
+
+  const statusLabel =
+  status === "active"
+    ? "Ativo"
+    : status === "maintenance"
+      ? "Em manutenção"
+      : status === "disposed"
+        ? "Baixado"
+        : "Todas";
+
+  const conservationLabel =
+    conservationStatus ||
+    "Todas";
+
+  const periodLabel =
+    startDate || endDate
+      ? `${startDate
+          ? formatDateForSpreadsheet(
+              startDate,
+            )
+          : "Início"} até ${
+          endDate
+            ? formatDateForSpreadsheet(
+                endDate,
+              )
+            : "Hoje"
+        }`
+      : "Todos";
+ 
+ function handleExportPdf() {
+  const rows =
+    rowsToExport();
+
+  if (!rows) {
+    return;
   }
 
-  function exportRows(): Record<string, string | number>[] {
-    if (reportType === "movements") {
-      return (movementReport?.movements ?? []).map((item) => ({
-        Data: formatDateForSpreadsheet(item.movementDate),
-        Patrimônio: item.patrimonyNumber ?? "",
-        Descrição: item.description ?? "",
-        Origem: item.fromUnit
-          ? `${item.fromUnit.code} - ${item.fromUnit.name}`
-          : "Não informado",
-        Destino: item.toUnit
-          ? `${item.toUnit.code} - ${item.toUnit.name}`
-          : "Não informado",
-        Observação: item.notes ?? "",
-      }));
-    }
-    if (!report) return [];
-    if (reportType === "sector" || reportType === "financial") {
-      return assetsBySector.map((item) => ({
-        Setor: `${item.code} - ${item.name}`,
-        Quantidade: item.total,
-        "Valor patrimonial": item.totalValue,
-      }));
-    }
-    if (reportType === "status") {
-      return assetsByStatus.map((item) => ({
-        Situação: item.label,
-        Quantidade: item.total,
-      }));
-    }
-    if (reportType === "conservation") {
-      return assetsByConservation.map((item) => ({
-        Conservação: item.label,
-        Quantidade: item.total,
-      }));
-    }
-    return buildExportRows(report.assets);
-  }
+  setReportError(null);
 
-  function rowsToExport() {
-    const rows = exportRows();
-    if (!rows.length || (!report && !movementReport)) {
-      setReportError("Gere um relatório com dados antes de exportar.");
-      return null;
-    }
-    setReportError(null);
-    return rows;
-  }
-
-  function handleExportPdf() {
-    const rows = rowsToExport();
-    if (!rows) return;
-    const document = new jsPDF({
-      orientation: "landscape",
+  const document =
+    new jsPDF({
+      orientation:
+        "landscape",
       unit: "mm",
       format: "a4",
     });
-    const pageWidth = document.internal.pageSize.getWidth();
-    const pageHeight = document.internal.pageSize.getHeight();
-    document.setFont("helvetica", "bold");
-    document.setFontSize(14);
-    document.text(
-      `RELATÓRIO PATRIMONIAL - ${reportTypeLabels[reportType].toUpperCase()}`,
-      14,
-      15,
-    );
-    document.setFont("helvetica", "normal");
-    document.setFontSize(9);
-    document.text("Controladoria-Geral do Estado do Amazonas", 14, 22);
-    document.text(`Emitido em: ${new Date().toLocaleString("pt-BR")}`, 14, 28);
-    const summary =
-      reportType === "movements"
-        ? `Total de movimentações: ${movementReport?.summary.total ?? 0}`
-        : `Total de bens: ${report?.summary.total ?? 0} | Valor total: ${currency.format(report?.summary.totalValue ?? 0)}`;
-    document.text(summary, 14, 34);
-    const filtersText: string[] = document.splitTextToSize(
+
+  const pageWidth =
+    document.internal
+      .pageSize.getWidth();
+
+  const pageHeight =
+    document.internal
+      .pageSize.getHeight();
+
+  document.setFont(
+    "helvetica",
+    "bold",
+  );
+
+  document.setFontSize(
+    14,
+  );
+
+  document.text(
+    `RELATÓRIO PATRIMONIAL - ${reportTypeLabels[
+      reportType
+    ].toUpperCase()}`,
+    14,
+    15,
+  );
+
+  document.setFont(
+    "helvetica",
+    "normal",
+  );
+
+  document.setFontSize(
+    9,
+  );
+
+  document.text(
+    "Controladoria-Geral do Estado do Amazonas",
+    14,
+    22,
+  );
+
+  document.text(
+    `Emitido em: ${new Date().toLocaleString(
+      "pt-BR",
+    )}`,
+    14,
+    28,
+  );
+
+  const summary =
+    reportType ===
+    "movements"
+      ? `Total de movimentações: ${
+          movementReport
+            ?.summary.total ??
+          0
+        }`
+      : `Total de bens: ${
+          report?.summary
+            .total ?? 0
+        } | Valor total: ${currency.format(
+          report?.summary
+            .totalValue ?? 0,
+        )}`;
+
+  document.text(
+    summary,
+    14,
+    34,
+  );
+
+  const filtersText:
+    string[] =
+    document.splitTextToSize(
       `Filtros: ${describeFilters()}`,
       pageWidth - 28,
     );
-    document.setFontSize(8);
-    document.text(filtersText, 14, 41);
-    const headers = Object.keys(rows[0] ?? {});
-    autoTable(document, {
-      startY: 46 + filtersText.length * 3,
+
+  document.setFontSize(
+    8,
+  );
+
+  document.text(
+    filtersText,
+    14,
+    41,
+  );
+
+  const headers =
+    Object.keys(
+      rows[0] ?? {},
+    );
+
+  autoTable(
+    document,
+    {
+      startY:
+        46 +
+        filtersText.length *
+          3,
+
       theme: "grid",
-      head: [headers],
-      body: rows.map((row) =>
-        headers.map((key) => {
-          const value = row[key];
-          return typeof value === "number" &&
-            key.toLowerCase().includes("valor")
-            ? currency.format(value)
-            : String(value ?? "");
-        }),
-      ),
+
+      head: [
+        headers,
+      ],
+
+      body:
+        rows.map(
+          (row) =>
+            headers.map(
+              (key) => {
+                const value =
+                  row[key];
+
+                return typeof value ===
+                  "number" &&
+                  key
+                    .toLowerCase()
+                    .includes(
+                      "valor",
+                    )
+                  ? currency.format(
+                      value,
+                    )
+                  : String(
+                      value ?? "",
+                    );
+              },
+            ),
+        ),
+
       styles: {
         fontSize: 7,
         cellPadding: 2,
-        overflow: "linebreak",
+        overflow:
+          "linebreak",
         valign: "top",
       },
-      headStyles: { fontStyle: "bold" },
-      margin: { left: 14, right: 14, bottom: 14 },
+
+      headStyles: {
+        fontStyle:
+          "bold",
+      },
+
+      margin: {
+        left: 14,
+        right: 14,
+        bottom: 14,
+      },
+
       didDrawPage: () => {
-        document.setFontSize(7);
-        document.text("CGE-AM - Controle de Patrimônio", 14, pageHeight - 7);
+        document.setFontSize(
+          7,
+        );
+
+        document.text(
+          "CGE-AM - Controle de Patrimônio",
+          14,
+          pageHeight - 7,
+        );
+
         document.text(
           `Página ${document.getNumberOfPages()}`,
           pageWidth - 14,
           pageHeight - 7,
-          { align: "right" },
+          {
+            align:
+              "right",
+          },
         );
       },
-    });
-    document.save(`relatorio-${reportType}-${fileDate()}.pdf`);
+    },
+  );
+
+  document.save(
+    `relatorio-${reportType}-${fileDate()}.pdf`,
+  );
+}
+
+function handleExportXlsx() {
+  if (
+    reportType === "movements"
+  ) {
+    if (!movementReport) {
+      setReportError(
+        "Gere o relatório antes de exportar.",
+      );
+
+      return;
+    }
+
+    if (
+      movementReport.movements
+        .length === 0
+    ) {
+      setReportError(
+        "Não há movimentações para exportar.",
+      );
+
+      return;
+    }
+  } else {
+    if (!report) {
+      setReportError(
+        "Gere o relatório antes de exportar.",
+      );
+
+      return;
+    }
+
+    if (
+      report.assets.length === 0
+    ) {
+      setReportError(
+        "Não há dados para exportar.",
+      );
+
+      return;
+    }
   }
 
-  function handleExportXlsx() {
-    const rows = rowsToExport();
-    if (!rows) return;
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const headers = Object.keys(rows[0] ?? {});
-    worksheet["!cols"] = headers.map((key) => ({
-      wch: Math.min(60, Math.max(18, key.length + 2)),
-    }));
-    rows.forEach((row, index) =>
-      headers.forEach((key, column) => {
-        if (
-          typeof row[key] === "number" &&
-          key.toLowerCase().includes("valor")
-        ) {
-          const cell =
-            worksheet[XLSX.utils.encode_cell({ r: index + 1, c: column })];
-          if (cell) cell.z = '"R$" #,##0.00';
-        }
-      }),
-    );
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
-    const summaryRows: { Informação: string; Valor: string | number }[] = [
-      { Informação: "Tipo de relatório", Valor: reportTypeLabels[reportType] },
-      { Informação: "Filtros", Valor: describeFilters() },
-      { Informação: "Emitido em", Valor: new Date().toLocaleString("pt-BR") },
-    ];
-    if (reportType === "movements") {
-      summaryRows.push({
-        Informação: "Quantidade de movimentações",
-        Valor: movementReport?.summary.total ?? 0,
-      });
-    } else if (report) {
-      summaryRows.push(
-        { Informação: "Quantidade de bens", Valor: report.summary.total },
-        {
-          Informação: "Valor patrimonial total",
-          Valor: report.summary.totalValue,
-        },
+  setReportError(null);
+
+  const workbook =
+    XLSX.utils.book_new();
+
+  if (
+    reportType ===
+      "inventory" &&
+    report
+  ) {
+    const rows =
+      report.assets.map(
+        (asset) => ({
+          Patrimônio:
+            asset.patrimonyNumber,
+
+          Descrição:
+            asset.description,
+
+          Marca:
+            asset.brand ?? "",
+
+          Modelo:
+            asset.model ?? "",
+
+          "Número de série":
+            asset.serialNumber ?? "",
+
+          Localização:
+            asset.unitCode
+              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
+              : "Não informado",
+
+          Situação:
+            asset.status ===
+            "active"
+              ? "Ativo"
+              : asset.status ===
+                  "maintenance"
+                ? "Em manutenção"
+                : "Baixado",
+
+          Conservação:
+            asset.conservationStatus ??
+            "Não informado",
+
+          "Data de aquisição":
+            asset.acquisitionDate
+              ? formatDateForSpreadsheet(
+                  asset.acquisitionDate,
+                )
+              : "",
+
+          "Valor de aquisição":
+            asset.acquisitionValue
+              ? Number(
+                  asset.acquisitionValue,
+                )
+              : "",
+        }),
       );
-    }
-    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryRows);
-    summaryWorksheet["!cols"] = [{ wch: 32 }, { wch: 80 }];
-    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, "Resumo");
-    XLSX.writeFile(workbook, `relatorio-${reportType}-${fileDate()}.xlsx`);
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 40 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Inventário",
+    );
   }
+
+  if (
+    reportType ===
+      "sector" &&
+    report
+  ) {
+    const rows =
+      assetsBySector.map(
+        (sector) => ({
+          Setor:
+            `${sector.code} - ${sector.name}`,
+
+          Quantidade:
+            sector.total,
+
+          "Valor patrimonial":
+            sector.totalValue,
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 45 },
+      { wch: 15 },
+      { wch: 22 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Bens por setor",
+    );
+  }
+
+  if (
+    reportType ===
+      "status" &&
+    report
+  ) {
+    const rows =
+      assetsByStatus.map(
+        (item) => ({
+          Situação:
+            item.label,
+
+          Quantidade:
+            item.total,
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 25 },
+      { wch: 15 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Situação",
+    );
+  }
+
+  if (
+    reportType ===
+      "conservation" &&
+    report
+  ) {
+    const rows =
+      assetsByConservation.map(
+        (item) => ({
+          "Estado de conservação":
+            item.label,
+
+          Quantidade:
+            item.total,
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 30 },
+      { wch: 15 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Conservação",
+    );
+  }
+
+  if (
+    reportType ===
+      "financial" &&
+    report
+  ) {
+    const rows =
+      assetsBySector.map(
+        (sector) => ({
+          Setor:
+            `${sector.code} - ${sector.name}`,
+
+          Bens:
+            sector.total,
+
+          Valor:
+            sector.totalValue,
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 45 },
+      { wch: 15 },
+      { wch: 22 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Financeiro",
+    );
+  }
+
+  if (
+    reportType ===
+      "movements" &&
+    movementReport
+  ) {
+    const rows =
+      movementReport.movements.map(
+        (movement) => ({
+          Data:
+            formatDateForSpreadsheet(
+              movement.movementDate,
+            ),
+
+          Patrimônio:
+            movement.patrimonyNumber ??
+            "",
+
+          Descrição:
+            movement.description ??
+            "",
+
+          Origem:
+            movement.fromUnit
+              ? `${movement.fromUnit.code} - ${movement.fromUnit.name}`
+              : "Não informado",
+
+          Destino:
+            movement.toUnit
+              ? `${movement.toUnit.code} - ${movement.toUnit.name}`
+              : "Não informado",
+
+          Observação:
+            movement.notes ?? "",
+        }),
+      );
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(
+        rows,
+      );
+
+    worksheet["!cols"] = [
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 40 },
+      { wch: 40 },
+      { wch: 40 },
+      { wch: 40 },
+    ];
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Movimentações",
+    );
+  }
+
+  const summaryRows = [
+    {
+      Informação:
+        "Tipo de relatório",
+      Valor:
+        reportTypeLabels[reportType]
+    },
+
+    {
+      Informação:
+        "Departamento",
+      Valor:
+        departmentLabel,
+    },
+
+    {
+      Informação:
+        "Setor",
+      Valor:
+        sectorLabel,
+    },
+
+    {
+      Informação:
+        "Subsetor",
+      Valor:
+        subsectorLabel,
+    },
+
+    {
+      Informação:
+        "Situação",
+      Valor:
+        statusLabel,
+    },
+
+    {
+      Informação:
+        "Conservação",
+      Valor:
+        conservationLabel,
+    },
+
+    {
+      Informação:
+        "Período",
+      Valor:
+        periodLabel,
+    },
+
+    {
+      Informação:
+        reportType ===
+        "movements"
+          ? "Quantidade de movimentações"
+          : "Quantidade de bens",
+
+      Valor:
+        reportType ===
+          "movements"
+          ? movementReport
+              ?.summary.total ?? 0
+          : report
+              ?.summary.total ?? 0,
+    },
+  ];
+
+  if (
+    reportType !==
+      "movements" &&
+    report
+  ) {
+    summaryRows.push({
+      Informação:
+        "Valor patrimonial total",
+
+      Valor:
+        report.summary.totalValue,
+    });
+  }
+
+  const summaryWorksheet =
+    XLSX.utils.json_to_sheet(
+      summaryRows,
+    );
+
+  summaryWorksheet["!cols"] = [
+    { wch: 30 },
+    { wch: 45 },
+  ];
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    summaryWorksheet,
+    "Resumo",
+  );
+
+  const now =
+    new Date();
+
+  const date = [
+    now.getFullYear(),
+    String(
+      now.getMonth() + 1,
+    ).padStart(2, "0"),
+    String(
+      now.getDate(),
+    ).padStart(2, "0"),
+  ].join("-");
+
+  XLSX.writeFile(
+    workbook,
+    `relatorio-patrimonial-${date}.xlsx`,
+  );
+}
 
   const statusOptions = [
     { label: "Todas", value: ALL },
