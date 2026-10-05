@@ -856,7 +856,7 @@ export function AssetReportsPage() {
 
         format:
           reportType === "inventory"
-            ? "a3"
+            ? "a4"
             : "a4",
       });
 
@@ -1023,8 +1023,8 @@ export function AssetReportsPage() {
           styles: {
             fontSize:
               reportType === "inventory"
-                ? 7
-                : 10,
+                ? 6
+                : 9,
 
             cellPadding:
               reportType === "inventory"
@@ -1053,35 +1053,35 @@ export function AssetReportsPage() {
           columnStyles:
   reportType === "inventory"
     ? {
-        0: { cellWidth: 16 }, // Tombo
-        1: { cellWidth: 38 }, // Descrição
-        2: { cellWidth: 18 }, // Marca
-        3: { cellWidth: 18 }, // Modelo
-        4: { cellWidth: 20 }, // Nº Série
+        0: { cellWidth: 11 }, // Tombo
+        1: { cellWidth: 30 }, // Descrição
+        2: { cellWidth: 12 }, // Marca
+        3: { cellWidth: 15 }, // Modelo
+        4: { cellWidth: 13 }, // Nº Série
 
-        5: { cellWidth: 25 }, // Departamento
-        6: { cellWidth: 25 }, // Setor
-        7: { cellWidth: 21 }, // Subsetor
+        5: { cellWidth: 18 }, // Departamento
+        6: { cellWidth: 16 }, // Setor
+        7: { cellWidth: 15 }, // Subsetor
 
-        8: { cellWidth: 20 }, // Situação
-        9: { cellWidth: 18 }, // Conservação
+        8: { cellWidth: 15 }, // Situação
+        9: { cellWidth: 10 }, // Conservação
 
-        10: { cellWidth: 17 }, // Dt Uso
-        11: { cellWidth: 18 }, // Documento
-        12: { cellWidth: 17 }, // Dt Doc
-        13: { cellWidth: 20 }, // Empenho
-        14: { cellWidth: 18 }, // Dt aquisição
-        15: { cellWidth: 22 }, // Valor
+        10: { cellWidth: 13 }, // Dt Uso
+        11: { cellWidth: 12 }, // Documento
+        12: { cellWidth: 13 }, // Dt Doc
+        13: { cellWidth: 12 }, // Empenho
+        14: { cellWidth: 13 }, // Dt aquisição
+        15: { cellWidth: 15 }, // Valor
 
-        16: { cellWidth: 18 }, // RENAVAM
-        17: { cellWidth: 22 }, // Chassi
-        18: { cellWidth: 32 }, // Observações
+        16: { cellWidth: 12 }, // RENAVAM
+        17: { cellWidth: 12 }, // Chassi
+        18: { cellWidth: 23 }, // Observações
       }
     : undefined,
 
         margin: {
-          left: 10,
-          right: 10,
+          left: 7,
+          right: 7,
           bottom: 10,
         },
 
