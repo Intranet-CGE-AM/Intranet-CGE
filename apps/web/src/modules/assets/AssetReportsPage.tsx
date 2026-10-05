@@ -423,81 +423,93 @@ export function AssetReportsPage() {
       "inventory"
     ) {
       return report.assets.map(
-        (asset) => ({
-          Tombo:
-            asset.patrimonyNumber,
-
-          Descrição:
-            asset.description,
-
-          Marca:
-            asset.brand ?? "",
-
-          Modelo:
-            asset.model ?? "",
-
-          "Num. Série":
-            asset.serialNumber ?? "",
-
-          Localização:
-            asset.unitCode
-              ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-              : "Não informado",
-
-          Situação:
-            assetStatusMeta[
-              asset.status
-            ].label,
-
-          Conservação:
-            asset.conservationStatus ??
-            "Não informado",
-
-          "Dta. Uso":
-            asset.usageDate
-              ? formatDateForSpreadsheet(
-                asset.usageDate,
-              )
-              : "",
-
-          Doc:
-            asset.documentNumber ?? "",
-
-          "Dta. Doc":
-            asset.documentDate
-              ? formatDateForSpreadsheet(
-                asset.documentDate,
-              )
-              : "",
-
-          Empenho:
-            asset.commitmentNumber ??
-            "",
-
-          "Dta. Aquisição":
-            asset.acquisitionDate
-              ? formatDateForSpreadsheet(
-                asset.acquisitionDate,
-              )
-              : "",
-
-          "Valor aquisição":
-            asset.acquisitionValue
-              ? Number(
-                asset.acquisitionValue,
-              )
-              : 0,
-
-          RENAVAM:
-            asset.renavam ?? "",
-
-          Chassi:
-            asset.chassis ?? "",
-
-          Obs:
-            asset.notes ?? "",
-        }),
+  (asset) => {
+    const location =
+      getAssetLocation(
+        asset,
       );
+
+    return {
+      Patrimônio:
+        asset.patrimonyNumber,
+
+      Descrição:
+        asset.description,
+
+      Marca:
+        asset.brand ?? "",
+
+      Modelo:
+        asset.model ?? "",
+
+      "Número de série":
+        asset.serialNumber ?? "",
+
+      Departamento:
+        location.department,
+
+      Setor:
+        location.sector,
+
+      Subsetor:
+        location.subsector,
+
+      Situação:
+        assetStatusMeta[
+          asset.status
+        ].label,
+
+      Conservação:
+        asset.conservationStatus ??
+        "Não informado",
+
+      "Data de uso":
+        asset.usageDate
+          ? formatDateForSpreadsheet(
+              asset.usageDate,
+            )
+          : "",
+
+      Documento:
+        asset.documentNumber ??
+        "",
+
+      "Data do documento":
+        asset.documentDate
+          ? formatDateForSpreadsheet(
+              asset.documentDate,
+            )
+          : "",
+
+      Empenho:
+        asset.commitmentNumber ??
+        "",
+
+      "Data de aquisição":
+        asset.acquisitionDate
+          ? formatDateForSpreadsheet(
+              asset.acquisitionDate,
+            )
+          : "",
+
+      "Valor de aquisição":
+        asset.acquisitionValue
+          ? Number(
+              asset.acquisitionValue,
+            )
+          : 0,
+
+      RENAVAM:
+        asset.renavam ?? "",
+
+      Chassi:
+        asset.chassis ?? "",
+
+      Observações:
+        asset.notes ?? "",
+    };
+  },
+);
     }
 
     if (
@@ -629,7 +641,112 @@ export function AssetReportsPage() {
     endDate,
   ]);
 
-  const unitById = new Map(units.map((unit) => [unit.id, unit]));
+  const unitById =
+    new Map(
+      units.map(
+        (unit) => [
+          unit.id,
+          unit,
+        ],
+      ),
+    );
+
+    function getAssetLocation(
+  asset: ReportAsset,
+) {
+  if (!asset.unitId) {
+    return {
+      department: "Não informado",
+      sector: "Não informado",
+      subsector: "Não informado",
+    };
+  }
+
+  const currentUnit =
+    unitById.get(
+      asset.unitId,
+    );
+
+  if (!currentUnit) {
+    return {
+      department: "Não informado",
+      sector: "Não informado",
+      subsector: "Não informado",
+    };
+  }
+
+  let department:
+    OrganizationUnit | undefined;
+
+  let sector:
+    OrganizationUnit | undefined;
+
+  let subsector:
+    OrganizationUnit | undefined;
+
+  if (
+    currentUnit.type ===
+    "department"
+  ) {
+    department =
+      currentUnit;
+  }
+
+  if (
+    currentUnit.type ===
+    "sector"
+  ) {
+    sector =
+      currentUnit;
+
+    department =
+      currentUnit.parentId
+        ? unitById.get(
+            currentUnit.parentId,
+          )
+        : undefined;
+  }
+
+  if (
+    currentUnit.type ===
+    "subsector"
+  ) {
+    subsector =
+      currentUnit;
+
+    sector =
+      currentUnit.parentId
+        ? unitById.get(
+            currentUnit.parentId,
+          )
+        : undefined;
+
+    department =
+      sector?.parentId
+        ? unitById.get(
+            sector.parentId,
+          )
+        : undefined;
+  }
+
+  return {
+    department:
+      department
+        ? `${department.code} - ${department.name}`
+        : "Não informado",
+
+    sector:
+      sector
+        ? `${sector.code} - ${sector.name}`
+        : "Não informado",
+
+    subsector:
+      subsector
+        ? `${subsector.code} - ${subsector.name}`
+        : "Não informado",
+    };
+  }
+
   // Subsector assets roll up into their parent sector.
   function sectorOf(asset: ReportAsset) {
     const unit = asset.unitId ? unitById.get(asset.unitId) : undefined;
@@ -734,10 +851,13 @@ export function AssetReportsPage() {
 
     const document =
       new jsPDF({
-        orientation:
-          "landscape",
+        orientation: "landscape",
         unit: "mm",
-        format: "a4",
+
+        format:
+          reportType === "inventory"
+            ? "a3"
+            : "a4",
       });
 
     const pageWidth =
@@ -830,6 +950,37 @@ export function AssetReportsPage() {
         rows[0] ?? {},
       );
 
+    const pdfHeaderLabels:
+      Record<string, string> = {
+        Patrimônio: "Tombo",
+        Descrição: "Descrição",
+        Marca: "Marca",
+        Modelo: "Modelo",
+        "Número de série": "Nº Série",
+        Departamento: "Depto.",
+        Setor: "Setor",
+        Subsetor: "Subsetor",
+        Situação: "Situação",
+        Conservação: "Conserv.",
+        "Data de uso": "Dt. Uso",
+        Documento: "Doc.",
+        "Data do documento": "Dt. Doc.",
+        Empenho: "Empenho",
+        "Data de aquisição": "Dt. Aquisição",
+        "Valor de aquisição": "Valor",
+        RENAVAM: "RENAVAM",
+        Chassi: "Chassi",
+        Observações: "Observações",
+      };
+
+    const displayHeaders =
+      headers.map(
+        (header) =>
+          pdfHeaderLabels[
+            header
+          ] ?? header,
+      );
+
     autoTable(
       document,
       {
@@ -841,7 +992,7 @@ export function AssetReportsPage() {
         theme: "grid",
 
         head: [
-          headers,
+          displayHeaders,
         ],
 
         body:
@@ -869,24 +1020,72 @@ export function AssetReportsPage() {
               ),
           ),
 
-        styles: {
-          fontSize: 7,
-          cellPadding: 2,
-          overflow:
-            "linebreak",
-          valign: "top",
-        },
+          styles: {
+            fontSize:
+              reportType === "inventory"
+                ? 7
+                : 10,
 
-        headStyles: {
-          fontStyle:
-            "bold",
-        },
+            cellPadding:
+              reportType === "inventory"
+                ? 1.2
+                : 2,
+
+            overflow: "linebreak",
+            valign: "top",
+            minCellHeight: 5,
+          },
+
+          headStyles: {
+            fontStyle: "bold",
+
+            fontSize:
+              reportType === "inventory"
+                ? 5.5
+                : 7,
+
+            cellPadding:
+              reportType === "inventory"
+                ? 1
+                : 2,
+          },
+
+          columnStyles:
+  reportType === "inventory"
+    ? {
+        0: { cellWidth: 16 }, // Tombo
+        1: { cellWidth: 38 }, // Descrição
+        2: { cellWidth: 18 }, // Marca
+        3: { cellWidth: 18 }, // Modelo
+        4: { cellWidth: 20 }, // Nº Série
+
+        5: { cellWidth: 25 }, // Departamento
+        6: { cellWidth: 25 }, // Setor
+        7: { cellWidth: 21 }, // Subsetor
+
+        8: { cellWidth: 20 }, // Situação
+        9: { cellWidth: 18 }, // Conservação
+
+        10: { cellWidth: 17 }, // Dt Uso
+        11: { cellWidth: 18 }, // Documento
+        12: { cellWidth: 17 }, // Dt Doc
+        13: { cellWidth: 20 }, // Empenho
+        14: { cellWidth: 18 }, // Dt aquisição
+        15: { cellWidth: 22 }, // Valor
+
+        16: { cellWidth: 18 }, // RENAVAM
+        17: { cellWidth: 22 }, // Chassi
+        18: { cellWidth: 32 }, // Observações
+      }
+    : undefined,
 
         margin: {
-          left: 14,
-          right: 14,
-          bottom: 14,
+          left: 10,
+          right: 10,
+          bottom: 10,
         },
+
+        
 
         didDrawPage: () => {
           document.setFontSize(
@@ -987,7 +1186,11 @@ export function AssetReportsPage() {
         { wch: 20 }, // Marca
         { wch: 20 }, // Modelo
         { wch: 22 }, // Número de série
-        { wch: 40 }, // Localização
+
+        { wch: 35 }, // Departamento
+        { wch: 35 }, // Setor
+        { wch: 35 }, // Subsetor
+
         { wch: 18 }, // Situação
         { wch: 20 }, // Conservação
         { wch: 18 }, // Data de uso
@@ -995,7 +1198,7 @@ export function AssetReportsPage() {
         { wch: 18 }, // Data do documento
         { wch: 20 }, // Empenho
         { wch: 18 }, // Data de aquisição
-        { wch: 20 }, // Valor de aquisição
+        { wch: 20 }, // Valor aquisição
         { wch: 20 }, // RENAVAM
         { wch: 25 }, // Chassi
         { wch: 45 }, // Observações
@@ -1594,7 +1797,15 @@ export function AssetReportsPage() {
                         </TableHead>
 
                         <TableHead>
-                          Localização
+                          Departamento
+                        </TableHead>
+
+                        <TableHead>
+                          Setor
+                        </TableHead>
+
+                        <TableHead>
+                          Subsetor
                         </TableHead>
 
                         <TableHead>
@@ -1606,15 +1817,15 @@ export function AssetReportsPage() {
                         </TableHead>
 
                         <TableHead>
-                          Dta. Uso
+                          Data de Uso
                         </TableHead>
 
                         <TableHead>
-                          Doc
+                          Documento
                         </TableHead>
 
                         <TableHead>
-                          Dta. Doc
+                          Data de documento
                         </TableHead>
 
                         <TableHead>
@@ -1622,11 +1833,11 @@ export function AssetReportsPage() {
                         </TableHead>
 
                         <TableHead>
-                          Dta. Aquisição
+                          Data de aquisição
                         </TableHead>
 
                         <TableHead className="text-right">
-                          Valor
+                          Valor de aquisição
                         </TableHead>
 
                         <TableHead>
@@ -1644,13 +1855,21 @@ export function AssetReportsPage() {
                     </thead>
 
                     <tbody>
-                      {report.assets.map(
-                        (asset) => (
+                    {report.assets.map(
+                      (asset) => {
+                        const location =
+                          getAssetLocation(
+                            asset,
+                          );
+
+                        return (
                           <TableRow
                             key={asset.id}
                           >
                             <TableCell>
-                              {asset.patrimonyNumber}
+                              {
+                                asset.patrimonyNumber
+                              }
                             </TableCell>
 
                             <TableCell>
@@ -1671,9 +1890,15 @@ export function AssetReportsPage() {
                             </TableCell>
 
                             <TableCell>
-                              {asset.unitCode
-                                ? `${asset.unitCode} - ${asset.unitName ?? ""}`
-                                : "Não informado"}
+                              {location.department}
+                            </TableCell>
+
+                            <TableCell>
+                              {location.sector}
+                            </TableCell>
+
+                            <TableCell>
+                              {location.subsector}
                             </TableCell>
 
                             <TableCell>
@@ -1700,8 +1925,8 @@ export function AssetReportsPage() {
                             <TableCell>
                               {asset.usageDate
                                 ? formatDateForSpreadsheet(
-                                  asset.usageDate,
-                                )
+                                    asset.usageDate,
+                                  )
                                 : "—"}
                             </TableCell>
 
@@ -1713,8 +1938,8 @@ export function AssetReportsPage() {
                             <TableCell>
                               {asset.documentDate
                                 ? formatDateForSpreadsheet(
-                                  asset.documentDate,
-                                )
+                                    asset.documentDate,
+                                  )
                                 : "—"}
                             </TableCell>
 
@@ -1726,8 +1951,8 @@ export function AssetReportsPage() {
                             <TableCell>
                               {asset.acquisitionDate
                                 ? formatDateForSpreadsheet(
-                                  asset.acquisitionDate,
-                                )
+                                    asset.acquisitionDate,
+                                  )
                                 : "—"}
                             </TableCell>
 
@@ -1749,12 +1974,16 @@ export function AssetReportsPage() {
                               {asset.notes ?? "—"}
                             </TableCell>
                           </TableRow>
-                        ),
-                      )}
-                    </tbody>
+                        );
+                      },
+                    )}
+                  </tbody>
+                    
                   </Table>
                 </div>
+                
               ) : null}
+              
               {reportType === "sector" ? (
                 <Table>
                   <thead>
