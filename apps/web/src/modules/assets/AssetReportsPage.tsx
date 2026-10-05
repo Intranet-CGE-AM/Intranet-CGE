@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FilePdf, FileXls, FunnelSimple } from "@phosphor-icons/react";
+import { useAuth } from "../../auth";
 import {
   Alert,
   Badge,
@@ -227,6 +228,56 @@ function getUnitLabel(
   return `${unit.code} - ${unit.name}`;
 }
 
+async function imageUrlToDataUrl(
+  url: string,
+) {
+  const response =
+    await fetch(url);
+
+  const blob =
+    await response.blob();
+
+  return new Promise<string>(
+    (
+      resolve,
+      reject,
+    ) => {
+      const reader =
+        new FileReader();
+
+      reader.onloadend =
+        () => {
+          if (
+            typeof reader.result ===
+            "string"
+          ) {
+            resolve(
+              reader.result,
+            );
+          } else {
+            reject(
+              new Error(
+                "Não foi possível carregar o brasão.",
+              ),
+            );
+          }
+        };
+
+      reader.onerror =
+        () =>
+          reject(
+            new Error(
+              "Não foi possível carregar o brasão.",
+            ),
+          );
+
+      reader.readAsDataURL(
+        blob,
+      );
+    },
+  );
+}
+
 export function AssetReportsPage() {
   const [reportType, setReportType] = useState<ReportType>("inventory");
   const [departmentId, setDepartmentId] = useState("");
@@ -296,6 +347,13 @@ export function AssetReportsPage() {
       unit.active &&
       (!sectorId || unit.parentId === sectorId),
   );
+
+  const { user } =
+  useAuth();
+
+  const generatedBy =
+    user?.person.displayName ??
+    "Usuário não identificado";
 
   function describeFilters() {
     const filters: string[] =
@@ -839,7 +897,7 @@ export function AssetReportsPage() {
       }`
       : "Todos";
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     const rows =
       rowsToExport();
 
@@ -859,6 +917,11 @@ export function AssetReportsPage() {
             ? "a4"
             : "a4",
       });
+    
+    const logo =
+    await imageUrlToDataUrl(
+      "/brasao_gov.png",
+    );
 
     const pageWidth =
       document.internal
@@ -868,22 +931,76 @@ export function AssetReportsPage() {
       document.internal
         .pageSize.getHeight();
 
-    document.setFont(
-      "helvetica",
-      "bold",
-    );
+      /* BRASÃO */
 
-    document.setFontSize(
-      14,
-    );
+      document.addImage(
+        logo,
+        "PNG",
+        10,
+        5,
+        18,
+        20,
+      );
 
-    document.text(
-      `RELATÓRIO PATRIMONIAL - ${reportTypeLabels[
-        reportType
-      ].toUpperCase()}`,
-      14,
-      15,
-    );
+          /* CABEÇALHO CENTRALIZADO */
+
+          document.setFont(
+            "helvetica",
+            "bold",
+          );
+
+          document.setFontSize(12);
+
+          document.text(
+            "CONTROLADORIA-GERAL DO ESTADO DO AMAZONAS",
+            pageWidth / 2,
+            12,
+            {
+              align: "center",
+            },
+          );
+
+          document.setFontSize(14);
+
+          document.text(
+            "RELATÓRIO PATRIMONIAL",
+            pageWidth / 2,
+            19,
+            {
+              align: "center",
+            },
+          );
+
+          document.setFontSize(10);
+
+          document.text(
+            reportTypeLabels[
+              reportType
+            ].toUpperCase(),
+            pageWidth / 2,
+            25,
+            {
+              align: "center",
+            },
+          );
+
+          document.setFont(
+            "helvetica",
+            "normal",
+          );
+
+          document.setFontSize(8);
+
+          document.text(
+            `Emitido em: ${new Date().toLocaleString(
+              "pt-BR",
+            )}`,
+            pageWidth / 2,
+            31,
+            {
+              align: "center",
+            },
+          );
 
     document.setFont(
       "helvetica",
@@ -894,61 +1011,82 @@ export function AssetReportsPage() {
       9,
     );
 
-    document.text(
-      "Controladoria-Geral do Estado do Amazonas",
-      14,
-      22,
-    );
-
-    document.text(
-      `Emitido em: ${new Date().toLocaleString(
-        "pt-BR",
-      )}`,
-      14,
-      28,
-    );
-
     const summary =
-      reportType ===
-        "movements"
-        ? `Total de movimentações: ${movementReport
-          ?.summary.total ??
-        0
+    reportType ===
+    "movements"
+      ? `Total de movimentações: ${
+          movementReport
+            ?.summary.total ??
+          0
         }`
-        : `Total de bens: ${report?.summary
-          .total ?? 0
+      : `Total de bens: ${
+          report?.summary
+            .total ?? 0
         } | Valor total: ${currency.format(
           report?.summary
             .totalValue ?? 0,
         )}`;
 
+   document.setFontSize(9);
+
     document.text(
       summary,
-      14,
-      34,
+      pageWidth / 2,
+      39,
+      {
+        align: "center",
+      },
     );
 
     const filtersText:
       string[] =
       document.splitTextToSize(
         `Filtros: ${describeFilters()}`,
-        pageWidth - 28,
+        pageWidth - 60,
       );
 
-    document.setFontSize(
-      8,
-    );
+    document.setFontSize(8);
 
-    document.text(
-      filtersText,
-      14,
-      41,
+    filtersText.forEach(
+      (
+        line,
+        index,
+      ) => {
+        document.text(
+          line,
+          pageWidth / 2,
+          45 + index * 4,
+          {
+            align:
+              "center",
+          },
+        );
+      },
     );
 
     const headers =
       Object.keys(
         rows[0] ?? {},
       );
+
+    const headerBottomY =
+      50 +
+      filtersText.length * 4;
+
+    document.setDrawColor(
+      180,
+    );
+
+    document.setLineWidth(
+      0.2,
+    );
+
+    document.line(
+      14,
+      headerBottomY,
+      pageWidth - 14,
+      headerBottomY,
+    );
 
     const pdfHeaderLabels:
       Record<string, string> = {
@@ -984,10 +1122,7 @@ export function AssetReportsPage() {
     autoTable(
       document,
       {
-        startY:
-          46 +
-          filtersText.length *
-          3,
+        startY: headerBottomY + 4,
 
         theme: "grid",
 
@@ -1087,10 +1222,14 @@ export function AssetReportsPage() {
 
         
 
+    
         didDrawPage: () => {
-          document.setFontSize(
-            7,
+          document.setFont(
+            "helvetica",
+            "normal",
           );
+
+          document.setFontSize(7);
 
           document.text(
             "CGE-AM - Controle de Patrimônio",
@@ -1099,16 +1238,24 @@ export function AssetReportsPage() {
           );
 
           document.text(
+            `Gerado por: ${generatedBy}`,
+            pageWidth / 2,
+            pageHeight - 7,
+            {
+              align: "center",
+            },
+          );
+
+          document.text(
             `Página ${document.getNumberOfPages()}`,
             pageWidth - 14,
             pageHeight - 7,
             {
-              align:
-                "right",
+              align: "right",
             },
           );
         },
-      },
+        }
     );
 
     document.save(
