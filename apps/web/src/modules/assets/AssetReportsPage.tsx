@@ -1919,15 +1919,15 @@ export function AssetReportsPage() {
               </CardHeader>
               {reportType ===
                 "inventory" ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <thead>
+               <div className="max-h-[70vh] overflow-auto rounded-lg">
+                <Table className="min-w-[2800px]">
+                   <thead className="sticky top-0 z-40 bg-white shadow-sm">
                       <tr>
-                        <TableHead>
+                        <TableHead className="sticky left-0 z-50 min-w-[120px] bg-white">
                           Tombo
                         </TableHead>
 
-                        <TableHead>
+                        <TableHead className="sticky left-[120px] z-40 min-w-[280px] bg-white">
                           Descrição
                         </TableHead>
 
@@ -1943,15 +1943,15 @@ export function AssetReportsPage() {
                           Nº de série
                         </TableHead>
 
-                        <TableHead>
+                        <TableHead className="min-w-[220px]">
                           Departamento
                         </TableHead>
 
-                        <TableHead>
+                        <TableHead className="min-w-[220px]">
                           Setor
                         </TableHead>
 
-                        <TableHead>
+                        <TableHead className="min-w-[220px]">
                           Subsetor
                         </TableHead>
 
@@ -1995,7 +1995,7 @@ export function AssetReportsPage() {
                           Chassi
                         </TableHead>
 
-                        <TableHead>
+                        <TableHead className="min-w-[280px]">
                           Observações
                         </TableHead>
                       </tr>
@@ -2012,39 +2012,38 @@ export function AssetReportsPage() {
                         return (
                           <TableRow
                             key={asset.id}
+                            className="hover:bg-muted/40"
                           >
-                            <TableCell>
-                              {
-                                asset.patrimonyNumber
-                              }
-                            </TableCell>
+                          <TableCell className="sticky left-0 z-30 min-w-[120px] bg-white font-medium">
+                            {asset.patrimonyNumber}
+                          </TableCell>
 
-                            <TableCell>
+                            <TableCell className="sticky left-[120px] z-20 min-w-[280px] bg-white whitespace-normal shadow-[4px_0_6px_-6px_rgba(0,0,0,0.35)]">
                               {asset.description}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="whitespace-nowrap">
                               {asset.brand ?? "—"}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="whitespace-nowrap">
                               {asset.model ?? "—"}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="whitespace-nowrap">
                               {asset.serialNumber ??
                                 "—"}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="min-w-[220px] whitespace-normal">
                               {location.department}
                             </TableCell>
 
-                            <TableCell>
+                           <TableCell className="min-w-[220px] whitespace-normal">
                               {location.sector}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="min-w-[220px] whitespace-normal">
                               {location.subsector}
                             </TableCell>
 
@@ -2117,7 +2116,7 @@ export function AssetReportsPage() {
                               {asset.chassis ?? "—"}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell className="min-w-[280px] whitespace-normal">
                               {asset.notes ?? "—"}
                             </TableCell>
                           </TableRow>
@@ -2159,6 +2158,8 @@ export function AssetReportsPage() {
                   </tbody>
                 </Table>
               ) : null}
+
+
               {reportType === "status" ? (
                 <CardContent className="grid gap-4 sm:grid-cols-3">
                   {assetsByStatus.map((item) => (
@@ -2178,6 +2179,8 @@ export function AssetReportsPage() {
                   ))}
                 </CardContent>
               ) : null}
+
+
               {reportType === "conservation" ? (
                 <Table>
                   <thead>
@@ -2198,6 +2201,8 @@ export function AssetReportsPage() {
                   </tbody>
                 </Table>
               ) : null}
+
+              
               {reportType === "financial" ? (
                 <>
                   <CardContent className="grid gap-4 sm:grid-cols-3">
