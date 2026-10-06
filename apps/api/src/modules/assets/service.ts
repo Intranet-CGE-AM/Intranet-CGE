@@ -20,9 +20,11 @@ import {
   inArray,
   lte,
   or,
+  sql,
 } from "drizzle-orm";
 export class AssetService {
-  constructor(private readonly db: Database) {}
+
+  constructor(private readonly db: Database) { }
   async getMovementReport(query: { startDate?: string; endDate?: string }) {
     const conditions = [];
     if (query.startDate) {
@@ -68,6 +70,9 @@ export class AssetService {
         ? unitById.get(movement.fromUnitId)
         : null;
       const toUnit = unitById.get(movement.toUnitId);
+
+
+
       return {
         id: movement.id,
         assetId: movement.assetId,
@@ -77,17 +82,17 @@ export class AssetService {
         notes: movement.notes,
         fromUnit: fromUnit
           ? {
-              id: fromUnit.id,
-              code: fromUnit.code,
-              name: fromUnit.name,
-            }
+            id: fromUnit.id,
+            code: fromUnit.code,
+            name: fromUnit.name,
+          }
           : null,
         toUnit: toUnit
           ? {
-              id: toUnit.id,
-              code: toUnit.code,
-              name: toUnit.name,
-            }
+            id: toUnit.id,
+            code: toUnit.code,
+            name: toUnit.name,
+          }
           : null,
       };
     });
@@ -192,20 +197,54 @@ export class AssetService {
       totalPages,
     };
   }
-  async getReport(query: {
-    departmentId?: string;
-    sectorId?: string;
-    subsectorId?: string;
-    status?: "active" | "maintenance" | "disposed";
-    conservationStatus?: string;
-    startDate?: string;
-    endDate?: string;
-  }) {
+async getReport(query: {
+  departmentId?: string;
+  sectorId?: string;
+  subsectorId?: string;
+
+  status?:
+    | "active"
+    | "maintenance"
+    | "disposed";
+
+  conservationStatus?: string;
+
+  startDate?: string;
+  endDate?: string;
+
+  page?: number;
+  pageSize?: number;
+
+  all?: boolean;
+}) {
+
+    const page =
+      Math.max(
+        1,
+        query.page ?? 1,
+      );
+
+    const pageSize =
+      Math.min(
+        100,
+        Math.max(
+          1,
+          query.pageSize ?? 20,
+        ),
+      );
+
+    const offset =
+      (page - 1) *
+      pageSize;
+
+
+
+      
     const conditions = [];
     /*
-     * Descobre quais unidades devem fazer
-     * parte do filtro de localização.
-     */
+    * Descobre quais unidades devem fazer
+    * parte do filtro de localização.
+    */
     let unitIds: string[] = [];
     if (query.subsectorId) {
       unitIds = [query.subsectorId];
@@ -238,26 +277,26 @@ export class AssetService {
       unitIds = [query.departmentId, ...sectorIds, ...subsectorIds];
     }
     /*
-     * Localização.
-     */
+    * Localização.
+    */
     if (unitIds.length > 0) {
       conditions.push(inArray(assets.unitId, unitIds));
     }
     /*
-     * Situação.
-     */
+    * Situação.
+    */
     if (query.status) {
       conditions.push(eq(assets.status, query.status));
     }
     /*
-     * Estado de conservação.
-     */
+    * Estado de conservação.
+    */
     if (query.conservationStatus) {
       conditions.push(eq(assets.conservationStatus, query.conservationStatus));
     }
     /*
-     * Período de aquisição.
-     */
+    * Período de aquisição.
+    */
     if (query.startDate) {
       conditions.push(gte(assets.acquisitionDate, query.startDate));
     }
@@ -265,48 +304,114 @@ export class AssetService {
       conditions.push(lte(assets.acquisitionDate, query.endDate));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows =
-    await this.db
+
+const rowsQuery =
+  this.db
+    .select({
+      ...getTableColumns(
+        assets,
+      ),
+
+      unitCode:
+        organizationUnits.code,
+
+      unitName:
+        organizationUnits.name,
+
+      unitType:
+        organizationUnits.type,
+    })
+    .from(assets)
+    .leftJoin(
+      organizationUnits,
+      eq(
+        assets.unitId,
+        organizationUnits.id,
+      ),
+    )
+    .where(where)
+    .orderBy(
+      asc(
+        assets.patrimonyNumber,
+      ),
+    );
+
+const [
+  rows,
+  summaryResult,
+] =
+  await Promise.all([
+    query.all
+      ? rowsQuery
+      : rowsQuery
+          .limit(pageSize)
+          .offset(offset),
+
+    this.db
       .select({
-        ...getTableColumns(assets),
+        total:
+          count(),
 
-        unitCode:
-          organizationUnits.code,
-
-        unitName:
-          organizationUnits.name,
-
-        unitType:
-          organizationUnits.type,
+        totalValue:
+          sql<string>`
+            coalesce(
+              sum(${assets.acquisitionValue}),
+              0
+            )
+          `,
       })
       .from(assets)
-      .leftJoin(
-        organizationUnits,
-        eq(
-          assets.unitId,
-          organizationUnits.id,
-        ),
-      )
-      .where(where)
-      .orderBy(
-        asc(
-          assets.patrimonyNumber,
-        ),
-      );
+      .where(where),
+  ]);
 
-      
-    const totalValue = rows.reduce(
-      (total, asset) => total + Number(asset.acquisitionValue ?? 0),
-      0,
-    );
-    return {
-      assets: rows,
-      summary: {
-        total: rows.length,
-        totalValue,
-      },
-    };
-  }
+          const total =
+            summaryResult[0]
+              ?.total ?? 0;
+
+          const totalValue =
+            Number(
+              summaryResult[0]
+                ?.totalValue ?? 0,
+            );
+
+          const totalPages =
+            Math.max(
+              1,
+              Math.ceil(
+                total /
+                  pageSize,
+              ),
+            );
+
+return {
+  assets: rows,
+
+  summary: {
+    total,
+    totalValue,
+  },
+
+  pagination:
+    query.all
+      ? {
+          page: 1,
+          pageSize:
+            total,
+          total,
+          totalPages: 1,
+        }
+      : {
+          page,
+          pageSize,
+          total,
+          totalPages,
+        },
+};
+    }
+
+
+
+  
   async getDashboard() {
     const [assetRows, unitRows, recentMovementRows, recentDisposalRows] =
       await Promise.all([
@@ -465,19 +570,19 @@ export class AssetService {
         movementDate: movement.movementDate,
         fromUnit: fromUnit
           ? {
-              id: fromUnit.id,
-              code: fromUnit.code,
-              name: fromUnit.name,
-              path: formatUnitPath(fromUnit.id),
-            }
+            id: fromUnit.id,
+            code: fromUnit.code,
+            name: fromUnit.name,
+            path: formatUnitPath(fromUnit.id),
+          }
           : null,
         toUnit: toUnit
           ? {
-              id: toUnit.id,
-              code: toUnit.code,
-              name: toUnit.name,
-              path: formatUnitPath(toUnit.id),
-            }
+            id: toUnit.id,
+            code: toUnit.code,
+            name: toUnit.name,
+            path: formatUnitPath(toUnit.id),
+          }
           : null,
       };
     });
@@ -552,86 +657,86 @@ export class AssetService {
       .set({
         ...(input.patrimonyNumber !== undefined
           ? {
-              patrimonyNumber: input.patrimonyNumber,
-            }
+            patrimonyNumber: input.patrimonyNumber,
+          }
           : {}),
         ...(input.description !== undefined
           ? {
-              description: input.description,
-            }
+            description: input.description,
+          }
           : {}),
         ...(input.brand !== undefined
           ? {
-              brand: input.brand,
-            }
+            brand: input.brand,
+          }
           : {}),
         ...(input.model !== undefined
           ? {
-              model: input.model,
-            }
+            model: input.model,
+          }
           : {}),
         ...(input.serialNumber !== undefined
           ? {
-              serialNumber: input.serialNumber,
-            }
+            serialNumber: input.serialNumber,
+          }
           : {}),
         ...(input.responsiblePersonId !== undefined
           ? {
-              responsiblePersonId: input.responsiblePersonId,
-            }
+            responsiblePersonId: input.responsiblePersonId,
+          }
           : {}),
         ...(input.usageDate !== undefined
           ? {
-              usageDate: input.usageDate,
-            }
+            usageDate: input.usageDate,
+          }
           : {}),
         ...(input.documentNumber !== undefined
           ? {
-              documentNumber: input.documentNumber,
-            }
+            documentNumber: input.documentNumber,
+          }
           : {}),
         ...(input.documentDate !== undefined
           ? {
-              documentDate: input.documentDate,
-            }
+            documentDate: input.documentDate,
+          }
           : {}),
         ...(input.commitmentNumber !== undefined
           ? {
-              commitmentNumber: input.commitmentNumber,
-            }
+            commitmentNumber: input.commitmentNumber,
+          }
           : {}),
         ...(input.conservationStatus !== undefined
           ? {
-              conservationStatus: input.conservationStatus,
-            }
+            conservationStatus: input.conservationStatus,
+          }
           : {}),
         ...(input.renavam !== undefined
           ? {
-              renavam: input.renavam,
-            }
+            renavam: input.renavam,
+          }
           : {}),
         ...(input.chassis !== undefined
           ? {
-              chassis: input.chassis,
-            }
+            chassis: input.chassis,
+          }
           : {}),
         ...(input.acquisitionDate !== undefined
           ? {
-              acquisitionDate: input.acquisitionDate,
-            }
+            acquisitionDate: input.acquisitionDate,
+          }
           : {}),
         ...(input.acquisitionValue !== undefined
           ? {
-              acquisitionValue:
-                input.acquisitionValue === null
-                  ? null
-                  : String(input.acquisitionValue),
-            }
+            acquisitionValue:
+              input.acquisitionValue === null
+                ? null
+                : String(input.acquisitionValue),
+          }
           : {}),
         ...(input.notes !== undefined
           ? {
-              notes: input.notes,
-            }
+            notes: input.notes,
+          }
           : {}),
         updatedAt: new Date(),
       })
@@ -739,7 +844,7 @@ export class AssetService {
         acquisitionDate: input.acquisitionDate ?? null,
         acquisitionValue:
           input.acquisitionValue !== null &&
-          input.acquisitionValue !== undefined
+            input.acquisitionValue !== undefined
             ? String(input.acquisitionValue)
             : null,
         notes: input.notes ?? null,

@@ -81,27 +81,65 @@ export const assetRoutes: FastifyPluginAsync<{
 
   typedApp.get(
     "/api/assets/reports",
-
     {
       schema: {
         querystring: z.object({
-          departmentId: z.uuid().optional(),
+          departmentId:
+            z.string().optional(),
 
-          sectorId: z.uuid().optional(),
+          sectorId:
+            z.string().optional(),
 
-          subsectorId: z.uuid().optional(),
+          subsectorId:
+            z.string().optional(),
 
-          status: z.enum(["active", "maintenance", "disposed"]).optional(),
+          status:
+            z
+              .enum([
+                "active",
+                "maintenance",
+                "disposed",
+              ])
+              .optional(),
 
-          conservationStatus: z.string().optional(),
+          conservationStatus:
+            z.string().optional(),
 
-          startDate: z.string().optional(),
+          startDate:
+            z.string().optional(),
 
-          endDate: z.string().optional(),
+          endDate:
+            z.string().optional(),
+
+          page:
+            z.coerce
+              .number()
+              .int()
+              .min(1)
+              .default(1),
+
+          pageSize:
+            z.coerce
+              .number()
+              .int()
+              .min(1)
+              .max(100)
+              .default(20),
+
+              all:
+            z
+              .enum([
+                "true",
+                "false",
+              ])
+              .optional()
+              .transform(
+                (value) =>
+                  value === "true",
+              ),
         }),
       },
     },
-
     async (request, reply) => {
       const user = await requireAnyPermission(
         request,
@@ -114,57 +152,57 @@ export const assetRoutes: FastifyPluginAsync<{
         return;
       }
 
-              return options
-                .assetService
-                .getReport(
-                  request.query,
-                );
-            },
-          );
+      return options
+        .assetService
+        .getReport(
+          request.query,
+        );
+    },
+  );
 
-                  /* RELATÓRIO DE MOVIMENTAÇÕES */
+  /* RELATÓRIO DE MOVIMENTAÇÕES */
 
-            typedApp.get(
-              "/api/assets/reports/movements",
+  typedApp.get(
+    "/api/assets/reports/movements",
 
-              {
-                schema: {
-                  querystring:
-                    z.object({
-                      startDate:
-                        z.string()
-                          .optional(),
+    {
+      schema: {
+        querystring:
+          z.object({
+            startDate:
+              z.string()
+                .optional(),
 
-                      endDate:
-                        z.string()
-                          .optional(),
-                    }),
-                },
-              },
+            endDate:
+              z.string()
+                .optional(),
+          }),
+      },
+    },
 
-              async (
-                request,
-                reply,
-              ) => {
-                const user =
-                  await requireAnyPermission(
-                    request,
-                    reply,
-                    options.authenticationService,
-                    "assets.read",
-                  );
+    async (
+      request,
+      reply,
+    ) => {
+      const user =
+        await requireAnyPermission(
+          request,
+          reply,
+          options.authenticationService,
+          "assets.read",
+        );
 
-                if (!user) {
-                  return;
-                }
+      if (!user) {
+        return;
+      }
 
-                return options
-                  .assetService
-                  .getMovementReport(
-                    request.query,
-                  );
-              },
-            );
+      return options
+        .assetService
+        .getMovementReport(
+          request.query,
+        );
+    },
+  );
 
   /* CONSULTAR BEM */
 
@@ -576,10 +614,10 @@ export const assetRoutes: FastifyPluginAsync<{
         });
       }
 
-              return {
-                disposal,
-              };
-        },
-        );
+      return {
+        disposal,
+      };
+    },
+  );
 
-  };
+};
