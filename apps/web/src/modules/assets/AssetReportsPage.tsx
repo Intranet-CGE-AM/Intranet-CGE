@@ -2011,9 +2011,7 @@ export function AssetReportsPage() {
 
                         return (
                           <TableRow
-                            key={asset.id}
-                            className="hover:bg-muted/40"
-                          >
+                            key={asset.id}>
                           <TableCell className="sticky left-0 z-30 min-w-[120px] bg-white font-medium">
                             {asset.patrimonyNumber}
                           </TableCell>
@@ -2202,7 +2200,7 @@ export function AssetReportsPage() {
                 </Table>
               ) : null}
 
-              
+
               {reportType === "financial" ? (
                 <>
                   <CardContent className="grid gap-4 sm:grid-cols-3">
