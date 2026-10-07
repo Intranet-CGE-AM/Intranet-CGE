@@ -122,11 +122,20 @@ type ReportAsset = {
 
 type AssetReportResponse = {
   assets: ReportAsset[];
+
   summary: {
     total: number;
     totalValue: number;
   };
+
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 };
+
 type MovementReportItem = {
   id: string;
   assetId: string;
@@ -332,6 +341,19 @@ export function AssetReportsPage() {
       cancelled = true;
     };
   }, []);
+
+  const [
+    page,
+    setPage,
+  ] =
+    useState(1);
+
+  const [
+    pageSize,
+    setPageSize,
+  ] =
+    useState(20);
+
   const departments = units.filter(
     (unit) => unit.type === "department" && unit.active,
   );
@@ -640,37 +662,154 @@ export function AssetReportsPage() {
   }
 
 
-  async function handleGenerateReport() {
-    if (startDate && endDate && startDate > endDate) {
-      setReportError("A data inicial deve ser anterior ou igual à data final.");
+  async function handleGenerateReport(
+    targetPage = 1,
+    targetPageSize = pageSize,
+  ) {
+    if (
+      startDate &&
+      endDate &&
+      startDate > endDate
+    ) {
+      setReportError(
+        "A data inicial deve ser anterior ou igual à data final.",
+      );
+
       return;
     }
+
     setLoadingReport(true);
     setReportError(null);
     setReport(null);
     setMovementReport(null);
+
     try {
-      const params = new URLSearchParams();
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      if (reportType === "movements") {
-        const query = params.toString();
-        const result = await api<MovementReportResponse>(
-          `/api/assets/reports/movements${query ? `?${query}` : ""}`,
+      const params =
+        new URLSearchParams();
+
+      if (startDate) {
+        params.set(
+          "startDate",
+          startDate,
         );
-        setMovementReport(result);
+      }
+
+      if (endDate) {
+        params.set(
+          "endDate",
+          endDate,
+        );
+      }
+
+      if (
+        reportType ===
+        "movements"
+      ) {
+        const query =
+          params.toString();
+
+        const result =
+          await api<MovementReportResponse>(
+            `/api/assets/reports/movements${
+              query
+                ? `?${query}`
+                : ""
+            }`,
+          );
+
+        setMovementReport(
+          result,
+        );
+
+        return;
+      }
+
+      if (departmentId) {
+        params.set(
+          "departmentId",
+          departmentId,
+        );
+      }
+
+      if (sectorId) {
+        params.set(
+          "sectorId",
+          sectorId,
+        );
+      }
+
+      if (subsectorId) {
+        params.set(
+          "subsectorId",
+          subsectorId,
+        );
+      }
+
+      if (status) {
+        params.set(
+          "status",
+          status,
+        );
+      }
+
+      if (
+        conservationStatus
+      ) {
+        params.set(
+          "conservationStatus",
+          conservationStatus,
+        );
+      }
+
+      if (
+        reportType ===
+        "inventory"
+      ) {
+        params.set(
+          "page",
+          String(
+            targetPage,
+          ),
+        );
+
+        params.set(
+          "pageSize",
+          String(
+            targetPageSize,
+          ),
+        );
       } else {
-        if (departmentId) params.set("departmentId", departmentId);
-        if (sectorId) params.set("sectorId", sectorId);
-        if (subsectorId) params.set("subsectorId", subsectorId);
-        if (status) params.set("status", status);
-        if (conservationStatus)
-          params.set("conservationStatus", conservationStatus);
-        const query = params.toString();
-        const result = await api<AssetReportResponse>(
-          `/api/assets/reports${query ? `?${query}` : ""}`,
+        params.set(
+          "all",
+          "true",
         );
-        setReport(result);
+      }
+
+      const query =
+        params.toString();
+
+      const result =
+        await api<AssetReportResponse>(
+          `/api/assets/reports${
+            query
+              ? `?${query}`
+              : ""
+          }`,
+        );
+
+      setReport(result);
+
+      if (
+        reportType ===
+        "inventory"
+      ) {
+        setPage(
+          result.pagination.page,
+        );
+
+        setPageSize(
+          result.pagination.pageSize,
+        );
       }
     } catch (cause) {
       setReportError(
@@ -684,10 +823,19 @@ export function AssetReportsPage() {
   }
 
   // Evita exportar dados de uma consulta anterior com filtros novos.
+
   useEffect(() => {
+    setPage(1);
+
     setReport(null);
-    setMovementReport(null);
-    setReportError(null);
+
+    setMovementReport(
+      null,
+    );
+
+    setReportError(
+      null,
+    );
   }, [
     reportType,
     departmentId,
@@ -709,9 +857,9 @@ export function AssetReportsPage() {
       ),
     );
 
-    function getAssetLocation(
+  function getAssetLocation(
   asset: ReportAsset,
-) {
+  ) {
   if (!asset.unitId) {
     return {
       department: "Não informado",
@@ -2124,9 +2272,14 @@ export function AssetReportsPage() {
                   </tbody>
                     
                   </Table>
+
+                  
                 </div>
                 
               ) : null}
+
+
+
               
               {reportType === "sector" ? (
                 <Table>
@@ -2257,6 +2410,131 @@ export function AssetReportsPage() {
                   </Table>
                 </>
               ) : null}
+
+              {reportType ===
+                "inventory" &&
+              report ? (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    className="h-9 min-w-[160px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+                    value={String(
+                      report.pagination.pageSize,
+                    )}
+                    onChange={(event) => {
+                      const nextPageSize =
+                        Number(
+                          event.target.value,
+                        );
+
+                      setPageSize(
+                        nextPageSize,
+                      );
+
+                      void handleGenerateReport(
+                        1,
+                        nextPageSize,
+                      );
+                    }}
+                  >
+                    <option value="10">
+                      10 por página
+                    </option>
+
+                    <option value="20">
+                      20 por página
+                    </option>
+
+                    <option value="50">
+                      50 por página
+                    </option>
+                  </select>
+
+                  <span className="min-w-[100px] text-center text-sm text-[var(--text-muted)]">
+                    Página{" "}
+                    {
+                      report.pagination
+                        .page
+                    }{" "}
+                    de{" "}
+                    {
+                      report.pagination
+                        .totalPages
+                    }
+                  </span>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      loadingReport ||
+                      report.pagination
+                        .page <= 1
+                    }
+                    onClick={() => {
+                      void handleGenerateReport(
+                        report.pagination
+                          .page - 1,
+                        report.pagination
+                          .pageSize,
+                      );
+                    }}
+                  >
+                    Anterior
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      loadingReport ||
+                      report.pagination
+                        .page >=
+                        report.pagination
+                          .totalPages
+                    }
+                    onClick={() => {
+                      void handleGenerateReport(
+                        report.pagination
+                          .page + 1,
+                        report.pagination
+                          .pageSize,
+                      );
+                    }}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+
+                  <div className="text-sm text-[var(--text-muted)]">
+                  Mostrando{" "}
+                  <strong>
+                    {(report.pagination.page -
+                      1) *
+                      report.pagination.pageSize +
+                      1}
+                  </strong>
+                  {" – "}
+                  <strong>
+                    {Math.min(
+                      report.pagination.page *
+                        report.pagination.pageSize,
+                      report.pagination.total,
+                    )}
+                  </strong>
+                  {" de "}
+                  <strong>
+                    {
+                      report.pagination
+                        .total
+                    }
+                  </strong>{" "}
+                  bens
+                </div>
+
+                </div>
+              ) : null}
+
             </Card>
           )}
         </>
