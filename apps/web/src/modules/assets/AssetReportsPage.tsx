@@ -352,7 +352,19 @@ export function AssetReportsPage() {
     pageSize,
     setPageSize,
   ] =
-    useState(20);
+    useState(10);
+
+    const [
+  exportingPdf,
+  setExportingPdf,
+] =
+  useState(false);
+
+const [
+  exportingXlsx,
+  setExportingXlsx,
+] =
+  useState(false);
 
   const departments = units.filter(
     (unit) => unit.type === "department" && unit.active,
@@ -1134,9 +1146,9 @@ export function AssetReportsPage() {
 
 async function handleExportPdf() {
   try {
-    setReportError(
-      null,
-    );
+    setExportingPdf(true);
+
+    setReportError(null);
 
     let rows:
       Record<
@@ -1536,7 +1548,7 @@ async function handleExportPdf() {
       `relatorio-${reportType}-${fileDate()}.pdf`,
     );
 
-      } catch (cause) {
+ } catch (cause) {
     console.error(
       "Erro ao exportar PDF:",
       cause,
@@ -1545,12 +1557,16 @@ async function handleExportPdf() {
     setReportError(
       "Não foi possível exportar o PDF.",
     );
+  } finally {
+    setExportingPdf(false);
   }
 }
   
 
 async function handleExportXlsx() {
   try {
+    setExportingXlsx(true);
+
     setReportError(null);
 
     let rows: Record<
@@ -1775,6 +1791,8 @@ async function handleExportXlsx() {
     setReportError(
       "Não foi possível exportar o XLSX.",
     );
+  } finally {
+    setExportingXlsx(false);
   }
 }
 
@@ -1942,23 +1960,51 @@ async function handleExportXlsx() {
               {loadingReport ? "Gerando..." : "Gerar relatório"}
             </Button>
             <Button
-              disabled={loadingReport || !(report || movementReport)}
-              onClick={handleExportPdf}
+              disabled={
+                loadingReport ||
+                exportingPdf ||
+                exportingXlsx ||
+                !(report || movementReport)
+              }
+              onClick={() => {
+                void handleExportPdf();
+              }}
               type="button"
               variant="secondary"
             >
-              <FilePdf aria-hidden="true" size={16} />
-              Exportar PDF
+              <FilePdf
+                aria-hidden="true"
+                size={16}
+              />
+
+              {exportingPdf
+                ? "Exportando PDF..."
+                : "Exportar PDF"}
             </Button>
+            
             <Button
-              disabled={loadingReport || !(report || movementReport)}
-              onClick={handleExportXlsx}
+              disabled={
+                loadingReport ||
+                exportingPdf ||
+                exportingXlsx ||
+                !(report || movementReport)
+              }
+              onClick={() => {
+                void handleExportXlsx();
+              }}
               type="button"
               variant="secondary"
             >
-              <FileXls aria-hidden="true" size={16} />
-              Exportar XLSX
+              <FileXls
+                aria-hidden="true"
+                size={16}
+              />
+
+              {exportingXlsx
+                ? "Exportando XLSX..."
+                : "Exportar XLSX"}
             </Button>
+
           </div>
         </CardContent>
       </Card>
