@@ -167,16 +167,41 @@ export const assetRoutes: FastifyPluginAsync<{
 
     {
       schema: {
-        querystring:
-          z.object({
-            startDate:
-              z.string()
-                .optional(),
+       querystring:
+        z.object({
+          startDate:
+            z.string().optional(),
 
-            endDate:
-              z.string()
-                .optional(),
-          }),
+          endDate:
+            z.string().optional(),
+
+          page:
+            z.coerce
+              .number()
+              .int()
+              .min(1)
+              .default(1),
+
+          pageSize:
+            z.coerce
+              .number()
+              .int()
+              .min(1)
+              .max(100)
+              .default(20),
+
+          all:
+            z
+              .enum([
+                "true",
+                "false",
+              ])
+              .optional()
+              .transform(
+                (value) =>
+                  value === "true",
+              ),
+        }),
       },
     },
 

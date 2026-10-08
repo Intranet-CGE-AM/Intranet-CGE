@@ -24,8 +24,37 @@ import {
 } from "drizzle-orm";
 export class AssetService {
 
-  constructor(private readonly db: Database) { }
-  async getMovementReport(query: { startDate?: string; endDate?: string }) {
+    constructor(private readonly db: Database) { }
+    async getMovementReport(query: {
+      startDate?: string;
+      endDate?: string;
+
+      page?: number;
+      pageSize?: number;
+
+      all?: boolean;
+    }) {
+
+
+      const page =
+        Math.max(
+          1,
+          query.page ?? 1,
+        );
+
+      const pageSize =
+        Math.min(
+          100,
+          Math.max(
+            1,
+            query.pageSize ?? 20,
+          ),
+        );
+
+      const offset =
+        (page - 1) *
+        pageSize;
+
     const conditions = [];
     if (query.startDate) {
       conditions.push(gte(assetMovements.movementDate, query.startDate));
@@ -34,18 +63,73 @@ export class AssetService {
       conditions.push(lte(assetMovements.movementDate, query.endDate));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const movementRows = await this.db
-      .select({
-        id: assetMovements.id,
-        assetId: assetMovements.assetId,
-        fromUnitId: assetMovements.fromUnitId,
-        toUnitId: assetMovements.toUnitId,
-        movementDate: assetMovements.movementDate,
-        notes: assetMovements.notes,
-      })
-      .from(assetMovements)
-      .where(where)
-      .orderBy(desc(assetMovements.movementDate));
+const movementQuery =
+  this.db
+    .select({
+      id:
+        assetMovements.id,
+
+      assetId:
+        assetMovements.assetId,
+
+      fromUnitId:
+        assetMovements.fromUnitId,
+
+      toUnitId:
+        assetMovements.toUnitId,
+
+      movementDate:
+        assetMovements.movementDate,
+
+      notes:
+        assetMovements.notes,
+    })
+    .from(assetMovements)
+    .where(where)
+    .orderBy(
+      desc(
+        assetMovements.movementDate,
+      ),
+    );
+
+    const [
+      movementRows,
+      totalResult,
+    ] =
+      await Promise.all([
+        query.all
+          ? movementQuery
+          : movementQuery
+              .limit(
+                pageSize,
+              )
+              .offset(
+                offset,
+              ),
+
+        this.db
+          .select({
+            total:
+              count(),
+          })
+          .from(
+            assetMovements,
+          )
+          .where(where),
+      ]);
+
+      const total =
+        totalResult[0]
+          ?.total ?? 0;
+
+      const totalPages =
+        Math.max(
+          1,
+          Math.ceil(
+            total /
+              pageSize,
+          ),
+        );
     const [assetRows, unitRows] = await Promise.all([
       this.db
         .select({
@@ -98,9 +182,33 @@ export class AssetService {
     });
     return {
       movements,
+
       summary: {
-        total: movements.length,
+        total,
       },
+
+      pagination:
+        query.all
+          ? {
+              page: 1,
+
+              pageSize:
+                total,
+
+              total,
+
+              totalPages:
+                1,
+            }
+          : {
+              page,
+
+              pageSize,
+
+              total,
+
+              totalPages,
+            },
     };
   }
   async list(query: AssetListQuery) {
