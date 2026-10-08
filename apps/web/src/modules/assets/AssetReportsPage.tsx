@@ -154,12 +154,22 @@ type MovementReportItem = {
     name: string;
   } | null;
 };
+
 type MovementReportResponse = {
   movements: MovementReportItem[];
+
   summary: {
     total: number;
   };
+
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 };
+
 function formatDateForSpreadsheet(value: string) {
   const [year, month, day] = value.slice(0, 10).split("-");
   if (!year || !month || !day) {
@@ -342,17 +352,27 @@ export function AssetReportsPage() {
     };
   }, []);
 
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
+    const [
+      page,
+      setPage,
+    ] =
+      useState(1);
 
-  const [
-    pageSize,
-    setPageSize,
-  ] =
-    useState(10);
+    const [
+      pageSize,
+      setPageSize,
+    ] =
+      useState(10);
+
+    const [
+      movementPage,
+      setMovementPage,
+    ] = useState(1);
+
+    const [
+      movementPageSize,
+      setMovementPageSize,
+    ] = useState(20);  
 
     const [
   exportingPdf,
@@ -365,6 +385,8 @@ const [
   setExportingXlsx,
 ] =
   useState(false);
+
+
 
   const departments = units.filter(
     (unit) => unit.type === "department" && unit.active,
@@ -686,180 +708,226 @@ const [
 }
 
 
-  async function handleGenerateReport(
-    targetPage = 1,
-    targetPageSize = pageSize,
-  ) {
-    if (
-      startDate &&
-      endDate &&
-      startDate > endDate
+    async function handleGenerateReport(
+      targetPage = 1,
+      targetPageSize =
+        reportType === "movements"
+          ? movementPageSize
+          : pageSize,
     ) {
-      setReportError(
-        "A data inicial deve ser anterior ou igual à data final.",
-      );
-
-      return;
-    }
-
-    setLoadingReport(true);
-    setReportError(null);
-    setReport(null);
-    setMovementReport(null);
-
-    try {
-      const params =
-        new URLSearchParams();
-
-      if (startDate) {
-        params.set(
-          "startDate",
-          startDate,
-        );
-      }
-
-      if (endDate) {
-        params.set(
-          "endDate",
-          endDate,
-        );
-      }
-
       if (
-        reportType ===
-        "movements"
+        startDate &&
+        endDate &&
+        startDate > endDate
       ) {
+        setReportError(
+          "A data inicial deve ser anterior ou igual à data final.",
+        );
+
+        return;
+      }
+
+      setLoadingReport(true);
+      setReportError(null);
+
+      try {
+        const params =
+          new URLSearchParams();
+
+        if (startDate) {
+          params.set(
+            "startDate",
+            startDate,
+          );
+        }
+
+        if (endDate) {
+          params.set(
+            "endDate",
+            endDate,
+          );
+        }
+
+        /*
+        * MOVIMENTAÇÕES
+        */
+        if (
+          reportType ===
+          "movements"
+        ) {
+          params.set(
+            "page",
+            String(targetPage),
+          );
+
+          params.set(
+            "pageSize",
+            String(
+              targetPageSize,
+            ),
+          );
+
+          const query =
+            params.toString();
+
+          const result =
+            await api<MovementReportResponse>(
+              `/api/assets/reports/movements${
+                query
+                  ? `?${query}`
+                  : ""
+              }`,
+            );
+
+          setReport(null);
+
+          setMovementReport(
+            result,
+          );
+
+          setMovementPage(
+            result.pagination.page,
+          );
+
+          setMovementPageSize(
+            result.pagination.pageSize,
+          );
+
+          return;
+        }
+
+        /*
+        * DEMAIS RELATÓRIOS
+        */
+
+        if (departmentId) {
+          params.set(
+            "departmentId",
+            departmentId,
+          );
+        }
+
+        if (sectorId) {
+          params.set(
+            "sectorId",
+            sectorId,
+          );
+        }
+
+        if (subsectorId) {
+          params.set(
+            "subsectorId",
+            subsectorId,
+          );
+        }
+
+        if (status) {
+          params.set(
+            "status",
+            status,
+          );
+        }
+
+        if (
+          conservationStatus
+        ) {
+          params.set(
+            "conservationStatus",
+            conservationStatus,
+          );
+        }
+
+        /*
+        * INVENTÁRIO:
+        * usa paginação.
+        */
+        if (
+          reportType ===
+          "inventory"
+        ) {
+          params.set(
+            "page",
+            String(targetPage),
+          );
+
+          params.set(
+            "pageSize",
+            String(
+              targetPageSize,
+            ),
+          );
+        } else {
+          /*
+          * SETOR
+          * SITUAÇÃO
+          * CONSERVAÇÃO
+          * FINANCEIRO
+          *
+          * Precisam de todos os
+          * registros para os cálculos.
+          */
+          params.set(
+            "all",
+            "true",
+          );
+        }
+
         const query =
           params.toString();
 
         const result =
-          await api<MovementReportResponse>(
-            `/api/assets/reports/movements${
+          await api<AssetReportResponse>(
+            `/api/assets/reports${
               query
                 ? `?${query}`
                 : ""
             }`,
           );
 
-        setMovementReport(
+        setMovementReport(null);
+
+        setReport(
           result,
         );
 
-        return;
+        if (
+          reportType ===
+          "inventory"
+        ) {
+          setPage(
+            result.pagination.page,
+          );
+
+          setPageSize(
+            result.pagination.pageSize,
+          );
+        }
+      } catch (cause) {
+        console.error(
+          "Erro ao gerar relatório:",
+          cause,
+        );
+
+        setReportError(
+          cause instanceof ApiError
+            ? cause.message
+            : "Não foi possível gerar o relatório.",
+        );
+      } finally {
+        setLoadingReport(false);
       }
-
-      if (departmentId) {
-        params.set(
-          "departmentId",
-          departmentId,
-        );
-      }
-
-      if (sectorId) {
-        params.set(
-          "sectorId",
-          sectorId,
-        );
-      }
-
-      if (subsectorId) {
-        params.set(
-          "subsectorId",
-          subsectorId,
-        );
-      }
-
-      if (status) {
-        params.set(
-          "status",
-          status,
-        );
-      }
-
-      if (
-        conservationStatus
-      ) {
-        params.set(
-          "conservationStatus",
-          conservationStatus,
-        );
-      }
-
-      if (
-        reportType ===
-        "inventory"
-      ) {
-        params.set(
-          "page",
-          String(
-            targetPage,
-          ),
-        );
-
-        params.set(
-          "pageSize",
-          String(
-            targetPageSize,
-          ),
-        );
-      } else {
-        params.set(
-          "all",
-          "true",
-        );
-      }
-
-      const query =
-        params.toString();
-
-      const result =
-        await api<AssetReportResponse>(
-          `/api/assets/reports${
-            query
-              ? `?${query}`
-              : ""
-          }`,
-        );
-
-      setReport(result);
-
-      if (
-        reportType ===
-        "inventory"
-      ) {
-        setPage(
-          result.pagination.page,
-        );
-
-        setPageSize(
-          result.pagination.pageSize,
-        );
-      }
-    } catch (cause) {
-      setReportError(
-        cause instanceof ApiError
-          ? cause.message
-          : "Não foi possível gerar o relatório.",
-      );
-    } finally {
-      setLoadingReport(false);
     }
-  }
 
   // Evita exportar dados de uma consulta anterior com filtros novos.
 
   useEffect(() => {
     setPage(1);
+    setMovementPage(1);
 
     setReport(null);
 
-    setMovementReport(
-      null,
-    );
-
-    setReportError(
-      null,
-    );
+    setMovementReport(null,);
+    setReportError(null,);
   }, [
     reportType,
     departmentId,
@@ -2017,7 +2085,9 @@ async function handleExportXlsx() {
         <Card>
           <CardContent>Carregando relatório...</CardContent>
         </Card>
-      ) : reportType === "movements" && movementReport ? (
+      ) :
+      
+      reportType === "movements" && movementReport ? (
         <Card>
           <CardHeader>
             <h2 className="font-bold">
@@ -2030,7 +2100,8 @@ async function handleExportXlsx() {
               description="Ajuste o período e gere o relatório novamente."
             />
           ) : (
-            <Table>
+            <>
+              <Table>
               <thead>
                 <tr>
                   {[
@@ -2068,7 +2139,145 @@ async function handleExportXlsx() {
                 ))}
               </tbody>
             </Table>
+         
+            </>
+
           )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t px-5 py-4">
+  <div className="text-sm text-[var(--text-muted)]">
+    {movementReport.pagination.total >
+    0 ? (
+      <>
+        Mostrando{" "}
+        <strong>
+          {(movementReport.pagination.page -
+            1) *
+            movementReport.pagination.pageSize +
+            1}
+        </strong>
+
+        {" – "}
+
+        <strong>
+          {Math.min(
+            movementReport.pagination.page *
+              movementReport.pagination.pageSize,
+
+            movementReport.pagination.total,
+          )}
+        </strong>
+
+        {" de "}
+
+        <strong>
+          {
+            movementReport.pagination
+              .total
+          }
+        </strong>
+
+        {" movimentações"}
+      </>
+    ) : (
+      "Nenhuma movimentação encontrada"
+    )}
+  </div>
+
+  <div className="flex flex-wrap items-center gap-3">
+    <select
+      className="h-9 min-w-[160px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm"
+      value={String(
+        movementReport.pagination
+          .pageSize,
+      )}
+      onChange={(event) => {
+        const nextPageSize =
+          Number(
+            event.target.value,
+          );
+
+        setMovementPageSize(
+          nextPageSize,
+        );
+
+        void handleGenerateReport(
+          1,
+          nextPageSize,
+        );
+      }}
+    >
+      <option value="10">
+        10 por página
+      </option>
+
+      <option value="20">
+        20 por página
+      </option>
+
+      <option value="50">
+        50 por página
+      </option>
+    </select>
+
+    <span className="min-w-[100px] text-center text-sm text-[var(--text-muted)]">
+      Página{" "}
+      {
+        movementReport.pagination
+          .page
+      }{" "}
+      de{" "}
+      {
+        movementReport.pagination
+          .totalPages
+      }
+    </span>
+
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={
+        loadingReport ||
+        movementReport.pagination
+          .page <= 1
+      }
+      onClick={() => {
+        void handleGenerateReport(
+          movementReport.pagination
+            .page - 1,
+
+          movementReport.pagination
+            .pageSize,
+        );
+      }}
+    >
+      Anterior
+    </Button>
+
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={
+        loadingReport ||
+        movementReport.pagination
+          .page >=
+          movementReport.pagination
+            .totalPages
+      }
+      onClick={() => {
+        void handleGenerateReport(
+          movementReport.pagination
+            .page + 1,
+
+          movementReport.pagination
+            .pageSize,
+        );
+      }}
+    >
+      Próxima
+    </Button>
+  </div>
+</div>
         </Card>
       ) : report ? (
         <>
