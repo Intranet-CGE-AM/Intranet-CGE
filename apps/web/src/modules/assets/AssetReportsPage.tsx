@@ -1212,40 +1212,135 @@ const [
         );
       }
 
+
+      async function loadFullMovementReportForExport() {
+      const params =
+        new URLSearchParams();
+
+      if (startDate) {
+        params.set(
+          "startDate",
+          startDate,
+        );
+      }
+
+      if (endDate) {
+        params.set(
+          "endDate",
+          endDate,
+        );
+      }
+
+      params.set(
+        "all",
+        "true",
+      );
+
+      const query =
+        params.toString();
+
+      return api<MovementReportResponse>(
+        `/api/assets/reports/movements?${query}`,
+      );
+}
+
+
+function movementRowsToExport(
+  movements: MovementReportItem[],
+): Record<
+  string,
+  string | number
+>[] {
+  return movements.map(
+    (item) => ({
+      Data:
+        formatDateForSpreadsheet(
+          item.movementDate,
+        ),
+
+      Tombo:
+        item.patrimonyNumber ??
+        "",
+
+      Descrição:
+        item.description ??
+        "",
+
+      Origem:
+        item.fromUnit
+          ? `${item.fromUnit.code} - ${item.fromUnit.name}`
+          : "Não informado",
+
+      Destino:
+        item.toUnit
+          ? `${item.toUnit.code} - ${item.toUnit.name}`
+          : "Não informado",
+
+      Observação:
+        item.notes ?? "",
+    }),
+  );
+}
+
+
 async function handleExportPdf() {
   try {
     setExportingPdf(true);
 
     setReportError(null);
 
-    let rows:
-      Record<
-        string,
-        string | number
-      >[];
+let rows:
+  Record<
+    string,
+    string | number
+  >[];
 
-    if (
+if (
+  reportType ===
+  "inventory"
+) {
+  const fullReport =
+    await loadFullReportForExport();
+
+  if (
+    !fullReport ||
+    fullReport.assets.length ===
+      0
+  ) {
+    setReportError(
+      "Não há dados para exportar.",
+    );
+
+    return;
+  }
+
+  rows =
+    inventoryRowsToExport(
+      fullReport.assets,
+    );
+    } else if (
       reportType ===
-      "inventory"
+      "movements"
     ) {
-      const fullReport =
-        await loadFullReportForExport();
+      const fullMovementReport =
+        await loadFullMovementReportForExport();
 
       if (
-        !fullReport ||
-        fullReport.assets
-          .length === 0
+        !fullMovementReport ||
+        fullMovementReport
+          .movements.length === 0
       ) {
         setReportError(
-          "Não há dados para exportar.",
+          "Não há movimentações para exportar.",
         );
 
         return;
       }
 
       rows =
-        inventoryRowsToExport(
-          fullReport.assets,
+        movementRowsToExport(
+          fullMovementReport
+            .movements,
         );
     } else {
       const currentRows =
@@ -1637,32 +1732,58 @@ async function handleExportXlsx() {
 
     setReportError(null);
 
-    let rows: Record<
-      string,
-      string | number
-    >[];
+let rows:
+  Record<
+    string,
+    string | number
+  >[];
 
-    if (
+if (
+  reportType ===
+  "inventory"
+) {
+  const fullReport =
+    await loadFullReportForExport();
+
+  if (
+    !fullReport ||
+    fullReport.assets.length ===
+      0
+  ) {
+    setReportError(
+      "Não há dados para exportar.",
+    );
+
+    return;
+  }
+
+      rows =
+        inventoryRowsToExport(
+          fullReport.assets,
+        );
+    } else if (
       reportType ===
-      "inventory"
+      "movements"
     ) {
-      const fullReport =
-        await loadFullReportForExport();
+      const fullMovementReport =
+        await loadFullMovementReportForExport();
 
       if (
-        !fullReport ||
-        fullReport.assets.length === 0
+        !fullMovementReport ||
+        fullMovementReport
+          .movements.length === 0
       ) {
         setReportError(
-          "Não há dados para exportar.",
+          "Não há movimentações para exportar.",
         );
 
         return;
       }
 
       rows =
-        inventoryRowsToExport(
-          fullReport.assets,
+        movementRowsToExport(
+          fullMovementReport
+            .movements,
         );
     } else {
       const currentRows =
