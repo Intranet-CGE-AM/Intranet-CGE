@@ -189,14 +189,32 @@ export function AssetCreatePage() {
 
       navigate("/patrimonio/bens");
     } catch (cause) {
-      if (cause instanceof ApiError) {
-        setError(cause.message);
-      } else {
-        setError("Não foi possível cadastrar o bem patrimonial.");
-      }
-    } finally {
-      setSaving(false);
+  if (cause instanceof ApiError) {
+    if (
+      cause.code ===
+      "PATRIMONY_NUMBER_ALREADY_EXISTS"
+    ) {
+      setErrors((current) => ({
+        ...current,
+
+        patrimonyNumber:
+          "Já existe um bem cadastrado com este número de tombo.",
+      }));
+
+      setError("");
+
+      return;
     }
+
+    setError(cause.message);
+  } else {
+    setError(
+      "Não foi possível cadastrar o bem patrimonial.",
+    );
+  }
+} finally {
+  setSaving(false);
+}
   }
 
   const departments = units.filter((unit) => unit.type === "department");
@@ -249,6 +267,17 @@ export function AssetCreatePage() {
                   name="patrimonyNumber"
                   placeholder="Ex.: 335"
                   required
+                  onChange={() => {
+                  if (
+                    errors.patrimonyNumber
+                  ) {
+                    setErrors((current) => ({
+                      ...current,
+                      patrimonyNumber:
+                        undefined,
+                    }));
+                  }
+                }}
                 />
               </FormField>
 
