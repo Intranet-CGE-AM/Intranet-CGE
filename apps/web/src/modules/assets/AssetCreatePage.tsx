@@ -130,7 +130,13 @@ export function AssetCreatePage() {
     let acquisitionValue: number | null = null;
 
     if (acquisitionValueText) {
-      const parsed = Number(acquisitionValueText.replace(",", "."));
+      const normalizedValue =
+        acquisitionValueText
+          .replace(/\./g, "")
+          .replace(",", ".");
+
+      const parsed =
+        Number(normalizedValue);
 
       if (Number.isNaN(parsed) || parsed < 0) {
         nextErrors.acquisitionValue = "Informe um valor de aquisição válido.";
