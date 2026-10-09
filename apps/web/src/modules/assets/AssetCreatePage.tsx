@@ -43,7 +43,6 @@ type FieldErrors = Partial<
     | "description"
     | "departmentId"
     | "sectorId"
-    | "unitId"
     | "acquisitionValue",
     string
   >
@@ -103,7 +102,7 @@ export function AssetCreatePage() {
 
     const description = String(data.get("description") ?? "").trim();
 
-    const unitId = optionalString(data.get("unitId"));
+    const unitId = selectedSubsectorId || selectedSectorId;
 
     const acquisitionValueText = String(
       data.get("acquisitionValue") ?? "",
@@ -128,10 +127,6 @@ export function AssetCreatePage() {
       nextErrors.sectorId = "Selecione o setor onde o bem está localizado.";
     }
 
-    if (!unitId) {
-      nextErrors.unitId = "Selecione o subsetor onde o bem está localizado.";
-    }
-
     let acquisitionValue: number | null = null;
 
     if (acquisitionValueText) {
@@ -146,9 +141,7 @@ export function AssetCreatePage() {
 
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0 || !unitId) {
-      return;
-    }
+    if (Object.keys(nextErrors).length > 0 ) { return;}
 
     const input: AssetCreate = {
       patrimonyNumber,
@@ -359,24 +352,46 @@ export function AssetCreatePage() {
               </FormField>
 
               <FormField
-                error={errors.unitId}
                 htmlFor="unitId"
-                label="Subsetor"
+                label="Subsetor (opcional)"
               >
                 <SearchableSelect
-                  aria-invalid={Boolean(errors.unitId)}
-                  disabled={loadingUnits || !selectedSectorId}
+                  disabled={
+                    loadingUnits ||
+                    !selectedSectorId
+                  }
                   id="unitId"
                   name="unitId"
-                  options={unitOptions(subsectors)}
+                  options={[
+                    {
+                      label:
+                        "Nenhum subsetor",
+                      value:
+                        NONE,
+                    },
+
+                    ...unitOptions(
+                      subsectors,
+                    ),
+                  ]}
                   placeholder={
                     !selectedSectorId
                       ? "Selecione primeiro o setor"
-                      : "Selecione um subsetor"
+                      : "Subsetor opcional"
                   }
-                  required
-                  value={selectedSubsectorId}
-                  onValueChange={setSelectedSubsectorId}
+                  value={
+                    selectedSubsectorId ||
+                    NONE
+                  }
+                  onValueChange={(
+                    value,
+                  ) => {
+                    setSelectedSubsectorId(
+                      value === NONE
+                        ? ""
+                        : value,
+                    );
+                  }}
                 />
               </FormField>
             </div>

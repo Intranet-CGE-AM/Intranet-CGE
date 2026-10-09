@@ -2439,7 +2439,7 @@ if (
               </CardHeader>
               {reportType ===
                 "inventory" ? (
-               <div className="max-h-[70vh] overflow-auto rounded-lg">
+               <div className="max-h-[70vh] overflow-auto ">
                 <Table className="min-w-[2800px]">
                    <thead className="sticky top-0 z-40 bg-white shadow-sm">
                       <tr>
