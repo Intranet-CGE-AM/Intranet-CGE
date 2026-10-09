@@ -426,9 +426,36 @@ export const assetRoutes: FastifyPluginAsync<{
         return;
       }
 
-      const created = await options.assetService.create(request.body);
+    const result =
+  await options
+    .assetService
+    .create(
+      request.body,
+    );
 
-      return reply.status(201).send(created);
+if (!result.success) {
+  switch (
+    result.reason
+  ) {
+    case "PATRIMONY_NUMBER_ALREADY_EXISTS":
+      return reply
+        .status(409)
+        .send({
+          code:
+            "PATRIMONY_NUMBER_ALREADY_EXISTS",
+
+          message:
+            "Já existe um bem cadastrado com este número de tombo.",
+        });
+  }
+  }
+
+        return reply
+          .status(201)
+          .send(
+            result.asset,
+          );
+
     },
   );
 

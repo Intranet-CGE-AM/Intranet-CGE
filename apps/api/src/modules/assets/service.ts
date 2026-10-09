@@ -931,35 +931,115 @@ return {
     });
   }
   //Servico de cadastro de Bem patrimonio
-  async create(input: AssetCreate) {
-    const [created] = await this.db
-      .insert(assets)
-      .values({
-        patrimonyNumber: input.patrimonyNumber,
-        description: input.description,
-        brand: input.brand ?? null,
-        model: input.model ?? null,
-        serialNumber: input.serialNumber ?? null,
-        unitId: input.unitId ?? null,
-        responsiblePersonId: input.responsiblePersonId ?? null,
-        usageDate: input.usageDate ?? null,
-        documentNumber: input.documentNumber ?? null,
-        documentDate: input.documentDate ?? null,
-        commitmentNumber: input.commitmentNumber ?? null,
-        conservationStatus: input.conservationStatus ?? null,
-        renavam: input.renavam ?? null,
-        chassis: input.chassis ?? null,
-        acquisitionDate: input.acquisitionDate ?? null,
-        acquisitionValue:
-          input.acquisitionValue !== null &&
+async create(input: AssetCreate) {
+  try {
+    const [created] =
+      await this.db
+        .insert(assets)
+        .values({
+          patrimonyNumber:
+            input.patrimonyNumber,
+
+          description:
+            input.description,
+
+          brand:
+            input.brand ?? null,
+
+          model:
+            input.model ?? null,
+
+          serialNumber:
+            input.serialNumber ?? null,
+
+          unitId:
+            input.unitId ?? null,
+
+          responsiblePersonId:
+            input.responsiblePersonId ??
+            null,
+
+          usageDate:
+            input.usageDate ?? null,
+
+          documentNumber:
+            input.documentNumber ?? null,
+
+          documentDate:
+            input.documentDate ?? null,
+
+          commitmentNumber:
+            input.commitmentNumber ?? null,
+
+          conservationStatus:
+            input.conservationStatus ??
+            null,
+
+          renavam:
+            input.renavam ?? null,
+
+          chassis:
+            input.chassis ?? null,
+
+          acquisitionDate:
+            input.acquisitionDate ?? null,
+
+          acquisitionValue:
+            input.acquisitionValue !== null &&
             input.acquisitionValue !== undefined
-            ? String(input.acquisitionValue)
-            : null,
-        notes: input.notes ?? null,
-      })
-      .returning();
-    return created;
+              ? String(
+                  input.acquisitionValue,
+                )
+              : null,
+
+          notes:
+            input.notes ?? null,
+        })
+        .returning();
+
+    return {
+      success: true as const,
+      asset: created,
+    };
+  } catch (error) {
+    const drizzleError =
+      error as {
+        message?: string;
+
+        cause?: {
+          code?: string;
+          constraint_name?: string;
+          constraint?: string;
+          message?: string;
+        };
+      };
+
+    const postgresError =
+      drizzleError.cause;
+
+    const isDuplicate =
+      postgresError?.code ===
+        "23505" ||
+      postgresError?.constraint_name ===
+        "assets_patrimony_number_unique" ||
+      postgresError?.constraint ===
+        "assets_patrimony_number_unique" ||
+      drizzleError.message?.includes(
+        "assets_patrimony_number_unique",
+      ) === true;
+
+    if (isDuplicate) {
+      return {
+        success: false as const,
+
+        reason:
+          "PATRIMONY_NUMBER_ALREADY_EXISTS" as const,
+      };
+    }
+
+    throw error;
   }
+}
   async setStatus(id: string, status: "active" | "maintenance") {
     const [asset] = await this.db
       .select({
