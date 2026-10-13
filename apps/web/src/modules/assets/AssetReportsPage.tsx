@@ -706,7 +706,24 @@ const [
     },
   );
 }
+    function handleClearFilters() {
+        setDepartmentId("");
+        setSectorId("");
+        setSubsectorId("");
 
+        setStatus("");
+        setConservationStatus("");
+
+        setStartDate("");
+        setEndDate("");
+
+        setReport(null);
+        setMovementReport(null);
+        setReportError(null);
+
+        setPage(1);
+        setMovementPage(1);
+      }
 
     async function handleGenerateReport(
       targetPage = 1,
@@ -2138,6 +2155,27 @@ if (
             </FormField>
           </div>
           <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={
+              loadingReport ||
+              (
+                !departmentId &&
+                !sectorId &&
+                !subsectorId &&
+                !status &&
+                !conservationStatus &&
+                !startDate &&
+                !endDate
+              )
+            }
+            onClick={handleClearFilters}
+            type="button"
+            variant="secondary"
+          >
+            Limpar filtros
+          </Button>
+
+
             <Button
               disabled={loadingReport}
               onClick={() => {
@@ -2193,6 +2231,9 @@ if (
                 ? "Exportando XLSX..."
                 : "Exportar XLSX"}
             </Button>
+
+
+            
 
           </div>
         </CardContent>
@@ -2528,6 +2569,9 @@ if (
                           getAssetLocation(
                             asset,
                           );
+
+
+
 
                         return (
                           <TableRow
