@@ -53,6 +53,7 @@ const filterSchema = z.object({
     .transform(splitValues)
     .pipe(z.array(z.string().min(1).max(80)).min(1).max(50))
     .optional(),
+  objectId: z.uuid().optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
 });
@@ -84,6 +85,7 @@ function auditWhere(filters: AuditFilters) {
     filters.objectType?.length
       ? inArray(auditEvents.objectType, filters.objectType)
       : undefined,
+    filters.objectId ? eq(auditEvents.objectId, filters.objectId) : undefined,
     from ? gte(auditEvents.createdAt, from) : undefined,
     to ? lt(auditEvents.createdAt, to) : undefined,
     pattern
@@ -125,7 +127,7 @@ function serializeEvent(
     id: event.id,
     action: event.action,
     actor:
-      event.actorAccountId && event.actorEmail && event.actorName
+      event.actorAccountId && event.actorName
         ? {
             accountId: event.actorAccountId,
             email: event.actorEmail,

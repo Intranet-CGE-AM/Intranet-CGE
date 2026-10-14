@@ -123,7 +123,7 @@ export const adminRoutes: FastifyPluginAsync<{
       schema: {
         body: adminUserCreateSchema,
         response: {
-          201: z.object({ id: z.uuid(), email: z.email() }),
+          201: z.object({ id: z.uuid(), email: z.email().nullable() }),
           401: authErrorSchema,
           403: authErrorSchema,
         },

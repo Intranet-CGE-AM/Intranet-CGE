@@ -8,7 +8,7 @@ export const auditEventSchema = z.object({
   actor: z
     .object({
       accountId: z.uuid(),
-      email: z.email(),
+      email: z.email().nullable(),
       displayName: z.string(),
     })
     .nullable(),

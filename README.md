@@ -64,6 +64,7 @@ confirma o CSV de auditoria.
 ## Documentação
 
 - [Administração](docs/administration.md)
+- [Documentos de auditoria](docs/audit-documents.md)
 - [Contrato da importação CSV](docs/csv-import.md)
 - [Design system](docs/design-system.md)
 - [Homologação e dados de teste](docs/homologation.md)

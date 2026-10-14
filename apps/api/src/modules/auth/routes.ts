@@ -10,6 +10,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
 import type { AuthenticationService } from "./service.js";
+import { AuthenticationError } from "./directory.js";
 
 export const SESSION_COOKIE = "cge_session";
 
@@ -34,17 +35,32 @@ export const authRoutes: FastifyPluginAsync<{
     sameSite: "strict" as const,
     secure: options.secureCookies,
   };
+  const limitIp = app.createRateLimit({
+    max: 30,
+    timeWindow: "1 minute",
+    keyGenerator: (request) => request.ip,
+  });
 
   typedApp.post(
     "/api/auth/login",
     {
+      onRequest: async (request) => {
+        const limit = await limitIp(request);
+        if (!limit.isAllowed && limit.isExceeded)
+          throw new AuthenticationError(
+            429,
+            "TOO_MANY_ATTEMPTS",
+            "Muitas tentativas. Aguarde um minuto.",
+          );
+      },
       config: {
         rateLimit: {
           max: 5,
           timeWindow: "1 minute",
           keyGenerator: (request) => {
-            const body = request.body as { email?: string } | undefined;
-            return `${request.ip}:${body?.email?.trim().toLowerCase() ?? ""}`;
+            const body = request.body as
+              { email?: string; identifier?: string } | undefined;
+            return `${request.ip}:${(body?.identifier ?? body?.email)?.trim().toLowerCase() ?? ""}`;
           },
         },
       },
@@ -57,11 +73,14 @@ export const authRoutes: FastifyPluginAsync<{
       },
     },
     async (request, reply) => {
-      const result = await options.authenticationService.login(request.body);
+      const result = await options.authenticationService.login(
+        request.body,
+        request.ip,
+      );
       if (!result) {
         return reply.status(401).send({
           code: "INVALID_CREDENTIALS",
-          message: "E-mail ou senha inválidos.",
+          message: "Usuário ou senha inválidos.",
         });
       }
 

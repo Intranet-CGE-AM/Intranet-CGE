@@ -1,0 +1,20 @@
+# Optional overlay: add after the production or homologation Compose file.
+# The bind password and CA stay in host files, outside the repository.
+services:
+  api:
+    dns:
+      - ${AD_DNS_SERVER:-10.0.0.7}
+    environment:
+      AD_ENABLED: "true"
+      AD_URL: ${AD_URL:-ldaps://CGE-DC01.cge.lan:636}
+      AD_DOMAIN: ${AD_DOMAIN:-cge.lan}
+      AD_NETBIOS: ${AD_NETBIOS:-SRV-CGEAD2}
+      AD_BASE_DN: ${AD_BASE_DN:-OU=CGE,DC=cge,DC=lan}
+      AD_BIND_DN: ${AD_BIND_DN:?Set the dedicated read-only AD account}
+      AD_BIND_PASSWORD_FILE: /run/secrets/ad-bind-password
+      AD_CA_CERT_FILE: /run/secrets/ad-ca.pem
+      AD_ALLOWED_GROUP_DN: ${AD_ALLOWED_GROUP_DN:-}
+      AD_RECHECK_SECONDS: ${AD_RECHECK_SECONDS:-300}
+    volumes:
+      - ${AD_BIND_PASSWORD_PATH:?Set the password file path}:/run/secrets/ad-bind-password:ro
+      - ${AD_CA_CERT_PATH:?Set the CA certificate path}:/run/secrets/ad-ca.pem:ro

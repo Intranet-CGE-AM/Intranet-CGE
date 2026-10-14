@@ -1,3 +1,6 @@
+import { directoryRoutes } from "./modules/auth/directory-routes.js";
+import type { Directory } from "./modules/auth/directory.js";
+import { AuthenticationError } from "./modules/auth/directory.js";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -18,44 +21,89 @@ import { adminRoutes } from "./modules/admin/routes.js";
 import { accessRoutes } from "./modules/access/routes.js";
 import type { AccessService } from "./modules/access/service.js";
 import { auditRoutes } from "./modules/audit/routes.js";
+import { auditDocumentMetricsRoutes } from "./modules/audit-documents/metrics-routes.js";
+import { auditDocumentRoutes } from "./modules/audit-documents/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import type { AuthenticationService } from "./modules/auth/service.js";
 import { peopleRoutes } from "./modules/people/routes.js";
+import { hrRequestRoutes } from "./modules/hr-requests/routes.js";
+import { notificationRoutes } from "./modules/notifications/routes.js";
+import { occurrenceRoutes } from "./modules/occurrences/routes.js";
+import { availabilityRoutes } from "./modules/people/availability-routes.js";
+import { trainingRoutes } from "./modules/training/routes.js";
+import { metricsRoutes } from "./modules/people/metrics-routes.js";
+import { onboardingRoutes } from "./modules/onboarding/routes.js";
+import { inboxRoutes } from "./modules/inbox/routes.js";
+import { substitutionRoutes } from "./modules/substitutions/routes.js";
+import { organizationRoutes } from "./modules/organization/routes.js";
+import { documentRoutes } from "./modules/documents/routes.js";
+import { communicationRoutes } from "./modules/communications/routes.js";
+import { resourceRoutes } from "./modules/resources/routes.js";
+import { employmentHistoryRoutes } from "./modules/people/history-routes.js";
 import type { PeopleService } from "./modules/people/service.js";
 import type { ObjectStorage } from "./modules/storage/object-storage.js";
 import { systemRoutes } from "./modules/system/routes.js";
 import { vacationRoutes } from "./modules/vacations/routes.js";
 import type { VacationService } from "./modules/vacations/service.js";
+import { ticketRoutes } from "./modules/tickets/routes.js";
+import type { TicketService } from "./modules/tickets/service.js";
+import { visitRoutes } from "./modules/visits/routes.js";
+import type { VisitService } from "./modules/visits/service.js";
+import { visitConfirmationRoutes } from "./modules/visits/confirmation-routes.js";
+import type { VisitConfirmationService } from "./modules/visits/confirmation-services.js";
 
 export async function buildApp({
   config,
+  directory,
   authenticationService,
   accessService,
   db,
   peopleService,
   objectStorage,
   vacationService,
+  ticketService,
+  visitService,
+  visitConfirmationService,
   readinessCheck,
   logger = false,
 }: {
   config: AppConfig;
+  directory?: Directory;
   authenticationService?: AuthenticationService;
   accessService?: AccessService;
   db?: Database;
   peopleService?: PeopleService;
   objectStorage?: ObjectStorage;
   vacationService?: VacationService;
+  ticketService?: TicketService;
+  visitService?: VisitService;
+  visitConfirmationService?: VisitConfirmationService;
   readinessCheck: () => Promise<void>;
   logger?: boolean;
 }) {
   const app = Fastify({
-    logger,
+    logger: logger
+      ? {
+          redact: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "req.body.password",
+            "req.body.currentPassword",
+            "req.body.newPassword",
+            "req.body.temporaryPassword",
+          ],
+        }
+      : false,
     trustProxy: true,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof AuthenticationError)
+      return reply
+        .status(error.statusCode)
+        .send({ code: error.code, message: error.message });
     const statusCode =
       typeof error === "object" &&
       error !== null &&
@@ -110,6 +158,11 @@ export async function buildApp({
     }
   });
   await app.register(systemRoutes, { readinessCheck });
+  if (visitConfirmationService) {
+    await app.register(visitConfirmationRoutes, {
+      confirmationService: visitConfirmationService,
+    });
+  }
   if (authenticationService) {
     await app.register(authRoutes, {
       authenticationService,
@@ -118,6 +171,35 @@ export async function buildApp({
     });
   }
   if (authenticationService && accessService && db) {
+    await app.register(directoryRoutes, {
+      db,
+      directory,
+      authenticationService,
+      accessService,
+    });
+    await app.register(hrRequestRoutes, { db, authenticationService });
+    await app.register(notificationRoutes, { db, authenticationService });
+    await app.register(occurrenceRoutes, { db, authenticationService });
+    await app.register(availabilityRoutes, { db, authenticationService });
+    await app.register(metricsRoutes, { db, authenticationService });
+    await app.register(onboardingRoutes, { db, authenticationService });
+    await app.register(organizationRoutes, { db, authenticationService });
+    await app.register(communicationRoutes, { db, authenticationService });
+    await app.register(resourceRoutes, {
+      db,
+      authenticationService,
+      objectStorage,
+    });
+    await app.register(trainingRoutes, {
+      db,
+      authenticationService,
+      objectStorage,
+    });
+    await app.register(employmentHistoryRoutes, { db, authenticationService });
+    await app.register(auditDocumentMetricsRoutes, {
+      db,
+      authenticationService,
+    });
     if (peopleService) {
       await app.register(adminRoutes, {
         accessService,
@@ -125,6 +207,16 @@ export async function buildApp({
         peopleService,
       });
     }
+    await app.register(inboxRoutes, {
+      db,
+      authenticationService,
+      accessService,
+    });
+    await app.register(substitutionRoutes, {
+      db,
+      authenticationService,
+      accessService,
+    });
     await app.register(accessRoutes, {
       accessService,
       authenticationService,
@@ -136,6 +228,17 @@ export async function buildApp({
       db,
     });
     if (peopleService && objectStorage) {
+      await app.register(auditDocumentRoutes, {
+        db,
+        authenticationService,
+        accessService,
+        objectStorage,
+      });
+      await app.register(documentRoutes, {
+        db,
+        authenticationService,
+        objectStorage,
+      });
       await app.register(peopleRoutes, {
         accessService,
         authenticationService,
@@ -150,6 +253,24 @@ export async function buildApp({
         authenticationService,
         db,
         vacationService,
+      });
+    }
+    if (ticketService) {
+      await app.register(ticketRoutes, {
+        accessService,
+        authenticationService,
+        db,
+        ticketService,
+      });
+    }
+
+    if (visitService && visitConfirmationService) {
+      await app.register(visitRoutes, {
+        accessService,
+        authenticationService,
+        db,
+        visitService,
+        confirmationService: visitConfirmationService,
       });
     }
   }

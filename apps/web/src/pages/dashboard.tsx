@@ -26,6 +26,9 @@ import { Link } from "react-router";
 import { useAuth } from "../auth";
 import { api, ApiError } from "../lib/api";
 import { can } from "../lib/permissions";
+import { InboxPanel } from "./inbox";
+import { CommunicationsPanel } from "./communications";
+import { manausGreeting, manausLongDate } from "../lib/dates";
 
 const status: Record<
   VacationRequest["status"],
@@ -154,18 +157,14 @@ export function DashboardPage() {
             Recursos Humanos
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.035em] md:text-[30px]">
-            Bom dia, {firstName}
+            {manausGreeting()}, {firstName}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             Pessoas, solicitações e datas importantes do seu escopo.
           </p>
         </div>
-        <p className="text-xs font-semibold capitalize text-[var(--text-faint)]">
-          {new Intl.DateTimeFormat("pt-BR", {
-            weekday: "long",
-            day: "2-digit",
-            month: "long",
-          }).format(new Date())}
+        <p className="text-xs font-semibold text-[var(--text-faint)]">
+          {manausLongDate()}
         </p>
       </div>
 
@@ -174,6 +173,9 @@ export function DashboardPage() {
           {error}
         </Alert>
       ) : null}
+
+      <InboxPanel compact />
+      <CommunicationsPanel />
 
       <DashboardBanner
         action={
@@ -205,7 +207,7 @@ export function DashboardPage() {
         eyebrow="Sua rotina no RH"
         title={
           loading ? (
-            <Skeleton className="h-8 w-64" />
+            <span role="status">Carregando seu resumo</span>
           ) : reviewPending.length ? (
             `${reviewPending.length} ${
               reviewPending.length === 1
@@ -219,7 +221,7 @@ export function DashboardPage() {
                 : "solicitações em andamento"
             }`
           ) : (
-            "Nenhuma pendência aberta"
+            "Nenhuma pendência de férias aberta"
           )
         }
       />

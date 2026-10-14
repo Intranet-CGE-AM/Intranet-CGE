@@ -119,7 +119,7 @@ export function PersonFormFields({
           name="jobTitle"
         />
       </FormField>
-      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+      <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
         <input
           className="size-4"
           defaultChecked={person?.birthdayVisible ?? false}

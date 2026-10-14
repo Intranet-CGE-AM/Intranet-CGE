@@ -47,3 +47,23 @@ A Worker's proposed vacation period. It requires a Supervisor decision followed 
 ## Audit Event
 
 An immutable record that a security-relevant or business-relevant action occurred.
+
+## Audit Team
+
+An Organizational Unit under the Internal Control Subcontroller's Office (SCI) whose members prepare Audit Documents. Membership is a Role Assignment scoped to that unit.
+
+## Audit Document
+
+A work product of an Audit Team (report, technical note, working paper) submitted to the Reviewer. It has a free-text category and moves through in review, correction requested, approved or cancelled.
+
+## Version
+
+One immutable file of an Audit Document, numbered from 1. A Version is either uploaded or saved from the browser editor, and is sent either by the team or by the Reviewer.
+
+## Correction Round
+
+One request for correction by the Reviewer. A document that reaches the configured number of rounds is flagged as a bottleneck.
+
+## Reviewer
+
+The account holding the audit document review permission for a team, usually the Subcontroller. The Reviewer approves, requests correction, cancels, reopens and may save edited Versions while a document is in review.

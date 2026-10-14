@@ -66,6 +66,8 @@ jobs:
       # migra, provisiona o admin e semeia homologação antes do Playwright.
       - run: pnpm test:e2e
 
+      - run: pnpm test:ad
+
       - if: failure()
         uses: actions/upload-artifact@v5
         with:

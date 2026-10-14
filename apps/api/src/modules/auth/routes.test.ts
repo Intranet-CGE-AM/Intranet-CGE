@@ -24,6 +24,8 @@ const user: AuthenticatedUser = {
     id: "00000000-0000-4000-8000-000000000001",
     email: "ana.silva@cge.am.gov.br",
     mustChangePassword: false,
+    authProvider: "local",
+    directoryUsername: null,
   },
   person: {
     id: "00000000-0000-4000-8000-000000000002",
@@ -106,6 +108,28 @@ describe("authentication routes", () => {
 
     expect(me.statusCode).toBe(200);
     expect(me.json()).toEqual({ user });
+    await app.close();
+  });
+
+  it("enforces both identifier and IP limits without one bypassing the other", async () => {
+    const app = await buildApp({
+      authenticationService: new FakeAuthenticationService(),
+      config,
+      readinessCheck: async () => undefined,
+    });
+    const attempt = (identifier: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: config.WEB_ORIGIN },
+        payload: { identifier, password: "incorrect" },
+      });
+    for (let index = 0; index < 5; index++)
+      expect((await attempt("same-user")).statusCode).toBe(401);
+    expect((await attempt("same-user")).statusCode).toBe(429);
+    for (let index = 6; index < 30; index++)
+      expect((await attempt(`user-${index}`)).statusCode).toBe(401);
+    expect((await attempt("another-user")).statusCode).toBe(429);
     await app.close();
   });
 

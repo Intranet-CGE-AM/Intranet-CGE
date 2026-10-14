@@ -1,8 +1,9 @@
 import type {
+  Delegation,
   VacationDecisionInput,
   VacationRequestInput,
 } from "@cge/contracts";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
 import { userAccounts } from "../auth/schema.js";
@@ -14,6 +15,8 @@ import {
 } from "../people/schema.js";
 import { vacationRequestEvents, vacationRequests } from "./schema.js";
 import { canCancelVacation, decisionStatus } from "./state.js";
+import { assertAvailablePeriod } from "./availability.js";
+import { notifications } from "../notifications/schema.js";
 
 type VacationStatus =
   | "draft"
@@ -41,6 +44,7 @@ export class VacationService {
     accountId: string,
     scope: "mine" | "supervisor" | "final",
     unitIds: string[] | null,
+    delegatedChiefs: { personId: string; unitId: string }[] = [],
   ) {
     const actorPersonId = await this.actorPersonId(accountId);
     if (!actorPersonId) {
@@ -49,9 +53,17 @@ export class VacationService {
     const supervisorIds =
       scope === "supervisor"
         ? await this.db
-            .select({ id: employmentRelationships.id })
+            .select({
+              id: employmentRelationships.id,
+              personId: employmentRelationships.personId,
+            })
             .from(employmentRelationships)
-            .where(eq(employmentRelationships.personId, actorPersonId))
+            .where(
+              inArray(employmentRelationships.personId, [
+                actorPersonId,
+                ...delegatedChiefs.map((chief) => chief.personId),
+              ]),
+            )
         : [];
     const rows = await this.db
       .select({
@@ -88,15 +100,45 @@ export class VacationService {
             : scope === "supervisor"
               ? supervisorIds.length
                 ? and(
-                    inArray(
-                      vacationRequests.supervisorRelationshipId,
-                      supervisorIds.map((item) => item.id),
+                    or(
+                      ...supervisorIds.map((item) =>
+                        and(
+                          eq(
+                            vacationRequests.supervisorRelationshipId,
+                            item.id,
+                          ),
+                          item.personId === actorPersonId
+                            ? unitIds === null
+                              ? undefined
+                              : unitIds.length
+                                ? inArray(
+                                    employmentRelationships.unitId,
+                                    unitIds,
+                                  )
+                                : sql`false`
+                            : or(
+                                ...delegatedChiefs
+                                  .filter(
+                                    (chief) => chief.personId === item.personId,
+                                  )
+                                  .map((chief) =>
+                                    and(
+                                      eq(
+                                        employmentRelationships.unitId,
+                                        chief.unitId,
+                                      ),
+                                      ne(people.id, actorPersonId),
+                                    ),
+                                  ),
+                              ),
+                        ),
+                      ),
                     ),
                     eq(vacationRequests.status, "submitted"),
                   )
                 : sql`false`
               : eq(vacationRequests.status, "supervisor_approved"),
-          unitIds === null
+          scope === "supervisor" || unitIds === null
             ? undefined
             : unitIds.length
               ? inArray(employmentRelationships.unitId, unitIds)
@@ -242,6 +284,7 @@ export class VacationService {
     id: string,
     accountId: string,
     input: VacationDecisionInput,
+    delegations: Delegation[] = [],
   ) {
     const context = await this.context(id);
     if (!context.supervisorRelationshipId) {
@@ -254,11 +297,27 @@ export class VacationService {
     const supervisorAccountId = await this.accountForEmployment(
       context.supervisorRelationshipId,
     );
-    if (supervisorAccountId !== accountId) {
+    const delegation =
+      supervisorAccountId === accountId
+        ? undefined
+        : delegations.find(
+            (item) => item.originalAccountId === supervisorAccountId,
+          );
+    if (supervisorAccountId !== accountId && !delegation) {
       throw new VacationError(
         "NOT_REQUEST_SUPERVISOR",
         403,
         "A solicitação está atribuída a outra chefia.",
+      );
+    }
+    if (
+      delegation &&
+      context.requesterPersonId === (await this.actorPersonId(accountId))
+    ) {
+      throw new VacationError(
+        "SELF_APPROVAL_FORBIDDEN",
+        403,
+        "A substituição não permite decidir sobre as próprias férias.",
       );
     }
     const approved = input.decision === "approve";
@@ -270,6 +329,7 @@ export class VacationService {
       decisionStatus("supervisor", input.decision),
       approved ? "supervisor-approved" : "supervisor-rejected",
       input.comment ?? null,
+      delegation ? { delegation } : undefined,
     );
   }
 
@@ -277,6 +337,7 @@ export class VacationService {
     id: string,
     accountId: string,
     input: VacationDecisionInput,
+    delegation?: Delegation,
   ) {
     const approved = input.decision === "approve";
     return this.transition(
@@ -287,6 +348,7 @@ export class VacationService {
       decisionStatus("final", input.decision),
       approved ? "final-approved" : "final-rejected",
       input.comment ?? null,
+      delegation ? { delegation } : undefined,
     );
   }
 
@@ -375,6 +437,14 @@ export class VacationService {
           "A solicitação foi alterada. Atualize a página e tente novamente.",
         );
       }
+      if (to === "final_approved")
+        await assertAvailablePeriod(
+          transaction,
+          request.employmentRelationshipId,
+          request.startDate,
+          request.endDate,
+          request.id,
+        );
       await transaction.insert(vacationRequestEvents).values({
         vacationRequestId: id,
         actorAccountId: accountId,
@@ -382,6 +452,32 @@ export class VacationService {
         comment,
         metadata,
       });
+      const [recipient] = await transaction
+        .select({ id: userAccounts.id })
+        .from(userAccounts)
+        .innerJoin(
+          employmentRelationships,
+          eq(employmentRelationships.personId, userAccounts.personId),
+        )
+        .where(
+          and(
+            eq(employmentRelationships.id, request.employmentRelationshipId),
+            eq(userAccounts.status, "active"),
+            ne(userAccounts.id, accountId),
+          ),
+        );
+      if (recipient)
+        await transaction
+          .insert(notifications)
+          .values({
+            accountId: recipient.id,
+            type: "vacation.updated",
+            title: "Sua solicitação de férias foi atualizada",
+            message: "Consulte o andamento na intranet.",
+            href: `/rh/ferias?requestId=${request.id}`,
+            dedupeKey: `vacation:${request.id}:${request.version}`,
+          })
+          .onConflictDoNothing();
       return request;
     });
   }

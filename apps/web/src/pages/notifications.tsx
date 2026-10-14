@@ -1,0 +1,206 @@
+import type { NotificationPage } from "@cge/contracts";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState } from "@cge/ui";
+import { Bell } from "@phosphor-icons/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router";
+import { LoadingState } from "../components/loading-state";
+import { PageHeader } from "../components/page-header";
+import { Pagination } from "../components/pagination";
+import { api } from "../lib/api";
+
+export function NotificationBell() {
+  const { pathname } = useLocation();
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => {
+      if (!document.hidden)
+        void api<NotificationPage>("/api/notifications", {
+          signal: controller.signal,
+        })
+          .then((result) => setCount(result.unreadCount))
+          .catch(() => {
+            if (!controller.signal.aborted) setCount(null);
+          });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("notifications-changed", refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("notifications-changed", refresh);
+    };
+  }, [pathname]);
+  return (
+    <Link
+      to="/notificacoes"
+      aria-label={
+        count === null
+          ? "Notificações — contagem indisponível"
+          : `Notificações, ${count} não lidas`
+      }
+      className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-[var(--surface-subtle)]"
+    >
+      <Bell size={20} aria-hidden="true" />
+      {count ? <span>{count}</span> : null}
+    </Link>
+  );
+}
+
+export function NotificationsPage() {
+  const [data, setData] = useState<NotificationPage | null>(null);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const controllerRef = useRef<AbortController | null>(null);
+  const load = useCallback(async (nextPage: number) => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setLoading(true);
+    setError("");
+    try {
+      const result = await api<NotificationPage>(
+        `/api/notifications?page=${nextPage}`,
+        { signal: controller.signal },
+      );
+      if (!controller.signal.aborted) {
+        setData(result);
+        setPage(nextPage);
+      }
+    } catch {
+      if (!controller.signal.aborted)
+        setError("Não foi possível carregar as notificações. Tente novamente.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void load(1);
+    return () => controllerRef.current?.abort();
+  }, [load]);
+  async function read(id?: string) {
+    setBusy(true);
+    setError("");
+    try {
+      await api(
+        id ? `/api/notifications/${id}/read` : "/api/notifications/read-all",
+        { method: "POST" },
+      );
+      await load(page);
+      window.dispatchEvent(new Event("notifications-changed"));
+    } catch {
+      setError("Não foi possível marcar como lida. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="page-enter space-y-5">
+      <PageHeader
+        eyebrow="Intranet CGE"
+        title="Notificações"
+        description="Avisos sobre solicitações, checklists e outras atividades do seu trabalho."
+        actions={
+          <Button
+            variant="secondary"
+            disabled={busy || loading || !data?.unreadCount}
+            onClick={() => void read()}
+          >
+            Marcar todas como lidas
+          </Button>
+        }
+      />
+      {error ? (
+        <Alert title="Não foi possível concluir" tone="danger">
+          {error}
+          <Button
+            variant="secondary"
+            disabled={busy || loading}
+            onClick={() => {
+              setError("");
+              void load(page);
+            }}
+          >
+            Tentar novamente
+          </Button>
+        </Alert>
+      ) : null}
+      {loading && <LoadingState label="Carregando notificações…" />}
+      {!data ? null : !data.notifications.length ? (
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
+          <EmptyState
+            title="Sem notificações"
+            description="Nenhuma notificação por enquanto."
+          />
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div>
+              <h2 className="font-bold">Avisos recentes</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Mais novos primeiro.
+              </p>
+            </div>
+          </CardHeader>
+          <ul className="divide-y divide-[var(--border)]">
+            {data.notifications.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      className="font-semibold underline underline-offset-4"
+                      to={item.href}
+                    >
+                      {item.title}
+                    </Link>
+                    {!item.readAt ? <Badge variant="brand">Nova</Badge> : null}
+                  </div>
+                  <p className="max-w-[70ch] break-words text-sm text-[var(--text-muted)]">
+                    {item.message}
+                  </p>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    {new Date(item.createdAt).toLocaleString("pt-BR", {
+                      timeZone: "America/Manaus",
+                    })}{" "}
+                    · {item.readAt ? "Lida" : "Não lida"}
+                  </p>
+                </div>
+                {!item.readAt ? (
+                  <Button
+                    variant="quiet"
+                    disabled={busy || loading}
+                    onClick={() => void read(item.id)}
+                  >
+                    Marcar como lida
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      <Pagination
+        label="Páginas de notificações"
+        page={page}
+        hasMore={Boolean(data?.hasMore)}
+        disabled={busy || loading}
+        onPageChange={(n) => void load(n)}
+      />
+    </div>
+  );
+}

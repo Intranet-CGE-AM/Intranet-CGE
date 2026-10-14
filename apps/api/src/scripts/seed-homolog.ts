@@ -23,6 +23,16 @@ import {
   vacationRequestEvents,
   vacationRequests,
 } from "../modules/vacations/schema.js";
+import {
+  ticketApprovals,
+  ticketCategories,
+  ticketEvents,
+  ticketFeedbacks,
+  ticketMessages,
+  tickets,
+  ticketSubcategories,
+} from "../modules/tickets/schema.js";
+import { nextTicketNumber, TicketService } from "../modules/tickets/service.js";
 
 const confirmation = "SEED_CGE_HOMOLOG";
 const accountDomain = "homolog.cge.am.gov.br";
@@ -75,6 +85,8 @@ async function seedHomolog() {
       type: argon2id,
     });
 
+    await new TicketService(db).ensureDefaultCategories();
+
     const result = await db.transaction(async (transaction) => {
       const eligible = await ensureCategory(
         transaction,
@@ -103,6 +115,24 @@ async function seedHomolog() {
         transaction,
         "OUV",
         "Ouvidoria e Transparência",
+      );
+      // Equipes provisórias: os nomes reais das equipes da SCI virão depois.
+      const sci = await ensureUnit(
+        transaction,
+        "SCI",
+        "Subcontroladoria de Controle Interno",
+      );
+      const auditTeamA = await ensureUnit(
+        transaction,
+        "AUD-01",
+        "Equipe de Auditoria 01",
+        sci.id,
+      );
+      const auditTeamB = await ensureUnit(
+        transaction,
+        "AUD-02",
+        "Equipe de Auditoria 02",
+        sci.id,
       );
 
       const today = manausDate();
@@ -220,6 +250,25 @@ async function seedHomolog() {
           jobTitle: "Assessora Administrativa",
           startDate: "2020-07-06",
         },
+        ...(
+          [
+            ["HOM-SCI-01", "Assessoria AUD-01", auditTeamA.id],
+            ["HOM-SCI-02", "Coordenação AUD-01", auditTeamA.id],
+            ["HOM-SCI-03", "Assessoria AUD-02", auditTeamB.id],
+            ["HOM-SCI-04", "Coordenação AUD-02", auditTeamB.id],
+            ["HOM-SCI-05", "Subcontroladoria SCI", sci.id],
+          ] as const
+        ).map(([employeeNumber, label, unitId]) => ({
+          employeeNumber,
+          fullName: `Pessoa Sintética ${label}`,
+          preferredName: label,
+          birthDate: "1990-01-01",
+          birthdayVisible: false,
+          categoryId: eligible.id,
+          unitId,
+          jobTitle: label,
+          startDate: "2024-01-02",
+        })),
       ] satisfies FixturePerson[];
 
       const seededPeople = new Map<
@@ -329,6 +378,36 @@ async function seedHomolog() {
           `renata.martins@${accountDomain}`,
           passwordHash,
         ),
+        auditAssessorA: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-01")).personId,
+          `assessoria.aud01@${accountDomain}`,
+          passwordHash,
+        ),
+        auditCoordinatorA: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-02")).personId,
+          `coordenacao.aud01@${accountDomain}`,
+          passwordHash,
+        ),
+        auditAssessorB: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-03")).personId,
+          `assessoria.aud02@${accountDomain}`,
+          passwordHash,
+        ),
+        auditCoordinatorB: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-04")).personId,
+          `coordenacao.aud02@${accountDomain}`,
+          passwordHash,
+        ),
+        auditReviewer: await ensureAccount(
+          transaction,
+          required(seededPeople.get("HOM-SCI-05")).personId,
+          `subcontroladoria.sci@${accountDomain}`,
+          passwordHash,
+        ),
       };
 
       const seededAccountIds = Object.values(accounts).map(
@@ -354,6 +433,16 @@ async function seedHomolog() {
             "people.import",
             "birthdays.read",
             "vacations.review.final",
+            "tickets.create",
+            "tickets.read",
+            "visits.read",
+            "visits.create",
+            "visits.history",
+            "visits.reports",
+            "visits.export",
+            "visits.manage",
+            "assets.read",
+            "assets.manage",
           ],
         },
         {
@@ -364,25 +453,111 @@ async function seedHomolog() {
             "people.read",
             "birthdays.read",
             "vacations.review.supervisor",
+            "tickets.create",
+            "tickets.read",
+            "tickets.approve",
+            "assets.read",
           ],
         },
         {
           key: "worker",
           name: "Colaborador Homologação",
           description: "Diretório, aniversários e solicitação de férias.",
-          permissions: ["people.read", "birthdays.read", "vacations.create"],
+          permissions: [
+            "people.read",
+            "birthdays.read",
+            "vacations.create",
+            "tickets.create",
+            "tickets.read",
+            "assets.read",
+          ],
+        },
+        {
+          key: "technician",
+          name: "Técnico TI Homologação",
+          description: "Atendimento e gestão técnica de chamados da ATEC.",
+          permissions: [
+            "people.read",
+            "tickets.create",
+            "tickets.read",
+            "tickets.attend",
+            "assets.read",
+          ],
+        },
+        {
+          key: "admin",
+          name: "Administrador Homologação",
+          description: "Administração global da plataforma, TI e chamados.",
+          permissions: [
+            "people.read",
+            "people.manage",
+            "people.import",
+            "birthdays.read",
+            "vacations.create",
+            "vacations.review.supervisor",
+            "vacations.review.final",
+            "audit.read",
+            "audit.export",
+            "access.manage",
+            "tickets.create",
+            "tickets.read",
+            "tickets.approve",
+            "tickets.attend",
+            "tickets.manage",
+            "visits.read",
+            "visits.create",
+            "visits.update",
+            "visits.delete",
+            "visits.approve",
+            "visits.release",
+            "visits.history",
+            "visits.reports",
+            "visits.export",
+            "visits.manage",
+            "visits.confirmation.manage",
+            "assets.read",
+            "assets.manage",
+          ],
         },
         {
           key: "viewer",
           name: "Consulta Homologação",
           description: "Consulta ao diretório por unidade.",
-          permissions: ["people.read"],
+          permissions: ["people.read", "assets.read"],
         },
         {
           key: "audit",
           name: "Auditoria Homologação",
           description: "Consulta e exportação da auditoria da plataforma.",
           permissions: ["audit.read", "audit.export"],
+        },
+        {
+          key: "auditAssessor",
+          name: "Assessor(a) de auditoria",
+          description: "Consulta e envio de documentos de auditoria da equipe.",
+          permissions: ["audit_documents.read", "audit_documents.submit"],
+        },
+        {
+          key: "auditCoordinator",
+          name: "Coordenador(a) de equipe de auditoria",
+          description:
+            "Consulta, envio e indicadores dos documentos de auditoria da equipe.",
+          permissions: [
+            "audit_documents.read",
+            "audit_documents.submit",
+            "audit_documents.reports",
+          ],
+        },
+        {
+          key: "auditReviewer",
+          name: "Subcontrolador(a)",
+          description:
+            "Análise e indicadores de todos os documentos de auditoria.",
+          permissions: [
+            "audit_documents.read",
+            "audit_documents.review",
+            "audit_documents.reports",
+          ],
         },
       ];
       const seededRoles = new Map<string, { id: string }>();
@@ -423,6 +598,11 @@ async function seedHomolog() {
           unitId: cgti.id,
         },
         {
+          accountId: accounts.contractor.id,
+          roleId: required(seededRoles.get("technician")).id,
+          unitId: cgti.id,
+        },
+        {
           accountId: accounts.firstAccess.id,
           roleId: required(seededRoles.get("worker")).id,
           unitId: cgti.id,
@@ -441,7 +621,32 @@ async function seedHomolog() {
           roleId: required(seededRoles.get("worker")).id,
           unitId: cabinet.id,
         },
+        ...(
+          [
+            [accounts.auditAssessorA, "auditAssessor", auditTeamA.id],
+            [accounts.auditCoordinatorA, "auditCoordinator", auditTeamA.id],
+            [accounts.auditAssessorB, "auditAssessor", auditTeamB.id],
+            [accounts.auditCoordinatorB, "auditCoordinator", auditTeamB.id],
+            [accounts.auditReviewer, "auditReviewer", null],
+          ] as const
+        ).map(([account, role, unitId]) => ({
+          accountId: account.id,
+          roleId: required(seededRoles.get(role)).id,
+          unitId,
+        })),
       ]);
+
+      await seedHomologTickets(
+        transaction,
+        accounts,
+        seededPeople,
+        {
+          cgrhId: cgrh.id,
+          cgtiId: cgti.id,
+          controlId: control.id,
+        },
+        today,
+      );
 
       await transaction
         .delete(vacationRequests)
@@ -525,19 +730,25 @@ async function seedHomolog() {
       };
     });
 
+    const ticketService = new TicketService(db);
+    await ticketService.ensureDefaultCategories();
+
     console.log("Homologação preparada:", result);
     console.log(
       `Senha comum: HOMOLOG_SEED_PASSWORD (${password.length} caracteres)`,
     );
-    console.log(`Usuário RH: marina.rocha@${accountDomain}`);
-    console.log(`Chefia: helena.monteiro@${accountDomain}`);
-    console.log(`Colaborador: caio.nascimento@${accountDomain}`);
+    console.log(`Administrador / RH: marina.rocha@${accountDomain}`);
+    console.log(`Chefia CGTI (Aprovadora): helena.monteiro@${accountDomain}`);
+    console.log(`Colaborador Solicitante: caio.nascimento@${accountDomain}`);
+    console.log(`Técnica TI (ATEC): dandara.ribeiro@${accountDomain}`);
     console.log(`Consulta: leonardo.araujo@${accountDomain}`);
-    console.log(`Não elegível: dandara.ribeiro@${accountDomain}`);
     console.log(`Sem acesso: ana.vasconcelos@${accountDomain}`);
     console.log(`Primeiro acesso: luiza.barreto@${accountDomain}`);
     console.log(`Escopo vazio: thiago.freitas@${accountDomain}`);
     console.log(`Vínculo encerrado: renata.martins@${accountDomain}`);
+    console.log(
+      `Documentos de auditoria: assessoria.aud01, coordenacao.aud01, assessoria.aud02, coordenacao.aud02, subcontroladoria.sci (@${accountDomain})`,
+    );
   } finally {
     await client.end();
   }
@@ -567,7 +778,12 @@ async function ensureCategory(
   return required(created);
 }
 
-async function ensureUnit(db: Transaction, code: string, name: string) {
+async function ensureUnit(
+  db: Transaction,
+  code: string,
+  name: string,
+  parentId?: string,
+) {
   const [existing] = await db
     .select({ id: organizationUnits.id })
     .from(organizationUnits)
@@ -576,13 +792,13 @@ async function ensureUnit(db: Transaction, code: string, name: string) {
   if (existing) {
     await db
       .update(organizationUnits)
-      .set({ active: true, name })
+      .set({ active: true, name, ...(parentId ? { parentId } : {}) })
       .where(eq(organizationUnits.id, existing.id));
     return existing;
   }
   const [created] = await db
     .insert(organizationUnits)
-    .values({ code, name })
+    .values({ code, name, parentId })
     .returning({ id: organizationUnits.id });
   return required(created);
 }
@@ -804,6 +1020,307 @@ function birthdayFor(isoDate: string, year: number) {
 function required<T>(value: T | null | undefined): T {
   if (!value) throw new Error("Registro obrigatório não foi criado.");
   return value;
+}
+
+async function seedHomologTickets(
+  tx: Transaction,
+  accounts: {
+    hr: { id: string };
+    supervisor: { id: string };
+    worker: { id: string };
+    viewer: { id: string };
+    contractor: { id: string };
+  },
+  seededPeople: Map<string, { employmentId: string; personId: string }>,
+  units: {
+    cgrhId: string;
+    cgtiId: string;
+    controlId: string;
+  },
+  today: string,
+) {
+  const seededAccountIds = Object.values(accounts).map((a) => a.id);
+  await tx
+    .delete(tickets)
+    .where(inArray(tickets.requesterAccountId, seededAccountIds));
+
+  const cats = await tx.select().from(ticketCategories);
+  const subs = await tx.select().from(ticketSubcategories);
+
+  const hardwareCat = cats.find((c) => c.code === "HARDWARE");
+  const hardwareSub = subs.find((s) => s.code === "HARDWARE_WONT_TURN_ON");
+  const sigedCat = cats.find((c) => c.code === "SIGED");
+  const sigedSub = subs.find((s) => s.code === "SIGED_SECTOR_MOVE");
+  const remoteCat = cats.find((c) => c.code === "REMOTE");
+  const printerCat = cats.find((c) => c.code === "PRINTER");
+  const printerSub = subs.find((s) => s.code === "PRINTER_PAPER_JAM");
+  const netCat = cats.find((c) => c.code === "NETWORK");
+  const netSub = subs.find((s) => s.code === "INTERNET_QUEDA");
+
+  if (!hardwareCat || !sigedCat || !remoteCat || !printerCat || !netCat) {
+    return;
+  }
+
+  const personHr = required(seededPeople.get("HOM-001")).personId;
+  const personWorker = required(seededPeople.get("HOM-003")).personId;
+  const personViewer = required(seededPeople.get("HOM-004")).personId;
+
+  // 1. Chamado Aberto (Hardware - Caio Nascimento)
+  const [t1] = await tx
+    .insert(tickets)
+    .values({
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
+      trackToken: "homolog-token-0001",
+      requesterAccountId: accounts.worker.id,
+      requesterPersonId: personWorker,
+      requesterName: "Caio Nascimento Almeida",
+      requesterEmail: "caio.nascimento@homolog.cge.am.gov.br",
+      requesterEmployeeNumber: "HOM-003",
+      unitId: units.cgtiId,
+      categoryId: hardwareCat.id,
+      subcategoryId: hardwareSub?.id ?? null,
+      priority: "medium",
+      areaResponsavel: "manutencao",
+      status: "open",
+      approvalStatus: "not_required",
+      presential: true,
+      freeTextDescription:
+        "O computador da minha estação de trabalho não emite sinal de vídeo e a ventoinha gira muito rápido ao ligar.",
+      openedAt: new Date(today),
+    })
+    .returning({ id: tickets.id });
+
+  if (t1) {
+    await tx.insert(ticketEvents).values({
+      ticketId: t1.id,
+      actorAccountId: accounts.worker.id,
+      fromStatus: null,
+      toStatus: "open",
+      note: "Chamado aberto pelo solicitante",
+    });
+  }
+
+  // 2. Chamado Aguardando Aprovação da Chefia (SIGED - Leonardo Araújo)
+  const [t2] = await tx
+    .insert(tickets)
+    .values({
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
+      trackToken: "homolog-token-0002",
+      requesterAccountId: accounts.viewer.id,
+      requesterPersonId: personViewer,
+      requesterName: "Leonardo Araújo Campos",
+      requesterEmail: "leonardo.araujo@homolog.cge.am.gov.br",
+      requesterEmployeeNumber: "HOM-004",
+      unitId: units.controlId,
+      categoryId: sigedCat.id,
+      subcategoryId: sigedSub?.id ?? null,
+      priority: "high",
+      areaResponsavel: "sistemas",
+      status: "open",
+      approvalStatus: "pending",
+      presential: false,
+      freeTextDescription:
+        "Solicito movimentação de processos e permissão de acesso à pasta do 1º Trimestre no SIGED.",
+      openedAt: new Date(today),
+    })
+    .returning({ id: tickets.id });
+
+  if (t2) {
+    await tx.insert(ticketEvents).values({
+      ticketId: t2.id,
+      actorAccountId: accounts.viewer.id,
+      fromStatus: null,
+      toStatus: "open",
+      note: "Chamado aberto aguardando aprovação da chefia",
+    });
+    await tx.insert(ticketApprovals).values({
+      ticketId: t2.id,
+      unitId: units.controlId,
+      approverAccountId: accounts.supervisor.id,
+      status: "pending",
+    });
+  }
+
+  // 3. Chamado em Atendimento Remoto com Chat (AnyDesk - Marina Rocha / Dandara Ribeiro)
+  const [t3] = await tx
+    .insert(tickets)
+    .values({
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
+      trackToken: "homolog-token-0003",
+      requesterAccountId: accounts.hr.id,
+      requesterPersonId: personHr,
+      requesterName: "Marina de Souza Rocha",
+      requesterEmail: "marina.rocha@homolog.cge.am.gov.br",
+      requesterEmployeeNumber: "HOM-001",
+      unitId: units.cgrhId,
+      categoryId: remoteCat.id,
+      priority: "medium",
+      areaResponsavel: "sistemas",
+      status: "in_service",
+      assignedTechAccountId: accounts.contractor.id,
+      anyDeskCode: "948 210 334",
+      presential: false,
+      freeTextDescription:
+        "Preciso de auxílio para configuração do certificado digital A3 no navegador.",
+      openedAt: new Date(today),
+      viewedAt: new Date(today),
+      inServiceAt: new Date(today),
+    })
+    .returning({ id: tickets.id });
+
+  if (t3) {
+    await tx.insert(ticketEvents).values([
+      {
+        ticketId: t3.id,
+        actorAccountId: accounts.hr.id,
+        fromStatus: null,
+        toStatus: "open",
+        note: "Chamado aberto",
+      },
+      {
+        ticketId: t3.id,
+        actorAccountId: accounts.contractor.id,
+        fromStatus: "open",
+        toStatus: "viewed",
+        note: "Técnica assumiu o chamado",
+      },
+      {
+        ticketId: t3.id,
+        actorAccountId: accounts.contractor.id,
+        fromStatus: "viewed",
+        toStatus: "in_service",
+        note: "Iniciado atendimento remoto via AnyDesk",
+      },
+    ]);
+    await tx.insert(ticketMessages).values([
+      {
+        ticketId: t3.id,
+        authorAccountId: accounts.contractor.id,
+        fromUser: false,
+        content:
+          "Olá Marina! Visualizei seu chamado. Estou conectando no AnyDesk 948 210 334 para configurar o certificado A3.",
+      },
+      {
+        ticketId: t3.id,
+        authorAccountId: accounts.hr.id,
+        fromUser: true,
+        content:
+          "Olá Dandara! Muito obrigada, já autorizei a conexão na minha máquina.",
+      },
+    ]);
+  }
+
+  // 4. Chamado Pausado (Impressora - Caio Nascimento / Dandara Ribeiro)
+  const [t4] = await tx
+    .insert(tickets)
+    .values({
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
+      trackToken: "homolog-token-0004",
+      requesterAccountId: accounts.worker.id,
+      requesterPersonId: personWorker,
+      requesterName: "Caio Nascimento Almeida",
+      requesterEmail: "caio.nascimento@homolog.cge.am.gov.br",
+      requesterEmployeeNumber: "HOM-003",
+      unitId: units.cgtiId,
+      categoryId: printerCat.id,
+      subcategoryId: printerSub?.id ?? null,
+      priority: "low",
+      areaResponsavel: "manutencao",
+      status: "paused",
+      assignedTechAccountId: accounts.contractor.id,
+      presential: true,
+      freeTextDescription:
+        "Papel atolado recorrente na bandeja 2 da impressora da CGTI.",
+      pauseNote:
+        "Aguardando envio de peça de reposição (rolete de tração) pela contratada de outsourcing.",
+      pausedAt: new Date(today),
+      totalPausedMs: 1800000,
+      openedAt: new Date(today),
+      viewedAt: new Date(today),
+    })
+    .returning({ id: tickets.id });
+
+  if (t4) {
+    await tx.insert(ticketEvents).values([
+      {
+        ticketId: t4.id,
+        actorAccountId: accounts.worker.id,
+        fromStatus: null,
+        toStatus: "open",
+        note: "Chamado aberto",
+      },
+      {
+        ticketId: t4.id,
+        actorAccountId: accounts.contractor.id,
+        fromStatus: "open",
+        toStatus: "viewed",
+        note: "Visualizado pela técnica",
+      },
+      {
+        ticketId: t4.id,
+        actorAccountId: accounts.contractor.id,
+        fromStatus: "viewed",
+        toStatus: "paused",
+        note: "Pausado: Aguardando peça de reposição",
+      },
+    ]);
+  }
+
+  // 5. Chamado Concluído e Avaliado 5 Estrelas (Internet - Caio / Dandara)
+  const [t5] = await tx
+    .insert(tickets)
+    .values({
+      ticketNumber: await nextTicketNumber(tx as unknown as Database),
+      trackToken: "homolog-token-0005",
+      requesterAccountId: accounts.worker.id,
+      requesterPersonId: personWorker,
+      requesterName: "Caio Nascimento Almeida",
+      requesterEmail: "caio.nascimento@homolog.cge.am.gov.br",
+      requesterEmployeeNumber: "HOM-003",
+      unitId: units.cgtiId,
+      categoryId: netCat.id,
+      subcategoryId: netSub?.id ?? null,
+      priority: "high",
+      areaResponsavel: "redes",
+      status: "completed",
+      assignedTechAccountId: accounts.contractor.id,
+      presential: true,
+      requiresCauseSolution: true,
+      cause: "Cabo de rede RJ-45 rompido próximo ao ponto de rede da parede.",
+      solution:
+        "Substituição do patch cord e certificação do ponto a 1Gbps com testador de cabo.",
+      completionNote: "Ponto de rede reestabelecido e homologado.",
+      openedAt: new Date(today),
+      viewedAt: new Date(today),
+      inServiceAt: new Date(today),
+      completedAt: new Date(today),
+    })
+    .returning({ id: tickets.id });
+
+  if (t5) {
+    await tx.insert(ticketEvents).values([
+      {
+        ticketId: t5.id,
+        actorAccountId: accounts.worker.id,
+        fromStatus: null,
+        toStatus: "open",
+        note: "Chamado aberto",
+      },
+      {
+        ticketId: t5.id,
+        actorAccountId: accounts.contractor.id,
+        fromStatus: "open",
+        toStatus: "completed",
+        note: "Atendimento concluído com sucesso",
+      },
+    ]);
+    await tx.insert(ticketFeedbacks).values({
+      ticketId: t5.id,
+      rating: 5,
+      comment: "Atendimento excelente e muito rápido pela técnica Dandara!",
+      technicianAccountId: accounts.contractor.id,
+    });
+  }
 }
 
 if (

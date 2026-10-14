@@ -36,7 +36,7 @@ export default tseslint.config(
         "error",
         {
           selector: "JSXAttribute[name.name='type'][value.value='date']",
-          message: "Use DatePicker or DateRangePicker from @cge/ui.",
+          message: "Use DateInput, DatePicker or DateRangePicker from @cge/ui.",
         },
       ],
     },

@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { z } from "zod";
 
 const configSchema = z.object({
@@ -34,8 +35,43 @@ const resolvedConfigSchema = configSchema.transform((config) => ({
   SECURE_COOKIES: config.SECURE_COOKIES ?? config.NODE_ENV === "production",
 }));
 
-export type AppConfig = z.infer<typeof resolvedConfigSchema>;
+const directoryConfigSchema = z.object({
+  AD_URL: z.url().refine((value) => {
+    const url = new URL(value);
+    return (
+      url.protocol === "ldaps:" &&
+      !isIP(url.hostname) &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      (!url.pathname || url.pathname === "/")
+    );
+  }, "Use um FQDN com ldaps:// e sem credenciais na URL."),
+  AD_DOMAIN: z
+    .string()
+    .min(1)
+    .regex(/^[a-zA-Z0-9.-]+$/),
+  AD_NETBIOS: z.string().min(1).optional(),
+  AD_BASE_DN: z.string().min(1),
+  AD_BIND_DN: z.string().min(1),
+  AD_BIND_PASSWORD_FILE: z.string().min(1),
+  AD_CA_CERT_FILE: z.string().min(1),
+  AD_ALLOWED_GROUP_DN: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  ),
+  AD_RECHECK_SECONDS: z.coerce.number().int().min(1).max(300).default(300),
+});
+export type DirectoryConfig = z.infer<typeof directoryConfigSchema>;
+export type AppConfig = z.infer<typeof resolvedConfigSchema> & {
+  directory?: DirectoryConfig;
+};
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env) {
-  return resolvedConfigSchema.parse(environment);
+  const enabled = z.stringbool().parse(environment.AD_ENABLED ?? "false");
+  return {
+    ...resolvedConfigSchema.parse(environment),
+    ...(enabled ? { directory: directoryConfigSchema.parse(environment) } : {}),
+  };
 }

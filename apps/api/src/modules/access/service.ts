@@ -10,6 +10,8 @@ import { permissionAllows, permissionSupportsUnitScope } from "@cge/contracts";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import type { Database } from "../../db/client.js";
+import { activeSubstitutions } from "../substitutions/active.js";
+import { substitutionFlowSchema } from "@cge/contracts";
 import {
   permissionOverrides,
   roleAssignments,
@@ -47,6 +49,42 @@ export class AccessService {
   constructor(private readonly db: Database) {}
 
   async resolvePermissions(accountId: string): Promise<PermissionGrant[]> {
+    const grants = await this.resolveBasePermissions(accountId);
+    for (const {
+      record,
+      originalPersonId,
+      originalName,
+    } of await activeSubstitutions(this.db, accountId)) {
+      if (record.substituteAccountId !== accountId) continue;
+      // Sem delegação transitiva: a autoridade vem somente dos perfis e ajustes originais.
+      const original = await this.resolveBasePermissions(
+        record.originalAccountId,
+      );
+      for (const flow of record.flows) {
+        const parsed = substitutionFlowSchema.safeParse(flow);
+        if (
+          !parsed.success ||
+          parsed.data === "checklist.assignment" ||
+          !permissionAllows(original, parsed.data, record.unitId)
+        )
+          continue;
+        grants.push({
+          key: parsed.data,
+          effect: "allow",
+          unitId: record.unitId,
+          delegation: {
+            id: record.id,
+            originalAccountId: record.originalAccountId,
+            originalPersonId,
+            originalName,
+          },
+        });
+      }
+    }
+    return grants;
+  }
+
+  async resolveBasePermissions(accountId: string): Promise<PermissionGrant[]> {
     const [roleGrants, overrides] = await Promise.all([
       this.db
         .select({
