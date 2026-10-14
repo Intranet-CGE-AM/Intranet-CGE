@@ -34,7 +34,7 @@ const NONE = "__none__";
 
 const conservationSelectOptions = [
   { label: "Não informado", value: NONE },
-  ...conservationOptions,
+...conservationOptions,
 ];
 
 type FieldErrors = Partial<

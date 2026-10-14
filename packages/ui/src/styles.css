@@ -224,6 +224,33 @@ a {
   }
 }
 
+.cge-calendar .rdp-range_start,
+.cge-calendar .rdp-range_end,
+.cge-calendar .rdp-range_middle {
+  background: var(--brand-soft);
+}
+
+.cge-calendar .rdp-range_start {
+  border-radius: 10px 0 0 10px;
+}
+
+.cge-calendar .rdp-range_end {
+  border-radius: 0 10px 10px 0;
+}
+
+.cge-calendar .rdp-range_start .rdp-day_button,
+.cge-calendar .rdp-range_end .rdp-day_button {
+  background: var(--brand);
+  color: white;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.cge-calendar .rdp-range_middle .rdp-day_button {
+  background: transparent;
+  color: var(--text);
+}
+
 /* Animações da Sidebar / Sheet (Menu Mobile) com fechamento lento e suave */
 @keyframes cge-sheet-fade-in {
   from {
