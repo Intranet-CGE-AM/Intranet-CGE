@@ -284,6 +284,101 @@ export function DateRangePicker({
           >
             <DayPicker
               animate
+              captionLayout="dropdown"
+              className="cge-calendar"
+              components={{
+                Chevron: CalendarChevron,
+              }}
+              defaultMonth={
+                selected?.from ??
+                minimum ??
+                new Date()
+              }
+              disabled={
+                minimum
+                  ? { before: minimum }
+                  : undefined
+              }
+              endMonth={
+                new Date(
+                  new Date().getFullYear() + 10,
+                  11,
+                  1,
+                  12,
+                )
+              }
+              excludeDisabled
+              fixedWeeks
+              labels={{
+                labelDayButton: (day) =>
+                  `Selecionar ${formatIsoDate(day)}`,
+
+                labelMonthDropdown: () =>
+                  "Mês",
+
+                labelNext: () =>
+                  "Próximo mês",
+
+                labelPrevious: () =>
+                  "Mês anterior",
+
+                labelYearDropdown: () =>
+                  "Ano",
+              }}
+              locale={ptBR}
+              mode="range"
+              min={1}
+              modifiers={{
+                rangePreviewEnd:
+                  preview?.to ?? [],
+
+                rangePreviewMiddle:
+                  preview
+                    ? (day) =>
+                        day > preview.from &&
+                        day < preview.to
+                    : [],
+
+                rangePreviewStart:
+                  preview?.from ?? [],
+              }}
+              modifiersClassNames={{
+                rangePreviewEnd:
+                  "cge-range-preview-end",
+
+                rangePreviewMiddle:
+                  "cge-range-preview-middle",
+
+                rangePreviewStart:
+                  "cge-range-preview-start",
+              }}
+              numberOfMonths={2}
+              onDayFocus={(day) =>
+                setPreviewEnd(day)
+              }
+              onDayMouseEnter={(day) =>
+                setPreviewEnd(day)
+              }
+              onDayMouseLeave={() =>
+                setPreviewEnd(undefined)
+              }
+              onSelect={select}
+              required={required}
+              reverseYears
+              selected={selected}
+              showOutsideDays
+              startMonth={
+                minimum ??
+                new Date(
+                  new Date().getFullYear() - 120,
+                  0,
+                  1,
+                  12,
+                )
+              }
+            />
+            {/* <DayPicker
+              animate
               className="cge-calendar"
               components={{ Chevron: CalendarChevron }}
               defaultMonth={selected?.from ?? minimum ?? new Date()}
@@ -319,17 +414,42 @@ export function DateRangePicker({
               selected={selected}
               showOutsideDays
               startMonth={minimum}
-            />
+            /> */}
             <div className="flex min-h-12 items-center justify-between gap-4 border-t border-[var(--border)] px-4 py-2.5">
               <p
                 aria-live="polite"
                 className="text-xs text-[var(--text-muted)]"
               >
-                {selected?.from
-                  ? complete
-                    ? summary
-                    : "Agora selecione a data final."
-                  : "Escolha a data inicial e depois a final."}
+                {selected?.from ? (
+                complete ? (
+                  <span className="flex flex-wrap gap-x-4 gap-y-1">
+                    <span>
+                      <strong>Início:</strong>{" "}
+                      {displayDate.format(
+                        selected.from,
+                      )}
+                    </span>
+
+                    <span>
+                      <strong>Fim:</strong>{" "}
+                      {displayDate.format(
+                        selected.to!,
+                      )}
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <strong>Início:</strong>{" "}
+                    {displayDate.format(
+                      selected.from,
+                    )}
+                    {" — "}
+                    agora selecione a data final.
+                  </>
+                )
+              ) : (
+                "Escolha a data inicial e depois a final."
+              )}
               </p>
               {selected?.from ? (
                 <button
