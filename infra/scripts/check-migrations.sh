@@ -23,7 +23,8 @@ fi
 
 found=$(
   find "$migrations_dir" -name '*.sql' -type f -print0 |
-    xargs -0 grep -HniE "$destructive" 2>/dev/null || true
+    xargs -0 grep -HniE "$destructive" 2>/dev/null |
+    grep -vE '^[^:]+:[0-9]+:ALTER TABLE "user_accounts" ALTER COLUMN "(email|password_hash)" DROP NOT NULL;([[:space:]]*--> statement-breakpoint)?[[:space:]]*$' || true
 )
 
 if [ -n "$found" ]; then

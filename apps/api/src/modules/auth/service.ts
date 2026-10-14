@@ -1,6 +1,7 @@
 import type {
   AccountCandidate,
   AccountCreate,
+  AdminUser,
   AuthenticatedUser,
   ChangePasswordRequest,
   LoginRequest,
@@ -20,6 +21,11 @@ import {
 } from "../people/schema.js";
 import { avatarUrl } from "../people/avatar.js";
 import type { AuditInput } from "../audit/service.js";
+import {
+  AuthenticationError,
+  directoryUnavailable,
+  type Directory,
+} from "./directory.js";
 import { sessions, userAccounts } from "./schema.js";
 import { createSessionToken, hashSessionToken } from "./token.js";
 
@@ -29,27 +35,20 @@ export interface AuthenticationService {
     personId: string,
     input: AccountCreate,
     actorAccountId: string,
-  ): Promise<{ id: string; email: string }>;
+  ): Promise<{ id: string; email: string | null }>;
   changePassword(
     accountId: string,
     input: ChangePasswordRequest,
   ): Promise<"changed" | "invalid-current-password">;
   login(
     input: LoginRequest,
+    clientIp?: string,
   ): Promise<{ token: string; user: AuthenticatedUser } | null>;
   listAccountCandidates(
     query?: string,
     limit?: number,
   ): Promise<AccountCandidate[]>;
-  listAccounts(): Promise<
-    Array<{
-      id: string;
-      email: string;
-      status: "active" | "disabled";
-      person: { id: string; displayName: string };
-      employment: { unitId: string; unitName: string } | null;
-    }>
-  >;
+  listAccounts(): Promise<AdminUser[]>;
   logout(token: string): Promise<void>;
   resetPassword(
     accountId: string,
@@ -89,6 +88,11 @@ export async function deactivateAccountInTransaction(
 }
 
 export class LocalAuthenticationService implements AuthenticationService {
+  private readonly refreshing = new Map<string, Promise<boolean>>();
+  private readonly attempts = new Map<
+    string,
+    { count: number; until: number }
+  >();
   constructor(
     private readonly db: Database,
     private readonly sessionTtlHours: number,
@@ -100,14 +104,20 @@ export class LocalAuthenticationService implements AuthenticationService {
     private readonly recordEvent: (
       input: AuditInput,
     ) => Promise<void> = async () => {},
+    private readonly directory?: Directory,
   ) {}
 
-  async authenticate(token: string) {
+  async authenticate(token: string): Promise<AuthenticatedUser | null> {
     const tokenHash = hashSessionToken(token);
     const [record] = await this.db
       .select({
         accountId: userAccounts.id,
         email: userAccounts.email,
+        authProvider: userAccounts.authProvider,
+        directoryId: userAccounts.directoryId,
+        directoryGuid: userAccounts.directoryGuid,
+        directoryUpn: userAccounts.directoryUpn,
+        directoryCheckedAt: userAccounts.directoryCheckedAt,
         forcePasswordChangeAt: userAccounts.forcePasswordChangeAt,
         personId: people.id,
         fullName: people.fullName,
@@ -153,6 +163,28 @@ export class LocalAuthenticationService implements AuthenticationService {
       return null;
     }
 
+    if (record.authProvider === "ad") {
+      if (
+        !this.directory ||
+        record.directoryId !== this.directory.id ||
+        !record.directoryGuid
+      )
+        throw directoryUnavailable();
+      if (
+        !record.directoryCheckedAt ||
+        Date.now() - record.directoryCheckedAt.getTime() >=
+          this.directory.recheckSeconds * 1000
+      ) {
+        if (
+          !(await this.refreshDirectoryAccount(
+            record.accountId,
+            record.directoryGuid,
+          ))
+        )
+          return null;
+        return this.authenticate(token);
+      }
+    }
     return {
       ...this.toAuthenticatedUser(record),
       permissions: await this.resolvePermissions(record.accountId),
@@ -187,32 +219,118 @@ export class LocalAuthenticationService implements AuthenticationService {
     return account;
   }
 
-  async login(input: LoginRequest) {
-    const normalizedEmail = input.email.trim().toLowerCase();
-    const [account] = await this.db
-      .select({
-        id: userAccounts.id,
-        passwordHash: userAccounts.passwordHash,
-        status: userAccounts.status,
-      })
+  async login(input: LoginRequest, clientIp = "unknown") {
+    const identifier = (input.identifier ?? input.email ?? "")
+      .trim()
+      .toLowerCase();
+    let candidates = await this.db
+      .select()
       .from(userAccounts)
-      .where(sql`lower(${userAccounts.email}) = ${normalizedEmail}`)
-      .limit(1);
-
-    if (
-      !account ||
-      account.status !== "active" ||
-      !(await verify(account.passwordHash, input.password))
-    ) {
+      .where(
+        or(
+          and(
+            eq(userAccounts.authProvider, "local"),
+            sql`lower(${userAccounts.email}) = ${identifier}`,
+          ),
+          this.directory
+            ? and(
+                eq(userAccounts.authProvider, "ad"),
+                eq(userAccounts.directoryId, this.directory.id),
+                or(
+                  sql`lower(${userAccounts.directoryUpn}) = ${identifier}`,
+                  sql`lower(${userAccounts.directorySam}) = ${identifier}`,
+                ),
+              )
+            : sql`false`,
+        ),
+      )
+      .limit(2);
+    // Resolve renamed AD logins by GUID, without creating or linking an account.
+    if (!candidates.length && this.directory) {
+      const identity = await this.directory.findByLogin(identifier);
+      if (identity)
+        candidates = await this.db
+          .select()
+          .from(userAccounts)
+          .where(
+            and(
+              eq(userAccounts.authProvider, "ad"),
+              eq(userAccounts.directoryId, this.directory.id),
+              eq(userAccounts.directoryGuid, identity.guid),
+            ),
+          )
+          .limit(2);
+    }
+    const account = candidates.length === 1 ? candidates[0] : undefined;
+    let valid = false;
+    let identity = null;
+    if (account?.status === "active") {
+      if (account.authProvider === "ad") {
+        this.limitDirectoryLogin(`${clientIp}:${account.id}`);
+        if (
+          !this.directory ||
+          account.directoryId !== this.directory.id ||
+          !account.directoryGuid
+        )
+          throw directoryUnavailable();
+        identity = await this.directory.findByGuid(account.directoryGuid);
+        valid = Boolean(
+          identity?.eligible &&
+          (await this.directory.verifyPassword(identity, input.password)),
+        );
+      } else if (account.passwordHash) {
+        valid = await verify(account.passwordHash, input.password);
+      }
+    }
+    if (!valid || !account) {
       await this.recordEvent({
         action: "auth.login",
         objectType: "account",
         outcome: "failure",
-        metadata: { email: normalizedEmail },
+        metadata: { identifier },
       });
       return null;
     }
-
+    const token = createSessionToken();
+    const created = await this.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(userAccounts)
+        .where(eq(userAccounts.id, account.id))
+        .for("update");
+      if (
+        !current ||
+        current.status !== "active" ||
+        current.authProvider !== account.authProvider ||
+        current.passwordHash !== account.passwordHash ||
+        current.directoryGuid !== account.directoryGuid ||
+        current.directoryId !== account.directoryId
+      )
+        return false;
+      if (identity)
+        await tx
+          .update(userAccounts)
+          .set({
+            directoryCheckedAt: new Date(),
+            directoryUpn: identity.upn,
+            directorySam: identity.samAccountName,
+          })
+          .where(eq(userAccounts.id, account.id));
+      await tx.insert(sessions).values({
+        accountId: account.id,
+        expiresAt: new Date(Date.now() + this.sessionTtlHours * 3600000),
+        tokenHash: hashSessionToken(token),
+      });
+      return true;
+    });
+    if (!created) return null;
+    const user = await this.authenticate(token);
+    if (!user) {
+      await this.db
+        .delete(sessions)
+        .where(eq(sessions.tokenHash, hashSessionToken(token)));
+      return null;
+    }
     await this.recordEvent({
       actorAccountId: account.id,
       action: "auth.login",
@@ -220,23 +338,60 @@ export class LocalAuthenticationService implements AuthenticationService {
       objectId: account.id,
       outcome: "success",
     });
-    const token = createSessionToken();
-    const expiresAt = new Date(
-      Date.now() + this.sessionTtlHours * 60 * 60 * 1000,
-    );
-
-    await this.db.insert(sessions).values({
-      accountId: account.id,
-      expiresAt,
-      tokenHash: hashSessionToken(token),
-    });
-
-    const user = await this.authenticate(token);
-    if (!user) {
-      throw new Error("Session was created but could not be authenticated");
-    }
-
     return { token, user };
+  }
+
+  private limitDirectoryLogin(key: string) {
+    const now = Date.now();
+    for (const [oldKey, entry] of this.attempts)
+      if (entry.until <= now) this.attempts.delete(oldKey);
+    const entry = this.attempts.get(key) ?? { count: 0, until: now + 60000 };
+    if (entry.count >= 5 || this.attempts.size >= 10000)
+      throw new AuthenticationError(
+        429,
+        "TOO_MANY_ATTEMPTS",
+        "Muitas tentativas. Aguarde um minuto.",
+      );
+    entry.count += 1;
+    this.attempts.set(key, entry);
+  }
+
+  private refreshDirectoryAccount(accountId: string, guid: string) {
+    const pending = this.refreshing.get(accountId);
+    if (pending) return pending;
+    const refresh = (async () => {
+      const identity = await this.directory!.findByGuid(guid);
+      if (!identity?.eligible) {
+        await this.db.delete(sessions).where(eq(sessions.accountId, accountId));
+        await this.recordEvent({
+          actorAccountId: accountId,
+          action: "auth.directory-revoked",
+          objectType: "account",
+          objectId: accountId,
+          outcome: "denied",
+        });
+        return false;
+      }
+      const updated = await this.db
+        .update(userAccounts)
+        .set({
+          directoryCheckedAt: new Date(),
+          directoryUpn: identity.upn,
+          directorySam: identity.samAccountName,
+        })
+        .where(
+          and(
+            eq(userAccounts.id, accountId),
+            eq(userAccounts.directoryGuid, guid),
+            eq(userAccounts.authProvider, "ad"),
+            eq(userAccounts.status, "active"),
+          ),
+        )
+        .returning({ id: userAccounts.id });
+      return updated.length === 1;
+    })().finally(() => this.refreshing.delete(accountId));
+    this.refreshing.set(accountId, refresh);
+    return refresh;
   }
 
   async listAccounts() {
@@ -244,6 +399,8 @@ export class LocalAuthenticationService implements AuthenticationService {
       .select({
         id: userAccounts.id,
         email: userAccounts.email,
+        authProvider: userAccounts.authProvider,
+        directoryUpn: userAccounts.directoryUpn,
         status: userAccounts.status,
         personId: people.id,
         fullName: people.fullName,
@@ -269,6 +426,8 @@ export class LocalAuthenticationService implements AuthenticationService {
     return accounts.map((account) => ({
       id: account.id,
       email: account.email,
+      authProvider: account.authProvider as "local" | "ad",
+      directoryUsername: account.directoryUpn,
       status: account.status,
       person: {
         id: account.personId,
@@ -355,13 +514,23 @@ export class LocalAuthenticationService implements AuthenticationService {
 
   async changePassword(accountId: string, input: ChangePasswordRequest) {
     const [account] = await this.db
-      .select({ passwordHash: userAccounts.passwordHash })
+      .select({
+        passwordHash: userAccounts.passwordHash,
+        authProvider: userAccounts.authProvider,
+      })
       .from(userAccounts)
       .where(eq(userAccounts.id, accountId))
       .limit(1);
 
+    if (account?.authProvider === "ad")
+      throw new AuthenticationError(
+        409,
+        "DIRECTORY_PASSWORD_MANAGED",
+        "A senha corporativa deve ser alterada pelo procedimento da TI.",
+      );
     if (
       !account ||
+      !account.passwordHash ||
       !(await verify(account.passwordHash, input.currentPassword))
     ) {
       await this.recordEvent({
@@ -385,7 +554,12 @@ export class LocalAuthenticationService implements AuthenticationService {
           passwordHash,
           updatedAt: new Date(),
         })
-        .where(eq(userAccounts.id, accountId));
+        .where(
+          and(
+            eq(userAccounts.id, accountId),
+            eq(userAccounts.authProvider, "local"),
+          ),
+        );
       await transaction
         .delete(sessions)
         .where(eq(sessions.accountId, accountId));
@@ -406,6 +580,16 @@ export class LocalAuthenticationService implements AuthenticationService {
     input: PasswordReset,
     actorAccountId: string,
   ) {
+    const [existing] = await this.db
+      .select({ provider: userAccounts.authProvider })
+      .from(userAccounts)
+      .where(eq(userAccounts.id, accountId));
+    if (existing?.provider === "ad")
+      throw new AuthenticationError(
+        409,
+        "DIRECTORY_PASSWORD_MANAGED",
+        "A senha corporativa deve ser redefinida pela TI.",
+      );
     const [account] = await this.db
       .update(userAccounts)
       .set({
@@ -413,7 +597,12 @@ export class LocalAuthenticationService implements AuthenticationService {
         forcePasswordChangeAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(userAccounts.id, accountId))
+      .where(
+        and(
+          eq(userAccounts.id, accountId),
+          eq(userAccounts.authProvider, "local"),
+        ),
+      )
       .returning({ id: userAccounts.id });
     if (!account) {
       return false;
@@ -461,7 +650,9 @@ export class LocalAuthenticationService implements AuthenticationService {
     avatarUpdatedAt: Date | null;
     categoryId: string | null;
     categoryName: string | null;
-    email: string;
+    email: string | null;
+    authProvider: string;
+    directoryUpn: string | null;
     employmentId: string | null;
     forcePasswordChangeAt: Date | null;
     fullName: string;
@@ -483,6 +674,8 @@ export class LocalAuthenticationService implements AuthenticationService {
     return {
       account: {
         email: record.email,
+        authProvider: record.authProvider as "local" | "ad",
+        directoryUsername: record.directoryUpn,
         id: record.accountId,
         mustChangePassword: record.forcePasswordChangeAt !== null,
       },
