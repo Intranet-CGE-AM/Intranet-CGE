@@ -1,3 +1,4 @@
+import { DirectoryLinkDialog } from "../components/directory-link-dialog";
 import type {
   AccountCandidate,
   AdminUser,
@@ -316,6 +317,11 @@ type UserStep = "details" | "access";
 export function AdminPage() {
   const { refresh, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [directoryEnabled, setDirectoryEnabled] = useState(false);
+  const [directoryDialog, setDirectoryDialog] = useState(false);
+  const [directoryAccount, setDirectoryAccount] = useState<AdminUser | null>(
+    null,
+  );
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [accountCandidates, setAccountCandidates] = useState<
     AccountCandidate[]
@@ -466,6 +472,12 @@ export function AdminPage() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (!managesAccounts) return;
+    void api<{ enabled: boolean }>("/api/admin/directory")
+      .then((result) => setDirectoryEnabled(result.enabled))
+      .catch(() => setDirectoryEnabled(false));
+  }, [managesAccounts]);
 
   useEffect(() => {
     if (searchParams.get("novo") !== "1" || !managesAccounts) return;
@@ -546,7 +558,7 @@ export function AdminPage() {
     await mutate(
       async () => {
         const email = String(data.get("email")).trim().toLowerCase();
-        if (users.some((account) => account.email.toLowerCase() === email)) {
+        if (users.some((account) => account.email?.toLowerCase() === email)) {
           throw new ApiError(
             409,
             "EMAIL_ALREADY_IN_USE",
@@ -841,6 +853,18 @@ export function AdminPage() {
                 Cada pessoa pode receber perfis e ajustes individuais.
               </p>
             </div>
+            {directoryEnabled && managesAccounts ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setDirectoryAccount(null);
+                  setDirectoryDialog(true);
+                }}
+              >
+                Novo acesso AD
+              </Button>
+            ) : null}
             {managesAccounts ? (
               <Button
                 size="sm"
@@ -870,7 +894,7 @@ export function AdminPage() {
               <thead>
                 <tr>
                   <TableHead>Pessoa</TableHead>
-                  <TableHead>E-mail</TableHead>
+                  <TableHead>Identificação de acesso</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </tr>
@@ -886,7 +910,14 @@ export function AdminPage() {
                         {account.employment?.unitName ?? "Sem vínculo ativo"}
                       </p>
                     </TableCell>
-                    <TableCell className="break-all">{account.email}</TableCell>
+                    <TableCell className="break-all">
+                      <p>{account.email ?? account.directoryUsername}</p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {account.authProvider === "ad"
+                          ? "Active Directory"
+                          : "Conta local"}
+                      </p>
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -915,7 +946,9 @@ export function AdminPage() {
                             Acessos
                           </Button>
                         ) : null}
-                        {managesAccounts && account.status === "active" ? (
+                        {managesAccounts &&
+                        account.status === "active" &&
+                        account.authProvider === "local" ? (
                           <Button
                             aria-label={`Redefinir senha de ${account.person.displayName}`}
                             disabled={busy}
@@ -924,6 +957,22 @@ export function AdminPage() {
                             onClick={() => setPasswordAccount(account)}
                           >
                             Redefinir senha
+                          </Button>
+                        ) : null}
+                        {directoryEnabled &&
+                        managesAccounts &&
+                        account.status === "active" &&
+                        account.authProvider === "local" &&
+                        account.id !== user?.account.id ? (
+                          <Button
+                            size="sm"
+                            variant="quiet"
+                            onClick={() => {
+                              setDirectoryAccount(account);
+                              setDirectoryDialog(true);
+                            }}
+                          >
+                            Vincular AD
                           </Button>
                         ) : null}
                         {managesAccounts &&
@@ -1815,6 +1864,19 @@ export function AdminPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {directoryDialog ? (
+        <DirectoryLinkDialog
+          account={directoryAccount}
+          onClose={() => setDirectoryDialog(false)}
+          onLinked={async () => {
+            await load();
+            await refresh();
+            setSuccess(
+              "Identidade vinculada ao AD. Revise os acessos da pessoa.",
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }

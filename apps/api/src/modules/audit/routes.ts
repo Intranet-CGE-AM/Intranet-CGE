@@ -127,7 +127,7 @@ function serializeEvent(
     id: event.id,
     action: event.action,
     actor:
-      event.actorAccountId && event.actorEmail && event.actorName
+      event.actorAccountId && event.actorName
         ? {
             accountId: event.actorAccountId,
             email: event.actorEmail,

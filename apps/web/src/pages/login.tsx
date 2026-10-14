@@ -40,7 +40,7 @@ export function LoginPage() {
     const data = new FormData(event.currentTarget);
     try {
       await login({
-        email: String(data.get("email")),
+        identifier: String(data.get("email")),
         password: String(data.get("password")),
       });
       navigate(state?.from ?? "/", { replace: true });
@@ -59,11 +59,11 @@ export function LoginPage() {
     <AuthLayout
       eyebrow="Acesso institucional"
       title="Bem-vindo de volta"
-      description="Entre com as credenciais fornecidas pela administração da intranet."
+      description="Entre com seu usuário corporativo ou com o e-mail da conta local."
     >
       <div className="mb-6 flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
         <LockKey aria-hidden="true" className="text-[var(--brand)]" size={16} />
-        Autenticação local protegida
+        Acesso institucional protegido
       </div>
       {passwordChanged ? (
         <Alert title="Senha alterada" className="mb-5" tone="success">
@@ -76,11 +76,11 @@ export function LoginPage() {
         </Alert>
       ) : null}
       <form className="space-y-4" onSubmit={submit}>
-        <FormField htmlFor="email" label="E-mail institucional">
+        <FormField htmlFor="email" label="E-mail institucional ou usuário AD">
           <Input
             id="email"
             name="email"
-            type="email"
+            type="text"
             autoComplete="username"
             spellCheck={false}
             required
@@ -99,6 +99,10 @@ export function LoginPage() {
           {submitting ? "Entrando…" : "Entrar na intranet"}
         </Button>
       </form>
+      <p className="mt-4 text-sm text-[var(--text-muted)]">
+        Para recuperar ou alterar sua senha corporativa, siga o procedimento da
+        TI.
+      </p>
     </AuthLayout>
   );
 }

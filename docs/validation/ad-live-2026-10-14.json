@@ -1,0 +1,131 @@
+{
+  "accounts": [
+    {
+      "SamAccountName": "it-ad-u-aec453r",
+      "Enabled": false,
+      "Guid": "8bdfa59e-aece-4824-9088-a47328ce1d78",
+      "Expires": "2026-10-15T08:04:06.9510758-04:00"
+    },
+    {
+      "SamAccountName": "it-ad-r-aec453",
+      "Enabled": false,
+      "Guid": "5af2c186-4f80-4ffa-9e7f-f2127ee236b7",
+      "Expires": "2026-10-15T08:04:08.1086692-04:00"
+    }
+  ],
+  "checks": [
+    {
+      "action": "browser",
+      "realDirectory": true,
+      "explicitLink": true,
+      "login": 200,
+      "provider": "ad",
+      "noEmail": true,
+      "permissions": 0,
+      "scenario": "browser_link_and_login"
+    },
+    {
+      "action": "wrong-password",
+      "status": 401,
+      "expected": 401,
+      "scenario": "incorrect_password"
+    },
+    {
+      "action": "session",
+      "status": 401,
+      "expected": 401,
+      "scenario": "disabled_session_revoked"
+    },
+    {
+      "action": "login",
+      "status": 401,
+      "expected": 401,
+      "scenario": "disabled_login_rejected"
+    },
+    {
+      "action": "login",
+      "status": 200,
+      "expected": 200,
+      "scenario": "reenabled_login"
+    },
+    {
+      "action": "session",
+      "status": 401,
+      "expected": 401,
+      "scenario": "expired_session_revoked"
+    },
+    {
+      "action": "login",
+      "status": 401,
+      "expected": 401,
+      "scenario": "expired_login_rejected"
+    },
+    {
+      "action": "login",
+      "status": 200,
+      "expected": 200,
+      "scenario": "expiration_cleared_login"
+    },
+    {
+      "action": "session",
+      "status": 401,
+      "expected": 401,
+      "scenario": "mandatory_password_change_session_revoked"
+    },
+    {
+      "action": "login",
+      "status": 401,
+      "expected": 401,
+      "scenario": "mandatory_password_change_login_rejected"
+    },
+    {
+      "action": "login",
+      "status": 200,
+      "expected": 200,
+      "scenario": "password_reset_login"
+    },
+    {
+      "action": "login",
+      "status": 200,
+      "expected": 200,
+      "scenario": "renamed_user_login_same_guid"
+    },
+    {
+      "action": "session",
+      "status": 200,
+      "expected": 200,
+      "scenario": "renamed_user_session"
+    },
+    {
+      "action": "logout",
+      "status": 204,
+      "expected": 204,
+      "scenario": "logout"
+    },
+    {
+      "action": "session",
+      "status": 401,
+      "expected": 401,
+      "scenario": "session_rejected_after_logout"
+    }
+  ],
+  "note": "Live AD; backend and database local; recheck interval 1 second for validation; normal default 300 seconds.",
+  "date": "2026-10-14",
+  "directory": "CGE-DC01.cge.lan / cge.lan",
+  "tls": "Corporate CA and server hostname validated",
+  "accountMembership": {
+    "primaryGroupID": 513,
+    "memberOf": []
+  },
+  "cleanup": {
+    "adAccountsDisabled": true,
+    "generatedCredentialsRemoved": true,
+    "localTestDatabaseRemoved": true,
+    "domainPolicyChanged": false
+  },
+  "limitations": [
+    "Application and database were local, connected to the real AD via VPN.",
+    "Session revalidation was shortened to 1 second for testing; default remains 300 seconds.",
+    "Lockout was not exercised: domain LockoutThreshold is 0; no policy was changed."
+  ]
+}

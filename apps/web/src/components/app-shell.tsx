@@ -327,7 +327,7 @@ function AccountMenu({
             {user.person.displayName}
           </span>
           <span className="mt-0.5 block truncate text-[10px] font-medium text-[var(--text-faint)]">
-            {user.account.email}
+            {user.account.email ?? user.account.directoryUsername}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

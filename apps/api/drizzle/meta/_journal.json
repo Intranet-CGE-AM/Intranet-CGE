@@ -64,6 +64,13 @@
       "when": 1790650827228,
       "tag": "0008_rapid_white_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791977515211,
+      "tag": "0009_far_gamora",
+      "breakpoints": true
     }
   ]
 }

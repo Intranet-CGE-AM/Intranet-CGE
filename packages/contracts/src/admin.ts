@@ -15,7 +15,9 @@ export const passwordResetSchema = z.object({
 
 export const adminUserSchema = z.object({
   id: z.uuid(),
-  email: z.email(),
+  email: z.email().nullable(),
+  authProvider: z.enum(["local", "ad"]),
+  directoryUsername: z.string().nullable(),
   status: z.enum(["active", "disabled"]),
   person: z.object({
     id: z.uuid(),
@@ -40,3 +42,21 @@ export type AccountCreate = z.infer<typeof accountCreateSchema>;
 export type AccountCandidate = z.infer<typeof accountCandidateSchema>;
 export type PasswordReset = z.infer<typeof passwordResetSchema>;
 export type AdminUser = z.infer<typeof adminUserSchema>;
+
+export const directoryLookupSchema = z.object({
+  identifier: z.string().trim().min(1).max(254),
+});
+export const directoryPreviewSchema = z.object({
+  guid: z.uuid(),
+  upn: z.string(),
+  samAccountName: z.string(),
+  displayName: z.string(),
+  email: z.email().nullable(),
+  eligible: z.boolean(),
+});
+export const directoryLinkSchema = directoryLookupSchema.extend({
+  personId: z.uuid(),
+  expectedGuid: z.uuid(),
+});
+export type DirectoryPreview = z.infer<typeof directoryPreviewSchema>;
+export type DirectoryLink = z.infer<typeof directoryLinkSchema>;
