@@ -145,6 +145,36 @@ export function AssetCreatePage() {
       }
     }
 
+    if (acquisitionValueText) {
+      const isValidFormat =
+        /^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(
+          acquisitionValueText,
+        );
+
+      if (!isValidFormat) {
+        nextErrors.acquisitionValue =
+          "Informe um valor patrimonial válido.";
+      } else {
+        const normalizedValue =
+          acquisitionValueText
+            .replace(/\./g, "")
+            .replace(",", ".");
+
+        const parsed =
+          Number(normalizedValue);
+
+        if (
+          Number.isNaN(parsed) ||
+          parsed < 0
+        ) {
+          nextErrors.acquisitionValue =
+            "Informe um valor patrimonial válido.";
+        } else {
+          acquisitionValue =
+            parsed;
+        }
+      }
+    }
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0 ) { return;}
@@ -494,13 +524,22 @@ export function AssetCreatePage() {
                 htmlFor="acquisitionValue"
                 label="Valor de aquisição (opcional)"
               >
-                <Input
-                  aria-invalid={Boolean(errors.acquisitionValue)}
-                  id="acquisitionValue"
-                  inputMode="decimal"
-                  name="acquisitionValue"
-                  placeholder="0,00"
-                />
+               <Input
+                aria-invalid={Boolean(errors.acquisitionValue)}
+                id="acquisitionValue"
+                inputMode="decimal"
+                name="acquisitionValue"
+                placeholder="0,00"
+                onInput={(event) => {
+                  const input = event.currentTarget;
+
+                  input.value =
+                    input.value.replace(
+                      /[^0-9.,]/g,
+                      "",
+                    );
+                }}
+              />
               </FormField>
 
               <FormField htmlFor="commitmentNumber" label="Empenho (opcional)">
