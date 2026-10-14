@@ -123,7 +123,17 @@ export function AssetEditPage() {
       setDocumentDate(result.documentDate ?? "");
 
       setAcquisitionValue(
-        result.acquisitionValue !== null ? String(result.acquisitionValue) : "",
+        result.acquisitionValue !== null
+          ? Number(
+              result.acquisitionValue,
+            ).toLocaleString(
+              "pt-BR",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              },
+            )
+          : "",
       );
 
       setCommitmentNumber(result.commitmentNumber ?? "");
@@ -173,21 +183,35 @@ export function AssetEditPage() {
       nextErrors.description = "Informe a descrição do bem.";
     }
 
-    let parsedValue: number | null = null;
+let parsedValue:
+  number | null = null;
 
-    if (acquisitionValue.trim()) {
-      parsedValue = Number(acquisitionValue.replace(",", "."));
+if (
+  acquisitionValue.trim()
+) {
+  const normalizedValue =
+    acquisitionValue
+      .replace(/\./g, "")
+      .replace(",", ".");
 
-      if (Number.isNaN(parsedValue) || parsedValue < 0) {
-        nextErrors.acquisitionValue = "Informe um valor de aquisição válido.";
-      }
-    }
+  parsedValue =
+    Number(
+      normalizedValue,
+    );
 
-    setErrors(nextErrors);
+  if (
+    Number.isNaN(
+      parsedValue,
+    ) ||
+    parsedValue < 0
+  ) {
+    setError(
+      "Informe um valor de aquisição válido.",
+    );
 
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
+    return;
+  }
+}
 
     const input: AssetUpdate = {
       patrimonyNumber: patrimonyNumber.trim(),
@@ -435,13 +459,23 @@ export function AssetEditPage() {
                 label="Valor de aquisição (opcional)"
               >
                 <Input
-                  aria-invalid={Boolean(errors.acquisitionValue)}
                   id="acquisitionValue"
                   inputMode="decimal"
-                  name="acquisitionValue"
-                  placeholder="0,00"
-                  value={acquisitionValue}
-                  onChange={(event) => setAcquisitionValue(event.target.value)}
+                  value={
+                    acquisitionValue
+                  }
+                  onChange={(event) => {
+                    const value =
+                      event.target.value
+                        .replace(
+                          /[^0-9.,]/g,
+                          "",
+                        );
+
+                    setAcquisitionValue(
+                      value,
+                    );
+                  }}
                 />
               </FormField>
 
