@@ -34,7 +34,7 @@ const NONE = "__none__";
 
 const conservationSelectOptions = [
   { label: "Não informado", value: NONE },
-...conservationOptions,
+  ...conservationOptions,
 ];
 
 type FieldErrors = Partial<
@@ -177,7 +177,7 @@ export function AssetCreatePage() {
     }
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0 ) { return;}
+    if (Object.keys(nextErrors).length > 0) { return; }
 
     const input: AssetCreate = {
       patrimonyNumber,
@@ -219,32 +219,32 @@ export function AssetCreatePage() {
 
       navigate("/patrimonio/bens");
     } catch (cause) {
-  if (cause instanceof ApiError) {
-    if (
-      cause.code ===
-      "PATRIMONY_NUMBER_ALREADY_EXISTS"
-    ) {
-      setErrors((current) => ({
-        ...current,
+      if (cause instanceof ApiError) {
+        if (
+          cause.code ===
+          "PATRIMONY_NUMBER_ALREADY_EXISTS"
+        ) {
+          setErrors((current) => ({
+            ...current,
 
-        patrimonyNumber:
-          "Já existe um bem cadastrado com este número de tombo.",
-      }));
+            patrimonyNumber:
+              "Já existe um bem cadastrado com este número de tombo.",
+          }));
 
-      setError("");
+          setError("");
 
-      return;
+          return;
+        }
+
+        setError(cause.message);
+      } else {
+        setError(
+          "Não foi possível cadastrar o bem patrimonial.",
+        );
+      }
+    } finally {
+      setSaving(false);
     }
-
-    setError(cause.message);
-  } else {
-    setError(
-      "Não foi possível cadastrar o bem patrimonial.",
-    );
-  }
-} finally {
-  setSaving(false);
-}
   }
 
   const departments = units.filter((unit) => unit.type === "department");
@@ -298,16 +298,16 @@ export function AssetCreatePage() {
                   placeholder="Ex.: 335"
                   required
                   onChange={() => {
-                  if (
-                    errors.patrimonyNumber
-                  ) {
-                    setErrors((current) => ({
-                      ...current,
-                      patrimonyNumber:
-                        undefined,
-                    }));
-                  }
-                }}
+                    if (
+                      errors.patrimonyNumber
+                    ) {
+                      setErrors((current) => ({
+                        ...current,
+                        patrimonyNumber:
+                          undefined,
+                      }));
+                    }
+                  }}
                 />
               </FormField>
 
@@ -524,22 +524,22 @@ export function AssetCreatePage() {
                 htmlFor="acquisitionValue"
                 label="Valor de aquisição (opcional)"
               >
-               <Input
-                aria-invalid={Boolean(errors.acquisitionValue)}
-                id="acquisitionValue"
-                inputMode="decimal"
-                name="acquisitionValue"
-                placeholder="0,00"
-                onInput={(event) => {
-                  const input = event.currentTarget;
+                <Input
+                  aria-invalid={Boolean(errors.acquisitionValue)}
+                  id="acquisitionValue"
+                  inputMode="decimal"
+                  name="acquisitionValue"
+                  placeholder="0,00"
+                  onInput={(event) => {
+                    const input = event.currentTarget;
 
-                  input.value =
-                    input.value.replace(
-                      /[^0-9.,]/g,
-                      "",
-                    );
-                }}
-              />
+                    input.value =
+                      input.value.replace(
+                        /[^0-9.,]/g,
+                        "",
+                      );
+                  }}
+                />
               </FormField>
 
               <FormField htmlFor="commitmentNumber" label="Empenho (opcional)">

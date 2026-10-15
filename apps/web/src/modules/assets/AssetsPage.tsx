@@ -191,8 +191,8 @@ export function AssetsPage() {
           loading
             ? "Carregando informações do patrimônio."
             : `${formatCurrency(
-                totalValue,
-              )} em patrimônio cadastrado na instituição.`
+              totalValue,
+            )} em patrimônio cadastrado na instituição.`
         }
         eyebrow="Resumo patrimonial"
         title={

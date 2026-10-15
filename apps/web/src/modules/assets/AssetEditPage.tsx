@@ -125,14 +125,14 @@ export function AssetEditPage() {
       setAcquisitionValue(
         result.acquisitionValue !== null
           ? Number(
-              result.acquisitionValue,
-            ).toLocaleString(
-              "pt-BR",
-              {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              },
-            )
+            result.acquisitionValue,
+          ).toLocaleString(
+            "pt-BR",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            },
+          )
           : "",
       );
 
@@ -183,35 +183,35 @@ export function AssetEditPage() {
       nextErrors.description = "Informe a descrição do bem.";
     }
 
-let parsedValue:
-  number | null = null;
+    let parsedValue:
+      number | null = null;
 
-if (
-  acquisitionValue.trim()
-) {
-  const normalizedValue =
-    acquisitionValue
-      .replace(/\./g, "")
-      .replace(",", ".");
+    if (
+      acquisitionValue.trim()
+    ) {
+      const normalizedValue =
+        acquisitionValue
+          .replace(/\./g, "")
+          .replace(",", ".");
 
-  parsedValue =
-    Number(
-      normalizedValue,
-    );
+      parsedValue =
+        Number(
+          normalizedValue,
+        );
 
-  if (
-    Number.isNaN(
-      parsedValue,
-    ) ||
-    parsedValue < 0
-  ) {
-    setError(
-      "Informe um valor de aquisição válido.",
-    );
+      if (
+        Number.isNaN(
+          parsedValue,
+        ) ||
+        parsedValue < 0
+      ) {
+        setError(
+          "Informe um valor de aquisição válido.",
+        );
 
-    return;
-  }
-}
+        return;
+      }
+    }
 
     const input: AssetUpdate = {
       patrimonyNumber: patrimonyNumber.trim(),

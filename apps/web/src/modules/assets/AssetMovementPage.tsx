@@ -83,7 +83,7 @@ export function AssetMovementPage() {
       setCurrentUnit(
         assetResult.unitId
           ? (unitsResult.units.find((unit) => unit.id === assetResult.unitId) ??
-              null)
+            null)
           : null,
       );
 
@@ -203,14 +203,14 @@ export function AssetMovementPage() {
         ? (unitsById.get(currentUnit.parentId) ?? null)
         : currentUnit?.type === "subsector"
           ? (() => {
-              const sector = currentUnit.parentId
-                ? (unitsById.get(currentUnit.parentId) ?? null)
-                : null;
+            const sector = currentUnit.parentId
+              ? (unitsById.get(currentUnit.parentId) ?? null)
+              : null;
 
-              return sector?.parentId
-                ? (unitsById.get(sector.parentId) ?? null)
-                : null;
-            })()
+            return sector?.parentId
+              ? (unitsById.get(sector.parentId) ?? null)
+              : null;
+          })()
           : null;
 
   const currentSector =

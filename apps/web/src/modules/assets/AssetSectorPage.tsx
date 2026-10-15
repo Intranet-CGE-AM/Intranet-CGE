@@ -389,10 +389,10 @@ export function AssetSectorPage() {
 
   const visibleUnits = term
     ? units.filter(
-        (unit) =>
-          unit.code.toLowerCase().includes(term) ||
-          unit.name.toLowerCase().includes(term),
-      )
+      (unit) =>
+        unit.code.toLowerCase().includes(term) ||
+        unit.name.toLowerCase().includes(term),
+    )
     : units;
 
   return (
