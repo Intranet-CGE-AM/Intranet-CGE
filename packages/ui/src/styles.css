@@ -251,6 +251,8 @@ a {
   color: var(--text);
 }
 
+
+
 /* Animações da Sidebar / Sheet (Menu Mobile) com fechamento lento e suave */
 @keyframes cge-sheet-fade-in {
   from {

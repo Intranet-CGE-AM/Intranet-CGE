@@ -129,6 +129,7 @@ export function DatePicker({
           >
             <DayPicker
               captionLayout="dropdown"
+              navLayout="around"
               className="cge-calendar cge-calendar-single"
               components={{ Chevron: CalendarChevron }}
               defaultMonth={selected ?? maximum ?? today}
@@ -149,7 +150,7 @@ export function DatePicker({
               }}
               locale={ptBR}
               mode="single"
-              navLayout="after"
+              // navLayout="after"
               onSelect={select}
               required={required}
               reverseYears
@@ -285,6 +286,7 @@ export function DateRangePicker({
             <DayPicker
               animate
               captionLayout="dropdown"
+              navLayout="around"
               className="cge-calendar"
               components={{
                 Chevron: CalendarChevron,
