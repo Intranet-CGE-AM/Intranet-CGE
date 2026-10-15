@@ -262,3 +262,39 @@ test("quem envia com a chave de revisão não recebe o próprio aviso nem a pend
     await Promise.all(clients.map((client) => client.dispose()));
   }
 });
+
+test("versão da equipe em análise avisa a Subcontroladoria, como a resposta à correção", async ({
+  playwright,
+  baseURL,
+}) => {
+  const clients = await Promise.all(
+    [
+      auditAccounts.coordinatorA,
+      auditAccounts.assessorA,
+      auditAccounts.reviewer,
+    ].map((email) => signIn(playwright, baseURL!, email)),
+  );
+  const [coordinator, assessor, reviewer] = tuple(clients, 3);
+  try {
+    const id = await submit(
+      coordinator,
+      await unitId(coordinator, auditTeams.a),
+    );
+    const item = `audit_document:${id}`;
+    expect(
+      (await uploadVersion(assessor, id, { version: 1 }, pdfFile())).status(),
+    ).toBe(201);
+    expect(await notices(reviewer, id)).toEqual([
+      "audit-document.resubmitted",
+      "audit-document.submitted",
+    ]);
+    // Colegas de equipe não são avisados; a pendência segue com a revisão.
+    for (const client of [coordinator, assessor])
+      expect(await notices(client, id)).toEqual([]);
+    expect(await inbox(reviewer)).toContain(item);
+    for (const client of [coordinator, assessor])
+      expect(await inbox(client)).not.toContain(item);
+  } finally {
+    await Promise.all(clients.map((client) => client.dispose()));
+  }
+});

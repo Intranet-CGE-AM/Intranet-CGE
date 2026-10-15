@@ -168,7 +168,11 @@ export function AccountPage() {
 
         <div className="max-w-2xl">
           <AvatarPicker
-            description={currentUser.account.email}
+            description={
+              currentUser.account.email ??
+              currentUser.account.directoryUsername ??
+              undefined
+            }
             disabled={avatarBusy}
             file={avatarFile}
             id="accountAvatar"
@@ -236,54 +240,57 @@ export function AccountPage() {
             Segurança
           </h2>
           <p className="mt-2 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
-            Alterar a senha encerra as sessões abertas. Você deverá entrar
-            novamente.
+            {currentUser.account.authProvider === "ad"
+              ? "Sua senha é gerenciada pelo Active Directory. Para alterar ou recuperar o acesso, siga o procedimento da TI."
+              : "Alterar a senha encerra as sessões abertas. Você deverá entrar novamente."}
           </p>
         </div>
 
-        <form className="max-w-2xl space-y-4" onSubmit={updatePassword}>
-          {passwordError ? (
-            <Alert title="Revise os dados" tone="danger">
-              {passwordError}
-            </Alert>
-          ) : null}
-          <FormField htmlFor="currentPassword" label="Senha atual">
-            <Input
-              autoComplete="current-password"
-              id="currentPassword"
-              name="currentPassword"
-              required
-              type="password"
-            />
-          </FormField>
-          <FormField
-            htmlFor="newPassword"
-            label="Nova senha"
-            hint="Use pelo menos 12 caracteres."
-          >
-            <Input
-              autoComplete="new-password"
-              id="newPassword"
-              minLength={12}
-              name="newPassword"
-              required
-              type="password"
-            />
-          </FormField>
-          <FormField htmlFor="confirmation" label="Confirme a nova senha">
-            <Input
-              autoComplete="new-password"
-              id="confirmation"
-              minLength={12}
-              name="confirmation"
-              required
-              type="password"
-            />
-          </FormField>
-          <Button disabled={passwordBusy} type="submit">
-            {passwordBusy ? "Alterando…" : "Alterar senha"}
-          </Button>
-        </form>
+        {currentUser.account.authProvider === "local" ? (
+          <form className="max-w-2xl space-y-4" onSubmit={updatePassword}>
+            {passwordError ? (
+              <Alert title="Revise os dados" tone="danger">
+                {passwordError}
+              </Alert>
+            ) : null}
+            <FormField htmlFor="currentPassword" label="Senha atual">
+              <Input
+                autoComplete="current-password"
+                id="currentPassword"
+                name="currentPassword"
+                required
+                type="password"
+              />
+            </FormField>
+            <FormField
+              htmlFor="newPassword"
+              label="Nova senha"
+              hint="Use pelo menos 12 caracteres."
+            >
+              <Input
+                autoComplete="new-password"
+                id="newPassword"
+                minLength={12}
+                name="newPassword"
+                required
+                type="password"
+              />
+            </FormField>
+            <FormField htmlFor="confirmation" label="Confirme a nova senha">
+              <Input
+                autoComplete="new-password"
+                id="confirmation"
+                minLength={12}
+                name="confirmation"
+                required
+                type="password"
+              />
+            </FormField>
+            <Button disabled={passwordBusy} type="submit">
+              {passwordBusy ? "Alterando…" : "Alterar senha"}
+            </Button>
+          </form>
+        ) : null}
       </section>
       {avatarToast ? (
         <Toast

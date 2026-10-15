@@ -177,7 +177,7 @@ export function AuditPage() {
           <div>
             <p className="font-semibold">{row.original.actor.displayName}</p>
             <p className="mt-0.5 text-xs text-[var(--text-faint)]">
-              {row.original.actor.email}
+              {row.original.actor.email ?? "Sem e-mail"}
             </p>
           </div>
         ) : (
@@ -457,7 +457,7 @@ export function AuditPage() {
                 label="Responsável"
                 value={
                   selected.actor
-                    ? `${selected.actor.displayName} · ${selected.actor.email}`
+                    ? `${selected.actor.displayName} · ${selected.actor.email ?? "Sem e-mail"}`
                     : "Sistema"
                 }
               />

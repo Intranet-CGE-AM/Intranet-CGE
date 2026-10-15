@@ -3,10 +3,15 @@ import { z } from "zod";
 import { permissionEffectSchema, permissionKeySchema } from "./access.js";
 import { delegationSchema } from "./substitutions.js";
 
-export const loginRequestSchema = z.object({
-  email: z.email().max(254),
-  password: z.string().min(1).max(128),
-});
+export const loginRequestSchema = z
+  .object({
+    identifier: z.string().trim().min(1).max(254).optional(),
+    email: z.email().max(254).optional(),
+    password: z.string().min(1).max(128),
+  })
+  .refine((value) => Boolean(value.identifier) !== Boolean(value.email), {
+    message: "Informe um único identificador de acesso.",
+  });
 
 export const changePasswordRequestSchema = z
   .object({
@@ -28,7 +33,9 @@ export const effectivePermissionSchema = z.object({
 export const authenticatedUserSchema = z.object({
   account: z.object({
     id: z.uuid(),
-    email: z.email(),
+    email: z.email().nullable(),
+    authProvider: z.enum(["local", "ad"]),
+    directoryUsername: z.string().nullable(),
     mustChangePassword: z.boolean(),
   }),
   person: z.object({

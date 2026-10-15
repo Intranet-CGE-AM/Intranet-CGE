@@ -9,6 +9,7 @@ import {
   signInAll,
   transition,
   unique,
+  type AuditDetail,
 } from "./audit-document-api";
 import {
   auditTeams,
@@ -216,20 +217,13 @@ test("ações válidas pela permissão, mas não pela etapa, recebem 409 sem efe
         409,
         illegal,
       );
-    // A equipe envia versão só após pedido de correção.
+    // Documento aprovado não aceita nova versão da equipe.
     await unchanged(
       reviewer,
       approved,
       () => upload(coordinator, approved, 2),
       409,
       "não aceita novas versões",
-    );
-    // Em análise, a nova versão é edição da revisão: a equipe não tem a chave (403 antes de 409).
-    await unchanged(
-      reviewer,
-      inReview,
-      () => upload(coordinator, inReview, 1),
-      403,
     );
   } finally {
     await Promise.all(clients.map((client) => client!.dispose()));
@@ -426,7 +420,7 @@ test("ações permitidas por papel e etapa", async ({ playwright, baseURL }) => 
 
     const byAssessor = await inEachStatus(assessor);
     await expectActions(coordinator, byAssessor, {
-      in_review: ["cancel"],
+      in_review: ["submit_version", "cancel"],
       correction_requested: ["submit_version", "cancel"],
       approved: [],
       cancelled: [],
@@ -443,10 +437,11 @@ test("ações permitidas por papel e etapa", async ({ playwright, baseURL }) => 
       approved: [],
       cancelled: [],
     });
-    // Admin tem envio e revisão; enviou a versão atual como equipe (Q2: não edita).
+    // Admin tem envio e revisão; enviou a versão atual como equipe (Q2: salva
+    // nova versão como equipe, não edita como revisão nem decide).
     const byAdmin = await inEachStatus(admin);
     await expectActions(admin, byAdmin, {
-      in_review: ["cancel"],
+      in_review: ["submit_version", "cancel"],
       correction_requested: ["submit_version", "cancel"],
       approved: ["reopen"],
       cancelled: [],
@@ -519,9 +514,34 @@ test("segregação de funções acompanha quem enviou a versão atual como equip
       }),
     );
 
-    // Q2: quem enviou a versão atual como equipe também não edita como revisão.
+    // Q2: quem enviou a versão atual como equipe também não edita como
+    // revisão. Com as duas chaves, a nova versão em análise entra como equipe
+    // e continua sem poder ser aprovada por quem a enviou.
     const q2 = await create(admin, teamA);
-    await unchanged(reviewer, q2, () => edit(admin, q2, 1), 403);
+    const own = await edit(admin, q2, 1);
+    expect(own.status()).toBe(201);
+    const afterOwn = (await own.json()) as AuditDetail;
+    expect(afterOwn).toMatchObject({ status: "in_review", version: 2 });
+    expect(afterOwn.files.at(-1)).toMatchObject({
+      uploadedAs: "team",
+      uploadedByAccountId: await accountId(admin),
+    });
+    expect(afterOwn.events.at(-1)!.type).toBe("resubmitted");
+    expect(sorted(afterOwn.allowedActions)).toEqual([
+      "cancel",
+      "submit_version",
+    ]);
+    for (const data of [
+      { action: "approve", version: 2 },
+      { action: "request_correction", version: 2, message: "Autoanálise." },
+    ])
+      await unchanged(
+        reviewer,
+        q2,
+        () => transition(admin, q2, data),
+        403,
+        "Quem enviou a versão atual",
+      );
 
     // SD-07: edição da revisão sobre a versão de outra pessoa; depois aprova.
     const sd07 = await create(admin, teamA);
@@ -639,6 +659,82 @@ test("precedência dos erros quando mais de uma regra falha", async ({
       409,
       stale,
     );
+  } finally {
+    await Promise.all(clients.map((client) => client!.dispose()));
+  }
+});
+
+test("equipe salva nova versão com o documento em análise", async ({
+  playwright,
+  baseURL,
+}) => {
+  const clients = await signInAll(
+    playwright,
+    baseURL!,
+    "assessorA",
+    "coordinatorA",
+    "reviewer",
+  );
+  const [assessor, coordinator, reviewer] = clients as [
+    APIRequestContext,
+    APIRequestContext,
+    APIRequestContext,
+  ];
+  try {
+    const teamA = await unitId(assessor, auditTeams.a);
+    const id = await create(assessor, teamA);
+
+    expect(sorted((await detail(assessor, id)).allowedActions)).toEqual([
+      "cancel",
+      "submit_version",
+    ]);
+    // A assessoria salva a versão 2 sem esperar pedido de correção.
+    const saved = await edit(assessor, id, 1);
+    expect(saved.status()).toBe(201);
+    const afterAssessor = (await saved.json()) as AuditDetail;
+    expect(afterAssessor).toMatchObject({ status: "in_review", version: 2 });
+    expect(afterAssessor.files.at(-1)).toMatchObject({
+      number: 2,
+      uploadedAs: "team",
+      uploadedByAccountId: await accountId(assessor),
+    });
+    expect(afterAssessor.events.at(-1)).toMatchObject({
+      type: "resubmitted",
+      fromStatus: "in_review",
+      toStatus: "in_review",
+    });
+
+    // A colega de equipe faz o mesmo sobre o documento da assessoria.
+    const byColleague = await edit(coordinator, id, 2);
+    expect(byColleague.status()).toBe(201);
+    const afterColleague = (await byColleague.json()) as AuditDetail;
+    expect(afterColleague).toMatchObject({ status: "in_review", version: 3 });
+    expect(afterColleague.files.at(-1)).toMatchObject({
+      number: 3,
+      uploadedAs: "team",
+      uploadedByAccountId: await accountId(coordinator),
+    });
+
+    // A revisão que abriu a versão anterior não aprova sem recarregar.
+    await unchanged(
+      reviewer,
+      id,
+      () => transition(reviewer, id, { action: "approve", version: 2 }),
+      409,
+      stale,
+    );
+    expect((await detail(reviewer, id)).status).toBe("in_review");
+
+    // A revisão continua editando em análise, como edição da revisão.
+    const reviewed = await edit(reviewer, id, 3);
+    expect(reviewed.status()).toBe(201);
+    const afterReviewer = (await reviewed.json()) as AuditDetail;
+    expect(afterReviewer).toMatchObject({ status: "in_review", version: 4 });
+    expect(afterReviewer.files.at(-1)).toMatchObject({
+      number: 4,
+      uploadedAs: "reviewer",
+    });
+    expect(afterReviewer.events.at(-1)!.type).toBe("edited");
   } finally {
     await Promise.all(clients.map((client) => client!.dispose()));
   }

@@ -344,9 +344,12 @@ test("editor só abre na versão atual em Word, para quem pode editar", async ({
     // Approved: nobody edits.
     await blocked(approved.id);
 
-    // In review: the team waits for the reviewer.
+    // In review: the team edits too. Cancelled: nobody does.
     await signInPage(page, auditAccounts.coordinatorA);
-    await blocked(word.id);
+    await page.goto(`/controle-interno/documentos/${word.id}`);
+    await expect(
+      page.getByRole("link", { name: "Editar no navegador" }),
+    ).toBeVisible();
     await blocked(cancelled.id);
 
     // Correction requested: the team edits, the reviewer does not.
@@ -417,6 +420,63 @@ test("salvar sobre versão desatualizada mostra conflito e recarrega", async ({
     await expect(editorBox(page)).toContainText(
       "Texto em disputa pela primeira revisora",
     );
+  } finally {
+    await api.dispose();
+  }
+});
+
+test("equipe edita no navegador com o documento em análise", async ({
+  page,
+  playwright,
+  baseURL,
+}) => {
+  const title = `Edição da equipe em análise ${Date.now()}`;
+  const api = await clients(playwright, baseURL!);
+  try {
+    const doc = await submit(api.team, title, {
+      name: "analise.docx",
+      mimeType: docxMime,
+      buffer: sampleDocx("Texto enviado para análise"),
+    });
+    await signInPage(page, auditAccounts.assessorA);
+    await openEditor(page, doc.id);
+    await typeAtEnd(
+      page,
+      "Texto enviado para análise",
+      " com ajuste da equipe",
+    );
+    await page.getByRole("button", { name: "Salvar nova versão" }).click();
+    const save = page.getByRole("dialog", { name: "Salvar nova versão" });
+    // The team's version is not announced as a reviewer edit.
+    await expect(save).toContainText(
+      "A nova versão volta para revisão da Subcontroladoria.",
+    );
+    await checkLayout(page);
+    await save.getByRole("button", { name: "Salvar versão" }).click();
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: title }),
+    ).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Versão" })).toHaveText(
+      "Versão 2 (atual)",
+    );
+    await expect(
+      page.getByText("Em revisão", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(page.getByText("Nova versão enviada").first()).toBeVisible();
+    await expect(
+      page.getByText("Versão editada pela Subcontroladoria"),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .frameLocator('iframe[title="Visualização da versão 2"]')
+        .getByText("Texto enviado para análise com ajuste da equipe"),
+    ).toBeVisible();
+    expect(await current(api.reviewer, doc.id)).toMatchObject({
+      status: "in_review",
+      version: 2,
+      fileCount: 2,
+    });
   } finally {
     await api.dispose();
   }

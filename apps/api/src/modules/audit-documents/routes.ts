@@ -784,17 +784,6 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
               409,
               "Este documento foi atualizado. Recarregue antes de continuar.",
             );
-          // In review, a new version is the reviewer's edit; after a
-          // correction request it is the team's answer.
-          const action =
-            current.status === "in_review" ? "edit_version" : "submit_version";
-          if (denied(action))
-            return fail(
-              403,
-              action === "edit_version"
-                ? "Durante a análise, só a Subcontroladoria salva novas versões."
-                : "Só a equipe responde a um pedido de correção.",
-            );
           const [last] = await tx
             .select({
               number: auditDocumentFiles.number,
@@ -805,6 +794,20 @@ export const auditDocumentRoutes: FastifyPluginAsync<{
             .where(eq(auditDocumentFiles.documentId, current.id))
             .orderBy(desc(auditDocumentFiles.number))
             .limit(1);
+          // In review both sides save: the reviewer's version is an edit,
+          // the team's is a team version. Whoever holds both keys saves as
+          // reviewer, except over a team version of their own: that one stays
+          // a team version, so they still cannot approve their own work.
+          // Outside review only the team sends a version.
+          const action =
+            current.status === "in_review" &&
+            (denied("submit_version") ||
+              (!denied("edit_version") &&
+                !separated(user, "edit_version", teamUploader(last))))
+              ? "edit_version"
+              : "submit_version";
+          if (denied(action))
+            return fail(403, "Só a equipe responde a um pedido de correção.");
           if (separated(user, action, teamUploader(last)))
             return fail(
               403,

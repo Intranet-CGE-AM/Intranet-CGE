@@ -724,9 +724,9 @@ function SaveDialog({
     >
       <DialogContent
         description={
-          document.status === "correction_requested"
-            ? "A nova versão volta para revisão da Subcontroladoria."
-            : "A nova versão fica registrada no histórico como edição da Subcontroladoria."
+          document.allowedActions.includes("edit_version")
+            ? "A nova versão fica registrada no histórico como edição da Subcontroladoria."
+            : "A nova versão volta para revisão da Subcontroladoria."
         }
         title="Salvar nova versão"
       >

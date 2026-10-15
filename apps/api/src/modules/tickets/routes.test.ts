@@ -36,6 +36,8 @@ const commonUser: AuthenticatedUser = {
     id: "00000000-0000-4000-8000-000000000001",
     email: "caio.nascimento@cge.am.gov.br",
     mustChangePassword: false,
+    authProvider: "local",
+    directoryUsername: null,
   },
   person: {
     id: "00000000-0000-4000-8000-000000000002",
@@ -56,6 +58,8 @@ const technicianUser: AuthenticatedUser = {
     id: "00000000-0000-4000-8000-000000000003",
     email: "dandara.ribeiro@cge.am.gov.br",
     mustChangePassword: false,
+    authProvider: "local",
+    directoryUsername: null,
   },
   person: {
     id: "00000000-0000-4000-8000-000000000004",

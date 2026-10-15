@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm -r --if-present test",
-    "test:e2e": "./infra/scripts/e2e.sh"
+    "test:e2e": "./infra/scripts/e2e.sh",
+    "test:ad": "./infra/scripts/test-ad.sh"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

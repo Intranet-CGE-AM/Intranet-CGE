@@ -751,7 +751,7 @@ test("non-eligible and disabled accounts fail with actionable safe states", asyn
   await page.context().clearCookies();
   await login(page, accounts.disabled, password);
   await expect(
-    page.getByRole("alert").getByText("E-mail ou senha inválidos."),
+    page.getByRole("alert").getByText("Usuário ou senha inválidos."),
   ).toBeVisible();
 });
 

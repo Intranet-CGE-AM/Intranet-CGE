@@ -261,7 +261,10 @@ test("equipe vê, abre, baixa e cancela documentos de colegas", async ({
     const teamA = await unitId(coordinator!, auditTeams.a);
     const { id, fileId } = await create(coordinator!, teamA);
     expect(await listIds(assessor!, "?status=in_review")).toContain(id);
-    expect((await detail(assessor!, id)).allowedActions).toEqual(["cancel"]);
+    expect((await detail(assessor!, id)).allowedActions).toEqual([
+      "submit_version",
+      "cancel",
+    ]);
     expect(
       (
         await assessor!.get(

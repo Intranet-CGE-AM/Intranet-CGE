@@ -29,6 +29,7 @@
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "fflate": "0.8.3",
+    "ldapts": "^9.2.0",
     "micromark": "^4.0.2",
     "minio": "8.0.7",
     "nodemailer": "^6.10.0",

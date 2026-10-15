@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { ActiveDirectory } from "./modules/auth/directory.js";
 import "dotenv/config";
 
 import { sql } from "drizzle-orm";
@@ -31,11 +33,29 @@ const vacationService = new VacationService(db);
 const ticketService = new TicketService(db);
 const visitService = new VisitService(db);
 const visitConfirmationService = new VisitConfirmationService(db);
+const ad = config.directory;
+const directory = ad
+  ? new ActiveDirectory({
+      id: ad.AD_DOMAIN,
+      url: ad.AD_URL,
+      baseDN: ad.AD_BASE_DN,
+      bindDN: ad.AD_BIND_DN,
+      bindPassword: readFileSync(ad.AD_BIND_PASSWORD_FILE, "utf8").replace(
+        /\r?\n$/,
+        "",
+      ),
+      ca: readFileSync(ad.AD_CA_CERT_FILE, "utf8"),
+      netbios: ad.AD_NETBIOS,
+      allowedGroupDN: ad.AD_ALLOWED_GROUP_DN,
+      recheckSeconds: ad.AD_RECHECK_SECONDS,
+    })
+  : undefined;
 const authenticationService = new LocalAuthenticationService(
   db,
   config.SESSION_TTL_HOURS,
   (accountId) => accessService.resolvePermissions(accountId),
   (input) => recordAudit(db, input),
+  directory,
 );
 
 const assetService = new AssetService(db);
@@ -44,6 +64,7 @@ const app = await buildApp({
   accessService,
   authenticationService,
   config,
+  directory,
   db,
   logger: true,
   objectStorage,

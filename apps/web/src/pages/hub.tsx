@@ -176,7 +176,7 @@ export function HubPage() {
                     Conta institucional
                   </dt>
                   <dd className="mt-1 truncate font-bold">
-                    {user.account.email}
+                    {user.account.email ?? user.account.directoryUsername}
                   </dd>
                 </div>
               </dl>

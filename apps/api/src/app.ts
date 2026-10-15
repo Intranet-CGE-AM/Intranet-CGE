@@ -1,3 +1,6 @@
+import { directoryRoutes } from "./modules/auth/directory-routes.js";
+import type { Directory } from "./modules/auth/directory.js";
+import { AuthenticationError } from "./modules/auth/directory.js";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -51,6 +54,7 @@ import type { VisitConfirmationService } from "./modules/visits/confirmation-ser
 
 export async function buildApp({
   config,
+  directory,
   authenticationService,
   accessService,
   db,
@@ -64,6 +68,7 @@ export async function buildApp({
   logger = false,
 }: {
   config: AppConfig;
+  directory?: Directory;
   authenticationService?: AuthenticationService;
   accessService?: AccessService;
   db?: Database;
@@ -77,13 +82,28 @@ export async function buildApp({
   logger?: boolean;
 }) {
   const app = Fastify({
-    logger,
+    logger: logger
+      ? {
+          redact: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "req.body.password",
+            "req.body.currentPassword",
+            "req.body.newPassword",
+            "req.body.temporaryPassword",
+          ],
+        }
+      : false,
     trustProxy: true,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof AuthenticationError)
+      return reply
+        .status(error.statusCode)
+        .send({ code: error.code, message: error.message });
     const statusCode =
       typeof error === "object" &&
       error !== null &&
@@ -151,6 +171,12 @@ export async function buildApp({
     });
   }
   if (authenticationService && accessService && db) {
+    await app.register(directoryRoutes, {
+      db,
+      directory,
+      authenticationService,
+      accessService,
+    });
     await app.register(hrRequestRoutes, { db, authenticationService });
     await app.register(notificationRoutes, { db, authenticationService });
     await app.register(occurrenceRoutes, { db, authenticationService });
