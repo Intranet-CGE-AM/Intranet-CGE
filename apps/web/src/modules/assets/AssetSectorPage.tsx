@@ -42,7 +42,7 @@ import {
 type UnitForm = {
   code: string;
   name: string;
-  type: OrganizationUnitType;
+  type: OrganizationUnitType | "";
   parentId: string;
   departmentId: string;
 };
@@ -82,9 +82,9 @@ function ParentUnitFields({
   errors: FieldErrors;
   onChange: (patch: Partial<UnitForm>) => void;
 }) {
-  if (form.type === "department") {
-    return null;
-  }
+if (!form.type || form.type === "department") {
+  return null;
+}
 
   const departments = units.filter(
     (unit) => unit.type === "department" && unit.active,
@@ -230,56 +230,61 @@ export function AssetSectorPage() {
     setDialogOpen(true);
   }
 
-  function startEdit(unit: OrganizationUnit) {
-    if (!unit.type) {
-      setError(
-        "Esta unidade ainda não possui um tipo organizacional definido.",
-      );
 
-      return;
-    }
+function startEdit(unit: OrganizationUnit) {
+  const parentSector =
+    unit.type ?? ""
+      ? units.find((item) => item.id === unit.parentId)
+      : undefined;
 
-    const parentSector =
-      unit.type === "subsector" && unit.parentId
-        ? units.find((item) => item.id === unit.parentId)
-        : undefined;
+  setEditingUnit(unit);
 
-    setEditingUnit(unit);
-    setForm({
-      code: unit.code,
-      name: unit.name,
-      type: unit.type,
-      parentId: unit.parentId ?? "",
-      departmentId: parentSector?.parentId ?? "",
-    });
-    setDialogError("");
-    setFieldErrors({});
-    setError("");
-    setSuccess("");
-    setDialogOpen(true);
-  }
+  setForm({
+    code: unit.code,
+    name: unit.name,
+    type: unit.type ?? "department",
+    parentId: unit.parentId ?? "",
+    departmentId: parentSector?.parentId ?? "",
+  });
+
+  setDialogError("");
+  setFieldErrors({});
+  setError("");
+  setSuccess("");
+  setDialogOpen(true);
+}
+
 
   function validate() {
     const errors: FieldErrors = {};
     let message = "";
 
-    if (!form.code.trim() || !form.name.trim()) {
-      message = "Informe o código e o nome da unidade organizacional.";
-      if (!form.code.trim()) errors.code = "Informe o código.";
-      if (!form.name.trim()) errors.name = "Informe o nome.";
-    } else if (form.type === "subsector" && !form.departmentId) {
-      message = "Selecione o departamento ao qual o subsetor pertence.";
-      errors.department = "Selecione o departamento.";
-    } else if (form.type !== "department" && !form.parentId) {
-      message =
-        form.type === "sector"
-          ? "Selecione o departamento ao qual o setor pertence."
-          : "Selecione o setor ao qual o subsetor pertence.";
-      errors.parent =
-        form.type === "sector"
-          ? "Selecione o departamento."
-          : "Selecione o setor.";
-    }
+   if (!form.code.trim() || !form.name.trim()) {
+  message = "Informe o código e o nome da unidade organizacional.";
+
+  if (!form.code.trim()) {
+    errors.code = "Informe o código.";
+  }
+
+  if (!form.name.trim()) {
+    errors.name = "Informe o nome.";
+  }
+} else if (!form.type) {
+  message = "Selecione o tipo da unidade organizacional.";
+} else if (form.type === "subsector" && !form.departmentId) {
+  message = "Selecione o departamento ao qual o subsetor pertence.";
+  errors.department = "Selecione o departamento.";
+} else if (form.type !== "department" && !form.parentId) {
+  message =
+    form.type === "sector"
+      ? "Selecione o departamento ao qual o setor pertence."
+      : "Selecione o setor ao qual o subsetor pertence.";
+
+  errors.parent =
+    form.type === "sector"
+      ? "Selecione o departamento."
+      : "Selecione o setor.";
+}
 
     setFieldErrors(errors);
     setDialogError(message);
